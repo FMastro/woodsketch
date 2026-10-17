@@ -30,6 +30,8 @@ const RECENT_KEY: &str = "recent_drawings";
 const UPDATES_KEY: &str = "check_updates";
 /// The version that ran last, to say "Updated to ..." once after an update.
 const LAST_VERSION_KEY: &str = "last_version";
+/// Inches or millimeters (View > Units).
+const UNITS_KEY: &str = "units";
 
 pub struct WoodSketchApp {
     doc: Document,
@@ -65,6 +67,10 @@ pub struct WoodSketchApp {
 
 impl WoodSketchApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // Inches or millimeters, as last chosen.
+        if let Some(units) = cc.storage.and_then(|s| eframe::get_value(s, UNITS_KEY)) {
+            woodsketch_doc::units::set_units(units);
+        }
         let render_state = cc
             .wgpu_render_state
             .as_ref()
@@ -431,6 +437,7 @@ impl eframe::App for WoodSketchApp {
         eframe::set_value(storage, RECENT_KEY, &self.recent);
         eframe::set_value(storage, UPDATES_KEY, &self.check_updates);
         eframe::set_value(storage, LAST_VERSION_KEY, &updates::VERSION.to_owned());
+        eframe::set_value(storage, UNITS_KEY, &woodsketch_doc::units::units());
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {

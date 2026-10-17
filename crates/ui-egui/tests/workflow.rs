@@ -1935,3 +1935,25 @@ fn right_click_selects_and_offers_make_unique() {
     let defs: std::collections::BTreeSet<_> = doc.container().instances().map(|(_, i)| i.definition).collect();
     assert_eq!(defs.len(), 2, "the right-clicked copy has its own definition now");
 }
+
+#[test]
+fn view_units_switches_lengths_to_millimeters() {
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    {
+        let doc = harness.state_mut().document_mut();
+        let board = add_board(doc, glam::DVec3::ZERO, 24.0, 3.5, 1.5);
+        doc.selection_mut().extend([board]);
+    }
+    harness.run();
+    assert!(harness.query_by_label_contains("24\" x 3 1/2\" x 1 1/2\"").is_some(), "inches to start");
+    harness.get_by_label("View").click();
+    harness.run();
+    harness.get_by_label_contains("Units").click();
+    harness.run();
+    harness.get_by_label("Millimeters").click();
+    harness.run();
+    assert!(harness.query_by_label_contains("609.6 mm x 88.9 mm x 38.1 mm").is_some(), "Entity Info in millimeters");
+    // Back to inches for any test that runs on this thread next.
+    woodsketch_doc::units::set_units(woodsketch_doc::units::Units::Inches);
+}

@@ -239,3 +239,8 @@ top of `docs/BACKLOG.md` ("Woodworking direction"); keep general modeling workin
    Notes and the "What's new" link in Help > About (`updates::notes_url`); the first run after an
    update says "Updated to x.y.z" in the status bar (`last_version` setting). The website links the
    releases page.
+36. Cleanup round (0.1.12-0.1.13): `Joint::sizes` (Change refills the picker), `Tenon::fit` / `Dowels::fit`;
+   template stock, adjustable shelves on pins, hinge side, middle rails, table sizes, wood in Change
+   size; right-click menu (`Tools::select_under`, Reverse Faces, Make Unique), View > Guides
+   (`Scene::guides_hidden`); `Model::dissolve_vertex` after seam merges; View > Units
+   (`units::set_units`, per thread, inches or millimeters; bare numbers follow it).

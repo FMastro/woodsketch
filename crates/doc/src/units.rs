@@ -1,9 +1,47 @@
 //! Parsing and formatting lengths the way SketchUp's Measurements box does. Lengths are inches.
 //!
 //! Accepted: `1.5`, `1.5"`, `1.5in`, `1 1/2`, `1-1/2"`, `3/4`, `3'`, `3ft`, `3'6"`, `3' 6 1/2"`,
-//! `38mm`, `3.8cm`, `1.2m`, and a leading `-` to flip direction. Bare numbers are inches.
+//! `38mm`, `3.8cm`, `1.2m`, and a leading `-` to flip direction. Bare numbers are in the units
+//! chosen ([`set_units`]): inches, or millimeters; lengths are shown in them too.
 
+use std::cell::Cell;
 use std::fmt;
+
+use serde::{Deserialize, Serialize};
+
+/// How lengths are shown, and what a bare number means.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Units {
+    /// Fractional inches, to the nearest 1/16".
+    #[default]
+    Inches,
+    /// Millimeters, to the nearest 0.1.
+    Millimeters,
+}
+
+impl Units {
+    pub const ALL: [Self; 2] = [Self::Inches, Self::Millimeters];
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Inches => "Inches",
+            Self::Millimeters => "Millimeters",
+        }
+    }
+}
+
+thread_local! {
+    // Per thread: the app's (one window) thread sets it; tests running side by side don't share it.
+    static UNITS: Cell<Units> = const { Cell::new(Units::Inches) };
+}
+
+/// Show lengths in `units`, and read bare numbers as them (on this thread).
+pub fn set_units(units: Units) {
+    UNITS.with(|u| u.set(units));
+}
+
+pub fn units() -> Units {
+    UNITS.with(Cell::get)
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParseLengthError(String);
@@ -36,7 +74,7 @@ pub fn parse_length(input: &str) -> Result<f64, ParseLengthError> {
         let (number, scale) = UNITS
             .iter()
             .find_map(|(suffix, scale)| Some((s.strip_suffix(suffix)?, *scale)))
-            .unwrap_or((s, 1.0));
+            .unwrap_or((s, if units() == Units::Millimeters { 1.0 / 25.4 } else { 1.0 }));
         parse_number(number).ok_or_else(error)? * scale
     };
     Ok(sign * inches)
@@ -54,6 +92,14 @@ pub fn parse_lengths(input: &str) -> Result<Vec<Option<f64>>, ParseLengthError> 
 /// Format inches as fractional inches to the nearest 1/16", like `3 1/2"`. Rounded values get
 /// SketchUp's `~` prefix.
 pub fn format_length(inches: f64) -> String {
+    // Millimeters to the nearest 0.1 (`88.9 mm`), when chosen.
+    if units() == Units::Millimeters {
+        let tenths = inches * 254.0;
+        let exact = (tenths - tenths.round()).abs() < 1e-6;
+        let mm = tenths.round() / 10.0;
+        let approx = if exact { "" } else { "~ " };
+        return if mm.fract() == 0.0 { format!("{approx}{mm:.0} mm") } else { format!("{approx}{mm:.1} mm") };
+    }
     const DENOMINATOR: i64 = 16;
     let sixteenths = (inches.abs() * DENOMINATOR as f64).round();
     let exact = (inches.abs() * DENOMINATOR as f64 - sixteenths).abs() < 1e-6;
@@ -166,5 +212,24 @@ mod tests {
         assert_eq!(format_length(0.0), "0\"");
         assert_eq!(format_length(-0.75), "-3/4\"");
         assert_eq!(format_length(1.0 / 3.0), "~ 5/16\"");
+    }
+}
+
+#[cfg(test)]
+mod metric_tests {
+    use super::*;
+
+    #[test]
+    fn millimeters_show_and_read_bare_numbers_as_millimeters() {
+        set_units(Units::Millimeters);
+        assert_eq!(format_length(3.5), "88.9 mm");
+        assert_eq!(format_length(0.75), "~ 19.1 mm", "19.05 mm, rounded");
+        assert_eq!(format_length(1.0 / 25.4 * 19.0), "19 mm");
+        assert!((parse_length("19").unwrap() - 19.0 / 25.4).abs() < 1e-12, "a bare number is millimeters");
+        assert_eq!(parse_length("3/4\"").unwrap(), 0.75, "inches still say so");
+        assert!((parse_length(&format_length(1.0 / 25.4 * 88.9)).unwrap() - 88.9 / 25.4).abs() < 1e-9, "what's shown reads back");
+        set_units(Units::Inches);
+        assert_eq!(format_length(3.5), "3 1/2\"");
+        assert_eq!(parse_length("19").unwrap(), 19.0);
     }
 }

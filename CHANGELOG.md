@@ -3,8 +3,10 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
-## Unreleased
+## 0.1.13
 
+- **Millimeters**: View > Units shows every length in millimeters (to 0.1) and reads a number typed
+  without a unit as millimeters; inches stay the default.
 - Merging faces (erasing a seam, angled joints) no longer leaves stray corners on straight edges,
   and faces painted on their own keep their paint through an angled joint.
 - **Right-click menu** in the drawing: right-clicking selects what's under the pointer (unless

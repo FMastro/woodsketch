@@ -269,7 +269,9 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 ## Rendering / UI
 - Edges are 1px wide; tool previews and highlights are drawn on top without depth (x-ray).
 - No hover pre-selection highlight in Select.
-- Measurements show fractional inches only; no unit preferences (architectural, metric).
+- Units are fractional inches or millimeters (View > Units, an app preference, not saved with the
+  drawing); no centimeters, decimal inches or feet-and-inches display. Joint descriptions keep the
+  units they were made in.
 - Faces drawn on the ground face up, where SketchUp shows the blue back face (deliberate).
 
 ## Performance

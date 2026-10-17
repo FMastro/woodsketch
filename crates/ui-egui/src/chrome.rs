@@ -200,6 +200,15 @@ impl WoodSketchApp {
     fn view_menu(&mut self, ui: &mut egui::Ui) {
         ui.menu_button("View", |ui| {
             ui.checkbox(&mut self.viewport.show_grid, "Grid");
+            ui.menu_button("Units", |ui| {
+                use woodsketch_doc::units::{Units, set_units, units};
+                for choice in Units::ALL {
+                    if ui.radio(units() == choice, choice.name()).on_hover_text("How lengths are shown, and what a number typed without a unit means").clicked() {
+                        set_units(choice);
+                        ui.close();
+                    }
+                }
+            });
             let mut guides = !self.doc.scene().guides_hidden;
             if ui.checkbox(&mut guides, "Guides").on_hover_text("Show or hide every guide (hidden ones aren't snapped to)").changed() {
                 self.doc.set_guides_hidden(!guides);
