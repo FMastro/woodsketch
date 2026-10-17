@@ -694,6 +694,43 @@ impl Document {
         Some(instance)
     }
 
+    /// Turn the selected faces over (front to back), as one undo step. `false` if none are selected.
+    pub fn reverse_selected_faces(&mut self) -> bool {
+        let faces: Vec<FaceId> = self.selection.iter().filter_map(|e| if let Entity::Face(f) = e { Some(f) } else { None }).collect();
+        if faces.is_empty() {
+            return false;
+        }
+        self.edit(|model| {
+            for &f in &faces {
+                model.reverse_face(f);
+            }
+        });
+        true
+    }
+
+    /// Give each selected copy of a shared group or component its own definition, so changing it
+    /// leaves the other copies alone. One undo step; `false` if none was shared.
+    pub fn make_selection_unique(&mut self) -> bool {
+        let instances: Vec<InstanceId> = self.selection.iter().filter_map(|e| if let Entity::Instance(i) = e { Some(i) } else { None }).collect();
+        let shared = instances.iter().any(|&i| self.container().instance(i).is_some_and(|inst| self.scene().instance_count(inst.definition) > 1));
+        if !shared {
+            return false;
+        }
+        self.edit_scene(|scene, path| {
+            for &i in &instances {
+                scene.make_unique(path, i);
+            }
+        });
+        true
+    }
+
+    /// Show or hide every guide (View > Guides); hidden ones aren't drawn, picked or snapped to.
+    pub fn set_guides_hidden(&mut self, hidden: bool) {
+        if self.scene().guides_hidden != hidden {
+            self.edit_scene(|scene, _| scene.guides_hidden = hidden);
+        }
+    }
+
     /// Explode the selected groups and components back into loose geometry, selecting it.
     pub fn explode_selection(&mut self) -> bool {
         let instances: Vec<InstanceId> =
@@ -1011,5 +1048,50 @@ mod tests {
         let b = doc.add_material(MaterialKind::SheetGood);
         assert_eq!(doc.scene().material(a).unwrap().name, "Plywood");
         assert_eq!(doc.scene().material(b).unwrap().name, "Plywood 2");
+    }
+}
+
+#[cfg(test)]
+mod context_tests {
+    use glam::DVec3;
+
+    use super::*;
+    use crate::{DefinitionKind, Guide};
+
+    #[test]
+    fn reverse_faces_turns_the_selected_ones_over() {
+        let mut doc = Document::default();
+        let face = doc.edit(|m| m.add_rectangle(DVec3::ZERO, DVec3::X, DVec3::Y, DVec3::Z).unwrap());
+        doc.selection_mut().extend([Entity::Face(face)]);
+        assert!(doc.reverse_selected_faces());
+        assert!(doc.model().face(face).unwrap().normal.z < -0.99);
+        assert!(doc.undo());
+        assert!(doc.model().face(face).unwrap().normal.z > 0.99, "one undo step");
+    }
+
+    #[test]
+    fn make_unique_splits_one_copy_off() {
+        let mut doc = Document::default();
+        let face = doc.edit(|m| m.add_rectangle(DVec3::ZERO, DVec3::X, DVec3::Y, DVec3::Z).unwrap());
+        doc.selection_mut().extend([Entity::Face(face)]);
+        let part = doc.group_selection(DefinitionKind::Component).unwrap();
+        let copy = doc.transform_entities(&[Entity::Instance(part)], &[DAffine3::from_translation(DVec3::X * 5.0)], true).unwrap()[0];
+        doc.selection_mut().clear();
+        doc.selection_mut().extend([copy]);
+        assert!(doc.make_selection_unique());
+        let Entity::Instance(copy) = copy else { panic!() };
+        let def = |doc: &Document, i: InstanceId| doc.container().instance(i).unwrap().definition;
+        assert_ne!(def(&doc, part), def(&doc, copy));
+        assert!(!doc.make_selection_unique(), "already its own");
+    }
+
+    #[test]
+    fn hidden_guides_arent_in_the_view() {
+        let mut doc = Document::default();
+        doc.edit(|m| m.add_guide(Guide::Point(DVec3::ONE)));
+        assert_eq!(doc.view().model().guides().count(), 1);
+        doc.set_guides_hidden(true);
+        assert_eq!(doc.view().model().guides().count(), 0);
+        assert_eq!(doc.model().guides().count(), 1, "still in the drawing");
     }
 }

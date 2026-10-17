@@ -55,6 +55,17 @@ impl Viewport {
 
         self.navigate(ui, &response, rect, size, doc);
         self.feed_tools(ui, &response, rect, size, doc, tools);
+        // Right-click (not a right-drag, which pans): select what's there, then the menu.
+        if response.secondary_clicked()
+            && let Some(pos) = response.interact_pointer_pos()
+        {
+            tools.select_under(doc, &self.camera, size, to_vec2(pos - rect.min));
+        }
+        response.context_menu(|ui| {
+            if context_menu(ui, doc, tools) {
+                self.request_zoom_extents();
+            }
+        });
         if self.zoom_extents_pending && size.x > 1.0 && size.y > 1.0 {
             match doc.bounds() {
                 Some((min, max)) => self.camera.zoom_extents(min.as_vec3(), max.as_vec3(), size),
@@ -538,4 +549,65 @@ fn axis_color(axis: Axis) -> egui::Color32 {
         Axis::Y => egui::Color32::from_rgb(0, 160, 0),
         Axis::Z => egui::Color32::from_rgb(0, 0, 230),
     }
+}
+
+/// The right-click menu, for the selection. Returns whether Zoom Extents was picked.
+fn context_menu(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) -> bool {
+    use woodsketch_doc::{DefinitionKind, Entity};
+    let selected: Vec<Entity> = doc.selection().iter().collect();
+    let instances = selected.iter().filter(|e| matches!(e, Entity::Instance(_))).count();
+    let faces = selected.iter().filter(|e| matches!(e, Entity::Face(_))).count();
+    let shared = selected.iter().any(|e| match e {
+        Entity::Instance(i) => doc.container().instance(*i).is_some_and(|inst| doc.scene().instance_count(inst.definition) > 1),
+        _ => false,
+    });
+    let any = !selected.is_empty();
+    let item = |ui: &mut egui::Ui, enabled: bool, text: &str, keys: &str| ui.add_enabled(enabled, egui::Button::new(text).shortcut_text(keys)).clicked();
+    let mut zoom = false;
+    if item(ui, any, "Cut", "Ctrl+X") {
+        tools.cut(doc);
+        crate::keys::note_copy(ui.ctx(), tools);
+        ui.close();
+    }
+    if item(ui, any, "Copy", "Ctrl+C") {
+        tools.copy(doc);
+        crate::keys::note_copy(ui.ctx(), tools);
+        ui.close();
+    }
+    if item(ui, tools.can_paste(), "Paste", "Ctrl+V") {
+        tools.paste(doc);
+        ui.close();
+    }
+    if item(ui, any, "Delete", "Delete") {
+        tools.cancel();
+        doc.erase_selection();
+        ui.close();
+    }
+    ui.separator();
+    if item(ui, any, "Make Group", "Ctrl+G") {
+        tools.make_group(doc, DefinitionKind::Group);
+        ui.close();
+    }
+    if item(ui, any, "Make Component", "G") {
+        tools.make_group(doc, DefinitionKind::Component);
+        ui.close();
+    }
+    if instances > 0 && item(ui, true, "Explode", "") {
+        tools.explode(doc);
+        ui.close();
+    }
+    if shared && ui.button("Make Unique").on_hover_text("Its own copy, so changing it leaves the other copies alone").clicked() {
+        doc.make_selection_unique();
+        ui.close();
+    }
+    if faces > 0 && ui.button("Reverse Faces").on_hover_text("Turn the selected faces over, front to back").clicked() {
+        doc.reverse_selected_faces();
+        ui.close();
+    }
+    ui.separator();
+    if item(ui, true, "Zoom Extents", "Shift+Z") {
+        zoom = true;
+        ui.close();
+    }
+    zoom
 }

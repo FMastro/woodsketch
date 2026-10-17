@@ -255,6 +255,9 @@ pub struct Scene {
     /// Edge profiles made on parts, for listing them.
     #[serde(default)]
     pub profiles: Vec<crate::profile::ProfileRecord>,
+    /// Guides hidden (View > Guides): not drawn, picked or snapped to.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub guides_hidden: bool,
     /// The seasonal moisture swing wood movement is checked for, percent (`None`: 4%).
     #[serde(default)]
     pub moisture_swing: Option<f64>,
@@ -720,6 +723,10 @@ impl View {
                     view.append_instance(scene, inst, &transform, Owner::Outside, inherited[depth]);
                 }
             }
+        }
+        // View > Guides off: none to draw, pick or snap to.
+        if scene.guides_hidden {
+            view.model.remove_guides();
         }
         view
     }

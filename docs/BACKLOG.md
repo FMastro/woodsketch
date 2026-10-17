@@ -173,14 +173,14 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 ## Guides (Tape Measure)
 - Tape Measure: no "resize the model" after measuring (SketchUp offers to scale everything so
   the measured distance becomes the typed one).
-- No Protractor guides (angled guide lines), no "hide guides" toggle (only Delete Guides).
+- No Protractor guides (angled guide lines). New guides made while guides are hidden stay hidden.
 - Guide lines snap where they cross edges and other guides, but not where they cross faces.
 
 ## Inference / snapping
 - Line: a typed length can't be changed after the line is drawn. Rectangle, Arc and Circle
   don't use parallel/perpendicular or "From Point" inference yet (Line, Move and Tape do).
 - Faces closed from loose lines face up, else toward the front, else to the right; SketchUp
-  orients them to match connected faces. No Reverse Faces command yet.
+  orients them to match connected faces (Reverse Faces, on the right-click menu, turns them over).
 - Rectangle: square and golden-ratio diagonal hints; drawing rectangles off the axes.
 - Snapping only considers screen distance; no "sticky" preference for the last inference.
 
@@ -189,8 +189,8 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
   Offset on a closed group's face opens the group, so the work goes into the board. (Paint
   still paints the whole group, as in SketchUp.)
 - Selected groups are tinted; SketchUp instead draws their bounding box in blue.
-- No renaming or drag-to-reparent in the Outliner, no "make unique" command for components, no
-  component browser (copy and paste or Move with Ctrl place more instances).
+- No renaming or drag-to-reparent in the Outliner, no component browser (copy and paste or Move with
+  Ctrl place more instances).
 - Move stretching doesn't reach into groups from outside (Move moves the whole group).
 - Undo snapshots copy every definition; fine now, heavy for big furniture assemblies.
 - Copies of a group share a definition until opened (SketchUp's behavior); opening one gives
@@ -246,7 +246,8 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 - Layout follows SketchUp's Windows defaults (menu bar, toolbar, Large Tool Set, Default Tray,
   Measurements at bottom right), but toolbars can't be moved or customized and tray panels
   can't be reordered or undocked. No Components, Styles or Scenes panels yet.
-- No right-click context menus (SketchUp's Entity menu: Make Group, Explode, Reverse Faces...).
+- The right-click menu has the basics (edit, group, explode, make unique, reverse faces); not yet
+  Hide, Entity Info, Intersect Faces or the per-tool menus SketchUp has.
 - Standard views: Iso, Top, Front and Right only (no Back, Left, Bottom); no Parallel
   Projection toggle; tool cursors are the system arrow rather than per-tool icons.
 - Sky and ground colors are fixed (SketchUp's Styles panel edits them).

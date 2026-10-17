@@ -200,6 +200,10 @@ impl WoodSketchApp {
     fn view_menu(&mut self, ui: &mut egui::Ui) {
         ui.menu_button("View", |ui| {
             ui.checkbox(&mut self.viewport.show_grid, "Grid");
+            let mut guides = !self.doc.scene().guides_hidden;
+            if ui.checkbox(&mut guides, "Guides").on_hover_text("Show or hide every guide (hidden ones aren't snapped to)").changed() {
+                self.doc.set_guides_hidden(!guides);
+            }
             ui.checkbox(&mut self.show_tray, "Default Tray");
         });
     }

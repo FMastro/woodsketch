@@ -3,6 +3,13 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## Unreleased
+
+- **Right-click menu** in the drawing: right-clicking selects what's under the pointer (unless
+  it's already selected) and offers Cut, Copy, Paste, Delete, Make Group, Make Component, Explode,
+  Make Unique (for a copy of a shared component) and Reverse Faces.
+- **View > Guides** shows or hides every guide; hidden guides aren't drawn or snapped to.
+
 ## 0.1.12
 
 - **Templates, more choices**: the wood (change it later with Change size), the stock thickness

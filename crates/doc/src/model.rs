@@ -137,6 +137,14 @@ impl Model {
         }
     }
 
+    /// Take every guide out (keeping the ids already used).
+    pub(crate) fn remove_guides(&mut self) {
+        let ids: Vec<GuideId> = self.guides().map(|(id, _)| id).collect();
+        for id in ids {
+            self.guides.remove(id.0);
+        }
+    }
+
     pub fn add_guide(&mut self, guide: Guide) -> GuideId {
         GuideId(self.guides.insert(guide))
     }

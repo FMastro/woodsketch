@@ -182,7 +182,7 @@ impl Scene {
         if model.faces().next().is_some() || model.edges().next().is_some() {
             uses.add((definition, paint), placement(&world, faded));
         }
-        for (_, guide) in model.guides() {
+        for (_, guide) in model.guides().filter(|_| !scene.guides_hidden) {
             let color = if faded { srgb(170, 170, 170) } else { srgb(70, 70, 70) };
             self.guides.push(SceneGuide { guide: guide.transformed(&world), color });
         }

@@ -1026,6 +1026,26 @@ impl Tools {
 }
 
 
+/// Right-click: SketchUp's context menu acts on the selection, so what's under the pointer is
+/// selected first unless it already is.
+impl Tools {
+    /// Select what's under `cursor` (resolved to the group it's in) unless it's already selected.
+    /// Returns whether anything is selected.
+    pub fn select_under(&mut self, doc: &mut Document, camera: &OrbitCamera, size: Vec2, cursor: Vec2) -> bool {
+        let screen = pick::Screen::in_context(camera, size, doc.context_transform());
+        if let Some(entity) = pick_resolved(doc, screen, cursor)
+            && !doc.selection().contains(entity)
+        {
+            self.cancel();
+            let selection = doc.selection_mut();
+            selection.clear();
+            selection.extend([entity]);
+        }
+        !doc.selection().is_empty()
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

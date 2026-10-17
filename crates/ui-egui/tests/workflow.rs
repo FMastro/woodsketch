@@ -1899,3 +1899,39 @@ fn change_starts_from_the_joints_own_sizes() {
     assert!(texts.iter().any(|t| t == "7/8\""), "{texts:?}");
     assert!(texts.iter().any(|t| t == "1/16\""), "{texts:?}");
 }
+
+#[test]
+fn right_click_selects_and_offers_make_unique() {
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    let (first, copy) = {
+        let doc = harness.state_mut().document_mut();
+        let board = add_board(doc, glam::DVec3::ZERO, 24.0, 12.0, 12.0);
+        doc.selection_mut().extend([board]);
+        let part = doc.group_selection(woodsketch_doc::DefinitionKind::Component).unwrap();
+        let copy = doc.transform_entities(&[woodsketch_doc::Entity::Instance(part)], &[glam::DAffine3::from_translation(glam::DVec3::Y * 12.0)], true).unwrap()[0];
+        doc.selection_mut().clear();
+        (part, copy)
+    };
+    // The two side by side fill the middle of the view.
+    harness.state_mut().document_mut().selection_mut().extend([woodsketch_doc::Entity::Instance(first)]);
+    harness.state_mut().zoom_extents();
+    harness.run();
+    let _ = copy;
+    harness.state_mut().document_mut().selection_mut().clear();
+    harness.run();
+    let middle = egui::pos2(515.0, 420.0);
+    harness.hover_at(middle);
+    harness.run();
+    for pressed in [true, false] {
+        harness.event(Event::PointerButton { pos: middle, button: PointerButton::Secondary, pressed, modifiers: Modifiers::NONE });
+        harness.run();
+    }
+    assert!(!harness.state().document().selection().is_empty(), "right-click selected what's under it");
+    snapshot(&mut harness, "context_menu");
+    harness.get_by_label("Make Unique").click();
+    harness.run();
+    let doc = harness.state().document();
+    let defs: std::collections::BTreeSet<_> = doc.container().instances().map(|(_, i)| i.definition).collect();
+    assert_eq!(defs.len(), 2, "the right-clicked copy has its own definition now");
+}
