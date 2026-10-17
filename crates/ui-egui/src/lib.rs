@@ -28,6 +28,8 @@ use viewport::Viewport;
 const RECENT_KEY: &str = "recent_drawings";
 /// Whether to check for updates at startup, in eframe's settings.
 const UPDATES_KEY: &str = "check_updates";
+/// The version that ran last, to say "Updated to ..." once after an update.
+const LAST_VERSION_KEY: &str = "last_version";
 
 pub struct WoodSketchApp {
     doc: Document,
@@ -53,6 +55,8 @@ pub struct WoodSketchApp {
     updater: Option<updates::Updater>,
     /// Check for updates at startup (a setting, kept between runs).
     check_updates: bool,
+    /// This is the first run after an update: the status bar says so, with a link to what's new.
+    updated: bool,
     /// Whether the startup check has run, and whether the user asked for the last one.
     update_started: bool,
     update_asked: bool,
@@ -89,6 +93,10 @@ impl WoodSketchApp {
             autosave_failed: false,
             updater: None,
             check_updates: cc.storage.and_then(|s| eframe::get_value(s, UPDATES_KEY)).unwrap_or(true),
+            updated: cc
+                .storage
+                .and_then(|s| eframe::get_value::<String>(s, LAST_VERSION_KEY))
+                .is_some_and(|last| last != updates::VERSION),
             update_started: false,
             update_asked: false,
         }
@@ -422,6 +430,7 @@ impl eframe::App for WoodSketchApp {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, RECENT_KEY, &self.recent);
         eframe::set_value(storage, UPDATES_KEY, &self.check_updates);
+        eframe::set_value(storage, LAST_VERSION_KEY, &updates::VERSION.to_owned());
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {

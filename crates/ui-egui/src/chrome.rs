@@ -260,6 +260,10 @@ impl WoodSketchApp {
             ui.checkbox(&mut self.check_updates, "Check for updates at startup")
                 .on_hover_text("A quick look at WoodSketch's releases on GitHub when it opens; new versions download in the background");
             ui.separator();
+            if ui.button("Release Notes").on_hover_text("What changed in each version, on GitHub").clicked() {
+                ui.close();
+                ui.ctx().open_url(egui::OpenUrl::new_tab(crate::updates::RELEASES_URL));
+            }
             if ui.button("About WoodSketch").clicked() {
                 ui.close();
                 self.show_about = true;
@@ -273,7 +277,10 @@ impl WoodSketchApp {
             .collapsible(false)
             .resizable(false)
             .show(ctx, |ui| {
-                ui.label(format!("WoodSketch {}", env!("CARGO_PKG_VERSION")));
+                ui.horizontal(|ui| {
+                    ui.label(format!("WoodSketch {}", crate::updates::VERSION));
+                    ui.hyperlink_to("What's new", crate::updates::notes_url(crate::updates::VERSION));
+                });
                 ui.label("A lightweight 3D modeler for woodworking, in the spirit of SketchUp.");
                 ui.label("Not affiliated with or endorsed by Trimble.");
             });
@@ -402,6 +409,15 @@ impl WoodSketchApp {
                     measurements_box(ui, &self.tools);
                     ui.label(self.tools.measurement_label());
                     ui.separator();
+                    // Just updated: say so once, with what changed.
+                    if self.updated {
+                        if ui.small_button(egui_phosphor::regular::X).on_hover_text("Dismiss").clicked() {
+                            self.updated = false;
+                        }
+                        ui.hyperlink_to("What's new", crate::updates::notes_url(crate::updates::VERSION));
+                        ui.label(format!("{} Updated to {}", egui_phosphor::regular::CHECK_CIRCLE, crate::updates::VERSION));
+                        ui.separator();
+                    }
                     // A new version downloading, then downloaded: offer the restart (green, so it's seen),
                     // never force it.
                     if let Some(crate::updates::UpdateState::Downloading(version)) = self.update_state() {

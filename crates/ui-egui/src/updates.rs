@@ -51,3 +51,11 @@ pub fn describe(state: &UpdateState) -> String {
         UpdateState::Failed(e) => format!("Couldn't check for updates: {e}"),
     }
 }
+
+/// Every version's release notes, on GitHub.
+pub const RELEASES_URL: &str = "https://github.com/FMastro/woodsketch/releases";
+
+/// The release notes for `version`.
+pub fn notes_url(version: &str) -> String {
+    format!("{RELEASES_URL}/tag/v{version}")
+}

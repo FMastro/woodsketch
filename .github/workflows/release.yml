@@ -124,12 +124,20 @@ jobs:
           pattern: releases-*
           path: release
           merge-multiple: true
+      - uses: actions/checkout@v4
+        with:
+          path: source
+          sparse-checkout: CHANGELOG.md
       - name: Draft the release
         shell: bash
         run: |
           ls -l release
+          # This version's section of CHANGELOG.md (between its heading and the next).
+          awk -v v="## $VERSION" '$0 == v {on = 1; next} /^## / {on = 0} on' source/CHANGELOG.md > changes.md
           cat > notes.md <<EOF
           WoodSketch $VERSION (beta).
+
+          $(cat changes.md)
 
           **Download** the file for your computer:
           - **Windows:** \`WoodSketch-win-x64-Setup.exe\`

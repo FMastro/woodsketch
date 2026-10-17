@@ -234,3 +234,8 @@ top of `docs/BACKLOG.md` ("Woodworking direction"); keep general modeling workin
    overlap as drawn is the joint's depth. `Joint::before` keeps the parts' shapes so Remove puts
    them back; a shared component's copy is made unique (`Scene::make_unique`) first. The Joinery
    panel offers them when parts aren't square (`JoineryError::NotSquare`).
+35. Release notes: `CHANGELOG.md` (a `## <version>` section per release; add to it with every change
+   that ships). `release.yml` puts the version's section into the GitHub release. Help > Release
+   Notes and the "What's new" link in Help > About (`updates::notes_url`); the first run after an
+   update says "Updated to x.y.z" in the status bar (`last_version` setting). The website links the
+   releases page.

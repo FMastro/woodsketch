@@ -233,6 +233,9 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 - Toggling a tag's visibility is an undo step (SketchUp does the same).
 
 ## Files
+- **Import COLLADA (.dae) and OBJ**: open formats SketchUp (including the free SketchUp Make 2017)
+  and most 3D programs export, with groups, components, names and materials (DAE) or named groups
+  and an MTL of colors (OBJ). A way in for models from SketchUp 2020 and older, and other apps.
 - File dialogs block the window while open (rfd's synchronous API).
 - Export: OBJ (+ MTL colors) and ASCII STL only; no glTF, DAE or DXF/SVG (2D for CNC), no
   textures, no "export selection only", and each part isn't a separate STL file.
