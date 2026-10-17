@@ -128,9 +128,9 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 - Groups come in as components (the flag that tells them apart isn't worked out yet).
 - Not read: textures, hidden and soft edges (edges between faces under 30° still draw soft),
   guides, scenes and cameras, dimensions and text, images, back-face materials, transparency.
-- A material named for a species (`cedar`) comes in as solid wood, not that species' lumber, so a
-  deck's 2x10s are matched by thickness, not as 2x10 sections (change the type to dimensional
-  lumber in the Materials panel).
+- A material named for a species (`cedar`) comes in as that species' boards (Cedar), not its
+  lumber (Cedar Lumber), so a deck's 2x10s are matched by thickness, not as 2x10 sections (change
+  the type to dimensional lumber in the Materials panel).
 - Imported materials are solid wood unless the name matches a library wood or a sheet good, so
   their stock may need setting in the Materials panel.
 - No saving back to `.skp`.
