@@ -11,7 +11,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 ## Summary (recommended order)
 | # | Category | Points | Why here |
 |---|---|---|---|
-| 1 | Build sheets and assembly | 81 | Finishes what just shipped; shop output is what woodworkers keep |
+| 1 | Build sheets and assembly | 68 | Finishes what just shipped; shop output is what woodworkers keep |
 | 2 | Joinery | 92 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
@@ -28,23 +28,21 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 60 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1616** | |
+| | **All** | **1603** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
 (exploded drawing and glue-up order per assembly, sub-assemblies first); File > Print Build Sheets.
 1. [3] Leader lines from each letter to its part in the exploded drawing.
 2. [5] Hardware listed at the step it's used, not in one list at the end.
-3. [5] Dry-fit steps before each glue-up.
-4. [8] Clamping notes: which clamps, where, and for how long.
-5. [5] Hidden lines dashed in the part views.
-6. [5] Glue-up boards drawn on the build sheet for wide solid-wood parts.
-7. [13] Pick the reference face and edge on the model (Parts section of Entity Info).
-8. [13] Where each joint and profile sits: dimensions to it from the reference face and edge
-   (needs 7).
-9. [8] A glue-up order for parts with no joints made (now they're only "fastened").
-10. [8] An exploded drawing for each step instead of one per assembly.
-11. [8] Assembly order for parts at an angle (touching is judged on boxes square to the axes).
+3. [5] Hidden lines dashed in the part views.
+4. [5] Glue-up boards drawn on the build sheet for wide solid-wood parts.
+5. [13] Pick the reference face and edge on the model (Parts section of Entity Info).
+6. [13] Where each joint and profile sits: dimensions to it from the reference face and edge
+   (needs 5).
+7. [8] A glue-up order for parts with no joints made (now they're only "fastened").
+8. [8] An exploded drawing for each step instead of one per assembly.
+9. [8] Assembly order for parts at an angle (touching is judged on boxes square to the axes).
 
 ## 2. Joinery
 Done: dado, groove, rabbet, mortise and tenon (through, haunched), dovetails (through,
@@ -325,6 +323,9 @@ Done: OBJ (+ MTL colors) and ASCII STL, inches or millimeters.
 ## 17. Later
 1. [100] A community model library (a separate service: accounts, moderation, licensing; 3D
    Warehouse's terms forbid aggregating its models).
+
+## Not planned
+- Clamping notes and dry-fit steps in the assembly pages: basic practice every woodworker knows.
 
 ## Deliberate differences from SketchUp (not planned)
 - Starting Line, Rectangle, Circle, Arc, Push/Pull or Offset on a closed group's face opens the
