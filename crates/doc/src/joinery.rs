@@ -996,6 +996,43 @@ impl Document {
             .map(|(i, j)| (i, j.clone(), name(if j.cut == def { j.into } else { j.cut })))
             .collect()
     }
+
+    /// The joints between `a` and `b` that are where these two meet. Joints are kept per design,
+    /// so copies of shared components share them; a corner of a drawer whose sides and fronts are
+    /// copies, joined at the opposite corner, isn't joined here: none of the joint's cuts are at
+    /// this meeting. (A joint made before cuts were kept counts as here.)
+    pub fn joints_here(&self, a: InstanceId, b: InstanceId) -> Vec<(usize, Joint, String)> {
+        let container = self.container();
+        let (Some(ia), Some(ib)) = (container.instance(a), container.instance(b)) else { return Vec::new() };
+        let scene = self.scene();
+        let world_box = |i: &crate::Instance| -> Option<Box3> {
+            let (lo, hi) = scene.definition(i.definition)?.container.model.bounds()?;
+            let corners = (0..8).map(|k| i.transform.transform_point3(DVec3::new(if k & 1 == 0 { lo.x } else { hi.x }, if k & 2 == 0 { lo.y } else { hi.y }, if k & 4 == 0 { lo.z } else { hi.z })));
+            Some(corners.fold((DVec3::splat(f64::INFINITY), DVec3::splat(f64::NEG_INFINITY)), |(l, h), p| (l.min(p), h.max(p))))
+        };
+        const TOL: f64 = 1e-3;
+        let grow = |(lo, hi): Box3, by: f64| (lo - DVec3::splat(by), hi + DVec3::splat(by));
+        let (Some(box_a), Some(box_b)) = (world_box(ia), world_box(ib)) else { return Vec::new() };
+        let Some(meeting) = intersect(grow(box_a, TOL), grow(box_b, TOL)) else { return Vec::new() };
+        let other = ib.definition;
+        self.joint_list(a)
+            .into_iter()
+            .filter(|(_, j, _)| j.cut == other || j.into == other)
+            .filter(|(_, j, _)| {
+                j.ops.is_empty()
+                    || j.ops.iter().any(|op| {
+                        // The op's geometry is the part's (a board, or the one board in a group).
+                        let placed = [(a, ia), (b, ib)].into_iter().find_map(|(id, i)| {
+                            let (def, to_part) = geometry(scene, self.path(), id).ok()?;
+                            (def == op.part).then(|| i.transform * to_part)
+                        });
+                        let Some(placed) = placed else { return false };
+                        let (lo, hi) = grow(meeting, op.distance.abs() + TOL);
+                        op.points.iter().map(|p| placed.transform_point3(*p)).any(|p| p.cmpge(lo).all() && p.cmple(hi).all())
+                    })
+            })
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -1289,6 +1326,29 @@ mod components {
         let fit = doc.joint_fit(back, br).unwrap();
         assert_eq!(fit.joined.first().map(|j| j.0), Some(JointKind::MortiseAndTenon));
         assert_eq!(crate::cutlist::cut_list(doc.scene()).materials[0].parts.iter().map(|p| p.count).sum::<usize>(), 8);
+    }
+
+    #[test]
+    fn a_drawer_of_copies_joined_at_one_corner_can_still_be_joined_at_the_next() {
+        let mut doc = Document::default();
+        // A front, and a side butting its back at its left end; each copied, turned about the
+        // drawer's middle, for the back and the right side.
+        let front = component(&mut doc, Board { origin: DVec3::ZERO, length_dir: DVec3::X, width_dir: DVec3::Z, length: 16.0, width: 6.0, thickness: 0.75 });
+        let left = component(&mut doc, Board { origin: DVec3::new(0.0, -0.75, 6.0), length_dir: -DVec3::Y, width_dir: -DVec3::Z, length: 14.0, width: 6.0, thickness: 0.5 });
+        let middle = DVec3::new(8.0, -7.75, 0.0);
+        let back = place(&mut doc, front, middle, &[(middle, 180.0)])[0];
+        let right = place(&mut doc, left, middle, &[(middle, 180.0)])[0];
+        doc.dovetails(left, front, Dovetails { tails: 2, half_blind: false }).unwrap();
+        // The copies were joined at the opposite corner, back right; front right isn't yet.
+        assert_eq!(doc.joints_here(left, front).len(), 1);
+        assert_eq!(doc.joints_here(right, back).len(), 1, "the copies, turned, are joined there");
+        assert!(doc.joints_here(right, front).is_empty(), "front right only butts");
+        assert!(doc.joints_here(left, back).is_empty());
+        doc.dovetails(right, front, Dovetails { tails: 2, half_blind: false }).unwrap();
+        for (side, end) in [(left, front), (right, front), (right, back), (left, back)] {
+            assert!(!doc.joints_here(side, end).is_empty(), "all four corners joined");
+        }
+        assert!(closed(&doc, left) && closed(&doc, front));
     }
 }
 

@@ -115,11 +115,16 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, Instance
             return;
         }
     };
-    // Already joined (here, or on other copies of the same components): say so, and keep the
-    // picker for adding another joint out of the way.
-    let other = doc.container().instance(b).map(|i| i.definition);
-    let joints: Vec<_> = doc.joint_list(a).into_iter().filter(|(_, j, _)| Some(j.cut) == other || Some(j.into) == other).collect();
+    // Already joined where these two meet: say so, and keep the picker for adding another joint
+    // out of the way. Copies of the same components joined somewhere else (a drawer's opposite
+    // corner) don't count: this meeting can still be joined.
+    let joints = doc.joints_here(a, b);
     if joints.is_empty() {
+        let other = doc.container().instance(b).map(|i| i.definition);
+        let elsewhere: Vec<String> = doc.joint_list(a).into_iter().filter(|(_, j, _)| Some(j.cut) == other || Some(j.into) == other).map(|(_, j, _)| j.kind.name().to_lowercase()).collect();
+        if !elsewhere.is_empty() {
+            ui.weak(format!("Other copies of these parts are joined ({}) where they meet elsewhere; not here yet.", elsewhere.join(", ")));
+        }
         picker(ui, doc, (a, b), &fit);
     } else {
         ui.label("Already joined:");

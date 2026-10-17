@@ -35,7 +35,9 @@ Done: a page per part (size, stock, three dimensioned views, steps in shop order
 (exploded drawing with leader lines and glue-up order per assembly, sub-assemblies first, hardware
 at the step it's used); hidden lines dashed in the part views; File > Print Build Sheets.
 1. [3] Bug: a part made as copies of one component lists every copy's joints as its own steps (the
-   table's Leg says "Cut the mortise for Front and back apron" four times; each leg has one).
+   table's Leg says "Cut the mortise for Front and back apron" four times; each leg has one). Same
+   root: joints are kept per design; use `Document::joints_here` (cuts at that meeting) for
+   steps and for the assembly page's "joined" test too.
 2. [5] Mirrored copies (a drawer's left and right sides) get a page each ("Make 1" twice, same
    letter); one page saying "Make 2 (one mirrored)".
 3. [5] Glue-up boards drawn on the build sheet for wide solid-wood parts.

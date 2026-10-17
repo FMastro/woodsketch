@@ -3,6 +3,13 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.18
+
+- Fix: two parts that are copies of components joined somewhere else (a drawer whose sides and
+  front and back are copies, dovetailed at one corner) no longer show as "Already joined" at a
+  corner that only butts; the Joinery panel offers the joint there and says the copies are
+  joined elsewhere.
+
 ## 0.1.17
 
 - Build sheets: the exploded drawings label each part beside the drawing with a leader line to it
