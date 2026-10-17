@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*", "apps/*"]
 
 [workspace.package]
-version = "0.1.13"
+version = "0.1.14"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 rust-version = "1.95"
@@ -17,7 +17,8 @@ woodsketch-render = { path = "crates/render" }
 woodsketch-ui-egui = { path = "crates/ui-egui" }
 
 # external
-eframe = { version = "0.36", default-features = false, features = ["default_fonts", "wgpu", "accesskit", "persistence"] }
+# links: opening web pages (release notes); x11 and wayland: windows on Linux.
+eframe = { version = "0.36", default-features = false, features = ["default_fonts", "wgpu", "accesskit", "persistence", "links", "x11", "wayland"] }
 egui = "0.36"
 egui-wgpu = "0.36"
 egui_kittest = "0.36"

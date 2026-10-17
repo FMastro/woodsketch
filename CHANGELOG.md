@@ -3,6 +3,11 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.14
+
+- Fix: Help > Release Notes and the "What's new" links now open in your browser.
+- Linux: the app is built with its X11 and Wayland window support.
+
 ## 0.1.13
 
 - **Millimeters**: View > Units shows every length in millimeters (to 0.1) and reads a number typed
