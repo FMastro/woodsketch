@@ -25,6 +25,7 @@ pub fn slides_name(length: f64) -> String {
 pub const HINGE: &str = "Concealed hinge (35 mm cup)";
 pub const PULL: &str = "Bar pull, 5\"";
 pub const KNOB: &str = "Knob";
+pub const SHELF_PIN: &str = "Shelf pin, 1/4\"";
 
 /// How many hinges a door `height` tall needs: two up to 40", three up to 60", then four.
 pub fn hinges_for(height: f64) -> usize {

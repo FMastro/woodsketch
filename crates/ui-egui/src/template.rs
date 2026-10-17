@@ -3,7 +3,7 @@
 
 use eframe::egui;
 use woodsketch_doc::library::LIBRARY;
-use woodsketch_doc::template::{CaseJoints, DoorStyle, DrawerJoints, Fill, FrameJoints, Fronts, Made, Pulls, Template};
+use woodsketch_doc::template::{CaseJoints, DoorStyle, DrawerJoints, Fill, FrameJoints, Fronts, HingeSide, Made, Pulls, Template};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, InstanceId, MaterialKind};
 
@@ -47,7 +47,7 @@ pub fn new(ui: &mut egui::Ui, doc: &mut Document) -> bool {
     }
     let make = ui.add_enabled(valid && check.is_ok(), egui::Button::new(format!("Add the {}", draft.template.name().to_lowercase())));
     if make.on_hover_text("Built beside the drawing, as one group; one Undo takes it out").clicked() {
-        let wood = wood_id(doc, &draft.wood);
+        let wood = wood_id_for(doc, &draft.wood);
         added = true;
         if let Err(e) = doc.add_template(&draft.template, wood) {
             added = false;
@@ -67,6 +67,21 @@ pub fn new(ui: &mut egui::Ui, doc: &mut Document) -> bool {
 pub fn change(ui: &mut egui::Ui, doc: &mut Document, instance: InstanceId, made: Made) {
     let id = egui::Id::new(("template_change", instance));
     let mut template = ui.data(|d| d.get_temp::<Template>(id)).unwrap_or(made.template);
+    // The wood it's made of, to change too.
+    let wood_id = egui::Id::new(("template_change_wood", instance));
+    let current = made.wood.and_then(|m| doc.scene().material(m)).map_or_else(|| "Pine".to_owned(), |m| m.name.clone());
+    let mut wood = ui.data(|d| d.get_temp::<String>(wood_id)).unwrap_or_else(|| current.clone());
+    let woods = woods(doc);
+    egui::Grid::new(("template_change_wood_grid", instance)).num_columns(2).spacing([8.0, 4.0]).show(ui, |ui| {
+        ui.label("Wood");
+        egui::ComboBox::from_id_salt(wood_id).selected_text(&wood).height(400.0).show_ui(ui, |ui| {
+            for name in &woods {
+                ui.selectable_value(&mut wood, name.clone(), name);
+            }
+        });
+        ui.end_row();
+    });
+    ui.data_mut(|d| d.insert_temp(wood_id, wood.clone()));
     let valid = sizes(ui, &format!("{instance:?}"), &mut template);
     let check = template.check();
     if let Err(why) = &check
@@ -74,11 +89,15 @@ pub fn change(ui: &mut egui::Ui, doc: &mut Document, instance: InstanceId, made:
     {
         ui.colored_label(ui.visuals().warn_fg_color, why);
     }
-    let changed = template != made.template;
+    let changed = template != made.template || wood != current;
     let button = ui.add_enabled(valid && check.is_ok() && changed, egui::Button::new("Change size"));
-    if button.on_hover_text("Builds it again with these sizes, where it is. Changes made inside it by hand are lost.").clicked() {
-        match doc.rebuild_template(instance, &template) {
-            Ok(_) => ui.data_mut(|d| d.remove::<Template>(id)),
+    if button.on_hover_text("Builds it again with these sizes and wood, where it is. Changes made inside it by hand are lost.").clicked() {
+        let wood = wood_id_for(doc, &wood);
+        match doc.rebuild_template(instance, &template, wood) {
+            Ok(_) => ui.data_mut(|d| {
+                d.remove::<Template>(id);
+                d.remove::<String>(wood_id);
+            }),
             Err(e) => {
                 ui.colored_label(ui.visuals().error_fg_color, e);
             }
@@ -101,7 +120,7 @@ fn woods(doc: &Document) -> Vec<String> {
 }
 
 /// The drawing's material named `name`, adding it from the library if it isn't there yet.
-fn wood_id(doc: &mut Document, name: &str) -> Option<woodsketch_doc::MaterialId> {
+fn wood_id_for(doc: &mut Document, name: &str) -> Option<woodsketch_doc::MaterialId> {
     if let Some((id, _)) = doc.scene().materials().find(|(_, m)| m.name == name) {
         return Some(id);
     }
@@ -123,9 +142,15 @@ fn sizes(ui: &mut egui::Ui, key: &str, template: &mut Template) -> bool {
                 length(ui, "Width", &mut c.width);
                 length(ui, "Height", &mut c.height);
                 length(ui, "Depth", &mut c.depth);
+                length(ui, "Stock", &mut c.stock);
                 ui.label("Shelves");
                 ui.add(egui::DragValue::new(&mut c.shelves).range(0..=20));
                 ui.end_row();
+                if c.shelves > 0 {
+                    ui.label("");
+                    ui.checkbox(&mut c.adjustable, "Adjustable (on shelf pins)");
+                    ui.end_row();
+                }
                 ui.label("Back");
                 ui.checkbox(&mut c.back, "1/4\" plywood");
                 ui.end_row();
@@ -149,6 +174,7 @@ fn sizes(ui: &mut egui::Ui, key: &str, template: &mut Template) -> bool {
                 }
                 if doors {
                     pick(ui, "Doors", &mut c.doors, &DoorStyle::ALL, |d| d.name());
+                    pick(ui, "Single doors hinge", &mut c.hinge, &HingeSide::ALL, |h| h.name());
                 }
                 if drawers {
                     pick(ui, "Drawer corners", &mut c.drawer_joints, &DrawerJoints::ALL, |j| j.name());
@@ -158,6 +184,7 @@ fn sizes(ui: &mut egui::Ui, key: &str, template: &mut Template) -> bool {
                 length(ui, "Width", &mut d.width);
                 length(ui, "Height", &mut d.height);
                 length(ui, "Depth", &mut d.depth);
+                length(ui, "Stock", &mut d.stock);
                 pick(ui, "Corners", &mut d.joints, &DrawerJoints::ALL, |j| j.name());
             }
             Template::FaceFrame(f) => {
@@ -165,21 +192,28 @@ fn sizes(ui: &mut egui::Ui, key: &str, template: &mut Template) -> bool {
                 length(ui, "Height", &mut f.height);
                 length(ui, "Stiles", &mut f.stile);
                 length(ui, "Rails", &mut f.rail);
+                length(ui, "Stock", &mut f.stock);
+                ui.label("Middle rails");
+                ui.add(egui::DragValue::new(&mut f.middle_rails).range(0..=10));
+                ui.end_row();
                 pick(ui, "Joints", &mut f.joints, &FrameJoints::ALL, |j| j.name());
             }
             Template::Table(t) => {
                 length(ui, "Width", &mut t.width);
                 length(ui, "Depth", &mut t.depth);
                 length(ui, "Height", &mut t.height);
+                length(ui, "Legs", &mut t.leg);
+                length(ui, "Aprons", &mut t.apron);
+                length(ui, "Top", &mut t.top);
                 pick(ui, "Joints", &mut t.joints, &FrameJoints::ALL, |j| j.name());
             }
         }
     });
     ui.weak(match template {
-        Template::Cabinet(_) => "3/4\" sides, top, bottom and shelves; outside sizes. Drawers ride on side-mount slides; doors wider than 24\" come in pairs.",
-        Template::Drawer(_) => "A 1/2\" box with a 1/4\" plywood bottom in grooves; outside sizes.",
-        Template::FaceFrame(_) => "3/4\" stiles full height, rails between them.",
-        Template::Table(_) => "1 3/4\" legs, 3/4\" aprons and top (1\" overhang); height to the top.",
+        Template::Cabinet(_) => "Sides, top, bottom and shelves of the stock; outside sizes. Drawers ride on side-mount slides; doors wider than 24\" come in pairs.",
+        Template::Drawer(_) => "A box with a 1/4\" plywood bottom in grooves; outside sizes.",
+        Template::FaceFrame(_) => "Stiles full height, rails between them.",
+        Template::Table(_) => "Square legs, 3/4\" thick aprons, a top overhanging 1\"; height to the top of the top.",
     });
     valid
 }

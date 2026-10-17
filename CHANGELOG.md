@@ -3,8 +3,12 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
-## Unreleased
+## 0.1.12
 
+- **Templates, more choices**: the wood (change it later with Change size), the stock thickness
+  (cabinet case, drawer box, face frame), adjustable cabinet shelves on shelf pins (counted in
+  the shopping list), which side a single door hinges on, middle rails in a face frame, and a
+  table's leg size, apron width and top thickness. Drawer fronts over 24" wide get two pulls.
 - **Change starts from the joint's own sizes**: every joint keeps the numbers it was made with,
   and Change fills the Joinery panel in with them (angled joints too, which now have Change).
 - **Fit allowance** for mortise and tenon and for dowels: a "Fit" size cuts the mortise (or the

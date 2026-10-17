@@ -59,6 +59,49 @@ pub struct Cabinet {
     /// The drawer boxes' corners.
     #[serde(default)]
     pub drawer_joints: DrawerJoints,
+    /// The case's stock: sides, top, bottom and shelves.
+    #[serde(default = "three_quarters")]
+    pub stock: f64,
+    /// Shelves between the top and bottom sit loose on shelf pins (and aren't joined).
+    #[serde(default)]
+    pub adjustable: bool,
+    /// Which side a single door hinges on.
+    #[serde(default)]
+    pub hinge: HingeSide,
+}
+
+/// Which side a door hinges on, seen from the front.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HingeSide {
+    #[default]
+    Left,
+    Right,
+}
+
+impl HingeSide {
+    pub const ALL: [Self; 2] = [Self::Left, Self::Right];
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Left => "Left",
+            Self::Right => "Right",
+        }
+    }
+}
+
+fn three_quarters() -> f64 {
+    STOCK
+}
+
+fn half() -> f64 {
+    DRAWER_STOCK
+}
+
+fn leg_size() -> f64 {
+    1.75
+}
+
+fn apron_width() -> f64 {
+    4.0
 }
 
 /// The most openings a cabinet has (20 shelves).
@@ -150,6 +193,9 @@ pub struct Drawer {
     pub height: f64,
     pub depth: f64,
     pub joints: DrawerJoints,
+    /// The box's stock.
+    #[serde(default = "half")]
+    pub stock: f64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -161,6 +207,11 @@ pub struct FaceFrame {
     /// Rail width (top and bottom).
     pub rail: f64,
     pub joints: FrameJoints,
+    #[serde(default = "three_quarters")]
+    pub stock: f64,
+    /// Rails between the top and bottom ones, evenly spaced.
+    #[serde(default)]
+    pub middle_rails: u32,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -170,6 +221,15 @@ pub struct Table {
     /// To the top of the top.
     pub height: f64,
     pub joints: FrameJoints,
+    /// The legs' square size.
+    #[serde(default = "leg_size")]
+    pub leg: f64,
+    /// The aprons' width (they're 3/4" thick).
+    #[serde(default = "apron_width")]
+    pub apron: f64,
+    /// The top's thickness.
+    #[serde(default = "three_quarters")]
+    pub top: f64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -244,25 +304,28 @@ impl Default for Cabinet {
             doors: DoorStyle::Slab,
             pulls: Pulls::Bar,
             drawer_joints: DrawerJoints::Dovetails,
+            stock: STOCK,
+            adjustable: false,
+            hinge: HingeSide::Left,
         }
     }
 }
 
 impl Default for Drawer {
     fn default() -> Self {
-        Self { width: 16.0, height: 5.0, depth: 14.0, joints: DrawerJoints::Dovetails }
+        Self { width: 16.0, height: 5.0, depth: 14.0, joints: DrawerJoints::Dovetails, stock: DRAWER_STOCK }
     }
 }
 
 impl Default for FaceFrame {
     fn default() -> Self {
-        Self { width: 30.0, height: 36.0, stile: 1.5, rail: 1.5, joints: FrameJoints::MortiseAndTenon }
+        Self { width: 30.0, height: 36.0, stile: 1.5, rail: 1.5, joints: FrameJoints::MortiseAndTenon, stock: STOCK, middle_rails: 0 }
     }
 }
 
 impl Default for Table {
     fn default() -> Self {
-        Self { width: 36.0, depth: 20.0, height: 30.0, joints: FrameJoints::MortiseAndTenon }
+        Self { width: 36.0, depth: 20.0, height: 30.0, joints: FrameJoints::MortiseAndTenon, leg: 1.75, apron: 4.0, top: STOCK }
     }
 }
 
@@ -286,18 +349,24 @@ impl Template {
         let small = |what: &str, min: f64| format!("The {what} must be over {}.", crate::units::format_length(min));
         match *self {
             Self::Cabinet(c) => {
-                if c.width <= 2.0 * STOCK + 1.0 {
-                    return Err(small("width", 2.0 * STOCK + 1.0));
+                if !(0.25..=2.0).contains(&c.stock) {
+                    return Err("The stock must be 1/4\" to 2\" thick.".into());
+                }
+                if c.width <= 2.0 * c.stock + 1.0 {
+                    return Err(small("width", 2.0 * c.stock + 1.0));
                 }
                 if c.depth <= 2.0 {
                     return Err(small("depth", 2.0));
                 }
-                let room = c.height - 2.0 * STOCK - f64::from(c.shelves) * STOCK;
+                let room = c.height - 2.0 * c.stock - f64::from(c.shelves) * c.stock;
                 if room <= f64::from(c.shelves + 1) {
                     return Err("Too many shelves for the height.".into());
                 }
             }
             Self::Drawer(d) => {
+                if !(0.25..=1.0).contains(&d.stock) {
+                    return Err("The box stock must be 1/4\" to 1\" thick.".into());
+                }
                 if d.width <= 4.0 || d.depth <= 4.0 {
                     return Err("The width and depth must be over 4\".".into());
                 }
@@ -315,6 +384,12 @@ impl Template {
                 if f.height <= 2.0 * f.rail + 1.0 {
                     return Err(small("height", 2.0 * f.rail + 1.0));
                 }
+                if !(0.25..=2.0).contains(&f.stock) {
+                    return Err("The stock must be 1/4\" to 2\" thick.".into());
+                }
+                if f.height <= f64::from(f.middle_rails + 2) * f.rail + f64::from(f.middle_rails + 1) {
+                    return Err("Too many middle rails for the height.".into());
+                }
             }
             Self::Table(t) => {
                 if t.width <= 12.0 || t.depth <= 12.0 {
@@ -322,6 +397,15 @@ impl Template {
                 }
                 if t.height <= 10.0 {
                     return Err(small("height", 10.0));
+                }
+                if !(1.0..=6.0).contains(&t.leg) {
+                    return Err("Legs must be 1\" to 6\" square.".into());
+                }
+                if t.apron < 1.5 {
+                    return Err(small("apron width", 1.5));
+                }
+                if !(0.25..=3.0).contains(&t.top) {
+                    return Err("The top must be 1/4\" to 3\" thick.".into());
                 }
             }
         }
@@ -351,16 +435,16 @@ impl Document {
         })
     }
 
-    /// Build `template` again in place of `instance` (a template group), as one undo step.
-    /// Changes made inside it by hand are lost.
-    pub fn rebuild_template(&mut self, instance: InstanceId, template: &Template) -> Result<InstanceId, String> {
+    /// Build `template` again in place of `instance` (a template group), in `wood`, as one undo
+    /// step. Changes made inside it by hand are lost.
+    pub fn rebuild_template(&mut self, instance: InstanceId, template: &Template, wood: Option<MaterialId>) -> Result<InstanceId, String> {
         template.check()?;
-        let made = self.template_of(instance).ok_or("That isn't made from a template.")?;
+        self.template_of(instance).ok_or("That isn't made from a template.")?;
         let old = self.container().instance(instance).ok_or("That isn't in the group being edited.")?;
         let (transform, tag, material) = (old.transform, old.tag, old.material);
         self.as_one_step(|doc| {
             doc.erase(&[Entity::Instance(instance)]);
-            let group = doc.build(template, made.wood)?;
+            let group = doc.build(template, wood)?;
             doc.place(group, transform);
             doc.edit_scene(|scene, path| {
                 if let Some(i) = scene.container_mut(path).and_then(|c| c.instance_mut(group)) {
@@ -479,7 +563,7 @@ impl Parts<'_> {
     }
 
     fn cabinet(&mut self, c: Cabinet) -> Result<(), JoineryError> {
-        let t = STOCK;
+        let t = c.stock;
         let deep = if c.back { c.depth - PANEL } else { c.depth };
         let wood = self.wood;
         let left = self.board("Side", wood, DVec3::new(t, 0.0, 0.0), DVec3::Z, DVec3::Y, [c.height, deep, t]);
@@ -491,9 +575,17 @@ impl Parts<'_> {
         ];
         let n = f64::from(c.shelves);
         let gap = (c.height - 2.0 * t - n * t) / (n + 1.0);
+        // Adjustable shelves: loose, 1/32" short of each side, each on four shelf pins.
+        let play = 1.0 / 32.0;
+        let mut loose = Vec::new();
         for i in 0..c.shelves {
             let z = t + gap * f64::from(i + 1) + t * f64::from(i);
-            across.push(self.board("Shelf", wood, DVec3::new(t, 0.0, z), DVec3::X, DVec3::Y, [inside, deep, t]));
+            if c.adjustable {
+                self.board("Shelf", wood, DVec3::new(t + play, 0.0, z), DVec3::X, DVec3::Y, [inside - 2.0 * play, deep, t]);
+                loose.push(z);
+            } else {
+                across.push(self.board("Shelf", wood, DVec3::new(t, 0.0, z), DVec3::X, DVec3::Y, [inside, deep, t]));
+            }
         }
         for &part in &across {
             for side in [left, right] {
@@ -503,6 +595,14 @@ impl Parts<'_> {
                     CaseJoints::Biscuits => self.doc.slots(part, side, &Slots::biscuits(Slots::suggested_biscuit(thick, wide), wide))?,
                     CaseJoints::PocketScrews => self.doc.pocket_screws(part, side, pocket_count(wide), pocket_screw_for(thick))?,
                     CaseJoints::Butt => {}
+                }
+            }
+        }
+        // The pins: 1/4" studs out of the sides under each loose shelf, 1 1/2" in from front and back.
+        for z in loose {
+            for x in [t, c.width - t - 0.375] {
+                for y in [1.5, deep - 1.5 - 0.25] {
+                    self.hardware("Shelf pin", crate::hardware::SHELF_PIN, &[(DVec3::new(x, y, z - 0.25), DVec3::X, DVec3::Y, [0.375, 0.25, 0.25])]);
                 }
             }
         }
@@ -553,12 +653,12 @@ impl Parts<'_> {
 
     /// Fill the cabinet's openings (between the bottom, shelves and top) with drawers and doors.
     fn openings(&mut self, c: &Cabinet, deep: f64) -> Result<(), JoineryError> {
-        let t = STOCK;
+        let t = c.stock;
         let n = c.shelves as usize;
         let gap = (c.height - 2.0 * t - n as f64 * t) / (n as f64 + 1.0);
         for k in 0..=n.min(MAX_OPENINGS - 1) {
             let z0 = t + k as f64 * (gap + t);
-            let opening = Opening { x0: t, x1: c.width - t, z0, z1: z0 + gap, deep, first: k == 0, last: k == n };
+            let opening = Opening { x0: t, x1: c.width - t, z0, z1: z0 + gap, deep, first: k == 0, last: k == n, case: t };
             match c.fills[k] {
                 Fill::Open => {}
                 Fill::Drawer => self.drawer_in(c, &opening)?,
@@ -581,7 +681,7 @@ impl Parts<'_> {
             return Err(JoineryError::Size("An opening is too small for a drawer."));
         }
         let at = DVec3::new(o.x0 + crate::hardware::SLIDE_SPACE, behind, o.z0 + 0.5);
-        self.drawer(Drawer { width, height, depth: length, joints: c.drawer_joints }, at)?;
+        self.drawer(Drawer { width, height, depth: length, joints: c.drawer_joints, stock: DRAWER_STOCK }, at)?;
         // The front: on the cabinet, or set in the opening.
         let wood = self.wood;
         self.board("Drawer front", wood, DVec3::new(front.x0, front.y0 + STOCK, front.z0), DVec3::X, DVec3::Z, [front.x1 - front.x0, front.z1 - front.z0, STOCK]);
@@ -590,8 +690,12 @@ impl Parts<'_> {
         let tall = 1.75_f64.min(height);
         let slide = |x: f64| (DVec3::new(x, behind, mid - tall / 2.0), DVec3::Y, DVec3::Z, [length, tall, crate::hardware::SLIDE_SPACE]);
         self.hardware("Drawer slides", &crate::hardware::slides_name(length), &[slide(o.x0), slide(o.x1 - crate::hardware::SLIDE_SPACE)]);
-        let (cx, cz) = ((front.x0 + front.x1) / 2.0, (front.z0 + front.z1) / 2.0);
-        self.pull(c.pulls, DVec3::new(cx, front.y0, cz), true);
+        // One pull in the middle; two, at the quarters, on a front over 24" wide.
+        let (w, cz) = (front.x1 - front.x0, (front.z0 + front.z1) / 2.0);
+        let spots: &[f64] = if w > 24.0 { &[0.25, 0.75] } else { &[0.5] };
+        for &at in spots {
+            self.pull(c.pulls, DVec3::new(front.x0 + w * at, front.y0, cz), true);
+        }
         let parts: Vec<InstanceId> = self.made[start..].to_vec();
         let drawer = self.group(&parts, "Drawer");
         self.mark_moving(drawer);
@@ -605,7 +709,7 @@ impl Parts<'_> {
             let middle = (front.x0 + front.x1) / 2.0;
             vec![(Rect { x1: middle - REVEAL / 2.0, ..front }, true), (Rect { x0: middle + REVEAL / 2.0, ..front }, false)]
         } else {
-            vec![(front, true)]
+            vec![(front, c.hinge == HingeSide::Left)]
         };
         // Hinge arms reach in from the door's back to the cabinet side.
         let back = front.y0 + STOCK;
@@ -690,7 +794,7 @@ impl Parts<'_> {
 
     /// A drawer box with its front-left-bottom corner at `at`.
     fn drawer(&mut self, d: Drawer, at: DVec3) -> Result<(), JoineryError> {
-        let t = DRAWER_STOCK;
+        let t = d.stock;
         let wood = self.wood;
         // The front and back run the full width; the sides butt their insides, and the joints
         // carry them out to the corners.
@@ -726,14 +830,22 @@ impl Parts<'_> {
     }
 
     fn face_frame(&mut self, f: FaceFrame) -> Result<(), JoineryError> {
-        let t = STOCK;
+        let t = f.stock;
         let wood = self.wood;
         let left = self.board("Stile", wood, DVec3::ZERO, DVec3::Z, DVec3::X, [f.height, f.stile, t]);
         let right = self.board("Stile", wood, DVec3::new(f.width - f.stile, 0.0, 0.0), DVec3::Z, DVec3::X, [f.height, f.stile, t]);
         let long = f.width - 2.0 * f.stile;
         let bottom = self.board("Bottom rail", wood, DVec3::new(f.stile, t, 0.0), DVec3::X, DVec3::Z, [long, f.rail, t]);
         let top = self.board("Top rail", wood, DVec3::new(f.stile, t, f.height - f.rail), DVec3::X, DVec3::Z, [long, f.rail, t]);
-        for rail in [bottom, top] {
+        let mut rails = vec![bottom, top];
+        // Middle rails, evenly spaced between the top and bottom ones.
+        let n = f64::from(f.middle_rails);
+        let gap = (f.height - (n + 2.0) * f.rail) / (n + 1.0);
+        for i in 0..f.middle_rails {
+            let z = f.rail + gap * f64::from(i + 1) + f.rail * f64::from(i);
+            rails.push(self.board("Middle rail", wood, DVec3::new(f.stile, t, z), DVec3::X, DVec3::Z, [long, f.rail, t]));
+        }
+        for rail in rails {
             for stile in [left, right] {
                 self.frame_joint(rail, stile, f.joints, None)?;
             }
@@ -743,8 +855,8 @@ impl Parts<'_> {
 
     fn table(&mut self, t: Table) -> Result<(), JoineryError> {
         let wood = self.wood;
-        let (leg, apron, thick, overhang, set_back) = (1.75, 4.0_f64.min((t.height - STOCK) / 3.0), STOCK, 1.0, 0.25);
-        let legs_up = t.height - STOCK;
+        let (leg, apron, thick, overhang, set_back) = (t.leg, t.apron.min((t.height - t.top) / 3.0), STOCK, 1.0, 0.25);
+        let legs_up = t.height - t.top;
         // One leg, made a component and turned to each corner so its inside faces (where the
         // joints go) always face in.
         let first = self.board("Leg", wood, DVec3::new(overhang, overhang, 0.0), DVec3::Z, DVec3::X, [legs_up, leg, leg]);
@@ -774,8 +886,8 @@ impl Parts<'_> {
         self.made.push(left);
         let right = self.copies(left, middle, &[(middle, 180.0)])[0];
 
-        // Tenons 3/4" long, so the two mortises in each leg don't meet.
-        let tenon = Tenon { length: 0.75, thickness: 0.25, shoulder: 0.25, haunch: 0.0, fit: 0.0 };
+        // Tenons short enough that the two mortises in each leg don't meet (3/4" in a 1 3/4" leg).
+        let tenon = Tenon { length: (leg - 1.0).clamp(0.5, 1.5), thickness: 0.25, shoulder: 0.25, haunch: 0.0, fit: 0.0 };
         for (apron, leg) in [
             (front, front_left),
             (front, front_right),
@@ -788,7 +900,7 @@ impl Parts<'_> {
         ] {
             self.frame_joint(apron, leg, t.joints, Some(tenon))?;
         }
-        self.board("Table top", wood, DVec3::new(0.0, 0.0, legs_up), DVec3::X, DVec3::Y, [t.width, t.depth, STOCK]);
+        self.board("Table top", wood, DVec3::new(0.0, 0.0, legs_up), DVec3::X, DVec3::Y, [t.width, t.depth, t.top]);
         Ok(())
     }
 }
@@ -817,13 +929,15 @@ struct Opening {
     deep: f64,
     first: bool,
     last: bool,
+    /// The case's stock (how much an overlay front covers).
+    case: f64,
 }
 
 impl Opening {
     /// Where its front goes. Overlay: over the cabinet's sides, top and bottom (to 1/16" of their
     /// outer edges) and halfway over a shelf shared with the next opening; inset: inside it.
     fn front(&self, fronts: Fronts) -> Rect {
-        let t = STOCK;
+        let t = self.case;
         match fronts {
             Fronts::Overlay => {
                 let edge = t - REVEAL;
@@ -949,13 +1063,49 @@ mod tests {
                     let leaves = if width > 24.0 { 2 } else { 1 };
                     assert_eq!(hardware.get(crate::hardware::HINGE), Some(&(2 * leaves)), "{width}: {hardware:?}");
                     let pulls_count = match pulls { Pulls::Bar => hardware.get(crate::hardware::PULL), Pulls::Knob => hardware.get(crate::hardware::KNOB), Pulls::None => None };
-                    assert_eq!(pulls_count.copied(), if pulls == Pulls::None { None } else { Some(1 + leaves) });
+                    // Two pulls on a drawer front over 24" wide, one on each door.
+                    let drawer_pulls = if width - 1.0 / 8.0 > 24.0 { 2 } else { 1 };
+                    assert_eq!(pulls_count.copied(), if pulls == Pulls::None { None } else { Some(drawer_pulls + leaves) });
                     // Hardware isn't a part to cut.
                     let names = cut_list_names(&doc);
                     assert!(!names.iter().any(|(n, _)| n.contains("slide") || n.contains("Hinge") || n.contains("Pull")), "{names:?}");
                 }
             }
         }
+    }
+
+    #[test]
+    fn adjustable_shelves_sit_loose_on_pins() {
+        let mut doc = Document::default();
+        let c = Cabinet { shelves: 2, adjustable: true, ..Default::default() };
+        doc.add_template(&Template::Cabinet(c), None).unwrap();
+        assert_eq!(crate::hardware::placed(doc.scene()).get(crate::hardware::SHELF_PIN), Some(&8), "four pins under each of two shelves");
+        let list = crate::cutlist::cut_list(doc.scene());
+        let shelf = list.materials.iter().flat_map(|m| &m.parts).find(|p| p.names.iter().any(|n| n == "Shelf")).unwrap();
+        // 30" less two 3/4" sides, less 1/32" play each side; not let in.
+        assert_eq!(shelf.length, 28.5 - 1.0 / 16.0);
+        assert!(doc.scene().joints.iter().all(|j| doc.scene().definition(j.cut).unwrap().name != "Shelf"), "loose shelves aren't joined");
+    }
+
+    #[test]
+    fn templates_take_their_stock_and_sizes() {
+        let mut doc = Document::default();
+        let c = Cabinet { stock: 1.0, ..Default::default() };
+        doc.add_template(&Template::Cabinet(c), None).unwrap();
+        let thick = |doc: &Document, name: &str| {
+            let list = crate::cutlist::cut_list(doc.scene());
+            list.materials.iter().flat_map(|m| m.parts.clone()).find(|p| p.names.iter().any(|n| n == name)).map(|p| p.thickness)
+        };
+        assert_eq!(thick(&doc, "Side"), Some(1.0));
+        let mut doc = Document::default();
+        doc.add_template(&Template::Table(Table { leg: 2.5, apron: 5.0, top: 1.0, ..Default::default() }), None).unwrap();
+        assert_eq!(thick(&doc, "Table top"), Some(1.0));
+        let (lo, hi) = doc.bounds().unwrap();
+        assert!((hi.z - lo.z - 30.0).abs() < 1e-9, "still 30\" to the top");
+        let mut doc = Document::default();
+        doc.add_template(&Template::FaceFrame(FaceFrame { middle_rails: 2, ..Default::default() }), None).unwrap();
+        let names = cut_list_names(&doc);
+        assert!(names.iter().any(|(n, c)| n.contains("Middle rail") && *c >= 2) || names.iter().any(|(n, _)| n.contains("Middle rail")), "{names:?}");
     }
 
     #[test]
@@ -1002,7 +1152,7 @@ mod tests {
         // Moved, then made taller: it stays where it was moved.
         doc.edit_scene(|scene, path| scene.container_mut(path).unwrap().instance_mut(first).unwrap().transform.translation.y = 5.0);
         let Some(Made { template: Template::FaceFrame(f), .. }) = doc.template_of(first) else { panic!("a face frame") };
-        let taller = doc.rebuild_template(first, &Template::FaceFrame(FaceFrame { height: 40.0, ..f })).unwrap();
+        let taller = doc.rebuild_template(first, &Template::FaceFrame(FaceFrame { height: 40.0, ..f }), None).unwrap();
         assert_eq!(doc.container().instance(taller).unwrap().transform.translation.y, 5.0);
         assert!(doc.container().instance(first).is_none());
         let Some(Made { template: Template::FaceFrame(f), .. }) = doc.template_of(taller) else { panic!("still a face frame") };

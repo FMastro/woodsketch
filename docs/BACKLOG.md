@@ -76,15 +76,16 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 
 ## Templates
 - Change size rebuilds from scratch, so edits made inside the group by hand are lost (the button's
-  tooltip warns). The wood can't be changed there either (paint the group instead).
-- Fixed stock: 3/4" cases and frames, a 1/2" drawer box, 1/4" plywood backs and bottoms, 1 3/4" legs,
-  3/4" x 4" aprons. Not yet chosen in the panel.
-- Cabinet: shelves are evenly spaced and fixed (no adjustable shelf-pin holes); the back is applied
-  over the back edges, not set in a rabbet; no face frame, toe kick or dividers.
+  tooltip warns).
+- Still fixed: 1/4" plywood backs, drawer bottoms and door panels, 3/4" fronts and doors, 3/4"
+  aprons; a cabinet's drawer boxes are 1/2".
+- Cabinet: shelves are evenly spaced (adjustable ones sit on pins at those heights; the rows of
+  pin holes aren't drilled in the sides); the back is applied over the back edges, not set in a
+  rabbet; no face frame, toe kick or dividers.
 - Drawer: a box only (no applied false front); the bottom's corners aren't notched around the
   corner joints.
-- Face frame: top and bottom rails only (no middle rails or mullions).
-- Table: tenon size, apron width and leg size aren't settable; no stretchers or drawer.
+- Face frame: no mullions (upright dividers) yet.
+- Table: the tenon's size follows the leg (not set by hand); no stretchers or drawer.
 - A new template goes a foot to the right of everything, not where you click.
 
 ## Angled joints
@@ -102,13 +103,12 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
   face-frame cabinets (fronts set in a face frame) yet.
 - Side-mount slides only (1/2" a side, the longest standard length that fits); no undermount
   slides or choosing a slide and its clearances.
-- A single door is always hinged on the left; hinges are plain boxes (no cup bored in the door,
-  no mounting plates), and there's one hinge kind (concealed). Pulls are 5" bars or knobs, one per
-  front, centered (a wide drawer front still gets one).
+- Hinges are plain boxes (no cup bored in the door, no mounting plates), and there's one hinge
+  kind (concealed); pairs of doors always hinge at the outsides. Pulls are 5" bars or knobs,
+  centered (two on a drawer front over 24"), not placed or sized by hand.
 - Frame-and-panel doors have a 1/4" plywood panel; no solid (raised) panels sized for wood
   movement yet.
-- No adjustable shelves with shelf pins, no screws, and no way to place hardware on parts drawn
-  by hand; no hardware prices.
+- No screws, and no way to place hardware on parts drawn by hand; no hardware prices.
 
 ## Copy and paste
 - Guides aren't copied.
