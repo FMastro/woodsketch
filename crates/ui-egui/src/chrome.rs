@@ -402,10 +402,17 @@ impl WoodSketchApp {
                     measurements_box(ui, &self.tools);
                     ui.label(self.tools.measurement_label());
                     ui.separator();
-                    // A new version, downloaded in the background: offer the restart, never force it.
+                    // A new version downloading, then downloaded: offer the restart (green, so it's seen),
+                    // never force it.
+                    if let Some(crate::updates::UpdateState::Downloading(version)) = self.update_state() {
+                        ui.label(format!("Downloading WoodSketch {version}..."));
+                        ui.add(egui::Spinner::new());
+                        ui.separator();
+                    }
                     if let Some(crate::updates::UpdateState::Ready(version)) = self.update_state() {
+                        let label = egui::RichText::new(format!("{} Restart to update to {version}", egui_phosphor::regular::ARROW_CIRCLE_UP)).color(egui::Color32::WHITE).strong();
                         let restart = ui
-                            .button(format!("{} Restart to update to {version}", egui_phosphor::regular::ARROW_CIRCLE_UP))
+                            .add(egui::Button::new(label).fill(egui::Color32::from_rgb(34, 139, 34)))
                             .on_hover_text("Installs the new version and reopens WoodSketch (you'll be asked to save first)");
                         if restart.clicked() {
                             let ctx = ui.ctx().clone();

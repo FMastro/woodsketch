@@ -240,6 +240,25 @@ impl Model {
         }
     }
 
+    /// Add a vertex as it is, without looking for one already there (reading a file whose
+    /// vertices are already distinct).
+    pub(crate) fn push_vertex(&mut self, point: DVec3) -> VertexId {
+        self.face_index.take();
+        VertexId(self.vertices.insert(point))
+    }
+
+    /// Add an edge as it is, without looking for one already there.
+    pub(crate) fn push_edge(&mut self, a: VertexId, b: VertexId) -> EdgeId {
+        EdgeId(self.edges.insert(Edge { a, b }))
+    }
+
+    /// Add a face as it is (its edges already added): no merging and no looking for faces it sits
+    /// inside. `outer` winds counter-clockwise around `normal`.
+    pub(crate) fn push_face(&mut self, outer: Vec<VertexId>, holes: Vec<Vec<VertexId>>, normal: DVec3, material: Option<crate::MaterialId>) -> FaceId {
+        self.face_index.take();
+        FaceId(self.faces.insert(Face { outer, holes, normal, material }))
+    }
+
     /// The vertex within [`EPS`] of `point`, if any.
     pub fn vertex_at(&self, point: DVec3) -> Option<VertexId> {
         self.vertices().find(|(_, q)| q.distance_squared(point) <= EPS * EPS).map(|(id, _)| id)

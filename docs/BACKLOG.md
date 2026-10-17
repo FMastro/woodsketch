@@ -117,7 +117,14 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 - No saving back to `.skp`.
 - Tested on SketchUp 2026 files only so far; more sample files from other versions will turn up
   records that aren't read yet.
-- Big models load slowly (vertices are matched by a linear search).
+- Big models are slow to edit: a deck with 729,000 faces once every copy is placed (1.5 million
+  triangles) opens in about a second and then draws smoothly, but every change rebuilds and
+  re-uploads all of it (about a second). Drawing each component once and placing copies on the
+  GPU (instancing) would fix it.
+- Materials that aren't wood (metal, glass, grass, paint colors) come in as solid wood, so their
+  parts show in the cut list as wood; there's no "not wood" material kind yet.
+- Wanted for testing: a model with groups, one saved by SketchUp 2021 or 2022, and a detailed piece
+  of furniture (drawers, joinery).
 
 ## Geometry
 - **Auto-joining**: moved or copied geometry doesn't merge with geometry it lands on (shared

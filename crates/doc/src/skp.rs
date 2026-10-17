@@ -243,44 +243,60 @@ impl Reader {
             .filter_map(|e| Some((e.id()?, (e.child(0x0bb9)?.int()?, e.child(0x0bba)?.int()?))))
             .collect();
 
+        // SketchUp's topology is taken as it is: each vertex and edge added once, faces made from
+        // them, nothing merged or searched for (that's slow on big models, and already done).
         let mut container = Container::default();
         let model = &mut container.model;
-        let mut in_faces = std::collections::HashSet::new();
+        let mut ids: HashMap<u64, crate::VertexId> = HashMap::new();
+        let mut vertex = |model: &mut crate::Model, v: u64| -> Option<crate::VertexId> {
+            if let Some(&id) = ids.get(&v) {
+                return Some(id);
+            }
+            let id = model.push_vertex(*vertices.get(&v)?);
+            ids.insert(v, id);
+            Some(id)
+        };
+        for &(a, b) in edges.values() {
+            if let (Some(a), Some(b)) = (vertex(model, a), vertex(model, b))
+                && a != b
+            {
+                model.push_edge(a, b);
+            }
+        }
         for face in entities.child(0x138b).into_iter().flat_map(|r| r.all(0x0dac)) {
-            let loops: Vec<Vec<u64>> = face
+            let loops: Vec<Vec<(u64, bool)>> = face
                 .child(0x0dae)
                 .into_iter()
                 .flat_map(|r| r.all(0x1194))
-                .map(|l| l.child(0x1195).into_iter().flat_map(|c| c.all(0x0fa0)).filter_map(|c| c.child(0x0fa1)?.int()).collect())
+                .map(|l| {
+                    l.child(0x1195)
+                        .into_iter()
+                        .flat_map(|c| c.all(0x0fa0))
+                        .filter_map(|c| Some((c.child(0x0fa1)?.int()?, c.child(0x0fa2).and_then(Record::int) == Some(1))))
+                        .collect()
+                })
                 .collect();
-            in_faces.extend(loops.iter().flatten().copied());
-            let normal = face.child(0x0dad).map(Record::floats).filter(|p| p.len() >= 3).map(|p| DVec3::new(p[0], p[1], p[2]));
-            let points: Option<Vec<Vec<DVec3>>> = loops.iter().map(|l| walk(l, &edges, &vertices)).collect();
-            let Some(mut points) = points.filter(|p| !p.is_empty()) else {
+            let corners: Option<Vec<Vec<crate::VertexId>>> =
+                loops.iter().map(|l| walk(l, &edges)?.into_iter().map(|v| vertex(model, v)).collect()).collect();
+            let Some(mut corners) = corners.filter(|c| !c.is_empty()) else {
                 self.skipped_faces += 1;
                 continue;
             };
-            let mut outer = points.remove(0);
-            if let Some(n) = normal
-                && newell(&outer).dot(n) < 0.0
-            {
-                outer.reverse();
-            }
-            let material = face.common(0x07d1).or_else(|| face.child(0x0daf).and_then(Record::int)).and_then(|m| self.materials.get(&m).copied());
-            match model.add_face_with_holes(&outer, &points) {
-                Some(id) => model.set_face_material(id, material),
-                None => self.skipped_faces += 1,
-            }
-        }
-        // Edges on no face (lines drawn alone).
-        for (id, (a, b)) in &edges {
-            if in_faces.contains(id) {
+            let mut outer = corners.remove(0);
+            let points: Vec<DVec3> = outer.iter().map(|&v| model.vertex(v)).collect();
+            let winding = newell(&points);
+            if winding.length() <= crate::EPS * crate::EPS {
+                self.skipped_faces += 1;
                 continue;
             }
-            if let (Some(&a), Some(&b)) = (vertices.get(a), vertices.get(b)) {
-                let (a, b) = (model.add_vertex(a), model.add_vertex(b));
-                model.add_edge(a, b);
+            let plane = face.child(0x0dad).map(Record::floats).filter(|p| p.len() >= 3).map(|p| DVec3::new(p[0], p[1], p[2]));
+            let mut normal = winding.normalize();
+            if plane.is_some_and(|n| normal.dot(n) < 0.0) {
+                outer.reverse();
+                normal = -normal;
             }
+            let material = face.common(0x07d1).or_else(|| face.child(0x0daf).and_then(Record::int)).and_then(|m| self.materials.get(&m).copied());
+            model.push_face(outer, corners, normal, material);
         }
         for instance in entities.child(0x138c).into_iter().flat_map(|r| r.all(0x1964)) {
             let Some(&definition) = instance.child(0x1967).and_then(Record::int).and_then(|d| self.definitions.get(&d)) else { continue };
@@ -296,29 +312,34 @@ impl Reader {
     }
 }
 
-/// A loop's corners, following its edges end to end (each edge's direction in the loop is
-/// worked out from which end the next edge shares).
-fn walk(edges_in_loop: &[u64], edges: &HashMap<u64, (u64, u64)>, vertices: &HashMap<u64, DVec3>) -> Option<Vec<DVec3>> {
-    let ends: Vec<(u64, u64)> = edges_in_loop.iter().map(|e| edges.get(e).copied()).collect::<Option<_>>()?;
+/// A loop's corners, following its edges end to end. Each edge's direction in the loop comes
+/// from which end the next edge shares; the loop's own flag (forward or not) settles a loop
+/// that can't be followed that way.
+fn walk(edges_in_loop: &[(u64, bool)], edges: &HashMap<u64, (u64, u64)>) -> Option<Vec<u64>> {
+    let ends: Vec<(u64, u64, bool)> = edges_in_loop.iter().map(|&(e, forward)| edges.get(&e).map(|&(a, b)| (a, b, forward))).collect::<Option<_>>()?;
     if ends.len() < 3 {
         return None;
     }
-    let (a, b) = ends[0];
-    let (c, d) = ends[1];
-    // Start at the first edge's end not shared with the second.
-    let mut at = if a == c || a == d { b } else { a };
-    let mut corners = Vec::with_capacity(ends.len());
-    for &(a, b) in &ends {
-        corners.push(*vertices.get(&at)?);
-        at = if a == at {
-            b
-        } else if b == at {
-            a
-        } else {
-            return None;
-        };
-    }
-    Some(corners)
+    let chain = |start: u64| -> Option<Vec<u64>> {
+        let mut at = start;
+        let mut corners = Vec::with_capacity(ends.len());
+        for &(a, b, _) in &ends {
+            corners.push(at);
+            at = if a == at {
+                b
+            } else if b == at {
+                a
+            } else {
+                return None;
+            };
+        }
+        (at == start).then_some(corners)
+    };
+    let (a, b, forward) = ends[0];
+    chain(a).or_else(|| chain(b)).or_else(|| {
+        // By the flags: each edge starts at its start when forward, at its end otherwise.
+        Some(ends.iter().map(|&(a, b, f)| if f == forward { a } else { b }).collect())
+    })
 }
 
 fn newell(points: &[DVec3]) -> DVec3 {

@@ -46,7 +46,7 @@ pub fn describe(state: &UpdateState) -> String {
         UpdateState::Idle | UpdateState::Checking => "Checking for updates...".into(),
         UpdateState::NotInstalled => "This copy wasn't installed with the WoodSketch installer, so it can't update itself. Download the latest from woodsketch.net.".into(),
         UpdateState::UpToDate => format!("WoodSketch {VERSION} is up to date."),
-        UpdateState::Downloading(v) => format!("Downloading WoodSketch {v}..."),
+        UpdateState::Downloading(v) => format!("WoodSketch {v} is downloading in the background (shown at the bottom right). When it's ready, a green \"Restart to update\" button appears there."),
         UpdateState::Ready(v) => format!("WoodSketch {v} is ready: restart to update."),
         UpdateState::Failed(e) => format!("Couldn't check for updates: {e}"),
     }

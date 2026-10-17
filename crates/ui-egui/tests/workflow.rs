@@ -1680,9 +1680,13 @@ fn escape_takes_a_carried_paste_back_out_and_duplicate_places_beside() {
 fn opens_a_sketchup_model() {
     let Ok(path) = std::env::var("WOODSKETCH_SKP") else { return };
     let mut harness = app();
+    let t = std::time::Instant::now();
     harness.state_mut().open_path(std::path::Path::new(&path)).unwrap();
-    for _ in 0..3 {
+    println!("open {:?}", t.elapsed());
+    for i in 0..3 {
+        let t = std::time::Instant::now();
         harness.run();
+        println!("frame {i} {:?}", t.elapsed());
     }
     snapshot(&mut harness, "sketchup_model");
     let doc = harness.state().document();
@@ -1693,4 +1697,21 @@ fn opens_a_sketchup_model() {
             println!("{} {:?} x{} {:.3} x {:.3} x {:.3}", p.label, p.names, p.count, p.length, p.width, p.thickness);
         }
     }
+}
+
+#[test]
+fn the_status_bar_shows_an_update_downloading_then_ready() {
+    use egui_kittest::kittest::Queryable;
+    use std::sync::{Arc, Mutex};
+    use woodsketch_ui_egui::updates::{UpdateState, Updater};
+    let mut harness = app();
+    let state = Arc::new(Mutex::new(UpdateState::Downloading("9.9.9".into())));
+    harness.state_mut().set_updater(Updater { state: state.clone(), check: Box::new(|| {}), restart: Box::new(|| {}) });
+    // The spinner keeps repainting, so step a few frames rather than run until still.
+    harness.run_steps(3);
+    assert!(harness.query_by_label("Downloading WoodSketch 9.9.9...").is_some());
+    *state.lock().unwrap() = UpdateState::Ready("9.9.9".into());
+    harness.run();
+    snapshot(&mut harness, "update_ready");
+    assert!(harness.query_by_label_contains("Restart to update to 9.9.9").is_some());
 }
