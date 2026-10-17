@@ -76,12 +76,24 @@ impl TagsPanel {
             scene.tags().filter(|(_, t)| t.parent == folder).map(|(id, t)| (id, t.name.clone(), t.visible, t.folder)).collect();
         here.sort_by_key(|(_, name, _, is_folder)| (!is_folder, name.to_lowercase()));
         for (id, name, visible, is_folder) in here {
+            // The whole row drags onto a folder to move it there: sensed under the row's buttons and
+            // name, so they still click.
+            let size = egui::vec2(ui.available_width(), ui.spacing().interact_size.y);
+            let handle = ui.interact(egui::Rect::from_min_size(ui.cursor().min, size), egui::Id::new(("tag_row_drag", id)), egui::Sense::drag());
+            handle.dnd_set_drag_payload(Dragged(id));
+            if handle.dragged() {
+                dragging_label(ui, &name);
+            }
+            // Whether the pointer is on one of the row's buttons (they click; the rest of the row drags).
+            let mut on_button = false;
             let row = ui.horizontal(|ui| {
                 ui.add_space(16.0 * depth as f32);
                 if is_folder {
                     let open = !self.closed.contains(&id);
                     let caret = if open { ph::CARET_DOWN } else { ph::CARET_RIGHT };
-                    if ui.add(egui::Button::new(caret).frame(false)).on_hover_text(if open { "Fold" } else { "Unfold" }).clicked() {
+                    let fold = ui.add(egui::Button::new(caret).frame(false));
+                    on_button |= fold.hovered();
+                    if fold.on_hover_text(if open { "Fold" } else { "Unfold" }).clicked() {
                         if open {
                             self.closed.insert(id);
                         } else {
@@ -92,7 +104,9 @@ impl TagsPanel {
                 let eye = if visible { ph::EYE } else { ph::EYE_SLASH };
                 let what = if is_folder { "everything in this folder" } else { "everything with this tag" };
                 let hint = if visible { format!("Hide {what}") } else { "Show it again".to_owned() };
-                if ui.add(egui::Button::new(eye).frame(false)).on_hover_text(hint).clicked() {
+                let eye = ui.add(egui::Button::new(eye).frame(false));
+                on_button |= eye.hovered();
+                if eye.on_hover_text(hint).clicked() {
                     changes.push(Change::Visible(id, !visible));
                 }
 
@@ -117,13 +131,8 @@ impl TagsPanel {
                     _ => {
                         let text = if is_folder { format!("{} {name}", ph::FOLDER) } else { name.clone() };
                         let label = if visible && shown { egui::RichText::new(text) } else { egui::RichText::new(text).weak() };
-                        let response = ui.add(egui::Label::new(label).sense(egui::Sense::click_and_drag()));
-                        // Drag it onto a folder to move it there.
-                        response.dnd_set_drag_payload(Dragged(id));
-                        if response.dragged() {
-                            dragging_label(ui, &name);
-                        }
-                        let response = response.on_hover_text("Double-click to rename; drag onto a folder (or right-click) to move it");
+                        let response = ui.add(egui::Label::new(label).selectable(false).sense(egui::Sense::click()));
+                        let response = response.on_hover_text("Double-click to rename; drag the row onto a folder (or right-click) to move it");
                         if response.double_clicked() {
                             self.renaming = Some((id, name.clone()));
                             self.focused = false;
@@ -134,11 +143,17 @@ impl TagsPanel {
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     let hint = if is_folder { "Delete folder (what's in it moves up)" } else { "Delete tag (its groups become Untagged)" };
-                    if ui.add(egui::Button::new(ph::TRASH).frame(false)).on_hover_text(hint).clicked() {
+                    let trash = ui.add(egui::Button::new(ph::TRASH).frame(false));
+                    on_button |= trash.hovered();
+                    if trash.on_hover_text(hint).clicked() {
                         changes.push(Change::Delete(id));
                     }
                 });
             });
+            // An open hand over the row (not its buttons): it can be picked up.
+            if ui.rect_contains_pointer(handle.rect) && !handle.dragged() && !on_button && self.renaming.is_none() && ui.ctx().dragged_id().is_none() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::Grab);
+            }
             // Dropped on a folder: into it. On a tag: beside it, in its folder.
             drop_target(ui, &row.response, if is_folder { Some(id) } else { folder }, changes);
             if is_folder && !self.closed.contains(&id) {

@@ -214,7 +214,8 @@ top of `docs/BACKLOG.md` ("Woodworking direction"); keep general modeling workin
 32. Tag folders: `Tag::folder` and `Tag::parent` (SketchUp's tag folders): a tag shows only if it and
    every folder around it are visible (`Scene::tag_shown`, used by `is_visible`); `move_tag` refuses
    loops; deleting a folder moves its contents up. Tags panel: a tree (fold/unfold, folder button,
-   drag a tag onto a folder, or onto Untagged for the top, or right-click > Move to); Entity Info lists tags as `Folder / Tag`. `.skp` import reads hidden
+   drag a row (anywhere but its buttons; an open hand shows) onto a folder, or onto Untagged for the
+   top, or right-click > Move to); Entity Info lists tags as `Folder / Tag`. `.skp` import reads hidden
    layers (`3c8e`) and the folder tree (`3a9b` > `3e80`: name `3e81`, hidden `3e82`, folders
    `3e83`, tag ids `3e84`). Cedar (boards) and Cedar Lumber in the library; lumber sizes include 5/4 (decking) and 6x.
 33. Drawers, doors and hardware: `doc::hardware` (side-mount slide lengths, `slide_for`, hinge counts;

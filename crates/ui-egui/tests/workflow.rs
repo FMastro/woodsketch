@@ -1792,8 +1792,14 @@ fn drag_a_tag_into_a_folder_and_back_out() {
     let to = harness.get_by_label_contains("Framing").rect().center();
     drag(&mut harness, from, to);
     assert_eq!(harness.state().document().scene().tag(joist).unwrap().parent, Some(framing), "dropped on the folder");
-    // Now inside the folder; dropped on Untagged, it goes back to the top.
-    let from = harness.get_by_label("Joist").rect().center();
+    // Over a row, the pointer is an open hand: the whole row can be picked up.
+    let beside = harness.get_by_label("Joist").rect().right_center() + egui::vec2(30.0, 0.0);
+    harness.hover_at(beside);
+    harness.run_steps(2);
+    assert_eq!(harness.output().platform_output.cursor_icon, egui::CursorIcon::Grab);
+    // Now inside the folder; dropped on Untagged, it goes back to the top. Picked up beside its
+    // name this time.
+    let from = harness.get_by_label("Joist").rect().right_center() + egui::vec2(30.0, 0.0);
     let to = harness.get_by_label("Untagged").rect().center();
     drag(&mut harness, from, to);
     assert_eq!(harness.state().document().scene().tag(joist).unwrap().parent, None, "dropped on Untagged");
