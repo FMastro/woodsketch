@@ -37,6 +37,8 @@ struct Member {
     name: String,
     /// Every definition in it (one for a part; a sub-assembly's parts).
     definitions: BTreeSet<DefinitionId>,
+    /// Each geometry in it and where it's placed in the world (to find a joint's cuts).
+    places: Vec<(DefinitionId, DAffine3)>,
     /// Its box in the world.
     lo: DVec3,
     hi: DVec3,
@@ -57,6 +59,7 @@ impl Member {
         Self {
             name,
             definitions: BTreeSet::new(),
+            places: Vec::new(),
             lo: DVec3::splat(f64::INFINITY),
             hi: DVec3::splat(f64::NEG_INFINITY),
             moves,
@@ -180,6 +183,7 @@ fn gather(scene: &Scene, definition: DefinitionId, place: DAffine3, paint: Optio
         return;
     }
     m.definitions.insert(definition);
+    m.places.push((definition, place));
     let model = &def.container.model;
     for (_, face) in model.faces() {
         let points: Vec<DVec3> = face.outer.iter().map(|&v| place.transform_point3(model.vertex(v))).collect();
@@ -245,10 +249,24 @@ fn touching(a: &Member, b: &Member) -> bool {
 
 /// The joints between two members, by name (from the drawing's joints).
 fn joints_between(scene: &Scene, a: &Member, b: &Member) -> Vec<&'static str> {
+    // Joints are kept per design, so copies share them: only those with a cut where these two
+    // meet count (a drawer of copies dovetailed at one corner isn't joined at the next).
+    const TOL: f64 = 1e-3;
+    let meeting = (a.lo.max(b.lo) - DVec3::splat(TOL), a.hi.min(b.hi) + DVec3::splat(TOL));
+    let here = |j: &crate::joinery::Joint| {
+        j.ops.is_empty()
+            || j.ops.iter().any(|op| {
+                let (lo, hi) = (meeting.0 - DVec3::splat(op.distance.abs()), meeting.1 + DVec3::splat(op.distance.abs()));
+                a.places.iter().chain(&b.places).filter(|(d, _)| *d == op.part).any(|(_, place)| {
+                    op.points.iter().map(|p| place.transform_point3(*p)).any(|p| p.cmpge(lo).all() && p.cmple(hi).all())
+                })
+            })
+    };
     let mut kinds: Vec<&'static str> = scene
         .joints
         .iter()
         .filter(|j| (a.definitions.contains(&j.cut) && b.definitions.contains(&j.into)) || (b.definitions.contains(&j.cut) && a.definitions.contains(&j.into)))
+        .filter(|j| here(j))
         .map(|j| j.kind.name())
         .collect();
     kinds.sort_unstable();

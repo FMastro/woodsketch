@@ -3,6 +3,16 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.19
+
+- Build sheets: a part made as copies (four legs from one component) lists each of its cuts once,
+  with how many ("In 2 places", "At both ends"), instead of once per copy; the assembly pages
+  count a joint only where its cuts are.
+- Parts alike, or mirror images of each other (a left and a right side), share one page: "Make 2,
+  a mirrored pair".
+- A glued-up part's views show its boards (named as in the cutting diagrams), their seams, and
+  the growth rings alternating across the end.
+
 ## 0.1.18
 
 - Fix: two parts that are copies of components joined somewhere else (a drawer whose sides and

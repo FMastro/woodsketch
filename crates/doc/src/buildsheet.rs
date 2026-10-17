@@ -20,10 +20,13 @@ pub(crate) fn esc(text: &str) -> String {
     text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
 }
 
-/// A part to make: one definition with faces, however many copies.
+/// A part to make: one definition with faces, however many copies (and other definitions shaped
+/// the same, or mirror images of it, as a drawer's left and right sides).
 struct Sheet {
     definition: DefinitionId,
     count: usize,
+    /// How many of `count` are mirror images.
+    mirrored: usize,
     material: Option<crate::MaterialId>,
     /// How much each of its own axes is stretched (copies' scale).
     scale: DVec3,
@@ -40,7 +43,12 @@ fn collect(scene: &Scene, container: &Container, inherited: Option<crate::Materi
         if def.container.model.faces().next().is_some() {
             let material = material.or_else(|| def.container.model.faces().find_map(|(_, f)| f.material));
             let scale = DVec3::from_array([0, 1, 2].map(|i| (linear * DVec3::AXES[i]).length()));
-            found.entry(instance.definition).or_insert(Sheet { definition: instance.definition, count: 0, material, scale }).count += 1;
+            let sheet = found.entry(instance.definition).or_insert(Sheet { definition: instance.definition, count: 0, mirrored: 0, material, scale });
+            sheet.count += 1;
+            // A copy placed mirrored (scaled by -1) is the other hand.
+            if linear.determinant() < 0.0 {
+                sheet.mirrored += 1;
+            }
         }
         collect(scene, &def.container, material, linear, found);
     }
@@ -82,20 +90,32 @@ svg text {{ font: 11px system-ui, sans-serif; fill: #333; }}
     let not_wood = |sheet: &Sheet| {
         sheet.material.and_then(|m| scene.material(m)).is_some_and(|m| matches!(m.kind, crate::MaterialKind::Other | crate::MaterialKind::Hardware))
     };
-    let mut sheets: Vec<(String, &Sheet, Option<&Part>)> = found
-        .values()
-        .filter(|sheet| !not_wood(sheet))
-        .filter_map(|sheet| {
-            let row = row_for(scene, list, sheet)?;
-            Some((row.label.clone(), sheet, Some(row)))
-        })
-        .collect();
+    let mut sheets: Vec<(String, Sheet, Option<&Part>)> = Vec::new();
+    for sheet in found.into_values().filter(|sheet| !not_wood(sheet)) {
+        let Some(row) = row_for(scene, list, &sheet) else { continue };
+        // Another design with the same name, row and shape (or its mirror image) is the same
+        // part: one sheet, counted together.
+        let name = scene.definition(sheet.definition).map(|d| d.name.as_str());
+        let same = sheets.iter_mut().find_map(|(label, kept, _)| {
+            if *label != row.label || scene.definition(kept.definition).map(|d| d.name.as_str()) != name {
+                return None;
+            }
+            same_shape(scene, kept, &sheet).map(|mirrored| (kept, mirrored))
+        });
+        match same {
+            Some((kept, mirrored)) => {
+                kept.count += sheet.count;
+                kept.mirrored += if mirrored { sheet.count - sheet.mirrored } else { sheet.mirrored };
+            }
+            None => sheets.push((row.label.clone(), sheet, Some(row))),
+        }
+    }
     sheets.sort_by(|a, b| (a.0.len(), &a.0).cmp(&(b.0.len(), &b.0)));
     if sheets.is_empty() {
         html.push_str("<p>No parts yet. Each group or component is a part.</p>");
     }
-    for (label, sheet, row) in sheets {
-        write_sheet(&mut html, scene, sheet, &label, row);
+    for (label, sheet, row) in &sheets {
+        write_sheet(&mut html, scene, sheet, label, *row);
     }
     // Then putting it together: each assembly, sub-assemblies first.
     for assembly in crate::assembly::assemblies(scene, list) {
@@ -110,6 +130,48 @@ svg text {{ font: 11px system-ui, sans-serif; fill: #333; }}
     }
     html.push_str("</body></html>\n");
     html
+}
+
+/// Whether two parts are the same shape: `Some(false)` alike, turned any way; `Some(true)` mirror
+/// images (a left and a right); `None` different. Compared along each one's length, width and
+/// thickness from its corner, every way it can be turned end for end or flipped.
+fn same_shape(scene: &Scene, a: &Sheet, b: &Sheet) -> Option<bool> {
+    let points = |sheet: &Sheet| -> Option<(Vec<DVec3>, DVec3, usize)> {
+        let def = scene.definition(sheet.definition)?;
+        let model = &def.container.model;
+        let extents = crate::part::extents(def, DMat3::from_diagonal(sheet.scale))?;
+        let axes = crate::part::axes(extents, &def.part);
+        let (lo, _) = model.bounds()?;
+        let points = model.vertices().map(|(_, p)| {
+            let p = (p - lo) * sheet.scale;
+            DVec3::new(p[axes[0]], p[axes[1]], p[axes[2]])
+        });
+        Some((points.collect(), DVec3::new(extents[axes[0]], extents[axes[1]], extents[axes[2]]), model.faces().count()))
+    };
+    let (pa, size, faces_a) = points(a)?;
+    let (pb, size_b, faces_b) = points(b)?;
+    if faces_a != faces_b || pa.len() != pb.len() || (size - size_b).abs().max_element() > 1e-3 {
+        return None;
+    }
+    let key = |p: DVec3| (p * 1000.0).round().to_array().map(|v| v as i64);
+    let mut want: Vec<[i64; 3]> = pa.iter().map(|p| key(*p)).collect();
+    want.sort_unstable();
+    // Flip any of the three directions (end for end, edge for edge, face for face): an even number
+    // of flips is the part turned over, an odd number its mirror image.
+    let mut found = None;
+    for flips in 0..8u32 {
+        let flip = |p: DVec3| DVec3::from_array([0, 1, 2].map(|i| if flips & (1 << i) != 0 { size[i] - p[i] } else { p[i] }));
+        let mut have: Vec<[i64; 3]> = pb.iter().map(|p| key(flip(*p))).collect();
+        have.sort_unstable();
+        if have == want {
+            let mirrored = flips.count_ones() % 2 == 1;
+            if !mirrored {
+                return Some(false);
+            }
+            found = Some(true);
+        }
+    }
+    found
 }
 
 /// The cut-list row a part falls in (same material and size).
@@ -139,7 +201,12 @@ fn write_sheet(html: &mut String, scene: &Scene, sheet: &Sheet, label: &str, row
 "#,
         esc(label),
         esc(&def.name),
-        if sheet.count == 1 { "1".to_owned() } else { format!("{}, all the same", sheet.count) }
+        match (sheet.count, sheet.mirrored) {
+            (1, _) => "1".to_owned(),
+            (n, 0) => format!("{n}, all the same"),
+            (2, 1) => "2, a mirrored pair (a left and a right)".to_owned(),
+            (n, m) => format!("{n}: {} one way, {m} mirrored", n - m),
+        }
     );
     let size = format!("{} x {} x {}", format_length(length), format_length(width), format_length(thickness));
     let _ = writeln!(html, "<tr><td>Finished size</td><td>{} <span class=\"meta\">(length x width x thickness)</span></td></tr>", esc(&size));
@@ -166,10 +233,7 @@ fn write_sheet(html: &mut String, scene: &Scene, sheet: &Sheet, label: &str, row
     }
     html.push_str("</table>\n");
 
-    html.push_str(&views(&def.container.model, sheet.scale, axes, [length, width, thickness]));
-
-    html.push_str("<b>Steps</b><ol>\n");
-    // A solid-wood glue-up: its boards come first.
+    // A solid-wood glue-up: its boards come first, and are drawn on the views.
     let glue = material.filter(|m| m.kind == crate::MaterialKind::SolidWood).and_then(|m| {
         let part = Part { count: 1, length, width, thickness, glue_up: def.part.glue_up, ..Part::default() };
         let n = crate::cutplan::glue_up(&part, &m.standard)?;
@@ -180,9 +244,12 @@ fn write_sheet(html: &mut String, scene: &Scene, sheet: &Sheet, label: &str, row
             let each = if per_seam == 1 { format!("a {piece}") } else { format!("{per_seam} {piece}s") };
             format!("{each} along each of the {} seams", n - 1)
         });
-        Some((boards, seams))
+        Some((n, boards, seams))
     });
-    for step in steps(scene, sheet.definition, &stock, &size, glue.as_ref().map(|(b, s)| (b.as_str(), s.as_deref()))) {
+    html.push_str(&views(&def.container.model, sheet.scale, axes, [length, width, thickness], glue.as_ref().map(|(n, _, _)| (*n as usize, label))));
+
+    html.push_str("<b>Steps</b><ol>\n");
+    for step in steps(scene, sheet.definition, &stock, &size, glue.as_ref().map(|(_, b, s)| (b.as_str(), s.as_deref()))) {
         let _ = writeln!(html, "<li>{}</li>", esc(&step));
     }
     html.push_str("</ol></section>\n");
@@ -200,8 +267,37 @@ fn steps(scene: &Scene, def: DefinitionId, stock: &str, size: &str, glue: Option
         None => vec![format!("Mill to {size} from {stock}, grain along the length.")],
     };
     steps.retain(|s| !s.is_empty());
+    // Joints are kept per pair of parts placed, so a design made as copies (four legs from one
+    // component, turned to each corner) has one for every copy's meeting. Each cut on this
+    // design is one step, whichever parts it takes (a leg's mortise holds the front apron on one
+    // corner and a side apron on the next); cuts alike are said once, with how many.
+    let mut cuts: Vec<(Vec<crate::joinery::JointOp>, Vec<&crate::joinery::Joint>)> = Vec::new();
     for joint in scene.joints.iter().filter(|j| j.cut == def || j.into == def) {
-        let other = name(if joint.cut == def { joint.into } else { joint.cut });
+        let here: Vec<crate::joinery::JointOp> = joint.ops.iter().filter(|op| op.part == def).cloned().collect();
+        // Joints without their cuts kept (or none on this part): one per kind, part and size.
+        let same = |(ops, joints): &&mut (Vec<crate::joinery::JointOp>, Vec<&crate::joinery::Joint>)| {
+            if here.is_empty() {
+                ops.is_empty() && joints.iter().any(|j| j.kind == joint.kind && j.cut == joint.cut && j.into == joint.into && j.detail == joint.detail)
+            } else {
+                *ops == here
+            }
+        };
+        match cuts.iter_mut().find(|c| same(c)) {
+            Some((_, joints)) => joints.push(joint),
+            None => cuts.push((here, vec![joint])),
+        }
+    }
+    let mut said: Vec<(String, usize, bool)> = Vec::new(); // the step, how many, at a part's end
+    for (_, joints) in &cuts {
+        let joint = joints[0];
+        let mut others: Vec<String> = Vec::new();
+        for j in joints.iter().filter(|j| j.kind == joint.kind && (j.into == def) == (joint.into == def) && j.detail == joint.detail) {
+            let other = name(if j.cut == def { j.into } else { j.cut });
+            if !others.contains(&other) {
+                others.push(other);
+            }
+        }
+        let other = others.join(" or ");
         let kind = joint.kind.name().to_lowercase();
         let step = match (joint.kind, joint.into == def) {
             (JointKind::MortiseAndTenon, true) => format!("Cut the mortise for {other} ({}).", joint.detail),
@@ -219,7 +315,18 @@ fn steps(scene: &Scene, def: DefinitionId, stock: &str, size: &str, glue: Option
             // The part that fits into another's dado or rabbet: already sized for it.
             (_, false) => format!("Fits into the {kind} in {other} ({}); its size includes that.", joint.detail),
         };
-        steps.push(step);
+        match said.iter_mut().find(|(s, _, _)| *s == step) {
+            Some((_, count, _)) => *count += 1,
+            None => said.push((step, 1, joint.cut == def && matches!(joint.kind, JointKind::MortiseAndTenon | JointKind::Dovetails))),
+        }
+    }
+    for (step, count, at_end) in said {
+        steps.push(match count {
+            1 => step,
+            // A tenon or tails at each end.
+            2 if at_end => format!("{step} At both ends."),
+            n => format!("{step} In {n} places."),
+        });
     }
     for profile in scene.profiles.iter().filter(|p| p.part == def) {
         steps.push(format!("Rout the edges: {}.", profile.describe()));
@@ -230,8 +337,8 @@ fn steps(scene: &Scene, def: DefinitionId, stock: &str, size: &str, glue: Option
 
 /// The three views, to scale: the face (length across, width up), the edge below it (length
 /// across, thickness up) and the end beside that (width across, thickness up), each with its
-/// overall dimensions.
-fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thickness]: [f64; 3]) -> String {
+/// overall dimensions; a glue-up's boards (`(how many, the part's letter)`) are drawn on them.
+fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thickness]: [f64; 3], boards: Option<(usize, &str)>) -> String {
     const ROOM: f64 = 640.0;
     const GAP: f64 = 60.0; // between views, and room for dimensions
     let lo = model.bounds().map_or(DVec3::ZERO, |b| b.0);
@@ -277,6 +384,37 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
     view(&mut svg, l, w, (t, 1.0), x0, y_face, face_h);
     view(&mut svg, l, t, (w, -1.0), x0, y_edge, edge_h);
     view(&mut svg, w, t, (l, 1.0), x_end, y_edge, edge_h);
+    // A glue-up: the boards it's made from, as the cutting diagrams name them (B-1, B-2...), their
+    // seams along the face and across the end, and in the end, each board's growth rings
+    // alternating (up, then down).
+    if let Some((n, label)) = boards.filter(|(n, _)| *n > 1) {
+        let strip = width / n as f64;
+        let mut glue = String::new();
+        for k in 1..n {
+            let y = y_face + face_h - k as f64 * strip * s;
+            let x = x_end + k as f64 * strip * s;
+            let _ = write!(glue, r#"<line x1="{x0:.2}" y1="{y:.2}" x2="{:.2}" y2="{y:.2}"/><line x1="{x:.2}" y1="{y_edge:.2}" x2="{x:.2}" y2="{:.2}"/>"#, x0 + length * s, y_edge + edge_h);
+        }
+        let _ = write!(svg, r##"<g class="glue-up" stroke="#b0703a" stroke-width="1">{glue}</g>"##);
+        for k in 0..n {
+            let y = y_face + face_h - (k as f64 + 0.5) * strip * s;
+            let _ = write!(svg, r##"<text x="{:.1}" y="{:.1}" text-anchor="middle" fill="#b0703a">{}-{}</text>"##, x0 + length * s / 2.0, y + 4.0, esc(label), k + 1);
+            // Growth rings: an arc across the board's end, bowed up or down in turn.
+            let (left, right) = (x_end + k as f64 * strip * s, x_end + (k + 1) as f64 * strip * s);
+            let middle = y_edge + edge_h / 2.0;
+            let bow = if k % 2 == 0 { -edge_h * 0.35 } else { edge_h * 0.35 };
+            let _ = write!(
+                svg,
+                r##"<path class="rings" d="M{:.2},{:.2} Q{:.2},{:.2} {:.2},{:.2}" fill="none" stroke="#b0703a" stroke-width="0.8"/>"##,
+                left + strip * s * 0.15,
+                middle - bow / 2.0,
+                (left + right) / 2.0,
+                middle + bow,
+                right - strip * s * 0.15,
+                middle - bow / 2.0
+            );
+        }
+    }
     // Overall dimensions.
     dimension(&mut svg, DVec2::new(x0, y_face - 16.0), DVec2::new(x0 + length * s, y_face - 16.0), &format_length(length));
     dimension(&mut svg, DVec2::new(x0 - 16.0, y_face + face_h), DVec2::new(x0 - 16.0, y_face), &format_length(width));
@@ -455,5 +593,46 @@ mod tests {
         assert!(html.contains("Mill 3 boards 3/4\" x ~ 6 15/16\" x 37\" from Red Oak"), "{html}");
         let glue = html.find("Glue them edge to edge").unwrap();
         assert!(glue < html.find("Sand.").unwrap());
+        // The boards drawn: two seams on the face and the end, each board named as in the diagrams.
+        assert_eq!(html.matches("class=\"rings\"").count(), 3);
+        assert!(html.contains(">A-1<") && html.contains(">A-3<") && html.contains("class=\"glue-up\""), "{html}");
+    }
+
+    #[test]
+    fn a_left_and_a_right_side_are_one_sheet_a_mirrored_pair() {
+        let mut doc = Document::default();
+        // Two sides (each its own board), a shelf dadoed into both and a back rabbeted into both.
+        let left = board(&mut doc, DVec3::new(0.75, 0.0, 0.0), DVec3::Z, DVec3::Y, [30.0, 11.25, 0.75]);
+        let right = board(&mut doc, DVec3::new(21.5, 0.0, 0.0), DVec3::Z, DVec3::Y, [30.0, 11.25, 0.75]);
+        let shelf = board(&mut doc, DVec3::new(0.75, 0.0, 12.0), DVec3::X, DVec3::Y, [20.0, 10.75, 0.75]);
+        let back = board(&mut doc, DVec3::new(0.75, 11.25, 0.0), DVec3::X, DVec3::Z, [20.0, 30.0, 0.5]);
+        for (part, name) in [(left, "Side"), (right, "Side"), (shelf, "Shelf"), (back, "Back")] {
+            doc.rename_instance(part, name);
+        }
+        for side in [left, right] {
+            doc.let_in(shelf, side, 0.25).unwrap();
+            doc.let_in(back, side, 0.25).unwrap();
+        }
+        let list = crate::cutlist::cut_list(doc.scene());
+        let html = to_html(doc.scene(), &list, "Case");
+        assert_eq!(html.matches("Side</h2>").count(), 1, "one sheet for both sides");
+        assert!(html.contains("Make 2, a mirrored pair (a left and a right)"), "{html}");
+        let side = &html[html.find("Side</h2>").unwrap()..];
+        let side = &side[..side.find("</section>").unwrap()];
+        assert!(side.matches("for Shelf").count() == 1 && side.matches("for Back").count() == 1, "each side's steps once: {side}");
+    }
+
+    #[test]
+    fn copies_of_one_leg_turned_to_each_corner_list_each_cut_once() {
+        let mut doc = Document::default();
+        let cherry = doc.add_preset(LIBRARY.iter().find(|p| p.name == "Cherry").unwrap());
+        doc.add_template(&crate::template::Template::Table(crate::template::Table::default()), Some(cherry)).unwrap();
+        let list = crate::cutlist::cut_list(doc.scene());
+        let html = to_html(doc.scene(), &list, "Table");
+        let leg = &html[html.find("Leg</h2>").unwrap()..];
+        let leg = &leg[..leg.find("</section>").unwrap()];
+        assert_eq!(leg.matches("Cut the mortise").count(), 1, "one step for the leg's two mortises, not eight: {leg}");
+        assert!(leg.contains("In 2 places."), "{leg}");
+        assert!(html.contains("Cut the tenon that goes into Leg") && html.contains("At both ends."));
     }
 }
