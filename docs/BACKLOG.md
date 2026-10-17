@@ -110,8 +110,10 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
   save them in SketchUp 2021+ first).
 - Groups come in as components (the flag that tells them apart isn't worked out yet).
 - Not read: textures, hidden and soft edges (edges between faces under 30° still draw soft),
-  guides, scenes and cameras, dimensions and text, images, layer visibility and folders, back-face
-  materials, transparency.
+  guides, scenes and cameras, dimensions and text, images, back-face materials, transparency.
+- A material named for a species (`cedar`) comes in as solid wood, not that species' lumber, so a
+  deck's 2x10s are matched by thickness, not as 2x10 sections (change the type to dimensional
+  lumber in the Materials panel).
 - Imported materials are solid wood unless the name matches a library wood or a sheet good, so
   their stock may need setting in the Materials panel.
 - No saving back to `.skp`.
@@ -211,8 +213,11 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 
 ## Tags
 - Only groups and components can be tagged; loose geometry is always Untagged.
-- No tag colors or "color by tag", tag folders, dashed tag lines, or an "active tag" that new
-  groups get automatically.
+- No tag colors or "color by tag", dashed tag lines, or an "active tag" that new groups get
+  automatically.
+- Tags move into folders by right-clicking them (Move to); no dragging in the Tags panel yet.
+- Drawings saved before 5/4 and 6x lumber sizes were added keep their lumber materials' old size
+  lists (add the sizes in the Materials panel, or re-add the material from the library).
 - Hidden groups are still listed in the Outliner (dimmed) but can't be selected there.
 - Toggling a tag's visibility is an undo step (SketchUp does the same).
 

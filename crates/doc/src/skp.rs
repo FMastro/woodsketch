@@ -182,16 +182,44 @@ impl Reader {
         }
     }
 
-    /// Layers (`01f8`) become tags; Layer0 is Untagged.
+    /// Layers (`01f8`) become tags (Layer0 is Untagged), with whether they're hidden (`3c8e`);
+    /// then the tag folders (`3a9b`).
     fn layers(&mut self, top: Record<'_>) {
-        let Some(list) = top.child(0x01f8).and_then(|r| r.child(0x3a98)).and_then(|r| r.child(0x3a99)) else { return };
-        for record in list.all(0x3c8c) {
+        let Some(layers) = top.child(0x01f8).and_then(|r| r.child(0x3a98)) else { return };
+        for record in layers.child(0x3a99).into_iter().flat_map(|r| r.all(0x3c8c)) {
             let (Some(id), Some(name)) = (record.id(), record.child(0x3c8d).map(Record::text)) else { continue };
             if name == "Layer0" || name == "Untagged" {
                 continue;
             }
             let tag = self.scene.add_tag(name);
+            if let Some(t) = self.scene.tag_mut(tag) {
+                t.visible = record.child(0x3c8e).and_then(Record::int) != Some(1);
+            }
             self.tags.insert(id, tag);
+        }
+        // The folders: a top folder (unnamed) holding folders (`3e83`) and tags (`3e84`).
+        if let Some(top_folder) = layers.child(0x3a9b).and_then(|r| r.child(0x3e80)) {
+            self.folder(top_folder, None, 0);
+        }
+    }
+
+    /// A tag folder's contents, put in `parent` (`None` for the top).
+    fn folder(&mut self, folder: Record<'_>, parent: Option<TagId>, depth: usize) {
+        for tag in ids(folder.child(0x3e84).map_or(&[][..], |r| r.body)) {
+            if let Some(&t) = self.tags.get(&tag) {
+                self.scene.move_tag(t, parent);
+            }
+        }
+        if depth > 32 {
+            return;
+        }
+        for inner in folder.child(0x3e83).into_iter().flat_map(|r| r.all(0x3e80)) {
+            let name = inner.child(0x3e81).map(Record::text).filter(|n| !n.is_empty()).unwrap_or_else(|| "Folder".into());
+            let new = self.scene.add_tag_folder(name, parent);
+            if let Some(t) = self.scene.tag_mut(new) {
+                t.visible = inner.child(0x3e82).and_then(Record::int) != Some(1);
+            }
+            self.folder(inner, Some(new), depth + 1);
         }
     }
 
@@ -310,6 +338,21 @@ impl Reader {
         }
         container
     }
+}
+
+/// A run of ids, each a length byte then that many bytes (little-endian), as folders list their tags.
+fn ids(bytes: &[u8]) -> Vec<u64> {
+    let mut out = Vec::new();
+    let mut at = 0;
+    while let Some(&len) = bytes.get(at) {
+        let Some(id) = bytes.get(at + 1..at + 1 + usize::from(len)) else { break };
+        if id.is_empty() || id.len() > 8 {
+            break;
+        }
+        out.push(id.iter().rev().fold(0u64, |n, &b| (n << 8) | u64::from(b)));
+        at += 1 + usize::from(len);
+    }
+    out
 }
 
 /// A loop's corners, following its edges end to end. Each edge's direction in the loop comes
@@ -505,6 +548,12 @@ mod tests {
     }
 
     #[test]
+    fn folders_list_their_tags_as_length_and_bytes() {
+        assert_eq!(ids(&[3, 0xbe, 0xce, 0x10, 2, 0x34, 0x12]), vec![0x10cebe, 0x1234]);
+        assert_eq!(ids(&[]), Vec::<u64>::new());
+    }
+
+    #[test]
     fn refuses_what_it_cant_read() {
         assert_eq!(read(b"hello").unwrap_err(), SkpError::NotSketchUp);
         assert_eq!(read(&[0xff, 0xfe, 0xff, 0x0e, 0, 0, 0, 0]).unwrap_err(), SkpError::TooOld);
@@ -535,5 +584,8 @@ mod tests {
         }
         println!("  top level: {} faces, {} instances", scene.root.model.faces().count(), scene.root.instances().count());
         println!("  materials: {:?}", scene.materials().map(|(_, m)| m.name.clone()).collect::<Vec<_>>());
+        for (id, t) in scene.tags() {
+            println!("  tag {}{}{}", scene.tag_path(id), if t.folder { " /" } else { "" }, if t.visible { "" } else { " (hidden)" });
+        }
     }
 }

@@ -64,6 +64,7 @@ pub const LIBRARY: &[Preset] = &[
     Preset { thicknesses: &[0.125, 0.25], ..of("Hardboard", [120, 90, 64], SHEET, false) },
     of("Pine Lumber", [226, 196, 140], LUMBER, true),
     of("Douglas Fir Lumber", [214, 170, 120], LUMBER, true),
+    of("Cedar Lumber", [196, 128, 92], LUMBER, true),
     of("Pressure-Treated Lumber", [190, 180, 120], LUMBER, true),
 ];
 

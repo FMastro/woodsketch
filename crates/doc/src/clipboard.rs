@@ -213,9 +213,12 @@ impl Import<'_> {
             return new;
         }
         let tag = self.from.tag(id).expect("copied things name their tags").clone();
-        let existing = scene.tags().find(|(_, t)| t.name == tag.name).map(|(i, _)| i);
+        // Its folders come along too (a loop in a damaged file stops at the top).
+        let parent = tag.parent.filter(|&p| p != id && self.from.tag_ancestors(p).all(|a| a != id)).map(|p| self.tag(scene, p));
+        let existing = scene.tags().find(|(_, t)| t.name == tag.name && t.folder == tag.folder).map(|(i, _)| i);
         let new = existing.unwrap_or_else(|| {
-            let new = scene.add_tag(tag.name.clone());
+            let new = if tag.folder { scene.add_tag_folder(tag.name.clone(), parent) } else { scene.add_tag(tag.name.clone()) };
+            scene.move_tag(new, parent);
             if let Some(t) = scene.tag_mut(new) {
                 t.visible = tag.visible;
             }

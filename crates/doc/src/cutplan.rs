@@ -166,8 +166,9 @@ pub fn plan_all(scene: &Scene, list: &crate::cutlist::CutList) -> Vec<Option<Pla
     list.materials.iter().map(|parts| plan(parts, scene.cut_settings.kerf)).collect()
 }
 
-/// Dimensional lumber's actual sizes, with nominal names (a 2x4 is 1.5" x 3.5").
-const LUMBER_THICKNESSES: [(f64, u32); 3] = [(0.75, 1), (1.5, 2), (3.5, 4)];
+/// Dimensional lumber's actual sizes, with nominal names (a 2x4 is 1.5" x 3.5"). 5/4 is decking (1"
+/// thick); 6x posts are 5 1/2" square.
+const LUMBER_THICKNESSES: [(f64, &str); 5] = [(0.75, "1"), (1.0, "5/4"), (1.5, "2"), (3.5, "4"), (5.5, "6")];
 const LUMBER_WIDTHS: [(f64, u32); 7] = [(1.5, 2), (2.5, 3), (3.5, 4), (5.5, 6), (7.25, 8), (9.25, 10), (11.25, 12)];
 
 /// The standard dimensional lumber sizes: nominal name (`2x4`) and actual thickness and width.
@@ -819,6 +820,8 @@ mod tests {
         assert!(sizes.contains(&("2x4".to_owned(), 1.5, 3.5)));
         assert!(sizes.contains(&("1x12".to_owned(), 0.75, 11.25)));
         assert!(sizes.contains(&("4x4".to_owned(), 3.5, 3.5)));
+        assert!(sizes.contains(&("6x6".to_owned(), 5.5, 5.5)), "posts");
+        assert!(sizes.contains(&("5/4x6".to_owned(), 1.0, 5.5)), "decking");
         assert!(!sizes.iter().any(|(name, _, _)| name == "4x2"), "never narrower than thick");
     }
 

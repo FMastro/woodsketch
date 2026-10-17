@@ -11,17 +11,34 @@ pub struct TagsPanel {
     renaming: Option<(TagId, String)>,
     /// Whether the rename box got its initial focus.
     focused: bool,
+    /// Folders folded shut.
+    closed: std::collections::HashSet<TagId>,
+}
+
+/// What a row asked for, done after drawing the tree.
+enum Change {
+    Visible(TagId, bool),
+    Rename(TagId, String),
+    Delete(TagId),
+    Move(TagId, Option<TagId>),
 }
 
 impl TagsPanel {
     pub fn show(&mut self, ui: &mut egui::Ui, doc: &mut Document) {
         ui.horizontal(|ui| {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let start_renaming = |this: &mut Self, doc: &Document, tag: TagId| {
+                    let name = doc.scene().tag(tag).map(|t| t.name.clone()).unwrap_or_default();
+                    this.renaming = Some((tag, name));
+                    this.focused = false;
+                };
                 if ui.button(ph::PLUS).on_hover_text("Add a tag").clicked() {
                     let tag = doc.add_tag();
-                    let name = doc.scene().tag(tag).map(|t| t.name.clone()).unwrap_or_default();
-                    self.renaming = Some((tag, name));
-                    self.focused = false;
+                    start_renaming(self, doc, tag);
+                }
+                if ui.button(ph::FOLDER_PLUS).on_hover_text("Add a folder (right-click a tag to move it into one)").clicked() {
+                    let folder = doc.add_tag_folder();
+                    start_renaming(self, doc, folder);
                 }
             });
         });
@@ -32,15 +49,49 @@ impl TagsPanel {
             ui.label("Untagged");
         });
 
-        let mut tags: Vec<(TagId, String, bool)> =
-            doc.scene().tags().map(|(id, t)| (id, t.name.clone(), t.visible)).collect();
-        tags.sort_by_key(|(_, name, _)| name.to_lowercase());
-        for (id, name, visible) in tags {
+        let mut changes = Vec::new();
+        self.rows(ui, doc, None, 0, true, &mut changes);
+        for change in changes {
+            match change {
+                Change::Visible(tag, visible) => doc.set_tag_visible(tag, visible),
+                Change::Rename(tag, name) => doc.rename_tag(tag, &name),
+                Change::Delete(tag) => doc.delete_tag(tag),
+                Change::Move(tag, folder) => {
+                    doc.move_tag(tag, folder);
+                    if let Some(f) = folder {
+                        self.closed.remove(&f);
+                    }
+                }
+            }
+        }
+    }
+
+    /// The tags and folders in `folder`: folders first, then tags, each by name. `shown` is
+    /// whether the folders around them are visible (hidden ones dim what's inside).
+    fn rows(&mut self, ui: &mut egui::Ui, doc: &Document, folder: Option<TagId>, depth: usize, shown: bool, changes: &mut Vec<Change>) {
+        let scene = doc.scene();
+        let mut here: Vec<(TagId, String, bool, bool)> =
+            scene.tags().filter(|(_, t)| t.parent == folder).map(|(id, t)| (id, t.name.clone(), t.visible, t.folder)).collect();
+        here.sort_by_key(|(_, name, _, is_folder)| (!is_folder, name.to_lowercase()));
+        for (id, name, visible, is_folder) in here {
             ui.horizontal(|ui| {
+                ui.add_space(16.0 * depth as f32);
+                if is_folder {
+                    let open = !self.closed.contains(&id);
+                    let caret = if open { ph::CARET_DOWN } else { ph::CARET_RIGHT };
+                    if ui.add(egui::Button::new(caret).frame(false)).on_hover_text(if open { "Fold" } else { "Unfold" }).clicked() {
+                        if open {
+                            self.closed.insert(id);
+                        } else {
+                            self.closed.remove(&id);
+                        }
+                    }
+                }
                 let eye = if visible { ph::EYE } else { ph::EYE_SLASH };
-                let hint = if visible { "Hide everything with this tag" } else { "Show it again" };
+                let what = if is_folder { "everything in this folder" } else { "everything with this tag" };
+                let hint = if visible { format!("Hide {what}") } else { "Show it again".to_owned() };
                 if ui.add(egui::Button::new(eye).frame(false)).on_hover_text(hint).clicked() {
-                    doc.set_tag_visible(id, !visible);
+                    changes.push(Change::Visible(id, !visible));
                 }
 
                 match &mut self.renaming {
@@ -54,7 +105,7 @@ impl TagsPanel {
                         let done = edit.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Enter));
                         if cancel || done {
                             if !cancel {
-                                doc.rename_tag(id, text);
+                                changes.push(Change::Rename(id, text.clone()));
                             }
                             // Hand the keyboard back to the drawing.
                             edit.surrender_focus();
@@ -62,22 +113,55 @@ impl TagsPanel {
                         }
                     }
                     _ => {
-                        let label = if visible { egui::RichText::new(&name) } else { egui::RichText::new(&name).weak() };
+                        let text = if is_folder { format!("{} {name}", ph::FOLDER) } else { name.clone() };
+                        let label = if visible && shown { egui::RichText::new(text) } else { egui::RichText::new(text).weak() };
                         let response = ui.add(egui::Label::new(label).sense(egui::Sense::click()));
-                        if response.on_hover_text("Double-click to rename").double_clicked() {
+                        let response = response.on_hover_text("Double-click to rename; right-click to move into a folder");
+                        if response.double_clicked() {
                             self.renaming = Some((id, name.clone()));
                             self.focused = false;
                         }
+                        response.context_menu(|ui| move_menu(ui, scene, id, changes));
                     }
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.add(egui::Button::new(ph::TRASH).frame(false)).on_hover_text("Delete tag (its groups become Untagged)").clicked() {
-                        doc.delete_tag(id);
+                    let hint = if is_folder { "Delete folder (what's in it moves up)" } else { "Delete tag (its groups become Untagged)" };
+                    if ui.add(egui::Button::new(ph::TRASH).frame(false)).on_hover_text(hint).clicked() {
+                        changes.push(Change::Delete(id));
                     }
                 });
             });
+            if is_folder && !self.closed.contains(&id) {
+                self.rows(ui, doc, Some(id), depth + 1, shown && visible, changes);
+            }
         }
+    }
+}
+
+/// Right-click on a tag or folder: move it into a folder, or out to the top.
+fn move_menu(ui: &mut egui::Ui, scene: &woodsketch_doc::Scene, tag: TagId, changes: &mut Vec<Change>) {
+    let current = scene.tag(tag).and_then(|t| t.parent);
+    // Any folder but itself or one inside it.
+    let mut folders: Vec<(TagId, String)> = scene
+        .tags()
+        .filter(|(id, t)| t.folder && *id != tag && scene.tag_ancestors(*id).all(|a| a != tag))
+        .map(|(id, _)| (id, scene.tag_path(id)))
+        .collect();
+    folders.sort_by_key(|(_, path)| path.to_lowercase());
+    ui.label(egui::RichText::new("Move to").weak());
+    if current.is_some() && ui.button("Top level").clicked() {
+        changes.push(Change::Move(tag, None));
+        ui.close();
+    }
+    for (folder, path) in folders {
+        if Some(folder) != current && ui.button(format!("{} {path}", ph::FOLDER)).clicked() {
+            changes.push(Change::Move(tag, Some(folder)));
+            ui.close();
+        }
+    }
+    if scene.tags().all(|(id, t)| !t.folder || id == tag) {
+        ui.weak("No folders yet: add one with the folder button.");
     }
 }
 
@@ -111,8 +195,9 @@ pub fn entity_info(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
         return;
     }
 
-    let name_of = |doc: &Document, tag: Option<TagId>| match tag.and_then(|t| doc.scene().tag(t)) {
-        Some(t) => t.name.clone(),
+    // Tags with their folders (`Deck / Joist`); folders themselves can't be put on anything.
+    let name_of = |doc: &Document, tag: Option<TagId>| match tag.filter(|t| doc.scene().tag(*t).is_some()) {
+        Some(t) => doc.scene().tag_path(t),
         None => "Untagged".to_owned(),
     };
     let current = doc.selection_tag();
@@ -121,7 +206,10 @@ pub fn entity_info(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
         None => "(mixed)".to_owned(),
     };
     let mut choices: Vec<(Option<TagId>, String)> = vec![(None, "Untagged".to_owned())];
-    choices.extend(doc.scene().tags().map(|(id, t)| (Some(id), t.name.clone())));
+    let mut tags: Vec<(Option<TagId>, String)> =
+        doc.scene().tags().filter(|(_, t)| !t.folder).map(|(id, _)| (Some(id), doc.scene().tag_path(id))).collect();
+    tags.sort_by_key(|(_, path)| path.to_lowercase());
+    choices.extend(tags);
 
     let mut picked = None;
     ui.horizontal(|ui| {

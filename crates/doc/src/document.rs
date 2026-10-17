@@ -464,6 +464,26 @@ impl Document {
         self.edit_scene(|scene, _| scene.add_tag(name))
     }
 
+    /// Add a tag folder at the top, with a free name ("Folder", "Folder1"...).
+    pub fn add_tag_folder(&mut self) -> TagId {
+        let taken = |name: &str| self.state.scene.tags().any(|(_, t)| t.name == name);
+        let name = std::iter::once("Folder".to_owned())
+            .chain((1..).map(|i| format!("Folder{i}")))
+            .find(|n| !taken(n))
+            .expect("some name is free");
+        self.edit_scene(|scene, _| scene.add_tag_folder(name, None))
+    }
+
+    /// Put a tag or folder in `folder` (`None`: at the top). `false` if that can't be done (into
+    /// itself, or into something that isn't a folder).
+    pub fn move_tag(&mut self, tag: TagId, folder: Option<TagId>) -> bool {
+        let mut trial = self.state.scene.clone();
+        if !trial.move_tag(tag, folder) || self.state.scene.tag(tag).is_some_and(|t| t.parent == folder) {
+            return false;
+        }
+        self.edit_scene(|scene, _| scene.move_tag(tag, folder))
+    }
+
     pub fn rename_tag(&mut self, tag: TagId, name: &str) {
         let name = name.trim();
         if name.is_empty() || self.state.scene.tag(tag).is_none_or(|t| t.name == name) {

@@ -172,7 +172,8 @@ impl Scene {
 }
 
 /// A tag (SketchUp's renamed layers). Tags go on groups and components; hiding a tag hides
-/// everything tagged with it.
+/// everything tagged with it. A tag can be a folder holding other tags and folders (SketchUp's tag
+/// folders): hiding a folder hides everything in it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct TagId(u32);
 
@@ -180,6 +181,12 @@ pub struct TagId(u32);
 pub struct Tag {
     pub name: String,
     pub visible: bool,
+    /// The folder it's in, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent: Option<TagId>,
+    /// A folder: holds tags, but isn't put on anything itself.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub folder: bool,
 }
 
 /// Loose geometry plus placed instances.
@@ -279,12 +286,63 @@ impl Scene {
     }
 
     pub fn add_tag(&mut self, name: impl Into<String>) -> TagId {
-        TagId(self.tags.insert(Tag { name: name.into(), visible: true }))
+        TagId(self.tags.insert(Tag { name: name.into(), visible: true, parent: None, folder: false }))
     }
 
-    /// Delete a tag; everything that had it becomes Untagged (SketchUp's default choice).
+    /// Add a tag folder, in `parent` (`None`: at the top).
+    pub fn add_tag_folder(&mut self, name: impl Into<String>, parent: Option<TagId>) -> TagId {
+        TagId(self.tags.insert(Tag { name: name.into(), visible: true, parent, folder: true }))
+    }
+
+    /// Put `tag` in `folder` (`None`: at the top). Refused unless `folder` is a folder that isn't
+    /// `tag` itself or inside it.
+    pub fn move_tag(&mut self, tag: TagId, folder: Option<TagId>) -> bool {
+        if self.tag(tag).is_none() {
+            return false;
+        }
+        if let Some(f) = folder
+            && (!self.tag(f).is_some_and(|t| t.folder) || self.tag_ancestors(f).any(|a| a == tag))
+        {
+            return false;
+        }
+        self.tags.get_mut(tag.0).expect("checked").parent = folder;
+        true
+    }
+
+    /// `tag`, then the folder it's in, and so on up.
+    pub fn tag_ancestors(&self, tag: TagId) -> impl Iterator<Item = TagId> + '_ {
+        let mut next = self.tag(tag).map(|_| tag);
+        let mut steps = 0;
+        std::iter::from_fn(move || {
+            let at = next?;
+            steps += 1;
+            // A loop in a damaged file can't hang the app.
+            next = self.tag(at).and_then(|t| t.parent).filter(|_| steps < 64);
+            Some(at)
+        })
+    }
+
+    /// Whether a tag shows: it and every folder it's in are visible.
+    pub fn tag_shown(&self, tag: TagId) -> bool {
+        self.tag_ancestors(tag).all(|t| self.tag(t).is_some_and(|t| t.visible))
+    }
+
+    /// A tag's name with its folders, like `Deck / Joist`.
+    pub fn tag_path(&self, tag: TagId) -> String {
+        let mut names: Vec<&str> = self.tag_ancestors(tag).filter_map(|t| self.tag(t).map(|t| t.name.as_str())).collect();
+        names.reverse();
+        names.join(" / ")
+    }
+
+    /// Delete a tag; everything that had it becomes Untagged (SketchUp's default choice). A deleted
+    /// folder's tags and folders move up into its own folder.
     pub fn remove_tag(&mut self, id: TagId) -> Option<Tag> {
         let tag = self.tags.remove(id.0)?;
+        for t in self.tags.iter_mut() {
+            if t.parent == Some(id) {
+                t.parent = tag.parent;
+            }
+        }
         let containers = std::iter::once(&mut self.root).chain(self.definitions.iter_mut().map(|d| &mut d.container));
         for container in containers {
             for instance in container.instances.iter_mut() {
@@ -327,9 +385,9 @@ impl Scene {
         Some(material)
     }
 
-    /// Whether an instance is shown: Untagged, or its tag is visible.
+    /// Whether an instance is shown: Untagged, or its tag and its folders are visible.
     pub fn is_visible(&self, instance: &Instance) -> bool {
-        instance.tag.and_then(|t| self.tag(t)).is_none_or(|t| t.visible)
+        instance.tag.is_none_or(|t| self.tag_shown(t))
     }
 
     /// How many instances of `definition` exist anywhere.
@@ -826,5 +884,47 @@ mod tests {
 
     fn added_instance(added: &[Entity]) -> InstanceId {
         added.iter().find_map(|e| if let Entity::Instance(i) = e { Some(*i) } else { None }).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tag_folder_tests {
+    use super::*;
+
+    #[test]
+    fn a_hidden_folder_hides_whats_in_it() {
+        let mut scene = Scene::default();
+        let deck = scene.add_tag_folder("Deck", None);
+        let framing = scene.add_tag_folder("Framing", Some(deck));
+        let joist = scene.add_tag("Joist");
+        assert!(scene.move_tag(joist, Some(framing)));
+        assert_eq!(scene.tag_path(joist), "Deck / Framing / Joist");
+        let instance = Instance { definition: DefinitionId(0), transform: DAffine3::IDENTITY, tag: Some(joist), material: None };
+        assert!(scene.is_visible(&instance));
+        scene.tag_mut(deck).unwrap().visible = false;
+        assert!(!scene.is_visible(&instance), "hidden two folders up");
+    }
+
+    #[test]
+    fn folders_cant_go_inside_themselves_and_tags_arent_folders() {
+        let mut scene = Scene::default();
+        let outer = scene.add_tag_folder("Outer", None);
+        let inner = scene.add_tag_folder("Inner", Some(outer));
+        let tag = scene.add_tag("Joist");
+        assert!(!scene.move_tag(outer, Some(inner)), "into its own folder");
+        assert!(!scene.move_tag(outer, Some(outer)));
+        assert!(!scene.move_tag(inner, Some(tag)), "a tag isn't a folder");
+        assert!(scene.move_tag(inner, None), "out to the top");
+    }
+
+    #[test]
+    fn deleting_a_folder_moves_its_tags_up() {
+        let mut scene = Scene::default();
+        let outer = scene.add_tag_folder("Outer", None);
+        let inner = scene.add_tag_folder("Inner", Some(outer));
+        let tag = scene.add_tag("Joist");
+        scene.move_tag(tag, Some(inner));
+        scene.remove_tag(inner);
+        assert_eq!(scene.tag(tag).unwrap().parent, Some(outer));
     }
 }

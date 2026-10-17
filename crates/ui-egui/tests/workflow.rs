@@ -1721,3 +1721,43 @@ fn the_status_bar_shows_an_update_downloading_then_ready() {
     snapshot(&mut harness, "update_ready");
     assert!(harness.query_by_label_contains("Restart to update to 9.9.9").is_some());
 }
+
+#[test]
+fn tags_go_in_folders_and_a_hidden_folder_hides_them() {
+    use egui_kittest::kittest::Queryable;
+    use egui_phosphor::regular as ph;
+    let mut harness = app();
+    let joist = {
+        let doc = harness.state_mut().document_mut();
+        let board = add_board(doc, glam::DVec3::ZERO, 24.0, 3.5, 1.5);
+        let joist = doc.edit_scene(|scene, _| scene.add_tag("Joist"));
+        doc.selection_mut().extend([board]);
+        doc.tag_selection(Some(joist));
+        doc.selection_mut().clear();
+        joist
+    };
+    harness.run();
+    // The folder button adds a folder and starts renaming it.
+    harness.get_by_label(ph::FOLDER_PLUS).click();
+    harness.run();
+    harness.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    type_text(&mut harness, "Framing");
+    harness.key_press(Key::Enter);
+    harness.run();
+    let framing = harness.state().document().scene().tags().find(|(_, t)| t.folder).map(|(id, t)| (id, t.name.clone())).expect("a folder");
+    assert_eq!(framing.1, "Framing");
+    // Right-click the tag: Move to > Framing.
+    harness.get_by_label("Joist").click_secondary();
+    harness.run();
+    // The menu item (the folder row in the panel has the name too).
+    harness.get_all_by_label(&format!("{} Framing", ph::FOLDER)).last().expect("the Move to item").click();
+    harness.run();
+    let scene = harness.state().document().scene();
+    assert_eq!(scene.tag(joist).unwrap().parent, Some(framing.0));
+    assert_eq!(scene.tag_path(joist), "Framing / Joist");
+    snapshot(&mut harness, "tag_folder");
+    // Hiding the folder (its eye comes first: folders are listed before tags) hides the board.
+    harness.get_all_by_label(ph::EYE).nth(1).expect("the folder's eye, after Untagged's").click();
+    harness.run();
+    assert_eq!(harness.state().document().view().model().faces().count(), 0);
+}
