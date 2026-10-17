@@ -1761,3 +1761,40 @@ fn tags_go_in_folders_and_a_hidden_folder_hides_them() {
     harness.run();
     assert_eq!(harness.state().document().view().model().faces().count(), 0);
 }
+
+/// Press on `from`, move in steps to `to`, release there.
+fn drag(harness: &mut Harness<'_, WoodSketchApp>, from: egui::Pos2, to: egui::Pos2) {
+    // Fixed steps: a hover tooltip keeps asking to repaint.
+    harness.hover_at(from);
+    harness.run_steps(2);
+    harness.event(Event::PointerButton { pos: from, button: PointerButton::Primary, pressed: true, modifiers: Modifiers::NONE });
+    harness.run_steps(2);
+    for i in 1..=6 {
+        harness.hover_at(from + (to - from) * (i as f32 / 6.0));
+        harness.run_steps(2);
+    }
+    harness.event(Event::PointerButton { pos: to, button: PointerButton::Primary, pressed: false, modifiers: Modifiers::NONE });
+    harness.run_steps(2);
+}
+
+#[test]
+fn drag_a_tag_into_a_folder_and_back_out() {
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    let (joist, framing) = {
+        let doc = harness.state_mut().document_mut();
+        let joist = doc.edit_scene(|scene, _| scene.add_tag("Joist"));
+        let framing = doc.edit_scene(|scene, _| scene.add_tag_folder("Framing", None));
+        (joist, framing)
+    };
+    harness.run();
+    let from = harness.get_by_label("Joist").rect().center();
+    let to = harness.get_by_label_contains("Framing").rect().center();
+    drag(&mut harness, from, to);
+    assert_eq!(harness.state().document().scene().tag(joist).unwrap().parent, Some(framing), "dropped on the folder");
+    // Now inside the folder; dropped on Untagged, it goes back to the top.
+    let from = harness.get_by_label("Joist").rect().center();
+    let to = harness.get_by_label("Untagged").rect().center();
+    drag(&mut harness, from, to);
+    assert_eq!(harness.state().document().scene().tag(joist).unwrap().parent, None, "dropped on Untagged");
+}

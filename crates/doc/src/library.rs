@@ -56,6 +56,7 @@ pub const LIBRARY: &[Preset] = &[
     of("Walnut", [104, 70, 46], WOOD, true),
     of("Poplar", [206, 200, 150], WOOD, true),
     of("Pine", [228, 190, 136], WOOD, true),
+    of("Cedar", [196, 128, 92], WOOD, true),
     of("Plywood", [214, 188, 140], SHEET, true),
     of("Pine Plywood", [222, 194, 140], SHEET, true),
     // Baltic birch comes in 5' x 5' sheets, and thinner.

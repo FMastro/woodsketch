@@ -215,7 +215,6 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 - Only groups and components can be tagged; loose geometry is always Untagged.
 - No tag colors or "color by tag", dashed tag lines, or an "active tag" that new groups get
   automatically.
-- Tags move into folders by right-clicking them (Move to); no dragging in the Tags panel yet.
 - Drawings saved before 5/4 and 6x lumber sizes were added keep their lumber materials' old size
   lists (add the sizes in the Materials panel, or re-add the material from the library).
 - Hidden groups are still listed in the Outliner (dimmed) but can't be selected there.

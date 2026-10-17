@@ -43,13 +43,15 @@ impl TagsPanel {
             });
         });
 
-        // Untagged is always there and always visible, as in SketchUp.
-        ui.horizontal(|ui| {
+        // Untagged is always there and always visible, as in SketchUp. A tag dropped on it goes to
+        // the top level.
+        let mut changes = Vec::new();
+        let untagged = ui.horizontal(|ui| {
             ui.add_enabled(false, egui::Button::new(ph::EYE).frame(false));
             ui.label("Untagged");
         });
+        drop_target(ui, &untagged.response, None, &mut changes);
 
-        let mut changes = Vec::new();
         self.rows(ui, doc, None, 0, true, &mut changes);
         for change in changes {
             match change {
@@ -74,7 +76,7 @@ impl TagsPanel {
             scene.tags().filter(|(_, t)| t.parent == folder).map(|(id, t)| (id, t.name.clone(), t.visible, t.folder)).collect();
         here.sort_by_key(|(_, name, _, is_folder)| (!is_folder, name.to_lowercase()));
         for (id, name, visible, is_folder) in here {
-            ui.horizontal(|ui| {
+            let row = ui.horizontal(|ui| {
                 ui.add_space(16.0 * depth as f32);
                 if is_folder {
                     let open = !self.closed.contains(&id);
@@ -115,8 +117,13 @@ impl TagsPanel {
                     _ => {
                         let text = if is_folder { format!("{} {name}", ph::FOLDER) } else { name.clone() };
                         let label = if visible && shown { egui::RichText::new(text) } else { egui::RichText::new(text).weak() };
-                        let response = ui.add(egui::Label::new(label).sense(egui::Sense::click()));
-                        let response = response.on_hover_text("Double-click to rename; right-click to move into a folder");
+                        let response = ui.add(egui::Label::new(label).sense(egui::Sense::click_and_drag()));
+                        // Drag it onto a folder to move it there.
+                        response.dnd_set_drag_payload(Dragged(id));
+                        if response.dragged() {
+                            dragging_label(ui, &name);
+                        }
+                        let response = response.on_hover_text("Double-click to rename; drag onto a folder (or right-click) to move it");
                         if response.double_clicked() {
                             self.renaming = Some((id, name.clone()));
                             self.focused = false;
@@ -132,6 +139,8 @@ impl TagsPanel {
                     }
                 });
             });
+            // Dropped on a folder: into it. On a tag: beside it, in its folder.
+            drop_target(ui, &row.response, if is_folder { Some(id) } else { folder }, changes);
             if is_folder && !self.closed.contains(&id) {
                 self.rows(ui, doc, Some(id), depth + 1, shown && visible, changes);
             }
@@ -245,5 +254,34 @@ fn name_field(ui: &mut egui::Ui, doc: &mut Document, instance: woodsketch_doc::I
         } else {
             ui.data_mut(|d| d.remove::<String>(key));
         }
+    });
+}
+
+/// A tag being dragged in the Tags panel.
+#[derive(Clone, Copy)]
+struct Dragged(TagId);
+
+/// A row a dragged tag can be dropped on, moving it into `folder` (`None`: the top level). The row
+/// is outlined while a tag is held over it.
+fn drop_target(ui: &egui::Ui, row: &egui::Response, folder: Option<TagId>, changes: &mut Vec<Change>) {
+    let Some(dragged) = row.dnd_hover_payload::<Dragged>() else { return };
+    if Some(dragged.0) == folder {
+        return;
+    }
+    let stroke = egui::Stroke::new(1.5, ui.visuals().selection.stroke.color);
+    ui.painter().rect_stroke(row.rect.expand(1.0), 3.0, stroke, egui::StrokeKind::Outside);
+    if let Some(dragged) = row.dnd_release_payload::<Dragged>() {
+        changes.push(Change::Move(dragged.0, folder));
+    }
+}
+
+/// The dragged tag's name, following the pointer.
+fn dragging_label(ui: &egui::Ui, name: &str) {
+    let Some(pointer) = ui.ctx().pointer_interact_pos() else { return };
+    ui.ctx().set_cursor_icon(egui::CursorIcon::Grabbing);
+    egui::Area::new(egui::Id::new("dragged_tag")).order(egui::Order::Tooltip).fixed_pos(pointer + egui::vec2(12.0, 4.0)).show(ui.ctx(), |ui| {
+        egui::Frame::popup(ui.style()).show(ui, |ui| {
+            ui.label(format!("{} {name}", ph::TAG));
+        });
     });
 }
