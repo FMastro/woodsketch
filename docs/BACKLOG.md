@@ -35,9 +35,10 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
    (through, haunched), dovetails (through, half-blind), dowels, biscuits, loose tenons, splines,
    pocket screws (pockets drawn on the hidden face, not the angled bore), box joint, half-lap,
    cut where parts overlap; reinforced glue-up seams; a hardware list; Change and Remove on
-   each joint). Still to come: a fit allowance (mortise a hair bigger); sliding and lapped
-   dovetails, variable dovetail spacing; Change should start from the joint's own sizes (it
-   starts from the suggestions); joints can't be removed after a part is changed by hand (use Undo); parts in
+   each joint, starting from its sizes; a fit allowance on mortises and dowel holes). Still to come:
+   a fit allowance on slots, haunched tenons and angled joints; sliding and lapped dovetails,
+   variable dovetail spacing; joints made before sizes were kept start from suggestions; joints
+   can't be removed after a part is changed by hand (use Undo); parts in
    different groups (both must be side by side now).
 4. **Edge profiles** (done: roundover, chamfer, cove, ogee, around a face with mitered corners or
    along a length, from the Edge profile panel). Still to come: bead and other bits; profiling a
@@ -90,9 +91,8 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 - Parts must share one axis (turned to each other about their thickness, say): no compound angles,
   and a part already cut at an angle in another plane (a post with a mortise for a brace leaning
   the other way) can't take another angled joint.
-- Only mortise and tenon and housings at an angle: no angled dowels, half-laps or dovetails, and no
-  Change (Remove, then make it again). The tenon goes as deep as the overlap drawn; no fit
-  allowance.
+- Only mortise and tenon and housings at an angle: no angled dowels, half-laps or dovetails. The
+  tenon goes as deep as the overlap drawn; no fit allowance.
 - A joint on one copy of a shared component makes that copy its own component (the others, maybe
   mirrored, stay as they were); square joints change every copy.
 - The rebuilt parts lose paint on single faces, and keep a stray corner where faces were merged.

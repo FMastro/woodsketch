@@ -1860,3 +1860,42 @@ fn an_angled_brace_gets_a_mortise_and_tenon_from_the_joinery_panel() {
     assert_eq!(joints.len(), 1);
     assert!(joints[0].detail.contains("at an angle"), "{}", joints[0].detail);
 }
+
+#[test]
+fn change_starts_from_the_joints_own_sizes() {
+    use egui_kittest::kittest::Queryable;
+    use glam::DVec3;
+    use woodsketch_doc::board::Board;
+    let mut harness = app();
+    {
+        let doc = harness.state_mut().document_mut();
+        let stile = doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::X, length: 30.0, width: 3.0, thickness: 1.5 }, None).unwrap();
+        let rail = doc.add_board(&Board { origin: DVec3::new(3.0, 0.0, 12.5), length_dir: DVec3::X, width_dir: -DVec3::Z, length: 20.0, width: 2.5, thickness: 1.5 }, None).unwrap();
+        doc.selection_mut().extend([rail, stile].map(woodsketch_doc::Entity::Instance));
+    }
+    harness.run();
+    harness.get(egui_kittest::kittest::by().role(egui::accesskit::Role::ComboBox).value("Dado, groove or rabbet")).click();
+    harness.run();
+    harness.get_by_label("Mortise and tenon").click();
+    harness.run();
+    // A 7/8" tenon with a 1/16" roomier mortise, instead of the suggestions.
+    let fields: Vec<_> = harness.get_all_by_role(egui::accesskit::Role::TextInput).collect();
+    let (length, fit) = (fields[fields.len() - 4].rect().center(), fields[fields.len() - 1].rect().center());
+    for (at, text) in [(length, "7/8"), (fit, "1/16")] {
+        click(&mut harness, at);
+        harness.key_press_modifiers(Modifiers::COMMAND, Key::A);
+        type_text(&mut harness, text);
+    }
+    harness.get_by_label_contains("Tenon on").click();
+    harness.run();
+    let joint = harness.state().document().scene().joints[0].clone();
+    assert!(joint.detail.contains("7/8\" long") && joint.detail.contains("roomier"), "{}", joint.detail);
+    // Forget what was typed, as after reopening the drawing: Change must refill it from the joint.
+    harness.ctx.memory_mut(|m| m.data.clear());
+    harness.run();
+    harness.get_by_label("Change").click();
+    harness.run();
+    let texts: Vec<String> = harness.get_all_by_role(egui::accesskit::Role::TextInput).filter_map(|n| n.value()).collect();
+    assert!(texts.iter().any(|t| t == "7/8\""), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "1/16\""), "{texts:?}");
+}

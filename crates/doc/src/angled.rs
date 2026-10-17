@@ -188,7 +188,7 @@ impl Document {
             if let Some(d) = scene.definition_mut(dq) {
                 d.container.model = model_q;
             }
-            scene.joints.push(Joint { kind, cut: dp, into: dq, detail, hardware: None, ops: Vec::new(), before });
+            scene.joints.push(Joint { kind, cut: dp, into: dq, detail, hardware: None, ops: Vec::new(), before, sizes: Vec::new() });
         });
         Ok(())
     }

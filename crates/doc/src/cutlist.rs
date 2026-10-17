@@ -406,7 +406,7 @@ mod hardware_tests {
         // A rail doweled into a stile.
         let stile = board(&mut doc, DVec3::new(50.0, 0.0, 0.0), DVec3::Z, DVec3::X, [30.0, 3.0, 1.5]);
         let rail = board(&mut doc, DVec3::new(53.0, 0.0, 12.5), DVec3::X, -DVec3::Z, [20.0, 2.5, 1.5]);
-        doc.dowels(rail, stile, crate::joinery::Dowels { count: 2, diameter: 0.375, depth: 1.0 }).unwrap();
+        doc.dowels(rail, stile, crate::joinery::Dowels { count: 2, diameter: 0.375, depth: 1.0, fit: 0.0 }).unwrap();
         let list = super::cut_list(doc.scene());
         assert_eq!(list.hardware(doc.scene()), [("#20 biscuit".to_owned(), 8), ("3/8\" x 2\" dowel".to_owned(), 2)]);
         // Glued only: no biscuits; one board: no seams.

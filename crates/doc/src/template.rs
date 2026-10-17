@@ -653,7 +653,7 @@ impl Parts<'_> {
             for stile in [left, right] {
                 // Stub tenons, as deep as the panel groove, set in 1/2" from the rail's edges: the
                 // groove (which reaches 3/8" past the rail's edge) stays clear of the mortise.
-                self.doc.mortise_and_tenon(rail, stile, Tenon { length: groove, thickness: PANEL, shoulder: 0.5, haunch: 0.0 })?;
+                self.doc.mortise_and_tenon(rail, stile, Tenon { length: groove, thickness: PANEL, shoulder: 0.5, haunch: 0.0, fit: 0.0 })?;
             }
         }
         let plywood = Some(self.plywood());
@@ -775,7 +775,7 @@ impl Parts<'_> {
         let right = self.copies(left, middle, &[(middle, 180.0)])[0];
 
         // Tenons 3/4" long, so the two mortises in each leg don't meet.
-        let tenon = Tenon { length: 0.75, thickness: 0.25, shoulder: 0.25, haunch: 0.0 };
+        let tenon = Tenon { length: 0.75, thickness: 0.25, shoulder: 0.25, haunch: 0.0, fit: 0.0 };
         for (apron, leg) in [
             (front, front_left),
             (front, front_right),
@@ -1040,7 +1040,7 @@ mod probe {
             let panel = p.board("P", None, DVec3::new(x0 + s, y + 0.5, z0 + s), DVec3::X, DVec3::Z, [w - 2.0 * s, h - 2.0 * s, PANEL]);
             let mut log = Vec::new();
             let tenons = |doc: &mut Document, log: &mut Vec<String>| for rail in [bottom, top] { for stile in [left, right] {
-                let r = doc.mortise_and_tenon(rail, stile, Tenon { length: 0.375, thickness: PANEL, shoulder, haunch: 0.0 });
+                let r = doc.mortise_and_tenon(rail, stile, Tenon { length: 0.375, thickness: PANEL, shoulder, haunch: 0.0, fit: 0.0 });
                 log.push(format!("mt {:?} L{}", r.err(), closed(doc, left)));
             }};
             let grooves = |doc: &mut Document, log: &mut Vec<String>| for into in [bottom, top, left, right] {

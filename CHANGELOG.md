@@ -3,6 +3,13 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## Unreleased
+
+- **Change starts from the joint's own sizes**: every joint keeps the numbers it was made with,
+  and Change fills the Joinery panel in with them (angled joints too, which now have Change).
+- **Fit allowance** for mortise and tenon and for dowels: a "Fit" size cuts the mortise (or the
+  holes) that much bigger than the tenon (or dowels), and the mortise that much deeper.
+
 ## 0.1.11
 
 - Release notes: Help > Release Notes, a "What's new" link in Help > About, and a note in the

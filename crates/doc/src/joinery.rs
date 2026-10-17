@@ -81,13 +81,16 @@ pub struct Joint {
     /// [`crate::angled`]).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub before: Vec<(DefinitionId, Model)>,
+    /// The numbers it was made with, in the Joinery panel's order (to Change it from them).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sizes: Vec<f64>,
 }
 
 impl PartialEq for Joint {
     /// The same joint: everything but the shapes kept from before it (which only says whether there are some).
     fn eq(&self, other: &Self) -> bool {
-        (self.kind, self.cut, self.into, &self.detail, &self.hardware, &self.ops, self.before.len())
-            == (other.kind, other.cut, other.into, &other.detail, &other.hardware, &other.ops, other.before.len())
+        (self.kind, self.cut, self.into, &self.detail, &self.hardware, &self.ops, self.before.len(), &self.sizes)
+            == (other.kind, other.cut, other.into, &other.detail, &other.hardware, &other.ops, other.before.len(), &other.sizes)
     }
 }
 
@@ -137,6 +140,9 @@ pub struct Tenon {
     /// A haunch: a short stub of tenon filling the shoulder at the stile's end, as deep as this
     /// (0 for none), to fill a panel groove there.
     pub haunch: f64,
+    /// How much bigger the mortise is cut than the tenon: wider, thicker and deeper (0 for a
+    /// tight fit).
+    pub fit: f64,
 }
 
 /// Dowel joint sizes.
@@ -146,6 +152,8 @@ pub struct Dowels {
     pub diameter: f64,
     /// Hole depth in each part.
     pub depth: f64,
+    /// How much bigger the holes are than the dowels (0 for a tight fit).
+    pub fit: f64,
 }
 
 /// How two parts sit, and suggested sizes for the joints that fit.
@@ -297,8 +305,8 @@ impl Document {
             butt: None,
             corner: false,
             let_in_depth: 0.25,
-            tenon: Tenon { length: 1.0, thickness: 0.25, shoulder: 0.25, haunch: 0.0 },
-            dowels: Dowels { count: 2, diameter: 0.375, depth: 1.0 },
+            tenon: Tenon { length: 1.0, thickness: 0.25, shoulder: 0.25, haunch: 0.0, fit: 0.0 },
+            dowels: Dowels { count: 2, diameter: 0.375, depth: 1.0, fit: 0.0 },
             finger: 0.5,
             depth: 0.0,
             contact: (0.0, 0.0),
@@ -332,6 +340,7 @@ impl Document {
             fit.let_in_depth = sixteenth((depth / 3.0).min(0.5)).max(0.125);
             fit.tenon = Tenon {
                 haunch: 0.0,
+                fit: 0.0,
                 length: sixteenth((depth * 2.0 / 3.0).min(1.5)).max(0.25),
                 thickness: sixteenth(rail_thick / 3.0).max(0.125),
                 shoulder: if rail_wide > 1.5 { 0.25 } else { 0.0 },
@@ -341,6 +350,7 @@ impl Document {
                 count: ((rail_wide / 3.0).round() as u32).max(1),
                 diameter,
                 depth: sixteenth((depth * 2.0 / 3.0).min(1.0)).max(0.25),
+                fit: 0.0,
             };
             break;
         }
@@ -456,14 +466,31 @@ impl Document {
                 push_polygon_in(scene, path, stile, stile, &face_rect(region, k, step), -toward, tenon.length - tenon.haunch)?;
             } else {
                 grow_into(scene, path, rail, stile, butt, region)?;
-                cut_box_in(scene, path, stile, region)?;
+                // The mortise, bigger than the tenon by the fit allowance (deeper too), within the stile.
+                let mut mortise = region;
+                if tenon.fit > EPS {
+                    let k = butt.k;
+                    for axis in [thin, wide] {
+                        mortise.0[axis] -= tenon.fit / 2.0;
+                        mortise.1[axis] += tenon.fit / 2.0;
+                    }
+                    if butt.side > 0.0 {
+                        mortise.1[k] += tenon.fit;
+                    } else {
+                        mortise.0[k] -= tenon.fit;
+                    }
+                    mortise.0 = mortise.0.max(o.0);
+                    mortise.1 = mortise.1.min(o.1);
+                }
+                cut_box_in(scene, path, stile, mortise)?;
             }
             let detail = format!(
-                "{} long, {} x {} tenon{}",
+                "{} long, {} x {} tenon{}{}",
                 format_length(tenon.length),
                 format_length(tenon.thickness),
                 format_length(size[wide] - 2.0 * tenon.shoulder),
-                if haunched { format!(", {} haunch", format_length(tenon.haunch)) } else { String::new() }
+                if haunched { format!(", {} haunch", format_length(tenon.haunch)) } else { String::new() },
+                if tenon.fit > EPS && !haunched { format!(", mortise {} roomier", format_length(tenon.fit)) } else { String::new() }
             );
             record(scene, path, JointKind::MortiseAndTenon, rail, stile, detail)
         })
@@ -497,7 +524,8 @@ impl Document {
             // `into`'s face, toward the part; the part's end faces the other way.
             let face_normal = DVec3::AXES[butt.k] * -butt.side;
             let end_normal = to_part.transform_vector3(-face_normal).normalize();
-            let radius = dowels.diameter / 2.0;
+            // Holes bigger than the dowels by the fit allowance.
+            let radius = (dowels.diameter + dowels.fit.max(0.0)) / 2.0;
             for i in 0..dowels.count {
                 let mut c = butt.contact.0;
                 c[thin] = (butt.contact.0[thin] + butt.contact.1[thin]) / 2.0;
@@ -616,7 +644,7 @@ fn record_with(
     let p = Parts { scene, path };
     let (cut, into) = (p.definition(cut)?, p.definition(into)?);
     let ops = std::mem::take(&mut scene.pending_ops);
-    scene.joints.push(Joint { kind, cut, into, detail, hardware, ops, before: Vec::new() });
+    scene.joints.push(Joint { kind, cut, into, detail, hardware, ops, before: Vec::new(), sizes: Vec::new() });
     Ok(())
 }
 
@@ -1164,7 +1192,7 @@ mod tests {
         let (stile, rail) = stile_and_rail(&mut doc);
         let fit = doc.joint_fit(rail, stile).unwrap();
         assert_eq!(fit.dowels.diameter, 0.5);
-        doc.dowels(rail, stile, Dowels { count: 2, diameter: 0.375, depth: 1.0 }).unwrap();
+        doc.dowels(rail, stile, Dowels { count: 2, diameter: 0.375, depth: 1.0, fit: 0.0 }).unwrap();
         assert!(closed(&doc, rail) && closed(&doc, stile));
         assert_eq!(doc.part_size(rail).unwrap()[0], 20.0, "the rail keeps its length");
         // Each hole: 24 walls and a bottom.
@@ -1244,7 +1272,7 @@ mod components {
         let left = component(&mut doc, Board { origin: DVec3::new(2.0, 2.75, 29.25), length_dir: DVec3::Y, width_dir: -DVec3::Z, length: 14.5, width: 4.0, thickness: 0.75 });
         let right = place(&mut doc, left, middle, &[(middle, 180.0)])[0];
 
-        let tenon = Tenon { length: 0.75, thickness: 0.25, shoulder: 0.25, haunch: 0.0 };
+        let tenon = Tenon { length: 0.75, thickness: 0.25, shoulder: 0.25, haunch: 0.0, fit: 0.0 };
         for (apron, leg) in [(front, fl), (front, fr), (back, br), (back, bl), (left, fl), (left, bl), (right, fr), (right, br)] {
             doc.mortise_and_tenon(apron, leg, tenon).unwrap();
         }
@@ -1542,7 +1570,7 @@ mod more_joints {
         let rail = board(&mut doc, DVec3::new(3.0, 0.0, 12.5), DVec3::X, -DVec3::Z, [20.0, 2.5, 1.5]);
         let fit = doc.joint_fit(rail, stile).unwrap();
         assert_eq!(fit.depth, 3.0);
-        doc.mortise_and_tenon(rail, stile, Tenon { length: fit.depth, thickness: 0.5, shoulder: 0.25, haunch: 0.0 }).unwrap();
+        doc.mortise_and_tenon(rail, stile, Tenon { length: fit.depth, thickness: 0.5, shoulder: 0.25, haunch: 0.0, fit: 0.0 }).unwrap();
         assert!(closed(&doc, rail) && closed(&doc, stile));
         assert_eq!(doc.part_size(rail).unwrap()[0], 23.0);
     }
@@ -1787,8 +1815,53 @@ mod dovetail_tests {
         let stile = board(&mut doc, DVec3::ZERO, DVec3::Z, DVec3::X, [30.0, 3.0, 1.5]);
         // A rail at the top of the stile.
         let rail = board(&mut doc, DVec3::new(3.0, 0.0, 30.0), DVec3::X, -DVec3::Z, [20.0, 2.5, 1.5]);
-        doc.mortise_and_tenon(rail, stile, Tenon { length: 1.0, thickness: 0.5, shoulder: 0.5, haunch: 0.375 }).unwrap();
+        doc.mortise_and_tenon(rail, stile, Tenon { length: 1.0, thickness: 0.5, shoulder: 0.5, haunch: 0.375, fit: 0.0 }).unwrap();
         assert!(closed(&doc, rail) && closed(&doc, stile));
         assert!(doc.joint_list(rail)[0].1.detail.contains("haunch"));
+    }
+}
+
+#[cfg(test)]
+mod fit_tests {
+    use glam::DVec3;
+
+    use super::*;
+    use crate::board::Board;
+
+    fn board(doc: &mut Document, origin: DVec3, length_dir: DVec3, width_dir: DVec3, [l, w, t]: [f64; 3]) -> InstanceId {
+        doc.add_board(&Board { origin, length_dir, width_dir, length: l, width: w, thickness: t }, None).unwrap()
+    }
+
+    fn closed(doc: &Document, part: InstanceId) -> bool {
+        let def = doc.container().instance(part).unwrap().definition;
+        let m = &doc.scene().definition(def).unwrap().container.model;
+        m.edges().all(|(id, _)| m.edge_faces(id).len() == 2)
+    }
+
+    #[test]
+    fn a_fit_allowance_makes_the_mortise_roomier() {
+        let mut doc = Document::default();
+        let stile = board(&mut doc, DVec3::ZERO, DVec3::Z, DVec3::X, [30.0, 3.0, 1.5]);
+        let rail = board(&mut doc, DVec3::new(3.0, 0.0, 12.5), DVec3::X, -DVec3::Z, [20.0, 2.5, 1.5]);
+        doc.mortise_and_tenon(rail, stile, Tenon { length: 1.0, thickness: 0.5, shoulder: 0.25, haunch: 0.0, fit: 1.0 / 16.0 }).unwrap();
+        assert!(closed(&doc, rail) && closed(&doc, stile));
+        assert_eq!(doc.part_size(rail).unwrap()[0], 21.0, "the tenon itself is the size asked for");
+        assert!(doc.joint_list(rail)[0].1.detail.contains("1/16\" roomier"));
+    }
+
+    #[test]
+    fn a_fit_allowance_drills_bigger_dowel_holes() {
+        let mut doc = Document::default();
+        let stile = board(&mut doc, DVec3::ZERO, DVec3::Z, DVec3::X, [30.0, 3.0, 1.5]);
+        let rail = board(&mut doc, DVec3::new(3.0, 0.0, 12.5), DVec3::X, -DVec3::Z, [20.0, 2.5, 1.5]);
+        doc.dowels(rail, stile, Dowels { count: 2, diameter: 0.375, depth: 1.0, fit: 1.0 / 64.0 }).unwrap();
+        assert!(closed(&doc, rail) && closed(&doc, stile));
+        // The holes' rims sit 1/128" farther out than a tight 3/8" dowel's.
+        let def = doc.container().instance(stile).unwrap().definition;
+        let m = &doc.scene().definition(def).unwrap().container.model;
+        let rim = m.faces().filter(|(_, f)| !f.holes.is_empty()).flat_map(|(_, f)| f.holes[0].clone()).map(|v| m.vertex(v)).collect::<Vec<_>>();
+        let center = rim.iter().copied().sum::<DVec3>() / rim.len() as f64;
+        let radius = rim.iter().map(|p| p.distance(center)).fold(0.0, f64::max);
+        assert!((radius - (0.375 + 1.0 / 64.0) / 2.0).abs() < 1e-6, "{radius}");
     }
 }

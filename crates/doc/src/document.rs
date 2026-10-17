@@ -302,6 +302,14 @@ impl Document {
         result
     }
 
+    /// Keep the numbers the joint just made was made with (in the picker's order) on it, so Change
+    /// can start from them. Part of that joint's undo step.
+    pub fn note_joint_sizes(&mut self, sizes: Vec<f64>) {
+        if let Some(joint) = self.state.scene.joints.last_mut() {
+            joint.sizes = sizes;
+        }
+    }
+
     /// Run `change`, however many edits it makes, as one undo step; on an error the drawing is
     /// left as it was.
     pub fn as_one_step<R, E>(&mut self, change: impl FnOnce(&mut Self) -> Result<R, E>) -> Result<R, E> {
