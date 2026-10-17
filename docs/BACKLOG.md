@@ -53,12 +53,10 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
    window). Still to come: arrows and numbers on the model; telling a floating panel or slotted
    fastening from a glued one (every touching cross-grain meeting is flagged now); species data
    for custom woods (only names matching a known species get it); movement in thickness and
-   along the grain; parts at an angle.
-7. **Templates** (done: cabinet, drawer, face frame, table, each changeable in size). Still to
-   come: drawers and doors fitted to an opening, frame-and-panel doors, hardware (Next up, items
-   1 and 2); more templates (bookcase with adjustable shelves, bed, workbench); templates keep
-   only their sizes, so Change size loses edits made inside. Then **.skp import** through
-   Trimble's SDK (the adoption hook; check its redistribution terms early).
+   along the grain; parts at an angle (only parts square to the axes are checked).
+7. **Templates** (done: cabinet with drawers and doors in its openings, drawer, face frame, table,
+   each changeable in size; hardware as parts). Still to come: more templates (bookcase with
+   adjustable shelves, bed, workbench); see Templates and Drawers, doors and hardware below.
 8. **Agent-ready**: let AI agents design with WoodSketch, so a woodworker can ask their assistant
    "build me a nightstand, 24\" tall, from 3/4\" cherry" and get a real drawing, cut list,
    cutting diagrams and shopping list. The engine (`doc`) already runs without the UI. Pieces:
@@ -204,8 +202,7 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 - Glue-ups: strips are equal widths (no mixing a wide and a narrow board), with a fixed 1/4"
   jointing allowance and 1" trim; edge-glued panels only (no face-glued thick parts like a
   laminated leg); the build sheet doesn't draw the boards.
-- No edge banding or veneer. Hardware comes only from joints (dowels, biscuits, screws); hinges,
-  slides and pulls are Next up, item 2.
+- No edge banding or veneer.
 - Packing is heuristic (several orders and rules, best kept), not provably optimal; no
   offcut reuse across materials, no "use my leftover pieces first".
 - Solid wood assumes one board width per material (the narrowest standard width holding the
@@ -225,20 +222,20 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 - Paint Bucket: a click paints the whole object (deliberately unlike SketchUp's one face; Ctrl
   paints one face). No Shift (replace everywhere) variant.
 - Painted color shows on both sides of a face; SketchUp paints front and back separately.
+- Drawings saved before 5/4 and 6x lumber sizes were added keep their lumber materials' old size
+  lists (add the sizes in the Materials panel, or re-add the material from the library).
 
 ## Tags
 - Only groups and components can be tagged; loose geometry is always Untagged.
 - No tag colors or "color by tag", dashed tag lines, or an "active tag" that new groups get
   automatically.
-- Drawings saved before 5/4 and 6x lumber sizes were added keep their lumber materials' old size
-  lists (add the sizes in the Materials panel, or re-add the material from the library).
 - Hidden groups are still listed in the Outliner (dimmed) but can't be selected there.
 - Toggling a tag's visibility is an undo step (SketchUp does the same).
 
 ## Files
 - File dialogs block the window while open (rfd's synchronous API).
 - Export: OBJ (+ MTL colors) and ASCII STL only; no glTF, DAE or DXF/SVG (2D for CNC), no
-  textures, no "export selection only", and each part isn't a separate STL file. No .skp import.
+  textures, no "export selection only", and each part isn't a separate STL file.
 
 ## UI
 - Eraser: no Shift (hide) or Ctrl (soften/smooth) variants; it can't erase a face by itself (select it
@@ -273,20 +270,17 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 - Faces drawn on the ground face up, where SketchUp shows the blue back face (deliberate).
 
 ## Performance
-- Drawing is instanced (each component meshed once), so big models draw and redraw fast, but each
-  edit still clones the scene for undo and re-flattens the whole view for picking (about 0.1 s on a
-  729,000-face deck), and selecting a huge group builds its highlight face by face.
-- Copies scaled unevenly are shaded with slightly off normals (the placement's matrix is used as is).
 Measured with `tests/perf.rs` (`cargo test --release -p woodsketch-ui-egui --test perf --
 --ignored --nocapture`, `PERF_BOARDS=1500` for a big drawing). At 1500 boards (12,900 faces):
-hover 1-3 ms, click 9 ms, selection highlight 2 ms, an edit 14-17 ms, full redraw rebuild 40 ms.
-- Picking tests every face's plane and box (cached per model), but has no spatial index; a
-  BVH would make it constant-ish for very big models.
-- Each edit snapshots the whole scene for undo and re-flattens the whole view (~2 ms and ~4 ms
-  at 1500 boards); sharing unchanged definitions (Arc) and per-definition caches would cut both.
-- Vertex dedupe (`add_vertex`) and edge lookup are linear scans per call.
-- The drawing's geometry is rebuilt and re-uploaded on every model change (the selection has
-  its own small layer).
+hover 1-3 ms, click 9 ms, selection highlight 2 ms, an edit 14-17 ms. A 729,000-face SketchUp
+deck: opens in 0.3 s, first frame 0.06 s, a frame after an edit 0.03 s (drawing is instanced).
+- Each edit still clones the scene for undo and re-flattens the whole view for picking (about
+  0.1 s on the deck); sharing unchanged definitions (Arc) and per-definition caches would cut both.
+- Selecting a huge group builds its highlight face by face.
+- Picking tests every face's plane and box (cached per model), but has no spatial index; a BVH
+  would make it constant-ish for very big models.
+- Vertex dedupe (`add_vertex`) and edge lookup are linear scans per call (file import avoids them).
+- Copies scaled unevenly are shaded with slightly off normals (the placement's matrix is used as is).
 
 ## Testing / infra
 - Two full test runs once died without a failing assertion, likely a GPU driver crash with
