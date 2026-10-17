@@ -212,7 +212,9 @@ Tools
 4. [5] Typing before the first click (absolute `[x,y,z]` start points).
 5. [5] Protractor tool (angled guide lines).
 6. [8] Text tool.
-7. [8] Walk and Look Around.
+7. [8] Walk and Look Around, like a 3D game: the mouse looks around, W A S D or the arrow keys
+   walk (forward, left, back, right). While walking those keys move you instead of picking tools
+   (W, S, A are Board, Scale and Arc); Esc stops walking.
 8. [13] Dimensions tool.
 9. [21] Follow Me.
 10. [21] Section Plane.
