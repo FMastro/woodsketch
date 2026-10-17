@@ -130,8 +130,13 @@ impl Model {
         if !coplanar {
             return false;
         }
+        let ends = self.edge(edge).map(|e| [e.a, e.b]);
         self.remove_edge(edge);
         self.rebuild_plane(normal, origin, &[], &BTreeSet::from([f, g]), None);
+        // Where the seam met a straight edge, the corner it left there isn't one any more.
+        for v in ends.into_iter().flatten() {
+            self.dissolve_vertex(v);
+        }
         true
     }
 
@@ -543,6 +548,20 @@ mod tests {
             let outer = model.loop_points(&f.outer);
             assert!(crate::model::newell_normal(&outer).dot(f.normal) > 0.0, "outer winds with the normal");
         }
+    }
+
+    #[test]
+    fn erasing_a_seam_leaves_no_stray_corners() {
+        let mut model = Model::default();
+        square(&mut model, 10.0);
+        let seam = model.add_line(p(4.0, 0.0), p(4.0, 10.0));
+        assert_eq!(model.faces().count(), 2);
+        model.erase(seam.into_iter().map(Entity::Edge));
+        let faces: Vec<FaceId> = model.faces().map(|(id, _)| id).collect();
+        assert_eq!(faces.len(), 1, "merged back");
+        assert_eq!(model.face(faces[0]).unwrap().outer.len(), 4, "a square again: no corners left where the seam met its sides");
+        assert_eq!(model.edges().count(), 4);
+        assert_wound(&model);
     }
 
     #[test]

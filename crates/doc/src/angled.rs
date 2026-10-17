@@ -58,6 +58,9 @@ struct Flat {
     along: DVec2,
     /// Its walls' ends, for its extent.
     corners: Vec<DVec2>,
+    /// Its faces with their own paint, as triangles with their side (the rebuilt faces on them
+    /// take it back).
+    painted: Vec<([DVec3; 3], DVec3, crate::MaterialId)>,
 }
 
 /// The frame the joint is worked out in: 2D across the shared axis `a`, `y` along it.
@@ -157,8 +160,8 @@ impl Document {
             None => "housed, at an angle".to_owned(),
         };
 
-        let new_part = solid(&frame, &cells, &levels, &part_fills).ok_or(JoineryError::Size("That joint couldn't be made here."))?;
-        let new_into = solid(&frame, &cells, &levels, &into_fills).ok_or(JoineryError::Size("That joint couldn't be made here."))?;
+        let new_part = solid(&frame, &cells, &levels, &part_fills, &p.painted).ok_or(JoineryError::Size("That joint couldn't be made here."))?;
+        let new_into = solid(&frame, &cells, &levels, &into_fills, &q.painted).ok_or(JoineryError::Size("That joint couldn't be made here."))?;
 
         let container = self.container();
         let (ip, iq) = (container.instance(part).ok_or(JoineryError::NotParts)?, container.instance(into).ok_or(JoineryError::NotParts)?);
@@ -223,7 +226,15 @@ impl Document {
 /// (a cap): its walls' footprints, its caps' heights, and its surface for inside tests.
 fn flat_part(frame: &Frame, model: &Model, transform: &DAffine3) -> Result<Flat, JoineryError> {
     let not_square = JoineryError::Size("Angled joints need parts whose faces all run along the axis they share, or square to it.");
-    let mut flat = Flat { triangles: Vec::new(), walls: Vec::new(), levels: Vec::new(), y: (f64::INFINITY, f64::NEG_INFINITY), along: DVec2::X, corners: Vec::new() };
+    let mut flat = Flat {
+        triangles: Vec::new(),
+        walls: Vec::new(),
+        levels: Vec::new(),
+        y: (f64::INFINITY, f64::NEG_INFINITY),
+        along: DVec2::X,
+        corners: Vec::new(),
+        painted: Vec::new(),
+    };
     for (_, face) in model.faces() {
         let n = transform.transform_vector3(face.normal).normalize();
         let points: Vec<DVec3> = face.outer.iter().map(|&v| transform.transform_point3(model.vertex(v))).collect();
@@ -250,7 +261,11 @@ fn flat_part(frame: &Frame, model: &Model, transform: &DAffine3) -> Result<Flat,
             flat.y = (flat.y.0.min(y), flat.y.1.max(y));
         }
         for [a, b, c] in model.triangulate(face) {
-            flat.triangles.push([a, b, c].map(|p| transform.transform_point3(p)));
+            let triangle = [a, b, c].map(|p| transform.transform_point3(p));
+            flat.triangles.push(triangle);
+            if let Some(material) = face.material {
+                flat.painted.push((triangle, n, material));
+            }
         }
     }
     if flat.walls.is_empty() || flat.y.1 - flat.y.0 <= TOL {
@@ -393,7 +408,7 @@ type Key = (i64, i64);
 
 /// The closed solid filling the `occupied` cells of each slab (`occupied[cell][slab]`), in the
 /// container's coordinates. `None` if it comes out empty or open.
-fn solid(frame: &Frame, cells: &[Vec<DVec2>], levels: &[f64], occupied: &[Vec<bool>]) -> Option<Model> {
+fn solid(frame: &Frame, cells: &[Vec<DVec2>], levels: &[f64], occupied: &[Vec<bool>], painted: &[([DVec3; 3], DVec3, crate::MaterialId)]) -> Option<Model> {
     let slabs = levels.len() - 1;
     // Which cell is across each edge (keyed by its ends, rounded).
     let key = |p: DVec2| -> Key { ((p.x / TOL).round() as i64, (p.y / TOL).round() as i64) };
@@ -476,8 +491,26 @@ fn solid(frame: &Frame, cells: &[Vec<DVec2>], levels: &[f64], occupied: &[Vec<bo
     // Lines left on no face by the merging.
     let stray: Vec<Entity> = model.edges().map(|(id, _)| id).filter(|&id| model.edge_faces(id).is_empty()).map(Entity::Edge).collect();
     model.erase(stray);
+    // Faces on painted faces of the part keep their paint.
+    let faces: Vec<(crate::FaceId, DVec3, DVec3)> = model
+        .faces()
+        .filter_map(|(id, f)| model.triangulate(f).first().map(|[a, b, c]| (id, (*a + *b + *c) / 3.0, f.normal)))
+        .collect();
+    for (id, at, normal) in faces {
+        let paint = painted.iter().find(|([a, b, c], n, _)| n.dot(normal) > 1.0 - 1e-6 && on_triangle(at, [*a, *b, *c], *n)).map(|(_, _, m)| *m);
+        if paint.is_some() {
+            model.set_face_material(id, paint);
+        }
+    }
     let closed = model.edges().all(|(id, _)| model.edge_faces(id).len() == 2);
     closed.then_some(model)
+}
+
+/// Whether `p` lies on triangle `[a, b, c]` (in its plane, inside its edges), whose side is `n`.
+fn on_triangle(p: DVec3, [a, b, c]: [DVec3; 3], n: DVec3) -> bool {
+    // Triangles from a face can wind either way: inside is the same side of all three edges.
+    let sides = [(a, b), (b, c), (c, a)].map(|(u, v)| (v - u).cross(p - u).dot(n));
+    (p - a).dot(n).abs() < TOL && (sides.iter().all(|s| *s >= -1e-9) || sides.iter().all(|s| *s <= 1e-9))
 }
 
 /// A wall quad over edge `a -> b` of a counter-clockwise cell, wound to face away from the cell.
@@ -564,6 +597,31 @@ mod tests {
         doc.remove_joint(0).unwrap();
         assert!((volume(&doc, post) - post_before).abs() < 1e-9);
         assert!((volume(&doc, brace) - brace_before).abs() < 1e-9);
+    }
+
+    #[test]
+    fn painted_faces_keep_their_paint() {
+        let mut doc = Document::default();
+        let (post, brace) = post_and_brace(&mut doc);
+        let red = doc.add_material(crate::MaterialKind::SolidWood);
+        // Paint the brace's cheeks (its faces square to the shared axis).
+        let def = doc.container().instance(brace).unwrap().definition;
+        let cheeks: Vec<crate::FaceId> = {
+            let m = &doc.scene().definition(def).unwrap().container.model;
+            let t = doc.container().instance(brace).unwrap().transform;
+            m.faces().filter(|(_, f)| t.transform_vector3(f.normal).y.abs() > 0.99).map(|(id, _)| id).collect()
+        };
+        doc.edit_scene(|scene, _| {
+            let m = &mut scene.definition_mut(def).unwrap().container.model;
+            for &f in &cheeks {
+                m.set_face_material(f, Some(red));
+            }
+        });
+        doc.angled_joint(brace, post, AngledJoint::MortiseAndTenon { thickness: 0.5, shoulder: 0.25 }).unwrap();
+        let def = doc.container().instance(brace).unwrap().definition;
+        let m = &doc.scene().definition(def).unwrap().container.model;
+        let painted = m.faces().filter(|(_, f)| f.material == Some(red)).count();
+        assert!(painted >= 2, "both cheeks keep their paint ({painted} painted)");
     }
 
     #[test]

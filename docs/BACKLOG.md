@@ -96,7 +96,6 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
   tenon goes as deep as the overlap drawn; no fit allowance.
 - A joint on one copy of a shared component makes that copy its own component (the others, maybe
   mirrored, stay as they were); square joints change every copy.
-- The rebuilt parts lose paint on single faces, and keep a stray corner where faces were merged.
 
 ## Drawers, doors and hardware
 - Only in the Cabinet template's openings: no clicking an opening in a hand-drawn cabinet, and no
@@ -143,8 +142,8 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 - **Coplanar face merging**: two faces on one plane that share an edge stay separate (a seam
   edge remains, e.g. boards glued end to end). Erasing the seam merges them, and Push/Pull
   merges walls flush with a side, but nothing merges automatically otherwise.
-- **Collinear leftovers**: merging faces (erasing a splitting line, pulling part of a top up
-  flush with a side) keeps the extra vertex where an edge was split; SketchUp heals those.
+- **Collinear leftovers**: erasing a seam heals the corners it left on straight edges, but other
+  merges (pulling part of a top up flush with a side) can still leave one.
 - **Move can't bend faces**: SketchUp folds a face that would become non-planar (adds a
   diagonal); we refuse the move instead.
 

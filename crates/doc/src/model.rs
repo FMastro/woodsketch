@@ -379,6 +379,32 @@ impl Model {
         self.edges.remove(id.0)
     }
 
+    /// The reverse of splitting an edge: when `v` is just a point in the middle of a straight line
+    /// (two edges meeting straight on), take it out and join the two edges into one, keeping the
+    /// faces whole. `false` if it's a real corner.
+    pub(crate) fn dissolve_vertex(&mut self, v: VertexId) -> bool {
+        let touching: Vec<(EdgeId, VertexId)> =
+            self.edges().filter_map(|(id, e)| if e.a == v { Some((id, e.b)) } else if e.b == v { Some((id, e.a)) } else { None }).collect();
+        let [(e1, a), (e2, b)] = touching[..] else { return false };
+        let p = self.vertex(v);
+        let (da, db) = (self.vertex(a) - p, self.vertex(b) - p);
+        if a == b || da.length() < EPS || db.length() < EPS || da.normalize().dot(db.normalize()) > -1.0 + 1e-9 || self.find_edge(a, b).is_some() {
+            return false;
+        }
+        self.face_index.take();
+        for face in self.faces.iter_mut() {
+            face.outer.retain(|&x| x != v);
+            for hole in &mut face.holes {
+                hole.retain(|&x| x != v);
+            }
+        }
+        self.edges.remove(e1.0);
+        self.edges.remove(e2.0);
+        self.edges.insert(Edge { a, b });
+        self.vertices.remove(v.0);
+        true
+    }
+
     /// Split an edge at `point` (on it), keeping the faces it bounds whole: the new vertex is
     /// inserted into their loops. Returns the vertex at `point`.
     pub(crate) fn split_edge(&mut self, id: EdgeId, point: DVec3) -> Option<VertexId> {

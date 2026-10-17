@@ -5,6 +5,8 @@ GitHub release; keep a `## <version>` heading for every release.
 
 ## Unreleased
 
+- Merging faces (erasing a seam, angled joints) no longer leaves stray corners on straight edges,
+  and faces painted on their own keep their paint through an angled joint.
 - **Right-click menu** in the drawing: right-clicking selects what's under the pointer (unless
   it's already selected) and offers Cut, Copy, Paste, Delete, Make Group, Make Component, Explode,
   Make Unique (for a copy of a shared component) and Reverse Faces.
