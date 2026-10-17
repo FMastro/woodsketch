@@ -3,6 +3,7 @@
 
 mod arena;
 pub mod angled;
+pub mod assembly;
 pub mod board;
 pub mod clipboard;
 pub mod buildsheet;

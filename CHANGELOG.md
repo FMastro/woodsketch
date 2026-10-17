@@ -3,6 +3,15 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.15
+
+- Assembly instructions: the build sheets end with a page for each assembly (a table, a drawer, a
+  cabinet), sub-assemblies first, with an exploded drawing labeled with the cut-list letters and the
+  glue-up order: frames first (two aprons between their legs), then what joins them; panels in
+  grooves slid in without glue; tops and backs fastened after (a solid-wood top with fasteners
+  that let it move); drawers fitted and doors hung last; the hardware to install.
+- File > Print Build Sheets..., the same sheets as the Cut List window's button.
+
 ## 0.1.14
 
 - Fix: Help > Release Notes and the "What's new" links now open in your browser.

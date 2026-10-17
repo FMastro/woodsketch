@@ -72,7 +72,7 @@ svg text {{ font: 11px system-ui, sans-serif; fill: #333; }}
 @media print {{ .sheet {{ page-break-after: always; }} .noprint {{ display: none; }} body {{ margin: 0; }} }}
 </style></head><body>
 <h1>{title}</h1>
-<p class="meta noprint"><button onclick="window.print()">Print</button> One part per page. Sizes are finished sizes, in inches.</p>
+<p class="meta noprint"><button onclick="window.print()">Print</button> One part per page, then how it goes together (the letters are the cut list's). Sizes are finished sizes.</p>
 "#,
         title = esc(title)
     );
@@ -96,6 +96,17 @@ svg text {{ font: 11px system-ui, sans-serif; fill: #333; }}
     }
     for (label, sheet, row) in sheets {
         write_sheet(&mut html, scene, sheet, &label, row);
+    }
+    // Then putting it together: each assembly, sub-assemblies first.
+    for assembly in crate::assembly::assemblies(scene, list) {
+        let _ = write!(html, "<section class=\"sheet assembly\"><h2>Assemble: {}</h2>", esc(&assembly.name));
+        html.push_str(&assembly.svg);
+        html.push_str("<ol>");
+        for step in &assembly.steps {
+            let _ = write!(html, "<li>{}</li>", esc(step));
+        }
+        html.push_str("</ol></section>
+");
     }
     html.push_str("</body></html>\n");
     html
@@ -337,7 +348,8 @@ mod tests {
         assert!(html.contains("20 1/4\" x 11 1/4\" x 3/4\""), "the shelf includes its let-in");
         assert!(html.contains("Cut the dado for Shelf (1/4\" deep)."), "the side's step");
         assert!(html.contains("Fits into the dado in Side"), "the shelf's note");
-        assert_eq!(html.matches("<svg").count(), 2, "drawings for each");
+        assert_eq!(html.matches("<svg").count(), 3, "drawings for each part, and the exploded assembly");
+        assert!(html.contains("Assemble: The whole piece") && html.contains("Glue"), "how it goes together");
         let mill = html.find("Mill to").unwrap();
         let dado = html.find("Cut the dado").unwrap();
         let sand = html.rfind("Sand.").unwrap();

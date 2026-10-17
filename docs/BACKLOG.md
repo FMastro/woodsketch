@@ -48,7 +48,12 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 5. **Build sheets** (done: a printable page per part from the Cut List window, with its size,
    stock, three dimensioned views to scale, and steps in shop order). Still to come: where each
    joint and profile sits (dimensions to it from the reference face and edge, which aren't picked
-   yet), hidden lines dashed, an exploded assembly view and glue-up order.
+   yet), hidden lines dashed. Assembly pages (done: exploded drawing and glue-up order per
+   assembly). Still to come for assembly: clamping notes (which clamps, where, how long), dry-fit
+   steps, an exploded drawing per step instead of one per assembly, leader lines from the letters,
+   a glue-up order for parts joined only by touching (no joints made: they're fastened now),
+   the order of parts at an angle (boxes are compared square to the axes), and hardware said per
+   step (it's one list at the end).
 6. **Wood movement checks** (done: Wood Handbook coefficients per species and cut, a moisture swing
    setting, how much each part moves, and warnings where touching parts fight it, in the Cut List
    window). Still to come: arrows and numbers on the model; telling a floating panel or slotted
@@ -72,7 +77,7 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
      furniture), and the app opening what an agent made for editing by hand.
 9. Later: a community model library (a separate service: accounts, moderation, licensing;
    3D Warehouse's terms forbid aggregating its models), cost estimates (board feet / sheets x
-   price), exploded views and assembly order.
+   price).
 
 ## Templates
 - Change size rebuilds from scratch, so edits made inside the group by hand are lost (the button's

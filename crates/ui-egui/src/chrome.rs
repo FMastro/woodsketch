@@ -103,6 +103,10 @@ impl WoodSketchApp {
                     self.files.show_error(e);
                 }
             }
+            if ui.button("Print Build Sheets...").on_hover_text("A page per part with its steps, then how it all goes together, with exploded drawings; opens in your browser to print").clicked() {
+                ui.close();
+                self.cut_list.export_build_sheets(&self.doc);
+            }
             ui.menu_button("Export", |ui| {
                 for (label, format) in [("OBJ...", files::ExportFormat::Obj), ("STL...", files::ExportFormat::Stl)] {
                     if ui.button(label).clicked() {

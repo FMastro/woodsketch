@@ -129,7 +129,7 @@ impl CutListWindow {
         };
     }
 
-    fn export_build_sheets(&mut self, doc: &Document) {
+    pub fn export_build_sheets(&mut self, doc: &Document) {
         let html = self.build_sheets(doc, "Build sheets");
         let Some(path) = rfd::FileDialog::new().add_filter("Web page", &["html"]).set_file_name("build sheets.html").save_file() else {
             return;
