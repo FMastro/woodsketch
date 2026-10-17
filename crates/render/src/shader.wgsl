@@ -130,3 +130,46 @@ fn fs_dashed(in: DashedOut) -> @location(0) vec4<f32> {
     }
     return in.color;
 }
+
+// The drawing: each mesh in its own coordinates, drawn at placements (one per copy of a group or
+// component), with how faded the copy is (outside the group being edited).
+struct Placement {
+    @location(4) c0: vec4<f32>,
+    @location(5) c1: vec4<f32>,
+    @location(6) c2: vec4<f32>,
+    @location(7) c3: vec4<f32>,
+    @location(8) fade: f32,
+};
+
+// Toward the background, as SketchUp fades what's outside the group being edited.
+fn fade_to(color: vec4<f32>, fade: f32, amount: f32) -> vec4<f32> {
+    return vec4<f32>(mix(color.rgb, vec3<f32>(0.955), amount * fade), color.a);
+}
+
+@vertex
+fn vs_line_placed(@location(0) position: vec3<f32>, @location(1) color: vec4<f32>, p: Placement) -> LineOut {
+    let m = mat4x4<f32>(p.c0, p.c1, p.c2, p.c3);
+    var out: LineOut;
+    out.position = globals.view_proj * m * vec4<f32>(position, 1.0);
+    out.color = fade_to(color, p.fade, 0.55);
+    return out;
+}
+
+@vertex
+fn vs_face_placed(
+    @location(0) position: vec3<f32>,
+    @location(1) normal: vec3<f32>,
+    @location(2) front: vec4<f32>,
+    @location(3) back: vec4<f32>,
+    p: Placement,
+) -> FaceOut {
+    let m = mat4x4<f32>(p.c0, p.c1, p.c2, p.c3);
+    let world = m * vec4<f32>(position, 1.0);
+    var out: FaceOut;
+    out.position = globals.view_proj * world;
+    out.world = world.xyz;
+    out.normal = (m * vec4<f32>(normal, 0.0)).xyz;
+    out.front = fade_to(front, p.fade, 0.7);
+    out.back = fade_to(back, p.fade, 0.7);
+    return out;
+}

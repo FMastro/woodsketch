@@ -77,12 +77,17 @@ svg text {{ font: 11px system-ui, sans-serif; fill: #333; }}
         title = esc(title)
     );
 
-    // Cut-list order: by the letter of the row each part falls in.
+    // Cut-list order: by the letter of the row each part falls in. Only what's made in the shop:
+    // not flat things (no row) or parts of metal, glass and such (material type Other).
+    let not_wood = |sheet: &Sheet| {
+        sheet.material.and_then(|m| scene.material(m)).is_some_and(|m| matches!(m.kind, crate::MaterialKind::Other | crate::MaterialKind::Hardware))
+    };
     let mut sheets: Vec<(String, &Sheet, Option<&Part>)> = found
         .values()
-        .map(|sheet| {
-            let row = row_for(scene, list, sheet);
-            (row.map_or_else(|| "~".to_owned(), |p| p.label.clone()), sheet, row)
+        .filter(|sheet| !not_wood(sheet))
+        .filter_map(|sheet| {
+            let row = row_for(scene, list, sheet)?;
+            Some((row.label.clone(), sheet, Some(row)))
         })
         .collect();
     sheets.sort_by(|a, b| (a.0.len(), &a.0).cmp(&(b.0.len(), &b.0)));
@@ -337,6 +342,19 @@ mod tests {
         let dado = html.find("Cut the dado").unwrap();
         let sand = html.rfind("Sand.").unwrap();
         assert!(mill < dado && dado < sand, "shop order");
+    }
+
+    #[test]
+    fn parts_that_arent_wood_get_no_sheet() {
+        let mut doc = Document::default();
+        let shelf = board(&mut doc, DVec3::ZERO, DVec3::X, DVec3::Y, [20.0, 11.25, 0.75]);
+        let glass = board(&mut doc, DVec3::new(0.0, 20.0, 0.0), DVec3::X, DVec3::Y, [20.0, 11.25, 0.25]);
+        let other = doc.add_material(crate::MaterialKind::Other);
+        doc.paint(&[crate::Entity::Instance(glass)], Some(other));
+        let _ = shelf;
+        let list = crate::cutlist::cut_list(doc.scene());
+        let html = to_html(doc.scene(), &list, "Cabinet");
+        assert_eq!(html.matches("<section class=\"sheet\">").count(), 1, "only the shelf");
     }
 
     #[test]

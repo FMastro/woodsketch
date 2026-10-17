@@ -326,7 +326,13 @@ fn diagrams_tab(ui: &mut egui::Ui, list: &CutList, plans: &[Option<Plan>], doc: 
     if list.materials.is_empty() {
         ui.label("No parts to cut yet.");
     }
+    // Metal, glass and such (type Other) aren't cut from stock: one line for all of them.
+    let not_wood: Vec<&str> =
+        list.materials.iter().filter(|m| m.kind == Some(MaterialKind::Other)).map(|m| m.name.as_str()).collect();
     for (material, plan) in list.materials.iter().zip(plans) {
+        if material.kind == Some(MaterialKind::Other) {
+            continue;
+        }
         ui.add_space(8.0);
         ui.heading(&material.name);
         let Some(plan) = plan else {
@@ -352,6 +358,10 @@ fn diagrams_tab(ui: &mut egui::Ui, list: &CutList, plans: &[Option<Plan>], doc: 
             ui.label(format!("{}. {}  ·  {:.0}% used", i + 1, stock.description, stock.used() * 100.0));
             draw_stock(ui, stock, color);
         }
+    }
+    if !not_wood.is_empty() {
+        ui.add_space(8.0);
+        ui.weak(format!("Not cut from stock (material type Other): {}.", not_wood.join(", ")));
     }
 }
 

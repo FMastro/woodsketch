@@ -70,8 +70,8 @@ fn big_shop_drawing() {
         });
         time("rebuild render scene", 5, || {
             let mut scene = Scene::reference(false);
-            scene.add_view(doc.view(), doc.selection(), &doc.context_transform(), doc.scene());
-            scene.faces.len()
+            scene.add_view(&doc);
+            scene.mesh_faces.len()
         });
 
         let (first, _) = doc.container().instances().next().unwrap();

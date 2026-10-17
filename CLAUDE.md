@@ -19,7 +19,10 @@ reading (`doc::skp`) was worked out from `.skp` files only, without the SDK; kee
   picking, snapping and axis inference (`pick`), and one state machine per tool. The UI sends
   `PointerEvent`s and keystrokes; tools return an `Overlay` to draw.
 - `crates/render`: wgpu renderer. Draws into an offscreen MSAA texture that the UI shows as
-  an egui image (own depth buffer, independent of egui's pass). A sky pass (gradient above the
+  an egui image (own depth buffer, independent of egui's pass). The drawing is instanced: each container's
+  geometry is meshed once per paint it shows (`Scene::add_drawing`), in its own coordinates, and
+  drawn at every placement (a per-instance matrix + fade, `vs_*_placed`); the selection highlight
+  is built from the flattened `View`. A sky pass (gradient above the
   horizon, plain ground below) comes first. The optional grid (View > Grid) is a no-depth-write pass
   under faces; front/back face colors chosen per fragment from the eye position.
 - `crates/ui-egui`: the window. `chrome.rs` lays it out like SketchUp on Windows (menu bar,
@@ -203,3 +206,8 @@ top of `docs/BACKLOG.md` ("Woodworking direction"); keep general modeling workin
    unsaved drawing; File > Import SketchUp Model... pastes one in place (`Clip::from_scene`). Set
    `WOODSKETCH_SKP=<file>` to run the real-file tests in `skp` and `workflow.rs`. Flat things
    (thinner than 1/64") aren't cut-list parts.
+31. Big models and non-wood: the renderer draws each component once per placement on the GPU (a
+   deck of 729,000 placed faces: first frame 1.2 s -> 0.06 s, a frame after an edit 1.2 s -> 0.03 s).
+   SketchUp materials are solid wood or sheet goods only when their names say so (`skp::material_for`),
+   else `MaterialKind::Other`: listed in the parts, left out of cutting diagrams (one line names them)
+   and build sheets.

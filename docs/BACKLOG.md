@@ -117,12 +117,8 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 - No saving back to `.skp`.
 - Tested on SketchUp 2026 files only so far; more sample files from other versions will turn up
   records that aren't read yet.
-- Big models are slow to edit: a deck with 729,000 faces once every copy is placed (1.5 million
-  triangles) opens in about a second and then draws smoothly, but every change rebuilds and
-  re-uploads all of it (about a second). Drawing each component once and placing copies on the
-  GPU (instancing) would fix it.
-- Materials that aren't wood (metal, glass, grass, paint colors) come in as solid wood, so their
-  parts show in the cut list as wood; there's no "not wood" material kind yet.
+- Materials are sorted into wood, sheet goods and Other by their names; a painted wood part (a
+  material named like `[Color_009]`) comes in as Other, so set its type in the Materials panel.
 - Wanted for testing: a model with groups, one saved by SketchUp 2021 or 2022, and a detailed piece
   of furniture (drawers, joinery).
 
@@ -258,6 +254,10 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 - Faces drawn on the ground face up, where SketchUp shows the blue back face (deliberate).
 
 ## Performance
+- Drawing is instanced (each component meshed once), so big models draw and redraw fast, but each
+  edit still clones the scene for undo and re-flattens the whole view for picking (about 0.1 s on a
+  729,000-face deck), and selecting a huge group builds its highlight face by face.
+- Copies scaled unevenly are shaded with slightly off normals (the placement's matrix is used as is).
 Measured with `tests/perf.rs` (`cargo test --release -p woodsketch-ui-egui --test perf --
 --ignored --nocapture`, `PERF_BOARDS=1500` for a big drawing). At 1500 boards (12,900 faces):
 hover 1-3 ms, click 9 ms, selection highlight 2 ms, an edit 14-17 ms, full redraw rebuild 40 ms.

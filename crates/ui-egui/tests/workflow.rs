@@ -1688,11 +1688,17 @@ fn opens_a_sketchup_model() {
         harness.run();
         println!("frame {i} {:?}", t.elapsed());
     }
+    // An edit (a line drawn), then the frame that redraws the drawing.
+    harness.state_mut().document_mut().edit(|m| m.add_line(glam::DVec3::new(0.0, -50.0, 0.0), glam::DVec3::new(10.0, -50.0, 0.0)));
+    let t = std::time::Instant::now();
+    harness.run();
+    println!("frame after an edit {:?}", t.elapsed());
     snapshot(&mut harness, "sketchup_model");
     let doc = harness.state().document();
     assert!(doc.container().instances().count() > 0);
     let list = woodsketch_doc::cutlist::cut_list(doc.scene());
     for m in &list.materials {
+        println!("== {} ({:?}): {} parts", m.name, m.kind, m.parts.iter().map(|p| p.count).sum::<usize>());
         for p in &m.parts {
             println!("{} {:?} x{} {:.3} x {:.3} x {:.3}", p.label, p.names, p.count, p.length, p.width, p.thickness);
         }

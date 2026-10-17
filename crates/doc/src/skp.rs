@@ -368,8 +368,16 @@ fn xml_color(xml: &str) -> Option<[u8; 3]> {
     Some([channel("colorRed")?, channel("colorGreen")?, channel("colorBlue")?])
 }
 
+/// Words in a material's name that say it's wood: found anywhere in it, or as a whole word.
+const WOOD_PARTS: [&str; 18] = [
+    "wood", "lumber", "timber", "plank", "veneer", "mahogany", "walnut", "cherry", "maple", "cedar", "poplar", "hickory", "cypress",
+    "spruce", "bamboo", "sapele", "rosewood", "decking",
+];
+const WOOD_WORDS: [&str; 14] = ["ash", "oak", "fir", "pine", "teak", "alder", "aspen", "birch", "beech", "elm", "board", "boards", "larch", "ipe"];
+
 /// A drawing material for a SketchUp one: the library's when the name names a wood or sheet in it
-/// (`Walnut`, `[Wood_Cherry]`, `Plywood 3/4`), else solid wood or a sheet good by its name.
+/// (`Walnut`, `[Wood_Cherry]`, `Plywood 3/4`), else a sheet good or solid wood when the name says so,
+/// else not wood at all (metal, glass, grass, paint colors: never cut from stock).
 fn material_for(name: &str, color: [u8; 3]) -> Material {
     let plain = name.replace(['_', '[', ']'], " ").to_lowercase();
     let preset = crate::library::LIBRARY
@@ -382,11 +390,16 @@ fn material_for(name: &str, color: [u8; 3]) -> Material {
         material.color = color;
         return material;
     }
-    let sheet = ["plywood", "mdf", "hardboard", "melamine", "particle"].iter().any(|s| plain.contains(s));
+    let words: Vec<&str> = plain.split(|c: char| !c.is_alphabetic()).filter(|w| !w.is_empty()).collect();
+    let sheet = ["plywood", "mdf", "hardboard", "melamine", "particle", "osb"].iter().any(|s| plain.contains(s));
+    // Long names anywhere (`burlywood`), short ones only as words (`ash`, not `washer`).
+    let wood = WOOD_PARTS.iter().any(|s| plain.contains(s)) || WOOD_WORDS.iter().any(|s| words.contains(s));
     if sheet {
         Material::new(name, color, MaterialKind::SheetGood, false)
-    } else {
+    } else if wood {
         Material::new(name, color, MaterialKind::SolidWood, true)
+    } else {
+        Material::new(name, color, MaterialKind::Other, false)
     }
 }
 
@@ -502,6 +515,12 @@ mod tests {
         assert_eq!(material_for("[Wood_Cherry_Original]", [1, 2, 3]).kind, MaterialKind::SolidWood);
         assert_eq!(material_for("Baltic Birch Plywood 3/4", [1, 2, 3]).standard.sheets, vec![(60.0, 60.0)]);
         assert_eq!(material_for("Sheet MDF", [1, 2, 3]).kind, MaterialKind::SheetGood);
+        for wood in ["cedar", "pine-ponderosa", "[0036_BurlyWood]", "White Ash", "alder1", "Wood Veneer 02"] {
+            assert_eq!(material_for(wood, [1, 2, 3]).kind, MaterialKind::SolidWood, "{wood}");
+        }
+        for other in ["[Metal Corrugated Shiny]", "[Grass Dark Green]", "[Color_009]", "Black silk leather", "Washer", "Sree_Hair"] {
+            assert_eq!(material_for(other, [1, 2, 3]).kind, MaterialKind::Other, "{other}");
+        }
     }
 
     /// A real file, when one is given: `WOODSKETCH_SKP=path cargo test -p woodsketch-doc skp -- --nocapture`.

@@ -4,7 +4,7 @@
 
 mod scene;
 
-pub use scene::{Color, DashedVertex, FaceVertex, LineVertex, Scene, SceneGuide, guide_vertices, srgb};
+pub use scene::{Batch, Color, DashedVertex, FaceVertex, LineVertex, Placement, Scene, SceneGuide, guide_vertices, srgb};
 
 use glam::{Mat4, Vec3};
 use wgpu::util::DeviceExt;
@@ -21,12 +21,17 @@ pub struct ViewportRenderer {
     sky_pipeline: wgpu::RenderPipeline,
     background_line_pipeline: wgpu::RenderPipeline,
     line_pipeline: wgpu::RenderPipeline,
-    face_pipeline: wgpu::RenderPipeline,
     globals: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
     background_lines: GpuBuffer,
     lines: GpuBuffer,
-    faces: GpuBuffer,
+    /// The drawing: meshes in their own coordinates, drawn at each placement of their batch.
+    placed_line_pipeline: wgpu::RenderPipeline,
+    placed_face_pipeline: wgpu::RenderPipeline,
+    mesh_faces: GpuBuffer,
+    mesh_lines: GpuBuffer,
+    placements: GpuBuffer,
+    batches: Vec<Batch>,
     dashed_pipeline: wgpu::RenderPipeline,
     /// Guides in world coordinates, made into dashed lines each frame for the camera.
     guides: Vec<SceneGuide>,
@@ -92,6 +97,7 @@ impl ViewportRenderer {
             fragment_entry: "fs_line",
             stride: size_of::<LineVertex>(),
             attributes: &line_attributes,
+            placed: false,
             topology: wgpu::PrimitiveTopology::LineList,
             // Edges drawn exactly on a face must win the depth test against it.
             depth_compare: wgpu::CompareFunction::LessEqual,
@@ -101,6 +107,12 @@ impl ViewportRenderer {
         let line_pipeline = create_pipeline(device, &layout, &shader, line_spec("viewport lines", true));
         let background_line_pipeline =
             create_pipeline(device, &layout, &shader, line_spec("viewport background lines", false));
+        let placed_line_pipeline = create_pipeline(
+            device,
+            &layout,
+            &shader,
+            PipelineSpec { vertex_entry: "vs_line_placed", placed: true, ..line_spec("viewport placed lines", true) },
+        );
 
         let face_attributes = wgpu::vertex_attr_array![
             0 => Float32x3, 1 => Float32x3, 2 => Float32x4, 3 => Float32x4
@@ -116,6 +128,7 @@ impl ViewportRenderer {
                 fragment_entry: "fs_dashed",
                 stride: size_of::<DashedVertex>(),
                 attributes: &dashed_attributes,
+                placed: false,
                 topology: wgpu::PrimitiveTopology::LineList,
                 // Faces hide guides; a guide lying on a face still shows (faces are biased back).
                 depth_compare: wgpu::CompareFunction::LessEqual,
@@ -123,16 +136,17 @@ impl ViewportRenderer {
                 depth_bias: wgpu::DepthBiasState::default(),
             },
         );
-        let face_pipeline = create_pipeline(
+        let placed_face_pipeline = create_pipeline(
             device,
             &layout,
             &shader,
             PipelineSpec {
                 label: "viewport faces",
-                vertex_entry: "vs_face",
+                vertex_entry: "vs_face_placed",
                 fragment_entry: "fs_face",
                 stride: size_of::<FaceVertex>(),
                 attributes: &face_attributes,
+                placed: true,
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 depth_compare: wgpu::CompareFunction::Less,
                 depth_write: true,
@@ -152,6 +166,7 @@ impl ViewportRenderer {
                 fragment_entry: "fs_face",
                 stride: size_of::<FaceVertex>(),
                 attributes: &face_attributes,
+                placed: false,
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 depth_write: false,
@@ -168,12 +183,16 @@ impl ViewportRenderer {
             sky_pipeline: create_sky_pipeline(device, &layout, &shader),
             background_line_pipeline,
             line_pipeline,
-            face_pipeline,
+            placed_line_pipeline,
+            placed_face_pipeline,
+            mesh_faces: GpuBuffer::new(device, "viewport mesh faces", &scene.mesh_faces),
+            mesh_lines: GpuBuffer::new(device, "viewport mesh lines", &scene.mesh_lines),
+            placements: GpuBuffer::new(device, "viewport placements", &scene.placements),
+            batches: scene.batches.clone(),
             globals,
             bind_group,
             background_lines: GpuBuffer::new(device, "viewport background lines", &scene.background_lines),
             lines: GpuBuffer::new(device, "viewport lines", &scene.lines),
-            faces: GpuBuffer::new(device, "viewport faces", &scene.faces),
             dashed_pipeline,
             guides: scene.guides.clone(),
             targets: None,
@@ -185,7 +204,10 @@ impl ViewportRenderer {
     pub fn set_scene(&mut self, device: &wgpu::Device, scene: &Scene) {
         self.background_lines = GpuBuffer::new(device, "viewport background lines", &scene.background_lines);
         self.lines = GpuBuffer::new(device, "viewport lines", &scene.lines);
-        self.faces = GpuBuffer::new(device, "viewport faces", &scene.faces);
+        self.mesh_faces = GpuBuffer::new(device, "viewport mesh faces", &scene.mesh_faces);
+        self.mesh_lines = GpuBuffer::new(device, "viewport mesh lines", &scene.mesh_lines);
+        self.placements = GpuBuffer::new(device, "viewport placements", &scene.placements);
+        self.batches = scene.batches.clone();
         self.guides = scene.guides.clone();
         self.set_selection(device, scene);
     }
@@ -255,20 +277,35 @@ impl ViewportRenderer {
             pass.set_bind_group(0, &self.bind_group, &[]);
             pass.set_pipeline(&self.sky_pipeline);
             pass.draw(0..3, 0..1);
-            for (pipeline, buffer) in [
-                (&self.background_line_pipeline, &self.background_lines),
-                (&self.face_pipeline, &self.faces),
-                (&self.line_pipeline, &self.lines),
-                (&self.selected_face_pipeline, &self.selected_faces),
-                (&self.line_pipeline, &self.selected_lines),
-                (&self.dashed_pipeline, &dashed),
-            ] {
+            let draw = |pass: &mut wgpu::RenderPass<'_>, pipeline, buffer: &GpuBuffer| {
                 if buffer.vertex_count > 0 {
                     pass.set_pipeline(pipeline);
                     pass.set_vertex_buffer(0, buffer.buffer.slice(..));
                     pass.draw(0..buffer.vertex_count, 0..1);
                 }
-            }
+            };
+            // Each mesh once per batch, at all of the batch's placements.
+            let draw_placed = |pass: &mut wgpu::RenderPass<'_>, pipeline, mesh: &GpuBuffer, range: fn(&Batch) -> std::ops::Range<u32>| {
+                if mesh.vertex_count == 0 {
+                    return;
+                }
+                pass.set_pipeline(pipeline);
+                pass.set_vertex_buffer(0, mesh.buffer.slice(..));
+                pass.set_vertex_buffer(1, self.placements.buffer.slice(..));
+                for batch in &self.batches {
+                    let vertices = range(batch);
+                    if !vertices.is_empty() {
+                        pass.draw(vertices, batch.placements.clone());
+                    }
+                }
+            };
+            draw(&mut pass, &self.background_line_pipeline, &self.background_lines);
+            draw_placed(&mut pass, &self.placed_face_pipeline, &self.mesh_faces, |b| b.faces.clone());
+            draw_placed(&mut pass, &self.placed_line_pipeline, &self.mesh_lines, |b| b.lines.clone());
+            draw(&mut pass, &self.line_pipeline, &self.lines);
+            draw(&mut pass, &self.selected_face_pipeline, &self.selected_faces);
+            draw(&mut pass, &self.line_pipeline, &self.selected_lines);
+            draw(&mut pass, &self.dashed_pipeline, &dashed);
         }
         queue.submit([encoder.finish()]);
         resized
@@ -342,12 +379,18 @@ impl Targets {
     }
 }
 
+/// A placement's matrix columns and fade (`vs_*_placed` in the shader).
+const PLACEMENT_ATTRIBUTES: [wgpu::VertexAttribute; 5] =
+    wgpu::vertex_attr_array![4 => Float32x4, 5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32];
+
 struct PipelineSpec<'a> {
     label: &'a str,
     vertex_entry: &'a str,
     fragment_entry: &'a str,
     stride: usize,
     attributes: &'a [wgpu::VertexAttribute],
+    /// Drawn at placements: a second, per-instance buffer of [`Placement`]s.
+    placed: bool,
     topology: wgpu::PrimitiveTopology,
     depth_compare: wgpu::CompareFunction,
     depth_write: bool,
@@ -367,11 +410,18 @@ fn create_pipeline(
             module: shader,
             entry_point: Some(spec.vertex_entry),
             compilation_options: Default::default(),
-            buffers: &[Some(wgpu::VertexBufferLayout {
-                array_stride: spec.stride as u64,
-                step_mode: wgpu::VertexStepMode::Vertex,
-                attributes: spec.attributes,
-            })],
+            buffers: &[
+                Some(wgpu::VertexBufferLayout {
+                    array_stride: spec.stride as u64,
+                    step_mode: wgpu::VertexStepMode::Vertex,
+                    attributes: spec.attributes,
+                }),
+                spec.placed.then_some(wgpu::VertexBufferLayout {
+                    array_stride: size_of::<Placement>() as u64,
+                    step_mode: wgpu::VertexStepMode::Instance,
+                    attributes: &PLACEMENT_ATTRIBUTES,
+                }),
+            ][..if spec.placed { 2 } else { 1 }],
         },
         primitive: wgpu::PrimitiveState {
             topology: spec.topology,
