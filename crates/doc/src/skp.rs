@@ -241,6 +241,8 @@ impl Reader {
                 container: Container::default(),
                 part: Default::default(),
                 template: None,
+                hardware: None,
+                moves: false,
             };
             let new = self.scene.add_definition(definition);
             self.definitions.insert(*id, new);

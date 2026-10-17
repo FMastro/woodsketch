@@ -46,6 +46,102 @@ pub struct Cabinet {
     pub shelves: u32,
     pub back: bool,
     pub joints: CaseJoints,
+    /// What fills each opening between shelves, from the bottom (openings past the last are
+    /// ignored).
+    #[serde(default)]
+    pub fills: [Fill; MAX_OPENINGS],
+    #[serde(default)]
+    pub fronts: Fronts,
+    #[serde(default)]
+    pub doors: DoorStyle,
+    #[serde(default)]
+    pub pulls: Pulls,
+    /// The drawer boxes' corners.
+    #[serde(default)]
+    pub drawer_joints: DrawerJoints,
+}
+
+/// The most openings a cabinet has (20 shelves).
+pub const MAX_OPENINGS: usize = 21;
+
+/// What fills an opening of a cabinet.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Fill {
+    #[default]
+    Open,
+    /// A drawer on side-mount slides, with a front.
+    Drawer,
+    /// A door, or a pair when the opening is wider than 24".
+    Doors,
+}
+
+/// How drawer fronts and doors sit on a cabinet.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Fronts {
+    /// Over the cabinet's edges (full overlay), 1/16" apart.
+    #[default]
+    Overlay,
+    /// Inside the openings, flush with the front, 1/16" gap all round.
+    Inset,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DoorStyle {
+    /// One 3/4" board.
+    #[default]
+    Slab,
+    /// Stiles and rails, stub-tenoned, with a 1/4" plywood panel in grooves.
+    FrameAndPanel,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Pulls {
+    #[default]
+    Bar,
+    Knob,
+    None,
+}
+
+impl Fill {
+    pub const ALL: [Self; 3] = [Self::Open, Self::Drawer, Self::Doors];
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Open => "Open",
+            Self::Drawer => "Drawer",
+            Self::Doors => "Door",
+        }
+    }
+}
+
+impl Fronts {
+    pub const ALL: [Self; 2] = [Self::Overlay, Self::Inset];
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Overlay => "Overlay",
+            Self::Inset => "Inset",
+        }
+    }
+}
+
+impl DoorStyle {
+    pub const ALL: [Self; 2] = [Self::Slab, Self::FrameAndPanel];
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Slab => "Slab",
+            Self::FrameAndPanel => "Frame and panel",
+        }
+    }
+}
+
+impl Pulls {
+    pub const ALL: [Self; 3] = [Self::Bar, Self::Knob, Self::None];
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Bar => "Bar pulls",
+            Self::Knob => "Knobs",
+            Self::None => "None",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -85,8 +181,9 @@ pub enum CaseJoints {
     Butt,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DrawerJoints {
+    #[default]
     Dovetails,
     BoxJoints,
     Rabbets,
@@ -135,7 +232,19 @@ impl FrameJoints {
 
 impl Default for Cabinet {
     fn default() -> Self {
-        Self { width: 30.0, height: 36.0, depth: 12.0, shelves: 2, back: true, joints: CaseJoints::Dados }
+        Self {
+            width: 30.0,
+            height: 36.0,
+            depth: 12.0,
+            shelves: 2,
+            back: true,
+            joints: CaseJoints::Dados,
+            fills: [Fill::Open; MAX_OPENINGS],
+            fronts: Fronts::Overlay,
+            doors: DoorStyle::Slab,
+            pulls: Pulls::Bar,
+            drawer_joints: DrawerJoints::Dovetails,
+        }
     }
 }
 
@@ -283,7 +392,7 @@ impl Document {
         let mut parts = Parts { doc: self, wood, made: Vec::new() };
         match *template {
             Template::Cabinet(c) => parts.cabinet(c),
-            Template::Drawer(d) => parts.drawer(d),
+            Template::Drawer(d) => parts.drawer(d, DVec3::ZERO),
             Template::FaceFrame(f) => parts.face_frame(f),
             Template::Table(t) => parts.table(t),
         }
@@ -401,22 +510,198 @@ impl Parts<'_> {
             let plywood = Some(self.plywood());
             self.board("Back", plywood, DVec3::new(0.0, deep, c.height), DVec3::X, -DVec3::Z, [c.width, c.height, PANEL]);
         }
+        self.openings(&c, deep)?;
         Ok(())
     }
 
-    fn drawer(&mut self, d: Drawer) -> Result<(), JoineryError> {
+    /// Group `parts` (already made) as one group named `name`, in their place among the made parts.
+    fn group(&mut self, parts: &[InstanceId], name: &str) -> InstanceId {
+        self.made.retain(|p| !parts.contains(p));
+        self.doc.selection_mut().clear();
+        self.doc.selection_mut().extend(parts.iter().map(|&p| Entity::Instance(p)));
+        let group = self.doc.group_selection(DefinitionKind::Group).expect("parts to group");
+        self.doc.rename_instance(group, name);
+        self.made.push(group);
+        group
+    }
+
+    /// A piece of hardware: plain steel boxes `[origin, length_dir, width_dir, [l, w, t]]`, grouped
+    /// as `name` and counted in the shopping list as `piece`.
+    fn hardware(&mut self, name: &str, piece: &str, boxes: &[(DVec3, DVec3, DVec3, [f64; 3])]) -> InstanceId {
+        let steel = Some(self.doc.edit_scene(|scene, _| crate::hardware::steel(scene)));
+        let parts: Vec<InstanceId> = boxes.iter().map(|&(origin, l, w, size)| self.board(name, steel, origin, l, w, size)).collect();
+        let group = self.group(&parts, name);
+        let piece = piece.to_owned();
+        self.doc.edit_scene(|scene, path| {
+            let definition = scene.container(path).and_then(|c| c.instance(group)).map(|i| i.definition);
+            if let Some(d) = definition.and_then(|d| scene.definition_mut(d)) {
+                d.hardware = Some(piece);
+            }
+        });
+        group
+    }
+
+    /// Mark `group` as one that moves in its case (a drawer or door).
+    fn mark_moving(&mut self, group: InstanceId) {
+        self.doc.edit_scene(|scene, path| {
+            let definition = scene.container(path).and_then(|c| c.instance(group)).map(|i| i.definition);
+            if let Some(d) = definition.and_then(|d| scene.definition_mut(d)) {
+                d.moves = true;
+            }
+        });
+    }
+
+    /// Fill the cabinet's openings (between the bottom, shelves and top) with drawers and doors.
+    fn openings(&mut self, c: &Cabinet, deep: f64) -> Result<(), JoineryError> {
+        let t = STOCK;
+        let n = c.shelves as usize;
+        let gap = (c.height - 2.0 * t - n as f64 * t) / (n as f64 + 1.0);
+        for k in 0..=n.min(MAX_OPENINGS - 1) {
+            let z0 = t + k as f64 * (gap + t);
+            let opening = Opening { x0: t, x1: c.width - t, z0, z1: z0 + gap, deep, first: k == 0, last: k == n };
+            match c.fills[k] {
+                Fill::Open => {}
+                Fill::Drawer => self.drawer_in(c, &opening)?,
+                Fill::Doors => self.doors_in(c, &opening)?,
+            }
+        }
+        Ok(())
+    }
+
+    /// A drawer in `o`: a box on side-mount slides (the longest that fit), a front, a pull.
+    fn drawer_in(&mut self, c: &Cabinet, o: &Opening) -> Result<(), JoineryError> {
+        let start = self.made.len();
+        let front = o.front(c.fronts);
+        // The box starts behind an inset front, at the cabinet's front edge behind an overlay one.
+        let behind = if c.fronts == Fronts::Inset { STOCK } else { 0.0 };
+        let length = crate::hardware::slide_for(o.deep - behind - 0.25).ok_or(JoineryError::Size("The cabinet is too shallow for a drawer (10\" slides at least)."))?;
+        let width = o.x1 - o.x0 - 2.0 * crate::hardware::SLIDE_SPACE;
+        let height = o.z1 - o.z0 - 1.0;
+        if height < 2.0 || width < 4.0 {
+            return Err(JoineryError::Size("An opening is too small for a drawer."));
+        }
+        let at = DVec3::new(o.x0 + crate::hardware::SLIDE_SPACE, behind, o.z0 + 0.5);
+        self.drawer(Drawer { width, height, depth: length, joints: c.drawer_joints }, at)?;
+        // The front: on the cabinet, or set in the opening.
+        let wood = self.wood;
+        self.board("Drawer front", wood, DVec3::new(front.x0, front.y0 + STOCK, front.z0), DVec3::X, DVec3::Z, [front.x1 - front.x0, front.z1 - front.z0, STOCK]);
+        // Slides on each side of the box, at its middle.
+        let mid = o.z0 + 0.5 + height / 2.0;
+        let tall = 1.75_f64.min(height);
+        let slide = |x: f64| (DVec3::new(x, behind, mid - tall / 2.0), DVec3::Y, DVec3::Z, [length, tall, crate::hardware::SLIDE_SPACE]);
+        self.hardware("Drawer slides", &crate::hardware::slides_name(length), &[slide(o.x0), slide(o.x1 - crate::hardware::SLIDE_SPACE)]);
+        let (cx, cz) = ((front.x0 + front.x1) / 2.0, (front.z0 + front.z1) / 2.0);
+        self.pull(c.pulls, DVec3::new(cx, front.y0, cz), true);
+        let parts: Vec<InstanceId> = self.made[start..].to_vec();
+        let drawer = self.group(&parts, "Drawer");
+        self.mark_moving(drawer);
+        Ok(())
+    }
+
+    /// A door in `o`, or a pair when it's wider than 24": hinged on the cabinet's sides.
+    fn doors_in(&mut self, c: &Cabinet, o: &Opening) -> Result<(), JoineryError> {
+        let front = o.front(c.fronts);
+        let leaves = if front.x1 - front.x0 > 24.0 {
+            let middle = (front.x0 + front.x1) / 2.0;
+            vec![(Rect { x1: middle - REVEAL / 2.0, ..front }, true), (Rect { x0: middle + REVEAL / 2.0, ..front }, false)]
+        } else {
+            vec![(front, true)]
+        };
+        // Hinge arms reach in from the door's back to the cabinet side.
+        let back = front.y0 + STOCK;
+        for (leaf, hinged_left) in leaves {
+            let start = self.made.len();
+            let (w, h) = (leaf.x1 - leaf.x0, leaf.z1 - leaf.z0);
+            match c.doors {
+                DoorStyle::Slab => {
+                    let wood = self.wood;
+                    self.board("Door", wood, DVec3::new(leaf.x0, back, leaf.z0), DVec3::X, DVec3::Z, [w, h, STOCK]);
+                }
+                DoorStyle::FrameAndPanel => self.frame_and_panel(&leaf)?,
+            }
+            let count = crate::hardware::hinges_for(h);
+            let arm = 2.0;
+            let x = if hinged_left { o.x0 } else { o.x1 - arm };
+            for i in 0..count {
+                // 3" in from the top and bottom, the rest evenly between.
+                let z = leaf.z0 + 3.0 + (h - 6.0 - 1.5) * i as f64 / (count - 1) as f64;
+                self.hardware("Hinge", crate::hardware::HINGE, &[(DVec3::new(x, back, z + 1.5), DVec3::X, -DVec3::Z, [arm, 1.5, 0.5])]);
+            }
+            // The pull near the edge that opens.
+            let x = if hinged_left { leaf.x1 - 1.5 } else { leaf.x0 + 1.5 };
+            self.pull(c.pulls, DVec3::new(x, leaf.y0, (leaf.z0 + leaf.z1) / 2.0), false);
+            let parts: Vec<InstanceId> = self.made[start..].to_vec();
+            let door = self.group(&parts, "Door");
+            self.mark_moving(door);
+        }
+        Ok(())
+    }
+
+    /// A frame-and-panel door filling `leaf`: stiles full height, rails between them stub-tenoned
+    /// into the stiles, a 1/4" plywood panel let into grooves all round.
+    fn frame_and_panel(&mut self, leaf: &Rect) -> Result<(), JoineryError> {
+        let (w, h) = (leaf.x1 - leaf.x0, leaf.z1 - leaf.z0);
+        let s = 2.25_f64.min(w / 4.0).min(h / 4.0);
+        let wood = self.wood;
+        let y = leaf.y0;
+        let left = self.board("Door stile", wood, DVec3::new(leaf.x0, y, leaf.z0), DVec3::Z, DVec3::X, [h, s, STOCK]);
+        let right = self.board("Door stile", wood, DVec3::new(leaf.x1 - s, y, leaf.z0), DVec3::Z, DVec3::X, [h, s, STOCK]);
+        let bottom = self.board("Door rail", wood, DVec3::new(leaf.x0 + s, y + STOCK, leaf.z0), DVec3::X, DVec3::Z, [w - 2.0 * s, s, STOCK]);
+        let top = self.board("Door rail", wood, DVec3::new(leaf.x0 + s, y + STOCK, leaf.z1 - s), DVec3::X, DVec3::Z, [w - 2.0 * s, s, STOCK]);
+        let groove = 0.375;
+        for rail in [bottom, top] {
+            for stile in [left, right] {
+                // Stub tenons, as deep as the panel groove, set in 1/2" from the rail's edges: the
+                // groove (which reaches 3/8" past the rail's edge) stays clear of the mortise.
+                self.doc.mortise_and_tenon(rail, stile, Tenon { length: groove, thickness: PANEL, shoulder: 0.5, haunch: 0.0 })?;
+            }
+        }
+        let plywood = Some(self.plywood());
+        let panel = self.board(
+            "Door panel",
+            plywood,
+            DVec3::new(leaf.x0 + s, y + (STOCK + PANEL) / 2.0, leaf.z0 + s),
+            DVec3::X,
+            DVec3::Z,
+            [w - 2.0 * s, h - 2.0 * s, PANEL],
+        );
+        for into in [bottom, top, left, right] {
+            self.doc.let_in(panel, into, groove)?;
+        }
+        Ok(())
+    }
+
+    /// A bar pull (5", along the front for a drawer, upright for a door) or a knob, centered on
+    /// `at` on a front whose face is at `at.y`.
+    fn pull(&mut self, pulls: Pulls, at: DVec3, across: bool) {
+        match pulls {
+            Pulls::Bar if across => {
+                self.hardware("Pull", crate::hardware::PULL, &[(at + DVec3::new(-2.5, 0.0, -0.25), DVec3::X, DVec3::Z, [5.0, 0.5, 1.0])]);
+            }
+            Pulls::Bar => {
+                self.hardware("Pull", crate::hardware::PULL, &[(at + DVec3::new(0.25, 0.0, -2.5), DVec3::Z, -DVec3::X, [5.0, 0.5, 1.0])]);
+            }
+            Pulls::Knob => {
+                self.hardware("Knob", crate::hardware::KNOB, &[(at + DVec3::new(-0.5, 0.0, -0.5), DVec3::X, DVec3::Z, [1.0, 1.0, 1.0])]);
+            }
+            Pulls::None => {}
+        }
+    }
+
+    /// A drawer box with its front-left-bottom corner at `at`.
+    fn drawer(&mut self, d: Drawer, at: DVec3) -> Result<(), JoineryError> {
         let t = DRAWER_STOCK;
         let wood = self.wood;
         // The front and back run the full width; the sides butt their insides, and the joints
         // carry them out to the corners.
-        let front = self.board("Drawer front", wood, DVec3::new(0.0, t, 0.0), DVec3::X, DVec3::Z, [d.width, d.height, t]);
-        let back = self.board("Drawer back", wood, DVec3::new(d.width, d.depth - t, 0.0), -DVec3::X, DVec3::Z, [d.width, d.height, t]);
-        let left = self.board("Drawer side", wood, DVec3::new(t, t, d.height), DVec3::Y, -DVec3::Z, [d.depth - 2.0 * t, d.height, t]);
-        let right = self.board("Drawer side", wood, DVec3::new(d.width - t, d.depth - t, d.height), -DVec3::Y, -DVec3::Z, [d.depth - 2.0 * t, d.height, t]);
+        let front = self.board("Drawer box front", wood, at + DVec3::new(0.0, t, 0.0), DVec3::X, DVec3::Z, [d.width, d.height, t]);
+        let back = self.board("Drawer box back", wood, at + DVec3::new(d.width, d.depth - t, 0.0), -DVec3::X, DVec3::Z, [d.width, d.height, t]);
+        let left = self.board("Drawer box side", wood, at + DVec3::new(t, t, d.height), DVec3::Y, -DVec3::Z, [d.depth - 2.0 * t, d.height, t]);
+        let right = self.board("Drawer box side", wood, at + DVec3::new(d.width - t, d.depth - t, d.height), -DVec3::Y, -DVec3::Z, [d.depth - 2.0 * t, d.height, t]);
         // The bottom, 1/2" up, between the sides, front and back; let into each 1/4".
         let plywood = Some(self.plywood());
         let up = 0.5;
-        let bottom = self.board("Drawer bottom", plywood, DVec3::new(t, t, up), DVec3::X, DVec3::Y, [d.width - 2.0 * t, d.depth - 2.0 * t, PANEL]);
+        let bottom = self.board("Drawer bottom", plywood, at + DVec3::new(t, t, up), DVec3::X, DVec3::Y, [d.width - 2.0 * t, d.depth - 2.0 * t, PANEL]);
         for side in [left, right] {
             for end in [front, back] {
                 match d.joints {
@@ -508,6 +793,54 @@ impl Parts<'_> {
     }
 }
 
+/// The gap between fronts, and around an inset front: 1/16".
+const REVEAL: f64 = 1.0 / 16.0;
+
+/// A rectangle on a cabinet's front: across `x0..x1`, up `z0..z1`, its front face at `y0` (a
+/// door or drawer front is `y0..y0 + 3/4"`).
+#[derive(Clone, Copy, Debug)]
+struct Rect {
+    x0: f64,
+    x1: f64,
+    z0: f64,
+    z1: f64,
+    y0: f64,
+}
+
+/// An opening between a cabinet's sides and the parts above and below; `first` and `last` are
+/// the bottom and top ones (with the cabinet's bottom or top for an edge).
+struct Opening {
+    x0: f64,
+    x1: f64,
+    z0: f64,
+    z1: f64,
+    deep: f64,
+    first: bool,
+    last: bool,
+}
+
+impl Opening {
+    /// Where its front goes. Overlay: over the cabinet's sides, top and bottom (to 1/16" of their
+    /// outer edges) and halfway over a shelf shared with the next opening; inset: inside it.
+    fn front(&self, fronts: Fronts) -> Rect {
+        let t = STOCK;
+        match fronts {
+            Fronts::Overlay => {
+                let edge = t - REVEAL;
+                let shared = t / 2.0 - REVEAL / 2.0;
+                Rect {
+                    x0: self.x0 - edge,
+                    x1: self.x1 + edge,
+                    z0: self.z0 - if self.first { edge } else { shared },
+                    z1: self.z1 + if self.last { edge } else { shared },
+                    y0: -t,
+                }
+            }
+            Fronts::Inset => Rect { x0: self.x0 + REVEAL, x1: self.x1 - REVEAL, z0: self.z0 + REVEAL, z1: self.z1 - REVEAL, y0: 0.0 },
+        }
+    }
+}
+
 /// About one pocket screw every 4", at least two.
 fn pocket_count(wide: f64) -> u32 {
     ((wide / 4.0).round() as u32).max(2)
@@ -522,6 +855,19 @@ mod tests {
         let def = container.instance(part).unwrap().definition;
         let m = &doc.scene().definition(def).unwrap().container.model;
         m.faces().count() > 0 && m.edges().all(|(id, _)| m.edge_faces(id).len() == 2)
+    }
+
+    /// Every board in the container at `path`, and in the groups inside it, is a closed solid.
+    fn every_board_closed(doc: &Document, path: &[InstanceId]) {
+        let container = doc.scene().container(path).unwrap();
+        for (id, instance) in container.instances() {
+            let definition = doc.scene().definition(instance.definition).unwrap();
+            if definition.container.instances().next().is_some() {
+                every_board_closed(doc, &[path, &[id]].concat());
+            } else {
+                assert!(closed(doc, id, path), "{} is a closed solid", definition.name);
+            }
+        }
     }
 
     /// Every part inside the template group is a closed solid.
@@ -580,6 +926,52 @@ mod tests {
         assert!(!doc.joint_list(shelf).is_empty());
     }
 
+    /// A cabinet with a drawer in the bottom opening and doors in the next, each style.
+    fn fitted(fronts: Fronts, doors: DoorStyle, pulls: Pulls, width: f64) -> Cabinet {
+        let mut fills = [Fill::Open; MAX_OPENINGS];
+        fills[0] = Fill::Drawer;
+        fills[1] = Fill::Doors;
+        Cabinet { width, height: 30.0, depth: 20.0, shelves: 1, fills, fronts, doors, pulls, ..Default::default() }
+    }
+
+    #[test]
+    fn drawers_and_doors_fill_openings_in_every_style() {
+        for fronts in Fronts::ALL {
+            for doors in DoorStyle::ALL {
+                for (pulls, width) in [(Pulls::Bar, 20.0), (Pulls::Knob, 36.0), (Pulls::None, 30.0)] {
+                    let c = fitted(fronts, doors, pulls, width);
+                    let mut doc = Document::default();
+                    let group = doc.add_template(&Template::Cabinet(c), None).unwrap_or_else(|e| panic!("{fronts:?} {doors:?} {width}: {e}"));
+                    // Every board, down through the drawer and door groups, is a closed solid.
+                    every_board_closed(&doc, &[group]);
+                    let hardware: std::collections::BTreeMap<String, u32> = crate::hardware::placed(doc.scene());
+                    assert_eq!(hardware.get("18\" side-mount drawer slides (pair)"), Some(&1), "{hardware:?}");
+                    let leaves = if width > 24.0 { 2 } else { 1 };
+                    assert_eq!(hardware.get(crate::hardware::HINGE), Some(&(2 * leaves)), "{width}: {hardware:?}");
+                    let pulls_count = match pulls { Pulls::Bar => hardware.get(crate::hardware::PULL), Pulls::Knob => hardware.get(crate::hardware::KNOB), Pulls::None => None };
+                    assert_eq!(pulls_count.copied(), if pulls == Pulls::None { None } else { Some(1 + leaves) });
+                    // Hardware isn't a part to cut.
+                    let names = cut_list_names(&doc);
+                    assert!(!names.iter().any(|(n, _)| n.contains("slide") || n.contains("Hinge") || n.contains("Pull")), "{names:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_drawer_is_sized_from_its_opening() {
+        let mut doc = Document::default();
+        doc.add_template(&Template::Cabinet(fitted(Fronts::Overlay, DoorStyle::Slab, Pulls::Bar, 20.0)), None).unwrap();
+        let names = cut_list_names(&doc);
+        // The opening is 18 1/2" wide (20 less two 3/4" sides): the box is 1" narrower for the slides.
+        let list = crate::cutlist::cut_list(doc.scene());
+        let box_front = list.materials.iter().flat_map(|m| &m.parts).find(|p| p.names.iter().any(|n| n == "Drawer box front")).unwrap_or_else(|| panic!("{names:?}"));
+        assert_eq!(box_front.length, 17.5);
+        // The overlay front covers the sides to 1/16" of their edges: 20" less 1/8".
+        let front = list.materials.iter().flat_map(|m| &m.parts).find(|p| p.names.iter().any(|n| n == "Drawer front")).unwrap();
+        assert_eq!(front.length, 19.875);
+    }
+
     #[test]
     fn a_drawer_keeps_its_outside_size() {
         let mut doc = Document::default();
@@ -625,5 +1017,38 @@ mod tests {
         let err = doc.add_template(&Template::Cabinet(Cabinet { height: 6.0, shelves: 5, ..Default::default() }), None).unwrap_err();
         assert!(err.contains("shelves"), "{err}");
         assert!(doc.container().instances().next().is_none());
+    }
+}#[cfg(test)]
+mod probe {
+    use super::*;
+    fn closed(doc: &Document, part: InstanceId) -> bool {
+        let def = doc.container().instance(part).unwrap().definition;
+        let m = &doc.scene().definition(def).unwrap().container.model;
+        m.edges().all(|(id, _)| m.edge_faces(id).len() == 2)
+    }
+    #[test]
+    fn probe_frame_and_panel() {
+        for (tenons_first, shoulder) in [(true, 0.5), (false, 0.5)] {
+            let mut doc = Document::default();
+            let mut p = Parts { doc: &mut doc, wood: None, made: Vec::new() };
+            let (x0, x1, z0, z1, y) = (0.0, 15.0, 0.0, 20.0, -0.75);
+            let (w, h, s) = (x1 - x0, z1 - z0, 2.25);
+            let left = p.board("S", None, DVec3::new(x0, y, z0), DVec3::Z, DVec3::X, [h, s, STOCK]);
+            let right = p.board("S", None, DVec3::new(x1 - s, y, z0), DVec3::Z, DVec3::X, [h, s, STOCK]);
+            let bottom = p.board("R", None, DVec3::new(x0 + s, y + STOCK, z0), DVec3::X, DVec3::Z, [w - 2.0 * s, s, STOCK]);
+            let top = p.board("R", None, DVec3::new(x0 + s, y + STOCK, z1 - s), DVec3::X, DVec3::Z, [w - 2.0 * s, s, STOCK]);
+            let panel = p.board("P", None, DVec3::new(x0 + s, y + 0.5, z0 + s), DVec3::X, DVec3::Z, [w - 2.0 * s, h - 2.0 * s, PANEL]);
+            let mut log = Vec::new();
+            let tenons = |doc: &mut Document, log: &mut Vec<String>| for rail in [bottom, top] { for stile in [left, right] {
+                let r = doc.mortise_and_tenon(rail, stile, Tenon { length: 0.375, thickness: PANEL, shoulder, haunch: 0.0 });
+                log.push(format!("mt {:?} L{}", r.err(), closed(doc, left)));
+            }};
+            let grooves = |doc: &mut Document, log: &mut Vec<String>| for into in [bottom, top, left, right] {
+                let r = doc.let_in(panel, into, 0.375);
+                log.push(format!("groove {:?} L{}", r.err(), closed(doc, left)));
+            };
+            if tenons_first { tenons(&mut doc, &mut log); grooves(&mut doc, &mut log); } else { grooves(&mut doc, &mut log); tenons(&mut doc, &mut log); }
+            println!("tenons_first={tenons_first} shoulder={shoulder}: {log:?}");
+        }
     }
 }

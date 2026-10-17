@@ -113,14 +113,28 @@ struct Placed {
     across: usize,
     material: Option<MaterialId>,
     cut: crate::part::Cut,
+    /// Which moving assembly it's in (a drawer or door, numbered), or 0 for the fixed ones: a
+    /// drawer's parts don't fight the case it slides in.
+    unit: usize,
 }
 
-fn collect(scene: &Scene, container: &Container, inherited: Option<MaterialId>, transform: DAffine3, found: &mut Vec<Placed>) {
+#[allow(clippy::too_many_arguments)]
+fn collect(scene: &Scene, container: &Container, inherited: Option<MaterialId>, transform: DAffine3, unit: usize, units: &mut usize, found: &mut Vec<Placed>) {
     for (_, instance) in container.instances() {
         if !scene.is_visible(instance) {
             continue;
         }
         let Some(def) = scene.definition(instance.definition) else { continue };
+        // Hardware doesn't move with the wood or hold it.
+        if def.hardware.is_some() {
+            continue;
+        }
+        let unit = if def.moves {
+            *units += 1;
+            *units
+        } else {
+            unit
+        };
         let material = instance.material.or(inherited);
         let transform = transform * instance.transform;
         if let Some(extents) = crate::part::extents(def, transform.matrix3)
@@ -147,10 +161,10 @@ fn collect(scene: &Scene, container: &Container, inherited: Option<MaterialId>, 
                     b = b.max(c);
                 }
                 let material = material.or_else(|| def.container.model.faces().find_map(|(_, f)| f.material));
-                found.push(Placed { name: def.name.clone(), lo: a, hi: b, grain, across, material, cut: def.part.cut });
+                found.push(Placed { name: def.name.clone(), lo: a, hi: b, grain, across, material, cut: def.part.cut, unit });
             }
         }
-        collect(scene, &def.container, material, transform, found);
+        collect(scene, &def.container, material, transform, unit, units, found);
     }
 }
 
@@ -171,7 +185,7 @@ fn coefficient(scene: &Scene, material: Option<MaterialId>, cut: crate::part::Cu
 /// its width, and where parts meeting will fight it.
 pub fn check(scene: &Scene, swing: f64) -> Report {
     let mut parts = Vec::new();
-    collect(scene, &scene.root, None, DAffine3::IDENTITY, &mut parts);
+    collect(scene, &scene.root, None, DAffine3::IDENTITY, 0, &mut 0, &mut parts);
     let mut report = Report::default();
     for p in &parts {
         let Some(c) = coefficient(scene, p.material, p.cut) else { continue };
@@ -190,7 +204,8 @@ pub fn check(scene: &Scene, swing: f64) -> Report {
     for (i, a) in parts.iter().enumerate() {
         let Some(c) = coefficient(scene, a.material, a.cut) else { continue };
         for (j, b) in parts.iter().enumerate() {
-            if i == j {
+            // Itself, or a drawer or door against the case it opens in.
+            if i == j || a.unit != b.unit {
                 continue;
             }
             // Touching or overlapping (a joint).

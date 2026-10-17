@@ -217,3 +217,11 @@ top of `docs/BACKLOG.md` ("Woodworking direction"); keep general modeling workin
    drag a tag onto a folder, or onto Untagged for the top, or right-click > Move to); Entity Info lists tags as `Folder / Tag`. `.skp` import reads hidden
    layers (`3c8e`) and the folder tree (`3a9b` > `3e80`: name `3e81`, hidden `3e82`, folders
    `3e83`, tag ids `3e84`). Cedar (boards) and Cedar Lumber in the library; lumber sizes include 5/4 (decking) and 6x.
+33. Drawers, doors and hardware: `doc::hardware` (side-mount slide lengths, `slide_for`, hinge counts;
+   `Definition::hardware` names a placed piece: left out of the cut list, movement check and build
+   sheets, counted by `hardware::placed` in `CutList::hardware`). The Cabinet template's openings
+   (`Cabinet::fills`, bottom first) take a drawer (box on slides, 1/2" a side, the longest slide
+   that fits; a front; a pull) or doors (a pair over 24"; slab or frame-and-panel with stub tenons
+   and a 1/4" ply panel; 2-4 concealed hinges), overlay (to 1/16" of the case's edges, halfway over
+   shared shelves) or inset (1/16" all round). Drawer and door groups are `Definition::moves`, so
+   their parts aren't checked for movement against the case.

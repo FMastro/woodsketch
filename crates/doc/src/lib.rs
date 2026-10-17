@@ -13,6 +13,7 @@ mod document;
 pub mod export;
 pub mod file;
 pub mod joinery;
+pub mod hardware;
 pub mod library;
 pub mod movement;
 pub mod part;

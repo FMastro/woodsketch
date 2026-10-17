@@ -4,23 +4,14 @@ Things we deliberately skipped or know are incomplete, to come back to. Newest f
 each section. Remove items when they're done (mention them in the commit).
 
 ## Next up (recommended order, 2026-10-17)
-1. **Drawers and doors fitted to an opening**: select a cabinet or face-frame opening, pick
-   Drawer or Door, and get one sized with the usual clearances: the drawer box 1/2" narrower than
-   the opening for side-mount slides (or per the slide chosen), its depth from the slide length;
-   the front overlay (1/2", full) or inset (1/16" gap all round); doors single or a pair, with
-   hinge-side and meeting gaps. Also a frame-and-panel door (rails and stiles with a floating
-   panel in grooves, sized for wood movement).
-2. **Hardware as parts**: drawer slides (side-mount, undermount; lengths 12"-24"), hinges
-   (concealed/European, butt), shelf pins, pulls and knobs, screws. Placed as simple parametric
-   shapes (no licensed models), each counted in the shopping list, and slides set the drawer
-   size in item 1 (their clearance and length).
-3. **Agent-ready** (Woodworking direction, item 8): a project recipe (JSON), a command line
+1. **Agent-ready** (Woodworking direction, item 8): a project recipe (JSON), a command line
    (`woodsketch build`, `cutlist`, `cutsheet`, `render`), an MCP server so Claude and other
-   assistants can design with WoodSketch, and docs for agents. Templates (and 1 and 2) are the
-   building blocks a recipe calls.
-4. **SketchUp import, more of it** (started: SketchUp 2021+ files open and import; see SketchUp
+   assistants can design with WoodSketch, and docs for agents. Templates (with their drawers, doors and
+   hardware) are the building blocks a recipe calls.
+2. **SketchUp import, more of it** (started: SketchUp 2021+ files open and import; see SketchUp
    files below for what's missing). Next: more sample files from different versions, then groups,
-   hidden edges and SketchUp 2020 and older.5. **Release polish** (installers, auto-update, icons and the site's download links are done):
+   hidden edges and SketchUp 2020 and older.
+3. **Release polish** (installers, auto-update, icons and the site's download links are done):
    - Signing: Windows with Azure Artifact Signing (~$9.99/month; individuals in the US/Canada; a
      paid Azure subscription; identity validation takes days; CI signs via OIDC, no stored key).
      macOS with an Apple Developer ID ($99/year) plus notarization, or Gatekeeper blocks it.
@@ -96,6 +87,19 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 - Face frame: top and bottom rails only (no middle rails or mullions).
 - Table: tenon size, apron width and leg size aren't settable; no stretchers or drawer.
 - A new template goes a foot to the right of everything, not where you click.
+
+## Drawers, doors and hardware
+- Only in the Cabinet template's openings: no clicking an opening in a hand-drawn cabinet, and no
+  face-frame cabinets (fronts set in a face frame) yet.
+- Side-mount slides only (1/2" a side, the longest standard length that fits); no undermount
+  slides or choosing a slide and its clearances.
+- A single door is always hinged on the left; hinges are plain boxes (no cup bored in the door,
+  no mounting plates), and there's one hinge kind (concealed). Pulls are 5" bars or knobs, one per
+  front, centered (a wide drawer front still gets one).
+- Frame-and-panel doors have a 1/4" plywood panel; no solid (raised) panels sized for wood
+  movement yet.
+- No adjustable shelves with shelf pins, no screws, and no way to place hardware on parts drawn
+  by hand; no hardware prices.
 
 ## Copy and paste
 - Guides aren't copied.

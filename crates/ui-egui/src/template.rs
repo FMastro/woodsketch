@@ -3,7 +3,7 @@
 
 use eframe::egui;
 use woodsketch_doc::library::LIBRARY;
-use woodsketch_doc::template::{CaseJoints, DrawerJoints, FrameJoints, Made, Template};
+use woodsketch_doc::template::{CaseJoints, DoorStyle, DrawerJoints, Fill, FrameJoints, Fronts, Made, Pulls, Template};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, InstanceId, MaterialKind};
 
@@ -130,6 +130,29 @@ fn sizes(ui: &mut egui::Ui, key: &str, template: &mut Template) -> bool {
                 ui.checkbox(&mut c.back, "1/4\" plywood");
                 ui.end_row();
                 pick(ui, "Joints", &mut c.joints, &CaseJoints::ALL, |j| j.name());
+                // Each opening, top first as you see them: open, a drawer, or doors.
+                let n = c.shelves as usize;
+                for k in (0..=n.min(c.fills.len() - 1)).rev() {
+                    let label = match (k, n) {
+                        (0, 0) => "Opening".to_owned(),
+                        (0, _) => "Bottom opening".to_owned(),
+                        (k, n) if k == n => "Top opening".to_owned(),
+                        (k, _) => format!("Opening {}", k + 1),
+                    };
+                    pick(ui, &label, &mut c.fills[k], &Fill::ALL, |f| f.name());
+                }
+                let used = &c.fills[..=n.min(c.fills.len() - 1)];
+                let (drawers, doors) = (used.contains(&Fill::Drawer), used.contains(&Fill::Doors));
+                if drawers || doors {
+                    pick(ui, "Fronts", &mut c.fronts, &Fronts::ALL, |f| f.name());
+                    pick(ui, "Pulls", &mut c.pulls, &Pulls::ALL, |p| p.name());
+                }
+                if doors {
+                    pick(ui, "Doors", &mut c.doors, &DoorStyle::ALL, |d| d.name());
+                }
+                if drawers {
+                    pick(ui, "Drawer corners", &mut c.drawer_joints, &DrawerJoints::ALL, |j| j.name());
+                }
             }
             Template::Drawer(d) => {
                 length(ui, "Width", &mut d.width);
@@ -153,7 +176,7 @@ fn sizes(ui: &mut egui::Ui, key: &str, template: &mut Template) -> bool {
         }
     });
     ui.weak(match template {
-        Template::Cabinet(_) => "3/4\" sides, top, bottom and shelves; outside sizes.",
+        Template::Cabinet(_) => "3/4\" sides, top, bottom and shelves; outside sizes. Drawers ride on side-mount slides; doors wider than 24\" come in pairs.",
         Template::Drawer(_) => "A 1/2\" box with a 1/4\" plywood bottom in grooves; outside sizes.",
         Template::FaceFrame(_) => "3/4\" stiles full height, rails between them.",
         Template::Table(_) => "1 3/4\" legs, 3/4\" aprons and top (1\" overhang); height to the top.",

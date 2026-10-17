@@ -1798,3 +1798,34 @@ fn drag_a_tag_into_a_folder_and_back_out() {
     drag(&mut harness, from, to);
     assert_eq!(harness.state().document().scene().tag(joist).unwrap().parent, None, "dropped on Untagged");
 }
+
+#[test]
+fn a_cabinet_with_drawers_and_doors() {
+    use egui_kittest::kittest::Queryable;
+    use woodsketch_doc::template::{Cabinet, DoorStyle, Fill, Template};
+    let mut harness = app();
+    {
+        let doc = harness.state_mut().document_mut();
+        let mut c = Cabinet { width: 30.0, height: 34.0, depth: 22.0, shelves: 2, doors: DoorStyle::FrameAndPanel, ..Default::default() };
+        c.fills[0] = Fill::Doors;
+        c.fills[1] = Fill::Drawer;
+        c.fills[2] = Fill::Drawer;
+        let walnut = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Walnut").unwrap());
+        doc.add_template(&Template::Cabinet(c), Some(walnut)).unwrap();
+    }
+    harness.state_mut().zoom_extents();
+    for _ in 0..3 {
+        harness.run();
+    }
+    snapshot(&mut harness, "cabinet_drawers_doors");
+    // Selected, its panel lists the openings, top first.
+    assert!(harness.query_by_label("Top opening").is_some());
+    let list = woodsketch_doc::cutlist::cut_list(harness.state().document().scene());
+    let hardware = list.hardware(harness.state().document().scene());
+    let count = |name: &str| hardware.iter().find(|(n, _)| n == name).map(|(_, c)| *c);
+    assert_eq!(count("20\" side-mount drawer slides (pair)"), Some(2), "22\" deep, less the back: 20\" slides: {hardware:?}");
+    // Drawers and doors move in the case, and hardware isn't wood: no movement warnings.
+    let report = woodsketch_doc::movement::check(harness.state().document().scene(), 4.0);
+    assert!(report.conflicts.is_empty(), "{:?}", report.conflicts);
+    assert_eq!(count(woodsketch_doc::hardware::HINGE), Some(4), "two doors, two hinges each: {hardware:?}");
+}

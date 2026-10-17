@@ -72,10 +72,15 @@ pub struct CutList {
 }
 
 impl CutList {
-    /// Everything besides wood, for the shopping list: `(piece, how many)`, from the joints made
-    /// (dowels, biscuits, loose tenons, screws) and the seams of reinforced glue-ups.
+    /// Everything besides wood, for the shopping list: `(piece, how many)`, from hardware placed
+    /// (slides, hinges, pulls), the joints made (dowels, biscuits, loose tenons, screws) and the
+    /// seams of reinforced glue-ups.
     pub fn hardware(&self, scene: &Scene) -> Vec<(String, u32)> {
         let mut total: BTreeMap<String, u32> = BTreeMap::new();
+        // Slides, hinges and pulls placed in the drawing.
+        for (piece, n) in crate::hardware::placed(scene) {
+            *total.entry(piece).or_default() += n;
+        }
         for hardware in scene.joints.iter().filter_map(|j| j.hardware.as_ref()) {
             *total.entry(hardware.name.clone()).or_default() += hardware.count;
         }
@@ -167,6 +172,10 @@ fn collect(scene: &Scene, container: &Container, inherited: Option<MaterialId>, 
             continue;
         }
         let Some(definition) = scene.definition(instance.definition) else { continue };
+        // Hardware is counted in the shopping list, not cut.
+        if definition.hardware.is_some() {
+            continue;
+        }
         let material = instance.material.or(inherited);
         let linear = linear * instance.transform.matrix3;
         let model = &definition.container.model;

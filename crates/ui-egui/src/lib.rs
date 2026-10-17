@@ -108,6 +108,11 @@ impl WoodSketchApp {
         self.autosave.clear();
     }
 
+    /// Fit the whole drawing in the view (Zoom Extents).
+    pub fn zoom_extents(&mut self) {
+        self.viewport.request_zoom_extents();
+    }
+
     /// Start a new, empty drawing (without asking about unsaved changes).
     pub fn new_document(&mut self) {
         self.replace_document(Document::default(), None);

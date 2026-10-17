@@ -44,6 +44,14 @@ pub struct Definition {
     /// The template it was made from, so its sizes can be changed (see [`crate::template`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub template: Option<crate::template::Made>,
+    /// Hardware (a drawer slide, a hinge, a pull): the piece it is, for the shopping list. Not a
+    /// part to cut (see [`crate::hardware`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hardware: Option<String>,
+    /// A drawer or door: it moves in its case, so its parts aren't checked against the case's for
+    /// wood movement.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub moves: bool,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -447,6 +455,8 @@ impl Scene {
             container: contents,
             part: Default::default(),
             template: None,
+            hardware: None,
+            moves: false,
         }));
         Some(self.container_mut(path)?.add_instance(Instance { definition, transform, tag: None, material }))
     }
@@ -507,7 +517,7 @@ impl Scene {
                 format!("Component#{}", self.next_component)
             }
         };
-        let definition = DefinitionId(self.definitions.insert(Definition { name, kind, container: inside, part: Default::default(), template: None }));
+        let definition = DefinitionId(self.definitions.insert(Definition { name, kind, container: inside, part: Default::default(), template: None, hardware: None, moves: false }));
 
         // Take the originals out: faces, then edges no remaining face needs.
         let container = self.container_mut(path)?;
