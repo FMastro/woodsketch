@@ -1835,3 +1835,28 @@ fn a_cabinet_with_drawers_and_doors() {
     assert!(report.conflicts.is_empty(), "{:?}", report.conflicts);
     assert_eq!(count(woodsketch_doc::hardware::HINGE), Some(4), "two doors, two hinges each: {hardware:?}");
 }
+
+#[test]
+fn an_angled_brace_gets_a_mortise_and_tenon_from_the_joinery_panel() {
+    use egui_kittest::kittest::Queryable;
+    use glam::DVec3;
+    use woodsketch_doc::board::Board;
+    let mut harness = app();
+    {
+        let doc = harness.state_mut().document_mut();
+        let post = doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::X, length: 48.0, width: 3.5, thickness: 1.5 }, None).unwrap();
+        let brace = doc
+            .add_board(&Board { origin: DVec3::new(2.5, 1.5, 20.0), length_dir: DVec3::new(1.0, 0.0, 1.0).normalize(), width_dir: DVec3::new(-1.0, 0.0, 1.0).normalize(), length: 20.0, width: 3.5, thickness: 1.5 }, None)
+            .unwrap();
+        doc.rename_instance(post, "Post");
+        doc.rename_instance(brace, "Brace");
+        doc.selection_mut().extend([woodsketch_doc::Entity::Instance(brace), woodsketch_doc::Entity::Instance(post)]);
+    }
+    harness.run();
+    assert!(harness.query_by_label("They meet at 45°.").is_some());
+    harness.get_by_label("Tenon on Brace, mortise in Post").click();
+    harness.run();
+    let joints = &harness.state().document().scene().joints;
+    assert_eq!(joints.len(), 1);
+    assert!(joints[0].detail.contains("at an angle"), "{}", joints[0].detail);
+}

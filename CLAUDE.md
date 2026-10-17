@@ -226,3 +226,11 @@ top of `docs/BACKLOG.md` ("Woodworking direction"); keep general modeling workin
    and a 1/4" ply panel; 2-4 concealed hinges), overlay (to 1/16" of the case's edges, halfway over
    shared shelves) or inset (1/16" all round). Drawer and door groups are `Definition::moves`, so
    their parts aren't checked for movement against the case.
+34. Angled joints: `doc::angled` (`Document::angled_fit`, `angled_joint`: `AngledJoint::MortiseAndTenon`
+   or `Housing`) for parts turned to each other about an axis they share. Both parts are seen across
+   that axis (walls' footprints, caps' heights, surfaces for ray-cast inside tests); the plane is cut
+   into convex cells by every wall's line (and the tenon's shoulder lines), the axis into slabs at
+   every cap, and each part is rebuilt from the (cell, slab)s it fills, flat neighbors merged. The
+   overlap as drawn is the joint's depth. `Joint::before` keeps the parts' shapes so Remove puts
+   them back; a shared component's copy is made unique (`Scene::make_unique`) first. The Joinery
+   panel offers them when parts aren't square (`JoineryError::NotSquare`).

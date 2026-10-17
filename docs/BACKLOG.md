@@ -38,7 +38,7 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
    each joint). Still to come: a fit allowance (mortise a hair bigger); sliding and lapped
    dovetails, variable dovetail spacing; Change should start from the joint's own sizes (it
    starts from the suggestions); joints can't be removed after a part is changed by hand (use Undo); parts in
-   different groups (both must be side by side now); parts that aren't square to each other.
+   different groups (both must be side by side now).
 4. **Edge profiles** (done: roundover, chamfer, cove, ogee, around a face with mitered corners or
    along a length, from the Edge profile panel). Still to come: bead and other bits; profiling a
    board that already has joints or other cuts (profile first for now); edges around a face and
@@ -87,6 +87,17 @@ modeling (rooms, jigs, odd shapes) working; the wood features add on and stay op
 - Face frame: top and bottom rails only (no middle rails or mullions).
 - Table: tenon size, apron width and leg size aren't settable; no stretchers or drawer.
 - A new template goes a foot to the right of everything, not where you click.
+
+## Angled joints
+- Parts must share one axis (turned to each other about their thickness, say): no compound angles,
+  and a part already cut at an angle in another plane (a post with a mortise for a brace leaning
+  the other way) can't take another angled joint.
+- Only mortise and tenon and housings at an angle: no angled dowels, half-laps or dovetails, and no
+  Change (Remove, then make it again). The tenon goes as deep as the overlap drawn; no fit
+  allowance.
+- A joint on one copy of a shared component makes that copy its own component (the others, maybe
+  mirrored, stay as they were); square joints change every copy.
+- The rebuilt parts lose paint on single faces, and keep a stray corner where faces were merged.
 
 ## Drawers, doors and hardware
 - Only in the Cabinet template's openings: no clicking an opening in a hand-drawn cabinet, and no

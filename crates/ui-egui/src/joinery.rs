@@ -106,6 +106,10 @@ impl Choice {
 pub fn show(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId)) {
     let fit = match doc.joint_fit(a, b) {
         Ok(fit) => fit,
+        Err(woodsketch_doc::joinery::JoineryError::NotSquare) => {
+            angled(ui, doc, (a, b));
+            return;
+        }
         Err(e) => {
             ui.weak(e.to_string());
             return;
@@ -413,4 +417,76 @@ pub fn part_joints(ui: &mut egui::Ui, doc: &mut Document, part: InstanceId) {
     if let Some(error) = ui.data(|d| d.get_temp::<String>(egui::Id::new(("part_joint_error", part)))) {
         ui.colored_label(ui.visuals().warn_fg_color, error);
     }
+}
+
+/// Two parts meeting at an angle (a brace into a post): an angled mortise and tenon or a housing,
+/// either way round, where one is drawn into the other.
+fn angled(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId)) {
+    use woodsketch_doc::angled::AngledJoint;
+    let fit = match doc.angled_fit(a, b) {
+        Ok(fit) => fit,
+        Err(e) => {
+            ui.weak(e.to_string());
+            return;
+        }
+    };
+    ui.label(format!("They meet at {:.0}°.", fit.angle));
+    let name = |doc: &Document, id: InstanceId| doc.instance_name(id).unwrap_or("Part").to_owned();
+    // Already joined: listed, each with Remove.
+    let other = doc.container().instance(b).map(|i| i.definition);
+    let joints: Vec<_> = doc.joint_list(a).into_iter().filter(|(_, j, _)| Some(j.cut) == other || Some(j.into) == other).collect();
+    let mut remove = None;
+    for (index, joint, _) in &joints {
+        ui.horizontal_wrapped(|ui| {
+            ui.label(format!("{} {}, {}", egui_phosphor::regular::CHECK, joint.kind.name(), joint.detail));
+            if ui.small_button("Remove").on_hover_text("Take this joint out of both parts").clicked() {
+                remove = Some(*index);
+            }
+        });
+    }
+    if let Some(index) = remove {
+        let message = doc.remove_joint(index).map_or_else(|e| e.to_string(), |()| "Joint removed.".to_owned());
+        ui.data_mut(|d| d.insert_temp(egui::Id::new("joinery_message"), (a, b, message)));
+    }
+    if joints.is_empty() {
+        if !fit.overlap {
+            ui.weak("Draw one part's end into the other where the joint goes: the overlap sets how deep it is.");
+        } else {
+            let tenon_id = egui::Id::new(("angled_tenon", a, b));
+            let mut housing = ui.data(|d| d.get_temp::<bool>(tenon_id)).unwrap_or(false);
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut housing, false, "Mortise and tenon").on_hover_text("A tenon through the middle, into a mortise of its shape");
+                ui.selectable_value(&mut housing, true, "Housing").on_hover_text("The whole end let into the other part");
+            });
+            ui.data_mut(|d| d.insert_temp(tenon_id, housing));
+            let mut message = None;
+            if housing {
+                for (part, into) in [(a, b), (b, a)] {
+                    let (pn, inn) = (name(doc, part), name(doc, into));
+                    if ui.button(format!("Let {pn} into {inn}")).clicked() {
+                        message = Some(result(doc.angled_joint(part, into, AngledJoint::Housing).map(|()| format!("{pn} let into {inn}."))));
+                    }
+                }
+            } else {
+                // A third of the thinner part, to the nearest 1/8".
+                let third = ((fit.thickness.0.min(fit.thickness.1) / 3.0) * 8.0).round().max(1.0) / 8.0;
+                let [thickness, shoulder] = fields(
+                    ui,
+                    ("angled", a, b),
+                    [("Thickness", third, "Through the middle of the tenoned part; about a third"), ("Shoulders", 0.25, "Set in from its edges, each side")],
+                );
+                for (part, into) in [(a, b), (b, a)] {
+                    let (pn, inn) = (name(doc, part), name(doc, into));
+                    if let (true, Some(thickness), Some(shoulder)) = (button(ui, thickness.is_some() && shoulder.is_some(), &format!("Tenon on {pn}, mortise in {inn}")), thickness, shoulder) {
+                        let joint = AngledJoint::MortiseAndTenon { thickness, shoulder };
+                        message = Some(result(doc.angled_joint(part, into, joint).map(|()| format!("Angled mortise and tenon made: {pn}'s end is trimmed to {inn}'s face, with its tenon in."))));
+                    }
+                }
+            }
+            if let Some(message) = message {
+                ui.data_mut(|d| d.insert_temp(egui::Id::new("joinery_message"), (a, b, message)));
+            }
+        }
+    }
+    show_message(ui, (a, b));
 }

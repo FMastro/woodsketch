@@ -2,6 +2,7 @@
 //! No UI or GPU dependencies.
 
 mod arena;
+pub mod angled;
 pub mod board;
 pub mod clipboard;
 pub mod buildsheet;

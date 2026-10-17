@@ -598,6 +598,19 @@ impl Scene {
         true
     }
 
+    /// Give `instance` its own copy of its definition when other instances share it (group or
+    /// component); returns the definition it has now.
+    pub fn make_unique(&mut self, path: &Path, instance: InstanceId) -> Option<DefinitionId> {
+        let definition = self.container(path)?.instance(instance)?.definition;
+        if self.instance_count(definition) < 2 {
+            return Some(definition);
+        }
+        let copy = self.definition(definition)?.clone();
+        let new = DefinitionId(self.definitions.insert(copy));
+        self.container_mut(path)?.instance_mut(instance)?.definition = new;
+        Some(new)
+    }
+
     pub fn make_unique_if_group(&mut self, path: &Path, instance: InstanceId) {
         let Some(container) = self.container(path) else { return };
         let Some(inst) = container.instance(instance) else { return };

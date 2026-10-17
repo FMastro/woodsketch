@@ -64,7 +64,7 @@ impl JointKind {
 
 /// A joint made between two parts, for listing: `cut` was shaped to fit `into` (the shelf and
 /// the side; the tenoned rail and the mortised stile).
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Joint {
     pub kind: JointKind,
     pub cut: DefinitionId,
@@ -77,6 +77,18 @@ pub struct Joint {
     /// The cuts and additions it made to each part, to take it out again.
     #[serde(default)]
     pub ops: Vec<JointOp>,
+    /// The parts' shapes before it, for joints made by rebuilding them (at an angle; see
+    /// [`crate::angled`]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub before: Vec<(DefinitionId, Model)>,
+}
+
+impl PartialEq for Joint {
+    /// The same joint: everything but the shapes kept from before it (which only says whether there are some).
+    fn eq(&self, other: &Self) -> bool {
+        (self.kind, self.cut, self.into, &self.detail, &self.hardware, &self.ops, self.before.len())
+            == (other.kind, other.cut, other.into, &other.detail, &other.hardware, &other.ops, other.before.len())
+    }
 }
 
 /// Pieces a joint uses, for the shopping list: `3 x 3/8" x 2" dowel`.
@@ -604,7 +616,7 @@ fn record_with(
     let p = Parts { scene, path };
     let (cut, into) = (p.definition(cut)?, p.definition(into)?);
     let ops = std::mem::take(&mut scene.pending_ops);
-    scene.joints.push(Joint { kind, cut, into, detail, hardware, ops });
+    scene.joints.push(Joint { kind, cut, into, detail, hardware, ops, before: Vec::new() });
     Ok(())
 }
 
@@ -909,6 +921,27 @@ impl Document {
     /// Take out the joint at `index` in [`Scene::joints`]: its parts are rebuilt with every
     /// other joint but this one (a tenon goes, its mortise fills in). One undo step.
     pub fn remove_joint(&mut self, index: usize) -> Result<(), JoineryError> {
+        // Made by rebuilding its parts (at an angle): put back their shapes from before it, unless
+        // a later joint changed them since.
+        if let Some(joint) = self.scene().joints.get(index)
+            && !joint.before.is_empty()
+        {
+            let parts: Vec<DefinitionId> = joint.before.iter().map(|(d, _)| *d).collect();
+            let later = self.scene().joints[index + 1..].iter().any(|j| parts.contains(&j.cut) || parts.contains(&j.into));
+            if later {
+                return Err(JoineryError::Size("Another joint was made on these parts since: take that one out first, or use Undo."));
+            }
+            let before = joint.before.clone();
+            self.edit_scene(|scene, _| {
+                for (def, model) in before {
+                    if let Some(d) = scene.definition_mut(def) {
+                        d.container.model = model;
+                    }
+                }
+                scene.joints.remove(index);
+            });
+            return Ok(());
+        }
         let rebuilt = rebuilt_without(self.scene(), index)?;
         self.edit_scene(|scene, _| {
             for (def, model) in rebuilt {
