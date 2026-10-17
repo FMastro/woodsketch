@@ -70,13 +70,24 @@ pub struct PartMovement {
 pub struct Conflict {
     /// The part that moves.
     pub moving: String,
-    /// The part that holds it.
+    /// The part that holds it, or the parts holding it the same way: `Panel and 2 × Side`.
     pub fixed: String,
     /// How long the stretch where they meet is, across the moving part's grain.
     pub span: f64,
     /// How much the moving part moves over that stretch, inches.
     pub movement: f64,
     pub why: &'static str,
+    /// How many parts hold it (named together in `fixed`).
+    pub holders: usize,
+}
+
+/// A reason said of several parts.
+fn plural(why: &str) -> &str {
+    match why {
+        "is a stable sheet or other material that won't move with it" => "are stable sheets or other material that won't move with it",
+        "runs the other way and won't move with it" => "run the other way and won't move with it",
+        other => other,
+    }
 }
 
 impl Conflict {
@@ -87,7 +98,7 @@ impl Conflict {
             format_length(self.movement),
             format_length(self.span),
             self.fixed,
-            self.why
+            if self.holders > 1 { plural(self.why) } else { self.why }
         )
     }
 }
@@ -234,12 +245,48 @@ pub fn check(scene: &Scene, swing: f64) -> Report {
             };
             let movement = span * c * swing;
             if movement >= NEGLIGIBLE {
-                report.conflicts.push(Conflict { moving: a.name.clone(), fixed: b.name.clone(), span, movement, why });
+                report.conflicts.push(Conflict { moving: a.name.clone(), fixed: b.name.clone(), span, movement, why, holders: 1 });
             }
         }
     }
+    report.conflicts = merged(std::mem::take(&mut report.conflicts));
     report.conflicts.sort_by(|a, b| b.movement.total_cmp(&a.movement));
     report
+}
+
+/// One warning for a part held the same way by several (a face board on a drawer's panel and
+/// both sides): `Panel and 2 × Side`.
+fn merged(conflicts: Vec<Conflict>) -> Vec<Conflict> {
+    let close = |a: f64, b: f64| (a - b).abs() < 1.0 / 64.0;
+    let mut groups: Vec<(Conflict, Vec<String>)> = Vec::new();
+    for c in conflicts {
+        match groups.iter_mut().find(|(g, _)| g.moving == c.moving && g.why == c.why && close(g.span, c.span) && close(g.movement, c.movement)) {
+            Some((_, names)) => names.push(c.fixed),
+            None => {
+                let name = c.fixed.clone();
+                groups.push((c, vec![name]));
+            }
+        }
+    }
+    groups
+        .into_iter()
+        .map(|(mut c, names)| {
+            c.holders = names.len();
+            let mut counted: Vec<(String, usize)> = Vec::new();
+            for name in names {
+                match counted.iter_mut().find(|(n, _)| *n == name) {
+                    Some((_, k)) => *k += 1,
+                    None => counted.push((name, 1)),
+                }
+            }
+            let parts: Vec<String> = counted.into_iter().map(|(n, k)| if k > 1 { format!("{k} × {n}") } else { n }).collect();
+            c.fixed = match parts.as_slice() {
+                [rest @ .., last] if !rest.is_empty() => format!("{} and {last}", rest.join(", ")),
+                _ => parts.concat(),
+            };
+            c
+        })
+        .collect()
 }
 
 impl Scene {
@@ -312,5 +359,28 @@ mod tests {
         let report = check(doc.scene(), 4.0);
         assert_eq!(report.parts.len(), 1, "plywood isn't listed: it's stable");
         assert!(report.conflicts.iter().any(|c| c.moving == "Veneer slab" && c.fixed == "Case top"));
+    }
+
+    #[test]
+    fn a_board_held_the_same_way_by_several_parts_is_one_warning() {
+        let mut doc = Document::default();
+        board(&mut doc, "Plywood", "Side", DVec3::ZERO, DVec3::X, DVec3::Y, [1.0, 16.0, 0.75]);
+        board(&mut doc, "Plywood", "Side", DVec3::new(29.0, 0.0, 0.0), DVec3::X, DVec3::Y, [1.0, 16.0, 0.75]);
+        board(&mut doc, "Walnut", "Top", DVec3::new(0.0, 0.0, 0.75), DVec3::X, DVec3::Y, [30.0, 16.0, 0.75]);
+        let report = check(doc.scene(), 4.0);
+        assert_eq!(report.conflicts.len(), 1, "{:?}", report.conflicts);
+        let conflict = &report.conflicts[0];
+        assert_eq!((conflict.fixed.as_str(), conflict.holders), ("2 × Side", 2));
+        assert!(conflict.describe().contains("where it meets 2 × Side, which are stable sheets"), "{}", conflict.describe());
+    }
+
+    /// `WOODSKETCH_MOVEMENT_FILE=<drawing.woodsketch>`: print a real drawing's warnings.
+    #[test]
+    fn print_a_drawings_warnings() {
+        let Ok(path) = std::env::var("WOODSKETCH_MOVEMENT_FILE") else { return };
+        let scene = crate::file::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        for conflict in check(&scene, 4.0).conflicts {
+            println!("{}", conflict.describe());
+        }
     }
 }

@@ -24,11 +24,11 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 11 | Parts and boards | 11 | Small drawing conveniences |
 | 12 | Modeling tools | 255 | SketchUp parity for general modeling |
 | 13 | Groups, components and tags | 63 | Organizing bigger projects |
-| 14 | UI | 84 | Comfort and polish |
+| 14 | UI | 87 | Comfort and polish |
 | 15 | Rendering and performance | 60 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1613** | |
+| | **All** | **1616** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -294,6 +294,8 @@ Geometry
     Space/Enter aren't swallowed).
 11. [21] Components, Styles and Scenes panels.
 12. [21] Movable, customizable toolbars; tray panels reordered and undocked.
+13. [3] Updating reopens the drawing only if it has a file: a never-saved drawing (or a `.skp`
+    opened and not saved) isn't brought back after the restart (carry it over through autosave).
 
 ## 15. Rendering and performance
 At 1500 boards (12,900 faces): hover 1-3 ms, click 9 ms, selection highlight 2 ms, an edit 14-17

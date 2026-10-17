@@ -1499,8 +1499,8 @@ fn wood_movement_tab_warns_about_a_top_fixed_to_its_aprons() {
     harness.run();
     harness.get_by_label("Wood movement").click();
     harness.run();
-    assert_eq!(harness.query_all_by_label_contains("Top moves about").count(), 2, "the top's width runs along both side aprons' grain");
-    assert!(harness.query_all_by_label_contains("Left apron").count() >= 1);
+    assert_eq!(harness.query_all_by_label_contains("Top moves about").count(), 1, "one warning for both side aprons, held the same way");
+    assert!(harness.query_by_label_contains("where it meets Left apron and Right apron, which run the other way").is_some());
     snapshot(&mut harness, "wood_movement");
 }
 
@@ -1712,14 +1712,29 @@ fn the_status_bar_shows_an_update_downloading_then_ready() {
     use woodsketch_ui_egui::updates::{UpdateState, Updater};
     let mut harness = app();
     let state = Arc::new(Mutex::new(UpdateState::Downloading("9.9.9".into())));
-    harness.state_mut().set_updater(Updater { state: state.clone(), check: Box::new(|| {}), restart: Box::new(|| {}) });
+    let reopens = Arc::new(Mutex::new(None));
+    let restart = {
+        let reopens = reopens.clone();
+        move |open: Option<&std::path::Path>| *reopens.lock().unwrap() = Some(open.map(std::path::Path::to_path_buf))
+    };
+    harness.state_mut().set_updater(Updater { state: state.clone(), check: Box::new(|| {}), restart: Box::new(restart) });
+    // A saved drawing is open.
+    let dir = std::env::temp_dir().join(format!("woodsketch-update-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("bench.woodsketch");
+    add_board(harness.state_mut().document_mut(), glam::DVec3::ZERO, 24.0, 3.5, 1.5);
+    harness.state_mut().save_to(&path).unwrap();
     // The spinner keeps repainting, so step a few frames rather than run until still.
     harness.run_steps(3);
     assert!(harness.query_by_label("Downloading WoodSketch 9.9.9...").is_some());
     *state.lock().unwrap() = UpdateState::Ready("9.9.9".into());
     harness.run();
     snapshot(&mut harness, "update_ready");
-    assert!(harness.query_by_label_contains("Restart to update to 9.9.9").is_some());
+    // Restarting hands the new version the drawing to open again.
+    harness.get_by_label_contains("Restart to update to 9.9.9").click();
+    harness.run();
+    assert_eq!(*reopens.lock().unwrap(), Some(Some(path.clone())), "the open drawing reopens after the update");
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]

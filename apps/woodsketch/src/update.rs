@@ -55,9 +55,11 @@ pub fn updater(ctx: egui::Context) -> Updater {
         }
     };
 
-    let restart = move || {
+    // The new version starts with the drawing that was open, as `woodsketch <file>` does.
+    let restart = move |open: Option<&std::path::Path>| {
+        let args: Vec<&std::ffi::OsStr> = open.map(std::path::Path::as_os_str).into_iter().collect();
         if let Some((manager, info)) = pending.lock().unwrap_or_else(|e| e.into_inner()).take()
-            && let Err(e) = manager.apply_updates_and_restart(&info)
+            && let Err(e) = manager.apply_updates_and_restart_with_args(&info, args)
         {
             log::error!("couldn't apply the update: {e}");
         }

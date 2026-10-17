@@ -3,6 +3,12 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.16
+
+- Updating reopens the drawing you had open (after "Save changes?").
+- Wood movement: a board held the same way by several parts gets one warning naming them all
+  ("where it meets Panel and 2 × Side"), not one per part.
+
 ## 0.1.15
 
 - Assembly instructions: the build sheets end with a page for each assembly (a table, a drawer, a

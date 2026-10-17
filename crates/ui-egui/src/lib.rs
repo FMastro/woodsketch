@@ -166,12 +166,12 @@ impl WoodSketchApp {
         Ok(())
     }
 
-    /// Save the drawing to `path`, which becomes its file.
     /// Export the drawing to `path` in the File > Export units.
     pub fn export_to(&self, path: &Path, format: files::ExportFormat) -> Result<(), String> {
         files::export_to(&self.doc, path, format, self.export_units)
     }
 
+    /// Save the drawing to `path`, which becomes its file.
     pub fn save_to(&mut self, path: &Path) -> Result<(), String> {
         self.files.save_to(&self.doc, path)?;
         self.autosave.clear();
@@ -358,7 +358,8 @@ impl WoodSketchApp {
             files::Discard::RestartToUpdate => {
                 self.autosave.clear();
                 if let Some(updater) = &self.updater {
-                    (updater.restart)();
+                    // The drawing open now (saved, or left as it was on disk) opens again after.
+                    (updater.restart)(self.files.path.as_deref());
                 }
             }
         }

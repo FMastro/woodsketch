@@ -22,12 +22,16 @@ pub enum UpdateState {
 }
 
 /// The updater the app binary provides.
+/// Install the downloaded update and restart, reopening the drawing at the path given.
+pub type Restart = Box<dyn Fn(Option<&std::path::Path>) + Send + Sync>;
+
 pub struct Updater {
     pub state: Arc<Mutex<UpdateState>>,
     /// Check for an update in the background, downloading it if there is one.
     pub check: Box<dyn Fn() + Send + Sync>,
-    /// Install the downloaded update and restart (the process exits).
-    pub restart: Box<dyn Fn() + Send + Sync>,
+    /// Install the downloaded update and restart (the process exits), reopening the drawing at
+    /// this path, if any.
+    pub restart: Restart,
 }
 
 impl Updater {

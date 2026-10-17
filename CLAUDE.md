@@ -183,7 +183,7 @@ add it there; when you finish an item, remove it.
    pinned to the `velopack` crate) on its own channel, into a DRAFT GitHub release (publish it to
    ship). The app runs `VelopackApp` first, then checks GitHub Releases in the background at startup
    (Help > Check for updates at startup; Help > Check for Updates...), downloads quietly, and offers
-   "Restart to update" in the status bar (after "Save changes?"). The UI side (`ui-egui::updates`)
+   "Restart to update" in the status bar (after "Save changes?"; the open drawing reopens). The UI side (`ui-egui::updates`)
    has no Velopack dependency; `apps/woodsketch/src/update.rs` plugs it in. CI
    (`.github/workflows/ci.yml`) lints and runs the non-GPU tests on all three platforms.
 
