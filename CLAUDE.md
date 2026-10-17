@@ -189,8 +189,8 @@ add it there; when you finish an item, remove it.
 
 ## Direction
 Specialized for woodworking: SketchUp-familiar modeling where parts know they're wood (species,
-grain, joinery, profiles, cut list, build sheets, movement checks). The ordered plan is at the
-top of `docs/BACKLOG.md` ("Woodworking direction"); keep general modeling working alongside it.
+grain, joinery, profiles, cut list, build sheets, movement checks). The ordered plan is `docs/BACKLOG.md` (categories in the recommended order, items with effort
+points); keep general modeling working alongside it.
 28. Templates: `doc::template` (`Template` cabinet / drawer / face frame / table, each from a few sizes
    and a joint choice, built from boards and the joinery API, grouped, one undo step via
    `Document::as_one_step`, sizes kept on the definition as `Made` so `rebuild_template` changes
