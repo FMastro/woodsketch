@@ -7,9 +7,13 @@
 //! drawers are fitted and doors hung last. Sub-assemblies (a drawer inside a cabinet) come first,
 //! each on its own.
 //!
+//! Hardware is said where it's used: hinges and pulls on a door as it's hung, slides mounted on a
+//! drawer box's sides once the glue's dry, a pull after its front is on.
+//!
 //! The exploded drawing pulls each part away from the assembly's middle and draws it from the
 //! front-left, above (like the Iso view), its faces filled and sorted back to front, each part
-//! labeled with its cut-list letter.
+//! labeled with its cut-list letter (a drawer or door with its name) in a column beside the
+//! drawing, with a leader line to a spot on it you can see.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -43,59 +47,101 @@ struct Member {
     /// Faces to draw: each a loop of world points and the face's side, with a color.
     faces: Vec<(Vec<DVec3>, DVec3, [u8; 3])>,
     label: Option<String>,
+    /// Hardware mounted on it: what touches it in the assembly, and, for a sub-assembly without
+    /// a page of its own (a slab door), what's in it.
+    hardware: BTreeMap<String, u32>,
+}
+
+impl Member {
+    fn new(name: String, moves: bool) -> Self {
+        Self {
+            name,
+            definitions: BTreeSet::new(),
+            lo: DVec3::splat(f64::INFINITY),
+            hi: DVec3::splat(f64::NEG_INFINITY),
+            moves,
+            wide_solid: false,
+            faces: Vec::new(),
+            label: None,
+            hardware: BTreeMap::new(),
+        }
+    }
 }
 
 /// Every assembly in the drawing, sub-assemblies before the ones they're in.
 pub fn assemblies(scene: &Scene, list: &CutList) -> Vec<Assembly> {
     let mut out = Vec::new();
-    walk(scene, list, &scene.root, "The whole piece", DAffine3::IDENTITY, None, &mut out, 0);
+    let mut paged = BTreeSet::new();
+    walk(scene, list, &scene.root, "The whole piece", DAffine3::IDENTITY, None, (&mut out, &mut paged), 0);
     out
 }
 
+/// Adds the container's assembly page (after its sub-assemblies'), returning whether it got one.
+/// `paged` collects the definitions that got pages.
 #[allow(clippy::too_many_arguments)]
-fn walk(scene: &Scene, list: &CutList, container: &Container, name: &str, world: DAffine3, paint: Option<MaterialId>, out: &mut Vec<Assembly>, depth: usize) {
+fn walk(scene: &Scene, list: &CutList, container: &Container, name: &str, world: DAffine3, paint: Option<MaterialId>, (out, paged): (&mut Vec<Assembly>, &mut BTreeSet<DefinitionId>), depth: usize) -> bool {
     if depth > 32 {
-        return;
+        return false;
     }
     // Sub-assemblies first.
     for (_, instance) in container.instances() {
         let Some(def) = scene.definition(instance.definition) else { continue };
-        if scene.is_visible(instance) && def.hardware.is_none() && def.container.instances().count() >= 1 {
-            walk(scene, list, &def.container, &def.name, world * instance.transform, instance.material.or(paint), out, depth + 1);
+        if scene.is_visible(instance)
+            && def.hardware.is_none()
+            && def.container.instances().count() >= 1
+            && !paged.contains(&instance.definition)
+            && walk(scene, list, &def.container, &def.name, world * instance.transform, instance.material.or(paint), (out, paged), depth + 1)
+        {
+            paged.insert(instance.definition);
         }
     }
-    let members: Vec<Member> = container
+    let mut members: Vec<Member> = container
         .instances()
         .filter(|(_, i)| scene.is_visible(i))
-        .filter_map(|(_, i)| member(scene, list, i, world, paint))
+        .filter_map(|(_, i)| member(scene, list, i, world, paint, paged))
         .collect();
     // An assembly is parts that meet: separate pieces side by side aren't one.
     let meet = (0..members.len()).any(|i| (0..members.len()).any(|j| i != j && touching(&members[i], &members[j])));
     if members.len() < 2 || !meet {
-        return;
+        return false;
     }
-    let hardware = hardware_in(scene, container);
-    out.push(Assembly { name: name.to_owned(), steps: steps(scene, &members, &hardware), svg: exploded(&members) });
+    // Each piece of hardware goes with what it's mounted on: a drawer or door it touches, else the
+    // part it touches most.
+    let mut loose = BTreeMap::new();
+    for (_, instance) in container.instances().filter(|(_, i)| scene.is_visible(i)) {
+        let Some(piece) = scene.definition(instance.definition).and_then(|d| d.hardware.clone()) else { continue };
+        let mut placed = Member::new(String::new(), false);
+        gather(scene, instance.definition, world * instance.transform, None, &mut placed, 0);
+        let on = members
+            .iter()
+            .enumerate()
+            .map(|(i, m)| (i, m.moves, against(m, &placed)))
+            .filter(|(_, _, area)| *area > 0.0)
+            .max_by(|a, b| a.1.cmp(&b.1).then(a.2.total_cmp(&b.2)))
+            .map(|(i, _, _)| i);
+        let to = match on {
+            Some(i) => &mut members[i].hardware,
+            None => &mut loose,
+        };
+        *to.entry(piece).or_default() += 1;
+    }
+    out.push(Assembly { name: name.to_owned(), steps: steps(scene, &members, &loose), svg: exploded(&members) });
+    true
 }
 
 /// A part or sub-assembly of an assembly (hardware isn't one).
-fn member(scene: &Scene, list: &CutList, instance: &crate::Instance, world: DAffine3, paint: Option<MaterialId>) -> Option<Member> {
+fn member(scene: &Scene, list: &CutList, instance: &crate::Instance, world: DAffine3, paint: Option<MaterialId>, paged: &BTreeSet<DefinitionId>) -> Option<Member> {
     let def = scene.definition(instance.definition)?;
     if def.hardware.is_some() {
         return None;
     }
     let place = world * instance.transform;
     let paint = instance.material.or(paint);
-    let mut m = Member {
-        name: def.name.clone(),
-        definitions: BTreeSet::new(),
-        lo: DVec3::splat(f64::INFINITY),
-        hi: DVec3::splat(f64::NEG_INFINITY),
-        moves: def.moves,
-        wide_solid: false,
-        faces: Vec::new(),
-        label: None,
-    };
+    let mut m = Member::new(def.name.clone(), def.moves);
+    // A sub-assembly without its own page: its hardware is mounted when it goes on.
+    if !paged.contains(&instance.definition) {
+        m.hardware = hardware_in(scene, &def.container);
+    }
     gather(scene, instance.definition, place, paint, &mut m, 0);
     if m.faces.is_empty() {
         return None;
@@ -171,6 +217,26 @@ fn contact(a: &Member, b: &Member) -> f64 {
     sides[1] * sides[2]
 }
 
+/// How much of `piece`'s faces lie against `m`'s box (each flat face's area within it): a pair
+/// of slides lies along a drawer box's sides, not its front, though its box spans the front.
+fn against(m: &Member, piece: &Member) -> f64 {
+    const TOL: f64 = 1e-3;
+    piece
+        .faces
+        .iter()
+        .map(|(points, _, _)| {
+            let (lo, hi) = points.iter().fold((DVec3::splat(f64::INFINITY), DVec3::splat(f64::NEG_INFINITY)), |(lo, hi), p| (lo.min(*p), hi.max(*p)));
+            if (hi - lo).min_element() > TOL || (m.lo - hi).max_element() > TOL || (lo - m.hi).max_element() > TOL {
+                return 0.0;
+            }
+            let overlap = (hi.min(m.hi) - lo.max(m.lo)).max(DVec3::ZERO);
+            let mut sides = [overlap.x, overlap.y, overlap.z];
+            sides.sort_by(f64::total_cmp);
+            sides[1] * sides[2]
+        })
+        .sum()
+}
+
 /// Whether two boxes touch or overlap.
 fn touching(a: &Member, b: &Member) -> bool {
     const TOL: f64 = 1e-3;
@@ -190,7 +256,7 @@ fn joints_between(scene: &Scene, a: &Member, b: &Member) -> Vec<&'static str> {
     kinds
 }
 
-fn steps(scene: &Scene, members: &[Member], hardware: &BTreeMap<String, u32>) -> Vec<String> {
+fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Vec<String> {
     let n = members.len();
     let joined: Vec<Vec<(usize, Vec<&'static str>)>> = (0..n)
         .map(|i| {
@@ -284,6 +350,12 @@ fn steps(scene: &Scene, members: &[Member], hardware: &BTreeMap<String, u32>) ->
     if steps.is_empty() && n > 0 {
         steps.push("Nothing here is joined yet: make its joints in the Joinery panel to get a glue-up order.".to_owned());
     }
+    // Once the glue's dry: hardware on the glued-up parts (slides on a drawer box's sides).
+    for (i, m) in members.iter().enumerate() {
+        if done[i] && !m.moves && !m.hardware.is_empty() {
+            steps.push(mount(m));
+        }
+    }
     // Parts that only touch: fastened (a solid top so it can move), then drawers and doors.
     for (i, m) in members.iter().enumerate() {
         if done[i] || m.moves {
@@ -302,11 +374,15 @@ fn steps(scene: &Scene, members: &[Member], hardware: &BTreeMap<String, u32>) ->
         done[i] = true;
         let how = if m.wide_solid && on_top { " with fasteners that let it move across its grain (tabletop buttons or figure-8s, or screws in slotted holes)" } else { "" };
         steps.push(format!("Fasten {} to {}{how}.", m.name, list(&against)));
+        if !m.hardware.is_empty() {
+            steps.push(mount(m));
+        }
     }
     for m in members.iter().filter(|m| m.moves) {
         let verb = if m.name.to_lowercase().contains("door") { "Hang" } else { "Fit" };
         let on = if verb == "Hang" { "its hinges" } else { "its slides" };
-        steps.push(format!("{verb} {} on {on}.", m.name));
+        let with = if m.hardware.is_empty() { String::new() } else { format!(": {}", pieces(&m.hardware)) };
+        steps.push(format!("{verb} {} on {on}{with}.", m.name));
     }
     // The same step twice in a row (both doors hung): once, said twice.
     let mut merged: Vec<(String, usize)> = Vec::new();
@@ -320,13 +396,26 @@ fn steps(scene: &Scene, members: &[Member], hardware: &BTreeMap<String, u32>) ->
     for (i, m) in members.iter().enumerate() {
         if !done[i] && !m.moves {
             steps.push(format!("Place {} (it doesn't touch the rest).", m.name));
+            if !m.hardware.is_empty() {
+                steps.push(mount(m));
+            }
         }
     }
-    if !hardware.is_empty() {
-        let pieces: Vec<String> = hardware.iter().map(|(name, count)| format!("{count} × {name}")).collect();
-        steps.push(format!("Install the hardware: {}.", pieces.join(", ")));
+    // Hardware that touches nothing here.
+    if !loose.is_empty() {
+        steps.push(format!("Install the hardware: {}.", pieces(loose)));
     }
     steps
+}
+
+/// `Mount 2 × Bar pull, 5" on E (Drawer front).`
+fn mount(m: &Member) -> String {
+    format!("Mount {} on {}.", pieces(&m.hardware), m.name)
+}
+
+/// `2 × Concealed hinge (35 mm cup) and 1 × Knob`.
+fn pieces(hardware: &BTreeMap<String, u32>) -> String {
+    list(&hardware.iter().map(|(name, count)| format!("{count} × {name}")).collect::<Vec<_>>())
 }
 
 /// Rails for frames: members joined to exactly two others that aren't joined to each other, all
@@ -384,6 +473,12 @@ fn list(items: &[String]) -> String {
     }
 }
 
+/// A face seen in the drawing: its area on the page, its depth (toward the eye) and its outline.
+type Seen = (f64, f64, Vec<(f64, f64)>);
+
+/// A label placed beside the drawing: its center, where its leader points, and its text.
+type Label<'a> = ((f64, f64), (f64, f64), &'a str);
+
 /// A face to draw: its depth (toward the eye), its points on the page, color and how squarely it faces you.
 type Polygon = (f64, Vec<(f64, f64)>, [u8; 3], f64);
 
@@ -396,7 +491,9 @@ fn exploded(members: &[Member]) -> String {
     let (lo, hi) = members.iter().fold((DVec3::splat(f64::INFINITY), DVec3::splat(f64::NEG_INFINITY)), |(lo, hi), m| (lo.min(m.lo), hi.max(m.hi)));
     let middle = (lo + hi) / 2.0;
     let mut polygons: Vec<Polygon> = Vec::new();
+    // Each member's label and where its leader points: the middle of its biggest face toward you.
     let mut labels: Vec<((f64, f64), String)> = Vec::new();
+    let mut candidates = Vec::new();
     let project = |p: DVec3| (p.dot(right), -p.dot(up));
     for m in members {
         let center = (m.lo + m.hi) / 2.0;
@@ -407,6 +504,7 @@ fn exploded(members: &[Member]) -> String {
         if resting && !covered && m.lo.z > middle.z {
             shift.z += 0.4 * (hi.z - lo.z);
         }
+        let mut faces: Vec<Seen> = Vec::new();
         for (points, normal, color) in &m.faces {
             let facing = normal.dot(toward_eye);
             if facing <= 1e-6 {
@@ -414,13 +512,28 @@ fn exploded(members: &[Member]) -> String {
             }
             let moved: Vec<DVec3> = points.iter().map(|p| *p + shift).collect();
             let depth = moved.iter().map(|p| p.dot(toward_eye)).sum::<f64>() / moved.len() as f64;
-            polygons.push((depth, moved.iter().map(|p| project(*p)).collect(), *color, facing));
+            let flat: Vec<(f64, f64)> = moved.iter().map(|p| project(*p)).collect();
+            faces.push((area(&flat), depth, flat.clone()));
+            polygons.push((depth, flat, *color, facing));
         }
-        if let Some(label) = &m.label {
-            labels.push((project(center + shift), label.clone()));
-        }
+        faces.sort_by(|a, b| b.0.total_cmp(&a.0));
+        // A part by its cut-list letter; a drawer or door by its name.
+        let tag = m.label.clone().unwrap_or_else(|| m.name.clone());
+        candidates.push((faces, tag, project(center + shift)));
     }
     polygons.sort_by(|a, b| a.0.total_cmp(&b.0));
+    // Each leader points at a spot you can see: on the member's biggest face that isn't covered
+    // there by something nearer (its middle, or partway toward a corner).
+    for (faces, tag, fallback) in candidates {
+        let spot = faces.iter().find_map(|(_, depth, outline)| {
+            let n = outline.len() as f64;
+            let middle = (outline.iter().map(|p| p.0).sum::<f64>() / n, outline.iter().map(|p| p.1).sum::<f64>() / n);
+            std::iter::once(middle)
+                .chain(outline.iter().map(|c| (middle.0 + (c.0 - middle.0) * 0.6, middle.1 + (c.1 - middle.1) * 0.6)))
+                .find(|&p| inside(outline, p) && !polygons.iter().any(|(d, other, _, _)| *d > depth + 1e-6 && inside(other, p)))
+        });
+        labels.push((spot.unwrap_or(fallback), tag));
+    }
     let (mut x0, mut y0, mut x1, mut y1) = (f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
     for (_, points, _, _) in &polygons {
         for &(x, y) in points {
@@ -433,13 +546,38 @@ fn exploded(members: &[Member]) -> String {
     if !x0.is_finite() {
         return String::new();
     }
-    let pad = 0.05 * (x1 - x0).max(y1 - y0);
-    let (w, h) = (x1 - x0 + 2.0 * pad, y1 - y0 + 2.0 * pad);
-    let stroke = w.max(h) / 600.0;
+    let span = (x1 - x0).max(y1 - y0);
+    let stroke = span / 600.0;
+    let size = span / 40.0;
+    // Labels in a column either side of the drawing, in the order of what they point at, with a
+    // leader line to it.
+    let gap = 2.0 * size;
+    let middle_x = (x0 + x1) / 2.0;
+    let width = |tag: &str| if tag.chars().count() <= 2 { 1.8 * size } else { 0.6 * size * tag.chars().count() as f64 + size };
+    let mut placed: Vec<Label> = Vec::new();
+    let (mut bx0, mut by0, mut bx1, mut by1) = (x0, y0, x1, y1);
+    for left in [true, false] {
+        let mut side: Vec<&((f64, f64), String)> = labels.iter().filter(|(a, _)| (a.0 < middle_x) == left).collect();
+        side.sort_by(|a, b| a.0.1.total_cmp(&b.0.1));
+        let mut next = f64::NEG_INFINITY;
+        for (anchor, tag) in side {
+            let y = anchor.1.max(next);
+            next = y + 2.2 * size;
+            let w = width(tag);
+            let x = if left { x0 - gap - w / 2.0 } else { x1 + gap + w / 2.0 };
+            bx0 = bx0.min(x - w / 2.0);
+            bx1 = bx1.max(x + w / 2.0);
+            by0 = by0.min(y - size);
+            by1 = by1.max(y + size);
+            placed.push(((x, y), *anchor, tag));
+        }
+    }
+    let pad = 0.03 * span;
+    let (w, h) = (bx1 - bx0 + 2.0 * pad, by1 - by0 + 2.0 * pad);
     let mut svg = format!(
         r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="{:.3} {:.3} {w:.3} {h:.3}" width="640" style="max-height:640px">"#,
-        x0 - pad,
-        y0 - pad
+        bx0 - pad,
+        by0 - pad
     );
     for (_, points, [r, g, b], facing) in &polygons {
         // Lit from the eye: faces turned away are darker.
@@ -448,17 +586,55 @@ fn exploded(members: &[Member]) -> String {
         let path: Vec<String> = points.iter().map(|(x, y)| format!("{x:.3},{y:.3}")).collect();
         let _ = write!(svg, r##"<polygon points="{}" fill="rgb({},{},{})" stroke="#333" stroke-width="{stroke:.4}" stroke-linejoin="round"/>"##, path.join(" "), c(*r), c(*g), c(*b));
     }
-    let size = w.max(h) / 40.0;
-    for ((x, y), label) in labels {
+    for ((x, y), (ax, ay), tag) in placed {
+        let w = width(tag);
+        let from = if x < middle_x { x + w / 2.0 } else { x - w / 2.0 };
         let _ = write!(
             svg,
-            r##"<circle cx="{x:.3}" cy="{y:.3}" r="{:.3}" fill="white" stroke="#222" stroke-width="{stroke:.4}"/><text x="{x:.3}" y="{:.3}" font-size="{size:.3}" text-anchor="middle" font-family="sans-serif" font-weight="bold">{label}</text>"##,
-            size * 0.9,
-            y + size * 0.35
+            r##"<g class="leader"><line x1="{from:.3}" y1="{y:.3}" x2="{ax:.3}" y2="{ay:.3}" stroke="#222" stroke-width="{:.4}"/><circle cx="{ax:.3}" cy="{ay:.3}" r="{:.3}" fill="#222"/></g>"##,
+            stroke * 1.2,
+            size * 0.18
+        );
+        if tag.chars().count() <= 2 {
+            let _ = write!(svg, r##"<circle cx="{x:.3}" cy="{y:.3}" r="{:.3}" fill="white" stroke="#222" stroke-width="{stroke:.4}"/>"##, size * 0.9);
+        } else {
+            let _ = write!(
+                svg,
+                r##"<rect x="{:.3}" y="{:.3}" width="{w:.3}" height="{:.3}" rx="{:.3}" fill="white" stroke="#222" stroke-width="{stroke:.4}"/>"##,
+                x - w / 2.0,
+                y - 0.9 * size,
+                1.8 * size,
+                0.4 * size
+            );
+        }
+        let _ = write!(
+            svg,
+            r#"<text x="{x:.3}" y="{:.3}" font-size="{size:.3}" text-anchor="middle" font-family="sans-serif" font-weight="bold">{}</text>"#,
+            y + size * 0.35,
+            crate::buildsheet::esc(tag)
         );
     }
     svg.push_str("</svg>");
     svg
+}
+
+/// Whether `p` is inside a flat polygon on the page (even-odd).
+fn inside(polygon: &[(f64, f64)], p: (f64, f64)) -> bool {
+    let n = polygon.len();
+    let mut inside = false;
+    for i in 0..n {
+        let (a, b) = (polygon[i], polygon[(i + 1) % n]);
+        if (a.1 > p.1) != (b.1 > p.1) && p.0 < a.0 + (p.1 - a.1) / (b.1 - a.1) * (b.0 - a.0) {
+            inside = !inside;
+        }
+    }
+    inside
+}
+
+/// The area of a flat polygon on the page.
+fn area(points: &[(f64, f64)]) -> f64 {
+    let n = points.len();
+    (0..n).map(|i| points[i].0 * points[(i + 1) % n].1 - points[(i + 1) % n].0 * points[i].1).sum::<f64>().abs() / 2.0
 }
 
 #[cfg(test)]
@@ -513,5 +689,15 @@ mod tests {
         let text = all[cabinet].steps.join("\n");
         assert!(text.contains("Fit Drawer on its slides") && text.contains("Hang Door on its hinges"), "{text}");
         assert!(text.contains("Fasten") && text.contains("Back"), "the back is fastened: {text}");
+        // Hardware at the step it's used: hinges as a door is hung, slides on the box's sides.
+        assert!(text.contains("Hang Door on its hinges: ") && text.contains("Concealed hinge"), "{text}");
+        let drawer = all.iter().find(|a| a.name == "Drawer").unwrap().steps.join("\n");
+        assert!(drawer.contains("slides (pair) on ") && drawer.lines().any(|l| l.contains("slides") && l.ends_with("(Drawer box side).")), "on the box, not its front: {drawer}");
+        assert!(drawer.lines().any(|l| l.contains("Bar pull") && l.ends_with("(Drawer front).")), "{drawer}");
+        assert!(!text.contains("Install the hardware") && !drawer.contains("Install the hardware"), "nothing left over");
+        // Each part or sub-assembly labeled, with a leader line to it.
+        let svg = &all[cabinet].svg;
+        assert_eq!(svg.matches("class=\"leader\"").count(), svg.matches("<text").count(), "a leader for every label");
+        assert!(svg.contains(">Drawer</text>") && svg.contains(">Door</text>"), "sub-assemblies by name");
     }
 }

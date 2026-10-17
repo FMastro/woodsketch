@@ -11,7 +11,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 ## Summary (recommended order)
 | # | Category | Points | Why here |
 |---|---|---|---|
-| 1 | Build sheets and assembly | 68 | Finishes what just shipped; shop output is what woodworkers keep |
+| 1 | Build sheets and assembly | 71 | Finishes what just shipped; shop output is what woodworkers keep |
 | 2 | Joinery | 92 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
@@ -28,21 +28,27 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 60 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1603** | |
+| | **All** | **1606** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
-(exploded drawing and glue-up order per assembly, sub-assemblies first); File > Print Build Sheets.
-1. [3] Leader lines from each letter to its part in the exploded drawing.
-2. [5] Hardware listed at the step it's used, not in one list at the end.
-3. [5] Hidden lines dashed in the part views.
-4. [5] Glue-up boards drawn on the build sheet for wide solid-wood parts.
-5. [13] Pick the reference face and edge on the model (Parts section of Entity Info).
-6. [13] Where each joint and profile sits: dimensions to it from the reference face and edge
-   (needs 5).
-7. [8] A glue-up order for parts with no joints made (now they're only "fastened").
-8. [8] An exploded drawing for each step instead of one per assembly.
-9. [8] Assembly order for parts at an angle (touching is judged on boxes square to the axes).
+(exploded drawing with leader lines and glue-up order per assembly, sub-assemblies first, hardware
+at the step it's used); hidden lines dashed in the part views; File > Print Build Sheets.
+1. [3] Bug: a part made as copies of one component lists every copy's joints as its own steps (the
+   table's Leg says "Cut the mortise for Front and back apron" four times; each leg has one).
+2. [5] Mirrored copies (a drawer's left and right sides) get a page each ("Make 1" twice, same
+   letter); one page saying "Make 2 (one mirrored)".
+3. [5] Glue-up boards drawn on the build sheet for wide solid-wood parts.
+4. [13] Pick the reference face and edge on the model (Parts section of Entity Info).
+5. [13] Where each joint and profile sits: dimensions to it from the reference face and edge
+   (needs 4).
+6. [8] A glue-up order for parts with no joints made (now they're only "fastened").
+7. [8] An exploded drawing for each step instead of one per assembly.
+8. [8] Assembly order for parts at an angle (touching is judged on boxes square to the axes).
+9. [5] Leader lines can cross other parts on their way to the label column; route them around,
+   or put the label on the part where there's room.
+10. [3] Hardware lying on two parts (a pair of slides on both box sides) is said to go on one
+    ("on J (Drawer box side)"); name both.
 
 ## 2. Joinery
 Done: dado, groove, rabbet, mortise and tenon (through, haunched), dovetails (through,

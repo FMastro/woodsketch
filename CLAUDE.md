@@ -169,8 +169,9 @@ add it there; when you finish an item, remove it.
    dimensions; steps from `Scene::joints` and `Scene::profiles` in shop order). Cut List window >
    Print build sheets (also File > Print Build Sheets). `doc::assembly`: a page per assembly after
    the parts (sub-assemblies first): glue-up order from `Scene::joints` (frames first, grooved
-   panels floated, touching parts fastened, drawers fitted and doors hung last, hardware) and an
-   exploded isometric SVG labeled with cut-list letters.
+   panels floated, touching parts fastened, drawers fitted and doors hung last, hardware at its step) and an
+   exploded isometric SVG, cut-list letters in columns beside it with leader lines. Part views dash
+   hidden edges (`buildsheet::behind`, sampled along each edge).
    Wide solid-wood parts glue up from narrower boards (`PartInfo::glue_up`, `cutplan::glue_up`: auto
    when wider than the widest board, aiming for boards 7 1/4" or narrower; strips B-1, B-2... in the
    diagrams, a glue-up step on the build sheet; Entity Info picks Auto or 1-5 boards).

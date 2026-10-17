@@ -16,7 +16,7 @@ use crate::units::format_length;
 use crate::{Container, DefinitionId, Model, Scene};
 
 /// Escape text for HTML element content.
-fn esc(text: &str) -> String {
+pub(crate) fn esc(text: &str) -> String {
     text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
 }
 
@@ -248,22 +248,35 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
     let total_w = x_end + width * s + GAP;
     let total_h = y_edge + edge_h + GAP * 0.8;
 
+    let triangles: Vec<[DVec3; 3]> = model.faces().flat_map(|(_, f)| model.triangulate(f)).map(|t| t.map(at)).collect();
+
     let mut svg = format!(r#"<svg width="{total_w:.0}" height="{total_h:.0}" viewBox="0 0 {total_w:.1} {total_h:.1}" xmlns="http://www.w3.org/2000/svg">"#);
-    // Each view: which axes go across and up, and where its corner is (SVG y grows down).
-    let view = |svg: &mut String, across: usize, up: usize, ox: f64, oy: f64, height: f64| {
+    // Each view: which axes go across and up, which one it looks along and from which side, and
+    // where its corner is (SVG y grows down). Edges behind the part's faces are dashed.
+    let view = |svg: &mut String, across: usize, up: usize, (depth, toward): (usize, f64), ox: f64, oy: f64, height: f64| {
+        let flat = |p: DVec3| DVec2::new(ox + p[across] * s, oy + height - p[up] * s);
+        let mut hidden_lines = String::new();
+        let mut seen_lines = String::new();
         for [a, b] in &segments {
             let (pa, pb) = (at(*a), at(*b));
-            let flat = |p: DVec3| DVec2::new(ox + p[across] * s, oy + height - p[up] * s);
             let (fa, fb) = (flat(pa), flat(pb));
             if fa.distance(fb) < 0.3 {
                 continue;
             }
-            let _ = write!(svg, r##"<line x1="{:.2}" y1="{:.2}" x2="{:.2}" y2="{:.2}" stroke="#222" stroke-width="1"/>"##, fa.x, fa.y, fb.x, fb.y);
+            for (from, to, hidden) in runs(pa, pb, fa.distance(fb), |p| behind(&triangles, p, across, up, depth, toward)) {
+                let (fa, fb) = (flat(pa.lerp(pb, from)), flat(pa.lerp(pb, to)));
+                let out = if hidden { &mut hidden_lines } else { &mut seen_lines };
+                let _ = write!(out, r#"<line x1="{:.2}" y1="{:.2}" x2="{:.2}" y2="{:.2}"/>"#, fa.x, fa.y, fb.x, fb.y);
+            }
         }
+        // Hidden first, so a seen edge in front of a hidden one is drawn over it.
+        let _ = write!(svg, r##"<g class="hidden" stroke="#888" stroke-width="0.8" stroke-dasharray="4 3">{hidden_lines}</g>"##);
+        let _ = write!(svg, r##"<g stroke="#222" stroke-width="1">{seen_lines}</g>"##);
     };
-    view(&mut svg, l, w, x0, y_face, face_h);
-    view(&mut svg, l, t, x0, y_edge, edge_h);
-    view(&mut svg, w, t, x_end, y_edge, edge_h);
+    // Third-angle: the face from above, the edge below it from the front, the end from the right.
+    view(&mut svg, l, w, (t, 1.0), x0, y_face, face_h);
+    view(&mut svg, l, t, (w, -1.0), x0, y_edge, edge_h);
+    view(&mut svg, w, t, (l, 1.0), x_end, y_edge, edge_h);
     // Overall dimensions.
     dimension(&mut svg, DVec2::new(x0, y_face - 16.0), DVec2::new(x0 + length * s, y_face - 16.0), &format_length(length));
     dimension(&mut svg, DVec2::new(x0 - 16.0, y_face + face_h), DVec2::new(x0 - 16.0, y_face), &format_length(width));
@@ -274,6 +287,46 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
     }
     svg.push_str("</svg>\n");
     svg
+}
+
+/// A segment split where it goes in and out of sight: `(from, to, hidden)` as fractions along it,
+/// tested every pixel or so of its `length` on the page.
+fn runs(a: DVec3, b: DVec3, length: f64, hidden: impl Fn(DVec3) -> bool) -> Vec<(f64, f64, bool)> {
+    let steps = (length / 1.5).ceil().clamp(1.0, 400.0) as usize;
+    let mut out: Vec<(f64, f64, bool)> = Vec::new();
+    for i in 0..steps {
+        let (from, to) = (i as f64 / steps as f64, (i + 1) as f64 / steps as f64);
+        let h = hidden(a.lerp(b, (from + to) / 2.0));
+        match out.last_mut() {
+            Some(last) if last.2 == h => last.1 = to,
+            _ => out.push((from, to, h)),
+        }
+    }
+    out
+}
+
+/// Whether a face of the part is between `p` and the eye, looking along axis `depth` from its
+/// `toward` (+1 or -1) side: a triangle covering `p` across the view (not just at its edge) and
+/// nearer the eye.
+fn behind(triangles: &[[DVec3; 3]], p: DVec3, across: usize, up: usize, depth: usize, toward: f64) -> bool {
+    const EPS: f64 = 1e-4;
+    let q = DVec2::new(p[across], p[up]);
+    triangles.iter().any(|t| {
+        let [a, b, c] = t.map(|v| DVec2::new(v[across], v[up]));
+        let area = (b - a).perp_dot(c - a);
+        if area.abs() < 1e-12 {
+            return false;
+        }
+        // Barycentric weights, all inside (margins scaled to the triangle's size).
+        let (wa, wb) = ((b - q).perp_dot(c - q) / area, (c - q).perp_dot(a - q) / area);
+        let wc = 1.0 - wa - wb;
+        let margin = 1e-4;
+        if wa <= margin || wb <= margin || wc <= margin {
+            return false;
+        }
+        let d = wa * t[0][depth] + wb * t[1][depth] + wc * t[2][depth];
+        (d - p[depth]) * toward > EPS
+    })
 }
 
 /// A dimension line from `a` to `b` with end ticks and its text.
@@ -346,6 +399,14 @@ mod tests {
         assert!(html.contains("Side") && html.contains("Shelf"));
         assert!(html.contains("30\" x 11 1/4\" x 3/4\""), "the side's finished size");
         assert!(html.contains("20 1/4\" x 11 1/4\" x 3/4\""), "the shelf includes its let-in");
+        let dashed = "stroke-dasharray=\"4 3\"><line";
+        assert!(html.contains(dashed), "the dado's far edges, out of sight in a view, are dashed");
+        let plain = {
+            let mut doc = Document::default();
+            board(&mut doc, DVec3::ZERO, DVec3::X, DVec3::Y, [20.0, 11.25, 0.75]);
+            to_html(doc.scene(), &crate::cutlist::cut_list(doc.scene()), "Plain")
+        };
+        assert!(!plain.contains(dashed), "a plain board hides nothing");
         assert!(html.contains("Cut the dado for Shelf (1/4\" deep)."), "the side's step");
         assert!(html.contains("Fits into the dado in Side"), "the shelf's note");
         assert_eq!(html.matches("<svg").count(), 3, "drawings for each part, and the exploded assembly");

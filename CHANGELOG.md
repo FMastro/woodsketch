@@ -3,6 +3,13 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.17
+
+- Build sheets: the exploded drawings label each part beside the drawing with a leader line to it
+  (drawers and doors by name); hardware is said at the step it's used (hinges and pulls as a door
+  is hung, slides on the drawer box's sides, a pull once its front is on); the part views dash the
+  edges hidden behind the part (a dado on the far face, a mortise's bottom).
+
 ## 0.1.16
 
 - Updating reopens the drawing you had open (after "Save changes?").
