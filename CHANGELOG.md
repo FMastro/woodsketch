@@ -3,6 +3,13 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.33
+
+- Directions are sticky too: once a line follows red, green, blue or an edge, it holds a little
+  farther out unless another direction is clearly closer.
+- Circle and Polygon: near the circle through a point you passed over, the rim snaps through it
+  ("Through point").
+
 ## 0.1.32
 
 - Rotated Rectangle (Draw menu): a rectangle at any angle. Click two corners for the first side,

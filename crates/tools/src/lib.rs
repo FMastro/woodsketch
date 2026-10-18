@@ -235,7 +235,7 @@ pub struct Overlay {
     /// The selected part's reference face (an outline just inside it) and edge (a line along it).
     pub reference_face: Option<[DVec3; 4]>,
     pub reference_edge: Option<[DVec3; 2]>,
-    /// Dashed lines: the box around the group being edited.
+    /// Dashed lines: the box around the group being edited, a circle's line to the point it goes through.
     pub dashed: Vec<[DVec3; 2]>,
     /// Guides to preview or highlight (the drawing's own guides are drawn by the renderer), and
     /// whether each is highlighted.

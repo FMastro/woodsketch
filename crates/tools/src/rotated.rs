@@ -59,7 +59,7 @@ impl RotatedRectangleTool {
                 let (base, n) = (*a, *normal);
                 let query = Query { base, hints: &self.hints, lock: None, plane_normal: n, current: *b };
                 let mut target = infer::target(model, screen, cursor, &query, |_| false, |ray| ray.hit_plane(base, n).map(|p| (p, None)));
-                self.hints.note(target.snap.as_ref());
+                self.hints.note_target(&target);
                 if target.direction.is_some_and(|d| d.dir.dot(n).abs() > 1e-6) {
                     target = Target { point: screen.ray(cursor).hit_plane(base, n).unwrap_or(*b), ..Target::default() };
                 }

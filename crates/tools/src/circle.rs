@@ -8,7 +8,8 @@ use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS};
 
 use crate::Overlay;
-use crate::pick::{Screen, Snap, snap};
+use crate::infer::Hints;
+use crate::pick::{AXIS_RADIUS, Screen, Snap, SnapKind, snap};
 
 pub struct CircleTool {
     center: Option<(DVec3, DVec3)>,
@@ -24,6 +25,10 @@ pub struct CircleTool {
     /// Polygon with Ctrl: the radius reaches the middle of a side (circumscribed about a circle
     /// that size) instead of a corner.
     circumscribed: bool,
+    /// Points passed over; the rim goes through one when the cursor comes near its circle.
+    hints: Hints,
+    /// The point the rim goes through now, and where on the rim.
+    through: Option<(DVec3, DVec3)>,
 }
 
 #[derive(Clone, Copy)]
@@ -36,7 +41,7 @@ struct Drawn {
 
 impl Default for CircleTool {
     fn default() -> Self {
-        Self { center: None, hover: None, radius: 0.0, segments: CIRCLE_SEGMENTS, last: None, polygon: false, lock: None, circumscribed: false }
+        Self { center: None, hover: None, radius: 0.0, segments: CIRCLE_SEGMENTS, last: None, polygon: false, lock: None, circumscribed: false, hints: Hints::default(), through: None }
     }
 }
 
@@ -88,8 +93,22 @@ impl CircleTool {
     pub fn hover(&mut self, doc: &Document, screen: Screen<'_>, cursor: Vec2) {
         let model = doc.view().model();
         self.hover = snap(model, screen, cursor, self.center);
-        if let (Some((center, _)), Some(hover)) = (self.center, self.hover) {
+        self.hints.note(self.hover.as_ref());
+        self.through = None;
+        if let (Some((center, normal)), Some(hover)) = (self.center, self.hover) {
             self.radius = hover.point.distance(center);
+            // Off any point: near the circle through a point passed over, the rim goes through it.
+            let free = matches!(hover.kind, SnapKind::OnFace | SnapKind::OnPlane | SnapKind::OnGround);
+            if free && let Some(anchor) = self.hints.point {
+                let anchor = anchor - normal * (anchor - center).dot(normal);
+                let reach = anchor.distance(center);
+                let rim = center + (hover.point - center).normalize_or_zero() * reach;
+                let close = screen.project(rim).zip(screen.project(hover.point)).is_some_and(|(a, b)| a.distance(b) < AXIS_RADIUS);
+                if reach > EPS && close && rim.distance(anchor) > EPS {
+                    self.radius = reach;
+                    self.through = Some((anchor, rim));
+                }
+            }
         }
     }
 
@@ -168,6 +187,10 @@ impl CircleTool {
             if let Some(hover) = self.hover {
                 overlay.guide = Some(crate::Guide { from: center, to: hover.point, along: None });
             }
+            if let Some((anchor, rim)) = self.through {
+                overlay.dashed.push([rim, anchor]);
+                overlay.cursor_note = Some("Through point");
+            }
         }
     }
 
@@ -220,6 +243,21 @@ mod tests {
 
     fn at(screen: Screen<'_>, x: f64, y: f64) -> Vec2 {
         screen.project(DVec3::new(x, y, 0.0)).unwrap()
+    }
+
+    #[test]
+    fn near_its_circle_the_rim_goes_through_a_point_passed_over() {
+        let mut doc = Document::default();
+        doc.edit(|m| m.add_line(DVec3::new(3.0, 4.0, 0.0), DVec3::new(3.0, 6.0, 0.0)));
+        let camera = screen_setup();
+        let screen = Screen::new(&camera, SIZE);
+        let at = |x: f64, y: f64| screen.project(DVec3::new(x, y, 0.0)).unwrap();
+        let mut tool = CircleTool::default();
+        tool.hover(&doc, screen, at(3.0, 4.0));
+        tool.click(&mut doc, screen, at(0.0, 0.0)).unwrap();
+        tool.hover(&doc, screen, at(-0.1, 5.1));
+        assert!((tool.radius - 5.0).abs() < 1e-9, "radius to (3, 4): {}", tool.radius);
+        assert!(tool.through.is_some());
     }
 
     #[test]

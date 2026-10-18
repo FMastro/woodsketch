@@ -64,9 +64,18 @@ pub struct Hints {
     /// The last snap on geometry, which wins over a new one that isn't clearly closer
     /// ("sticky", so the point doesn't flicker between two snaps near each other).
     pub last_snap: Option<Snap>,
+    /// The last direction followed (an axis, parallel, perpendicular), which likewise holds
+    /// against another that isn't clearly closer.
+    pub last_direction: Option<Direction>,
 }
 
 impl Hints {
+    /// Remember what a target snapped to and the direction it followed.
+    pub fn note_target(&mut self, target: &Target) {
+        self.note(target.snap.as_ref());
+        self.last_direction = target.direction;
+    }
+
     /// Remember what a snap is on.
     pub fn note(&mut self, snap: Option<&Snap>) {
         let Some(snap) = snap else {
@@ -222,6 +231,9 @@ fn is_point(kind: SnapKind) -> bool {
     matches!(kind, SnapKind::Endpoint | SnapKind::Midpoint | SnapKind::GuidePoint | SnapKind::Intersection | SnapKind::Origin)
 }
 
+/// How much farther than [`AXIS_RADIUS`] the direction followed last still holds.
+const STICKY_DIRECTION: f32 = 1.5;
+
 /// How near, in points, the cursor must stay to the last snap for it to stick.
 const STICKY_RADIUS: f32 = 10.0;
 
@@ -261,15 +273,23 @@ pub fn infer_direction(
         }
     }
     let ray = screen.ray(cursor);
-    candidates
-        .into_iter()
-        .filter_map(|d| {
-            let point = base + d.dir * closest_on_line(base, d.dir, &ray)?;
-            let distance = screen.project(point)?.distance(cursor);
-            (distance < AXIS_RADIUS).then_some((distance, point, d))
-        })
-        .min_by(|a, b| a.0.total_cmp(&b.0))
-        .map(|(_, point, d)| (point, d))
+    let near = |d: Direction, radius: f32| {
+        let point = base + d.dir * closest_on_line(base, d.dir, &ray)?;
+        let distance = screen.project(point)?.distance(cursor);
+        (distance < radius).then_some((distance, point, d))
+    };
+    let best = candidates.iter().filter_map(|&d| near(d, AXIS_RADIUS)).min_by(|a, b| a.0.total_cmp(&b.0));
+    // Sticky: the direction followed last holds (a little farther out, too) unless another is
+    // clearly closer, so the point doesn't flip between two directions close on screen.
+    let held = hints
+        .last_direction
+        .and_then(|last| candidates.iter().copied().find(|d| d.along == last.along && d.dir.cross(last.dir).length() < 1e-9))
+        .and_then(|d| near(d, AXIS_RADIUS * STICKY_DIRECTION));
+    match (held, best) {
+        (Some(h), Some(b)) if b.0 < h.0 * 0.5 => Some((b.1, b.2)),
+        (Some(h), _) => Some((h.1, h.2)),
+        (None, b) => b.map(|(_, point, d)| (point, d)),
+    }
 }
 
 #[cfg(test)]
@@ -305,7 +325,7 @@ mod tests {
         let screen = Screen::new(&camera, SIZE);
         // An edge at 30 degrees was hovered.
         let edge = DVec3::new(30f64.to_radians().cos(), 30f64.to_radians().sin(), 0.0);
-        let hints = Hints { edge: Some(edge), point: None, last_snap: None };
+        let hints = Hints { edge: Some(edge), point: None, last_snap: None, last_direction: None };
         let base = DVec3::new(2.0, 2.0, 0.0);
         let near_parallel = base + edge * 6.0 + DVec3::new(0.05, -0.05, 0.0);
         let t = target(&model, screen, at(screen, near_parallel.x, near_parallel.y), &query(base, &hints), |_| false, ground);
@@ -342,12 +362,30 @@ mod tests {
     }
 
     #[test]
+    fn the_direction_followed_last_holds_a_little_farther_out() {
+        let model = Model::default();
+        let camera = top();
+        let screen = Screen::new(&camera, SIZE);
+        let base = DVec3::new(2.0, 2.0, 0.0);
+        let per_inch = screen.project(base + DVec3::Y).unwrap().distance(screen.project(base).unwrap());
+        // 1.2 times the usual reach off the red line through the base.
+        let off = f64::from(AXIS_RADIUS * 1.2 / per_inch);
+        let cursor = at(screen, base.x + 6.0, base.y + off);
+        let fresh = Hints::default();
+        assert!(target(&model, screen, cursor, &query(base, &fresh), |_| false, ground).direction.is_none(), "too far for a new one");
+        let held = Hints { last_direction: Some(Direction::axis(Axis::X)), ..Hints::default() };
+        let t = target(&model, screen, cursor, &query(base, &held), |_| false, ground);
+        assert_eq!(t.direction.map(|d| d.along), Some(Along::Axis(Axis::X)), "still on red");
+        assert!((t.point.y - base.y).abs() < 1e-9);
+    }
+
+    #[test]
     fn lines_up_with_a_remembered_point() {
         let model = Model::default();
         let camera = top();
         let screen = Screen::new(&camera, SIZE);
         // A corner at (8, 6) was hovered; draw along red from the origin.
-        let hints = Hints { edge: None, point: Some(DVec3::new(8.0, 6.0, 0.0)), last_snap: None };
+        let hints = Hints { edge: None, point: Some(DVec3::new(8.0, 6.0, 0.0)), last_snap: None, last_direction: None };
         let base = DVec3::ZERO;
         // Moving along red, the cursor passes under the corner: the point stops at x = 8.
         let t = target(&model, screen, at(screen, 8.1, 0.05), &query(base, &hints), |_| false, ground);

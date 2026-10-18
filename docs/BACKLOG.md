@@ -22,13 +22,13 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 9 | Wood movement | 23 | Fewer false warnings, clearer results |
 | 10 | Edge profiles | 76 | More bits, profiles on any board |
 | 11 | Parts and boards | 11 | Small drawing conveniences |
-| 12 | Modeling tools | 113 | SketchUp parity for general modeling |
+| 12 | Modeling tools | 108 | SketchUp parity for general modeling |
 | 13 | Groups, components and tags | 63 | Organizing bigger projects |
 | 14 | UI | 87 | Comfort and polish |
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1477** | |
+| | **All** | **1472** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -256,40 +256,36 @@ length, Shift switches Scale between even and stretched, and Move hides rotation
 too small on screen. Off a face, Rotate and Protractor lie in the red, green or blue plane seen most
 squarely (through the edge under the cursor). Center Arc, 3-Point Arc and Pie. Rectangle's far corner lines up with points passed over;
 Arc's end infers like a line; Rotated Rectangle (any angle); sticky snapping (the last point holds
-until another is clearly closer).
+until another is clearly closer). Inference and snapping is finished: directions stick too, and a
+circle or polygon's rim goes through a point passed over.
 
 ### Tools
 1. [2] Notes: a text size, and leader-less text pinned to the screen (SketchUp's screen text).
 2. [5] Walk: following the floor (steps up stairs, falls off ledges); it keeps its height now.
 
-### Inference and snapping
-3. [2] Circle and Polygon: line the rim up with a point passed over (Rectangle, Arc and Rotated
-    Rectangle infer now).
-4. [3] Sticky inference for directions too (only snapped points stick now).
-
 ### Circles and arcs
-5. [5] Arc: tangent inference.
-6. [8] Soften/Smooth per edge, and smooth shading (soft edges are worked out when drawing now,
+3. [5] Arc: tangent inference.
+4. [8] Soften/Smooth per edge, and smooth shading (soft edges are worked out when drawing now,
     facets are shaded flat).
-7. [13] Curves as one entity (a circle is 24 edges now; SketchUp selects it with one click and
+5. [13] Curves as one entity (a circle is 24 edges now; SketchUp selects it with one click and
     shows its radius and sides).
 
 ### Offset, Tape Measure, Scale, Rotate
-8. [3] Offset: rounded outward corners (always mitered now).
-9. [5] Offset holes too (only a face's outer outline now).
-10. [5] Offset a selection of connected edges (only faces now).
-11. [1] Tape Measure resize: ask first, as SketchUp does (it's one undo step now).
-12. [3] Scale grips as green boxes, hiding the ones facing away (red crosses now).
-13. [8] Scale: mirroring (negative factors are refused).
-14. [8] Scale: a rotated group among several scaled together gets sheared (they use the
+6. [3] Offset: rounded outward corners (always mitered now).
+7. [5] Offset holes too (only a face's outer outline now).
+8. [5] Offset a selection of connected edges (only faces now).
+9. [1] Tape Measure resize: ask first, as SketchUp does (it's one undo step now).
+10. [3] Scale grips as green boxes, hiding the ones facing away (red crosses now).
+11. [8] Scale: mirroring (negative factors are refused).
+12. [8] Scale: a rotated group among several scaled together gets sheared (they use the
     red/green/blue axes), and the cut list measures it only approximately.
 
 ### Geometry
-15. [5] Collinear leftovers: other merges (pulling part of a top up flush with a side) can still
+13. [5] Collinear leftovers: other merges (pulling part of a top up flush with a side) can still
     leave a corner on a straight edge (erasing a seam heals them).
-16. [8] Coplanar faces sharing an edge merge on their own (boards glued end to end keep a seam).
-17. [8] Move folds a face that would bend (adds a diagonal, as SketchUp does); refused now.
-18. [21] Auto-joining: moved or copied geometry welds to geometry it lands on (also pasted loose
+14. [8] Coplanar faces sharing an edge merge on their own (boards glued end to end keep a seam).
+15. [8] Move folds a face that would bend (adds a diagonal, as SketchUp does); refused now.
+16. [21] Auto-joining: moved or copied geometry welds to geometry it lands on (also pasted loose
     geometry). Fine while boards should stay separate.
 
 ## 13. Groups, components and tags

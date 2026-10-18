@@ -108,7 +108,7 @@ impl LineTool {
         if self.shift && self.shift_lock.is_none() {
             self.shift_lock = target.direction;
         }
-        self.hints.note(target.snap.as_ref());
+        self.hints.note_target(&target);
         self.hover = target.snap;
         self.end = Some(target);
     }
