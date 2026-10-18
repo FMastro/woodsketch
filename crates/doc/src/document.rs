@@ -464,6 +464,15 @@ impl Document {
         }))
     }
 
+    /// Push/pull with Ctrl: `face` stays and a new face is made `distance` away, joined by new
+    /// walls (see [`Model::push_pull_copy`]). One undoable step.
+    pub fn push_pull_copy(&mut self, face: FaceId, distance: f64) -> Result<(), PushPullError> {
+        let mut trial = self.model().clone();
+        trial.push_pull_copy(face, distance)?;
+        self.edit_scene(|scene, path| scene.container_mut(path).expect("the editing path stays valid").model = trial);
+        Ok(())
+    }
+
     /// Move or rotate `entities` of the container being edited by `transforms[0]`, or with
     /// `copy`, place one copy per transform (arrays). Loose geometry stretches connected faces;
     /// groups and components move whole, and copies of them are new instances of the same

@@ -147,7 +147,13 @@ impl LineTool {
     /// A typed length or point for the next line's end.
     pub fn enter(&mut self, doc: &mut Document, typed: &str) -> Result<(), String> {
         let Some(start) = self.start else {
-            return Err("Click the start point, then type the length".into());
+            // `[x,y,z]` before the first click: start the line at that point.
+            if typed.trim().starts_with('[') {
+                let point = parse_offset(typed, DVec3::ZERO, DVec3::ZERO)?;
+                self.start = Some(Start { point, normal: DVec3::Z, dragging: false });
+                return Ok(());
+            }
+            return Err("Click the start point (or type [x,y,z]), then type the length".into());
         };
         // Along an inferred direction, use it exactly so typed lengths come out exact.
         let direction = match self.end {
@@ -168,7 +174,7 @@ impl LineTool {
         if self.start.is_some() {
             "Select end point or enter value. Hold Shift or press an arrow key to lock a direction; Esc ends the line."
         } else {
-            "Select start point."
+            "Select start point, or type [x,y,z]."
         }
     }
 
@@ -225,6 +231,18 @@ mod tests {
 
     fn at(screen: Screen<'_>, x: f64, y: f64) -> Vec2 {
         screen.project(DVec3::new(x, y, 0.0)).unwrap()
+    }
+
+    #[test]
+    fn type_the_start_point_then_the_line() {
+        let mut doc = Document::default();
+        let mut tool = LineTool::default();
+        assert!(tool.enter(&mut doc, "5").is_err(), "a length needs a start");
+        tool.enter(&mut doc, "[1,2,3]").unwrap();
+        tool.enter(&mut doc, "4,0,0").unwrap();
+        let (lo, hi) = doc.model().bounds().unwrap();
+        assert_eq!((lo, hi), (DVec3::new(1.0, 2.0, 3.0), DVec3::new(5.0, 2.0, 3.0)));
+        assert!(crate::Tools::starts_value('[') && crate::Tools::starts_value('<'), "typing [ or < starts a value, not a tool");
     }
 
     #[test]

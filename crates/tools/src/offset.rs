@@ -1,6 +1,7 @@
 //! The Offset tool (F). Click a face (or select one first, then click anywhere), move the
 //! mouse in or out, and click again or type the distance: the face's outline is copied at that
-//! distance on the face. Typing right after changes the offset just made.
+//! distance on the face. Typing right after changes the offset just made; double-click a face
+//! to offset it by the last distance again.
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
@@ -15,6 +16,8 @@ pub struct OffsetTool {
     /// The face a click would offset.
     hover: Option<FaceId>,
     last: Option<Done>,
+    /// The last distance used, for double-click repeat (as Push/Pull has).
+    repeat: Option<f64>,
 }
 
 struct Op {
@@ -69,7 +72,14 @@ impl OffsetTool {
         op.preview = model.offset_outline(op.face, op.distance).unwrap_or_default();
     }
 
-    pub fn click(&mut self, doc: &mut Document, screen: Screen<'_>, cursor: Vec2) -> Result<(), String> {
+    pub fn click(&mut self, doc: &mut Document, screen: Screen<'_>, cursor: Vec2, count: u8) -> Result<(), String> {
+        // Double-click a face: offset it by the last distance again.
+        if count >= 2
+            && let (Some(op), Some(distance)) = (&self.op, self.repeat)
+        {
+            let face = op.face;
+            return self.apply(doc, face, distance);
+        }
         if self.op.is_none() {
             let Some(face) = target(doc, screen, cursor) else {
                 return Err("Click a face to offset its outline".into());
@@ -140,6 +150,7 @@ impl OffsetTool {
         doc.edit(|m| m.offset_face(face, distance)).map_err(|e| e.to_string())?;
         self.op = None;
         self.last = Some(Done { face, distance, model_version: doc.model_version() });
+        self.repeat = Some(distance);
         Ok(())
     }
 }
@@ -182,7 +193,7 @@ mod tests {
         let (mut doc, camera) = setup();
         let screen = Screen::new(&camera, SIZE);
         let mut tool = OffsetTool::default();
-        tool.click(&mut doc, screen, at(screen, 12.0, 18.0)).unwrap();
+        tool.click(&mut doc, screen, at(screen, 12.0, 18.0), 1).unwrap();
         tool.hover(&doc, screen, at(screen, 3.0, 18.0));
         assert!((tool.op.as_ref().unwrap().distance - 3.0).abs() < 0.1, "about 3\" in");
         tool.enter(&mut doc, "2 1/2").unwrap();
@@ -195,11 +206,26 @@ mod tests {
     }
 
     #[test]
+    fn double_click_repeats_the_last_distance() {
+        let (mut doc, camera) = setup();
+        let screen = Screen::new(&camera, SIZE);
+        let mut tool = OffsetTool::default();
+        tool.click(&mut doc, screen, at(screen, 12.0, 18.0), 1).unwrap();
+        tool.hover(&doc, screen, at(screen, 3.0, 18.0));
+        tool.enter(&mut doc, "2").unwrap();
+        // Double-click the panel in the middle: another 2" in.
+        tool.click(&mut doc, screen, at(screen, 12.0, 18.0), 1).unwrap();
+        tool.click(&mut doc, screen, at(screen, 12.0, 18.0), 2).unwrap();
+        assert_eq!(doc.model().faces().count(), 3, "a frame, a frame and a panel");
+        assert!(!tool.is_busy());
+    }
+
+    #[test]
     fn moving_outside_offsets_outward() {
         let (mut doc, camera) = setup();
         let screen = Screen::new(&camera, SIZE);
         let mut tool = OffsetTool::default();
-        tool.click(&mut doc, screen, at(screen, 12.0, 18.0)).unwrap();
+        tool.click(&mut doc, screen, at(screen, 12.0, 18.0), 1).unwrap();
         tool.hover(&doc, screen, at(screen, -2.0, 18.0));
         tool.enter(&mut doc, "1").unwrap();
         let (lo, hi) = doc.model().bounds().unwrap();
@@ -211,7 +237,7 @@ mod tests {
         let (mut doc, camera) = setup();
         let screen = Screen::new(&camera, SIZE);
         let mut tool = OffsetTool::default();
-        tool.click(&mut doc, screen, at(screen, 12.0, 18.0)).unwrap();
+        tool.click(&mut doc, screen, at(screen, 12.0, 18.0), 1).unwrap();
         tool.hover(&doc, screen, at(screen, 10.0, 18.0));
         let version = doc.model_version();
         assert!(tool.enter(&mut doc, "13").is_err());

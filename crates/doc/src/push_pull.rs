@@ -66,6 +66,50 @@ impl Model {
         }
     }
 
+    /// Push/pull with Ctrl (SketchUp's push/pull copy): `face` stays where it is, and a new face
+    /// is made `distance` away along its normal, joined to it by new walls. Pulling a board's
+    /// end this way adds a length with a seam where the end was, instead of moving the end.
+    pub fn push_pull_copy(&mut self, face: FaceId, distance: f64) -> Result<(), PushPullError> {
+        if distance.abs() < EPS {
+            return Err(PushPullError::ZeroDistance);
+        }
+        // A free-standing face: nothing to keep apart from, so it's an ordinary push/pull.
+        if self.face_edges(face).into_iter().all(|e| self.edge_faces(e).len() <= 1) {
+            return self.push_pull(face, distance);
+        }
+        let Some(original) = self.face(face).cloned() else { return Err(PushPullError::MissingFace) };
+        let n = original.normal;
+        let offset = n * distance;
+        let loops: Vec<Vec<DVec3>> = original.loops().map(|l| self.loop_points(l)).collect();
+        // The new piece lies between the face and its copy; walls face out of it.
+        let toward = n * distance.signum();
+        for (i, points) in loops.iter().enumerate() {
+            let winding = newell_normal(points).dot(n).signum();
+            let side = if i == 0 { 1.0 } else { -1.0 };
+            for (j, &a) in points.iter().enumerate() {
+                let b = points[(j + 1) % points.len()];
+                let outward = (b - a).cross(n) * winding * side;
+                let mut quad = [a, b, b + offset, a + offset];
+                if newell_normal(&quad).dot(outward) < 0.0 {
+                    quad.reverse();
+                }
+                self.add_wall(quad, a, b, false);
+            }
+        }
+        let orient = |mut points: Vec<DVec3>, to: DVec3| {
+            if newell_normal(&points).dot(to) < 0.0 {
+                points.reverse();
+            }
+            points
+        };
+        let outer = orient(loops[0].iter().map(|&p| p + offset).collect(), toward);
+        let holes: Vec<Vec<DVec3>> = loops[1..].iter().map(|h| orient(h.iter().map(|&p| p + offset).collect(), -toward)).collect();
+        if let Some(cap) = self.add_face_with_holes(&outer, &holes) {
+            self.set_face_material(cap, original.material);
+        }
+        Ok(())
+    }
+
     fn move_cap(&mut self, face: FaceId, sides: &BTreeSet<FaceId>, distance: f64) -> Result<(), PushPullError> {
         let cap = self.face(face).expect("checked by caller").clone();
         let moving: BTreeSet<VertexId> = cap.loops().flatten().copied().collect();
@@ -351,6 +395,25 @@ mod tests {
         assert_eq!(model.edges().count(), 12);
         assert_eq!(height(&model), 120.0);
         assert!((volume(&model) - 1.5 * 3.5 * 120.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn ctrl_pulling_a_boards_end_adds_a_length_with_a_seam() {
+        let mut model = Model::default();
+        let face = two_by_four_profile(&mut model);
+        model.push_pull(face, 96.0).unwrap();
+        let end = top_face(&model);
+        model.push_pull_copy(end, 24.0).unwrap();
+        assert_eq!(height(&model), 120.0);
+        assert!(model.face(end).is_some(), "the old end stays, a seam inside");
+        assert_eq!(model.edges().count(), 12 + 8, "four new walls' edges and the new end's");
+        // A free face pulled with Ctrl is an ordinary pull (nothing to keep it apart from).
+        let mut model = Model::default();
+        let face = two_by_four_profile(&mut model);
+        model.push_pull_copy(face, 10.0).unwrap();
+        assert_eq!(model.faces().count(), 6);
+        assert!((volume(&model) - 1.5 * 3.5 * 10.0).abs() < 1e-6, "a closed board facing out");
+        assert!(model.push_pull_copy(face, 0.0).is_err());
     }
 
     #[test]

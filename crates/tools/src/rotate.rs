@@ -32,6 +32,9 @@ pub struct RotateTool {
     preview: Option<(DVec3, DVec3)>,
     copy: bool,
     last: Option<Done>,
+    /// The Protractor tool: the same steps make a guide line at the angle instead of turning
+    /// anything.
+    guides: bool,
 }
 
 struct Op {
@@ -64,6 +67,12 @@ struct Done {
 }
 
 impl RotateTool {
+    /// The Protractor tool: center, starting direction, angle; a guide line goes through the
+    /// center at that angle (typed angles too, 15° snaps as Rotate).
+    pub fn protractor() -> Self {
+        Self { guides: true, ..Self::default() }
+    }
+
     pub fn is_busy(&self) -> bool {
         self.op.is_some()
     }
@@ -109,7 +118,7 @@ impl RotateTool {
     pub fn hover(&mut self, doc: &Document, screen: Screen<'_>, cursor: Vec2) {
         let model = doc.view().model();
         let Some(op) = &mut self.op else {
-            self.hover = if doc.selection().is_empty() { pick_resolved(doc, screen, cursor) } else { None };
+            self.hover = if doc.selection().is_empty() && !self.guides { pick_resolved(doc, screen, cursor) } else { None };
             self.snap = snap(model, screen, cursor, None);
             self.preview = self.snap.map(|s| (s.point, self.lock.map_or_else(|| surface_normal(model, screen, cursor), Axis::dir)));
             return;
@@ -211,6 +220,13 @@ impl RotateTool {
     }
 
     pub fn status(&self) -> String {
+        if self.guides {
+            return match self.op.as_ref().map(|op| &op.stage) {
+                None => "Pick the protractor's center (a guide line goes through it). Arrow keys lock it (Right red, Left green, Up blue).".into(),
+                Some(Stage::Start(_)) => "Pick a point for the starting direction.".into(),
+                Some(Stage::Rotate { .. }) => "Pick the guide's direction, or enter an angle.".into(),
+            };
+        }
         let copy = if self.copy { " (copying)" } else { "" };
         match self.op.as_ref().map(|op| &op.stage) {
             None => format!(
@@ -284,7 +300,9 @@ impl RotateTool {
 
     fn start(&mut self, doc: &Document, screen: Screen<'_>, cursor: Vec2) -> Result<(), String> {
         let model = doc.model();
-        let entities: Vec<Entity> = if doc.selection().is_empty() {
+        let entities: Vec<Entity> = if self.guides {
+            Vec::new()
+        } else if doc.selection().is_empty() {
             match pick_resolved(doc, screen, cursor) {
                 Some(Entity::Face(id)) => std::iter::once(Entity::Face(id))
                     .chain(model.face_edges(id).into_iter().map(Entity::Edge))
@@ -307,6 +325,16 @@ impl RotateTool {
 
     fn finish(&mut self, doc: &mut Document, angle: f64) -> Result<(), String> {
         let Some(op) = &self.op else { return Ok(()) };
+        // The Protractor: a guide line through the center at the angle from the start.
+        if self.guides {
+            let Stage::Rotate { from, .. } = op.stage else { return Ok(()) };
+            let dir = glam::DQuat::from_axis_angle(op.normal, angle.to_radians()) * from;
+            let point = op.center;
+            doc.edit(|m| m.add_guide(woodsketch_doc::Guide::Line { point, dir }));
+            self.op = None;
+            self.snap = None;
+            return Ok(());
+        }
         if angle.abs() < 1e-9 {
             return Err("Turn away from the starting direction first".into());
         }
@@ -470,6 +498,24 @@ mod tests {
         assert_eq!(overlay.guide.and_then(|g| g.along), Some(crate::infer::Along::Axis(Axis::Y)));
         let to = overlay.protractor.unwrap().to.unwrap();
         assert!(to.x.abs() < 1e-9 && to.y > 0.0, "the start direction turned onto green: {to}");
+    }
+
+    #[test]
+    fn the_protractor_lays_a_guide_line_at_the_angle() {
+        let (mut doc, camera) = setup();
+        doc.selection_mut().clear();
+        let screen = Screen::new(&camera, SIZE);
+        let mut tool = RotateTool::protractor();
+        let before = doc.model().clone();
+        turn_toward(&mut tool, &mut doc, screen, 4.0, 4.0);
+        tool.enter(&mut doc, "30").unwrap();
+        assert!(!tool.is_busy());
+        let guides: Vec<_> = doc.model().guides().map(|(_, g)| *g).collect();
+        let [woodsketch_doc::Guide::Line { point, dir }] = guides[..] else { panic!("one guide line: {guides:?}") };
+        assert!(point.abs_diff_eq(DVec3::ZERO, 1e-9));
+        let degrees = dir.y.atan2(dir.x).to_degrees();
+        assert!((degrees - 30.0).abs() < 1e-6, "30 degrees from red: {degrees}");
+        assert_eq!(doc.model().faces().count(), before.faces().count(), "nothing turned");
     }
 
     #[test]

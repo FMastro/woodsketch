@@ -93,6 +93,14 @@ impl RectangleTool {
 
     /// Apply typed dimensions: to the rectangle being sized, or to the one just drawn.
     pub fn enter(&mut self, doc: &mut Document, typed: &str) -> Result<(), String> {
+        // `[x,y,z]` before the first click: the first corner there, lying flat (facing up).
+        if self.sizing.is_none() && typed.trim().starts_with('[') {
+            let corner = crate::move_tool::parse_offset(typed, DVec3::ZERO, DVec3::ZERO)?;
+            let (u, v) = plane_axes(DVec3::Z);
+            self.last = None;
+            self.sizing = Some(Sizing { frame: Frame { corner, normal: DVec3::Z, u, v }, extents: (0.0, 0.0), dragging: false });
+            return Ok(());
+        }
         let values = parse_lengths(typed).map_err(|e| e.to_string())?;
         let [width, height] = values[..] else {
             return Err("Enter width and height, like 1.5\",3.5\"".into());
@@ -126,7 +134,7 @@ impl RectangleTool {
         if self.sizing.is_some() {
             "Select opposite corner or enter value."
         } else {
-            "Select first corner."
+            "Select first corner, or type [x,y,z]."
         }
     }
 
@@ -216,6 +224,18 @@ mod tests {
     fn face_size(doc: &Document) -> (f64, f64) {
         let (lo, hi) = doc.model().bounds().unwrap();
         ((hi - lo).x, (hi - lo).y)
+    }
+
+    #[test]
+    fn type_the_first_corner_then_the_size() {
+        let mut doc = Document::default();
+        let mut tool = RectangleTool::default();
+        assert!(tool.status().contains("[x,y,z]"));
+        tool.enter(&mut doc, "[1,2,0]").unwrap();
+        assert!(tool.is_busy());
+        tool.enter(&mut doc, "3,4").unwrap();
+        let (lo, hi) = doc.model().bounds().unwrap();
+        assert_eq!((lo, hi), (DVec3::new(1.0, 2.0, 0.0), DVec3::new(4.0, 6.0, 0.0)));
     }
 
     #[test]

@@ -3,6 +3,16 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.27
+
+- Polygon tool (Draw > Polygon): a hexagon to start; type `8s` for an octagon.
+- Protractor tool (Tools > Protractor): pick a center and a starting direction, then an angle
+  (15° snaps, or type one) for an angled guide line.
+- Push/Pull: tap Ctrl to keep the face, making a new one and walls from it (a board's end
+  pulled out keeps a seam where it was).
+- Offset: double-click a face to offset it by the last distance again.
+- Line and Rectangle: type `[x,y,z]` before the first click to start at that point.
+
 ## 0.1.26
 
 - Works with your AI assistant: `woodsketch-cli`, installed with the app, builds a drawing from

@@ -21,11 +21,13 @@ pub struct PushPullTool {
     last: Option<Done>,
     /// The last distance used, for double-click repeat.
     repeat: Option<f64>,
+    /// Ctrl: keep the face and make a new one (push/pull copy).
+    copy: bool,
 }
 
 impl Default for PushPullTool {
     fn default() -> Self {
-        Self { auto_group: true, op: None, hover: None, snap: None, last: None, repeat: None }
+        Self { auto_group: true, op: None, hover: None, snap: None, last: None, repeat: None, copy: false }
     }
 }
 
@@ -53,6 +55,11 @@ struct Done {
 impl PushPullTool {
     pub fn is_busy(&self) -> bool {
         self.op.is_some()
+    }
+
+    /// Ctrl: keep the face and make a new one, or not.
+    pub fn toggle_copy(&mut self) {
+        self.copy = !self.copy;
     }
 
     pub fn cancel(&mut self) {
@@ -153,10 +160,11 @@ impl PushPullTool {
     }
 
     pub fn status(&self) -> &'static str {
-        if self.op.is_some() {
-            "Move to set the distance, then click, or enter a value."
-        } else {
-            "Pick a face to push or pull. Double-click a face to repeat the last distance."
+        match (self.op.is_some(), self.copy) {
+            (true, false) => "Move to set the distance, then click, or enter a value. Ctrl keeps the face.",
+            (true, true) => "Keeping the face: a new face and walls. Move to set the distance, then click, or enter a value.",
+            (false, false) => "Pick a face to push or pull. Ctrl keeps the face. Double-click a face to repeat the last distance.",
+            (false, true) => "Keeping the face (Ctrl): pick a face; a new face and walls go from it.",
         }
     }
 
@@ -170,6 +178,9 @@ impl PushPullTool {
 
     pub fn overlay(&self, model: &Model, overlay: &mut Overlay) {
         overlay.snap = self.snap;
+        if self.copy {
+            overlay.cursor_note = Some("+");
+        }
         if self.op.as_ref().is_some_and(|op| op.on_standard) {
             overlay.cursor_note = Some("Standard thickness");
         }
@@ -217,7 +228,11 @@ impl PushPullTool {
     /// Push/pull as one undo step (auto-grouping a new board if enabled), leaving the document
     /// untouched on failure.
     fn apply(&mut self, doc: &mut Document, face: FaceId, distance: f64) -> Result<(), String> {
-        doc.push_pull(face, distance, self.auto_group).map_err(|e| e.to_string())?;
+        if self.copy {
+            doc.push_pull_copy(face, distance).map_err(|e| e.to_string())?;
+        } else {
+            doc.push_pull(face, distance, self.auto_group).map_err(|e| e.to_string())?;
+        }
         self.last = Some(Done { face, distance, model_version: doc.model_version() });
         self.repeat = Some(distance);
         self.hover = None;
@@ -346,6 +361,25 @@ mod tests {
         tool.enter(&mut doc, "96").unwrap();
         assert_eq!(doc.model().faces().count(), 6);
         assert_eq!(doc.container().instances().count(), 0);
+    }
+
+    #[test]
+    fn ctrl_keeps_the_face_and_adds_a_length_with_a_seam() {
+        let (mut doc, camera, _) = setup();
+        let screen = Screen::new(&camera, SIZE);
+        let mut tool = PushPullTool { auto_group: false, ..Default::default() };
+        let center = DVec3::new(0.75, 1.75, 0.0);
+        tool.click(&mut doc, screen, at(screen, center), 1).unwrap();
+        tool.enter(&mut doc, "10").unwrap();
+        let faces = doc.model().faces().count();
+        // Ctrl, then the top end up another 5": the old end stays as a seam.
+        tool.toggle_copy();
+        assert!(tool.status().contains("Keeping the face"));
+        let top = DVec3::new(0.75, 1.75, 10.0);
+        tool.click(&mut doc, screen, at(screen, top), 1).unwrap();
+        tool.enter(&mut doc, "5").unwrap();
+        assert_eq!(height(&doc), 15.0);
+        assert_eq!(doc.model().faces().count(), faces + 5, "the old end kept, four walls and a new end");
     }
 
     #[test]

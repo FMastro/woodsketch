@@ -50,6 +50,7 @@ pub enum ToolId {
     Arc,
     Rectangle,
     Circle,
+    Polygon,
     Board,
     PushPull,
     Move,
@@ -57,13 +58,14 @@ pub enum ToolId {
     Scale,
     Offset,
     TapeMeasure,
+    Protractor,
     Orbit,
     Pan,
     Zoom,
 }
 
 impl ToolId {
-    pub const ALL: [Self; 17] = [
+    pub const ALL: [Self; 19] = [
         Self::Select,
         Self::Eraser,
         Self::PaintBucket,
@@ -71,6 +73,7 @@ impl ToolId {
         Self::Arc,
         Self::Rectangle,
         Self::Circle,
+        Self::Polygon,
         Self::Board,
         Self::PushPull,
         Self::Move,
@@ -78,6 +81,7 @@ impl ToolId {
         Self::Scale,
         Self::Offset,
         Self::TapeMeasure,
+        Self::Protractor,
         Self::Orbit,
         Self::Pan,
         Self::Zoom,
@@ -92,6 +96,7 @@ impl ToolId {
             Self::Arc => "Arc",
             Self::Rectangle => "Rectangle",
             Self::Circle => "Circle",
+            Self::Polygon => "Polygon",
             Self::Board => "Board",
             Self::PushPull => "Push/Pull",
             Self::Move => "Move",
@@ -99,6 +104,7 @@ impl ToolId {
             Self::Scale => "Scale",
             Self::Offset => "Offset",
             Self::TapeMeasure => "Tape Measure",
+            Self::Protractor => "Protractor",
             Self::Orbit => "Orbit",
             Self::Pan => "Pan",
             Self::Zoom => "Zoom",
@@ -115,6 +121,9 @@ impl ToolId {
             Self::Arc => 'a',
             Self::Rectangle => 'r',
             Self::Circle => 'c',
+            // No key (as in SketchUp).
+            Self::Polygon => '\0',
+            Self::Protractor => '\0',
             Self::Board => 'w',
             Self::PushPull => 'p',
             Self::Move => 'm',
@@ -131,6 +140,7 @@ impl ToolId {
     pub fn shortcut_label(self) -> String {
         match self.shortcut() {
             ' ' => "Space".to_owned(),
+            '\0' => String::new(),
             c => c.to_ascii_uppercase().to_string(),
         }
     }
@@ -138,7 +148,8 @@ impl ToolId {
     /// The tool a typed character activates. Uppercase letters are Shift combinations, which
     /// are not tool shortcuts.
     pub fn from_shortcut(c: char) -> Option<Self> {
-        Self::ALL.into_iter().find(|tool| tool.shortcut() == c)
+        // Tools without a key (Polygon, Protractor) aren't found by one.
+        Self::ALL.into_iter().find(|tool| c != '\0' && tool.shortcut() == c)
     }
 
     pub fn is_available(self) -> bool {
@@ -363,6 +374,7 @@ pub struct Tools {
     offset: OffsetTool,
     arc: ArcTool,
     circle: CircleTool,
+    polygon: CircleTool,
     board: BoardTool,
     scale: ScaleTool,
     eraser: EraserTool,
@@ -370,6 +382,7 @@ pub struct Tools {
     push_pull: PushPullTool,
     move_tool: MoveTool,
     rotate: RotateTool,
+    protractor: RotateTool,
     paint: PaintTool,
     /// The material the Paint Bucket applies; `None` is the default material.
     pub active_material: Option<woodsketch_doc::MaterialId>,
@@ -397,6 +410,7 @@ impl Default for Tools {
             offset: OffsetTool::default(),
             arc: ArcTool::default(),
             circle: CircleTool::default(),
+            polygon: CircleTool::polygon(),
             board: BoardTool::default(),
             scale: ScaleTool::default(),
             eraser: EraserTool::default(),
@@ -404,6 +418,7 @@ impl Default for Tools {
             push_pull: PushPullTool::default(),
             move_tool: MoveTool::default(),
             rotate: RotateTool::default(),
+            protractor: RotateTool::protractor(),
             paint: PaintTool::default(),
             active_material: None,
             grip_dragging: false,
@@ -515,6 +530,7 @@ impl Tools {
         self.offset.cancel();
         self.arc.cancel();
         self.circle.cancel();
+        self.polygon.cancel();
         self.board.cancel();
         self.scale.cancel();
         self.eraser.cancel();
@@ -522,6 +538,7 @@ impl Tools {
         self.push_pull.cancel();
         self.move_tool.cancel();
         self.rotate.cancel();
+        self.protractor.cancel();
     }
 
     pub fn pointer(&mut self, event: PointerEvent, doc: &mut Document, camera: &mut OrbitCamera, size: Vec2) {
@@ -632,6 +649,14 @@ impl Tools {
                 self.typed.clear();
                 self.circle.click(doc, screen, pos)
             }
+            (ToolId::Polygon, PointerEvent::Move(pos) | PointerEvent::Drag { pos, .. }) => {
+                self.polygon.hover(doc, screen, pos);
+                Ok(())
+            }
+            (ToolId::Polygon, PointerEvent::Click { pos, .. }) => {
+                self.typed.clear();
+                self.polygon.click(doc, screen, pos)
+            }
             (ToolId::Board, PointerEvent::Move(pos) | PointerEvent::Drag { pos, .. }) => {
                 self.board.ensure_stock(doc);
                 self.board.hover(doc, screen, pos);
@@ -645,9 +670,9 @@ impl Tools {
                 self.offset.hover(doc, screen, pos);
                 Ok(())
             }
-            (ToolId::Offset, PointerEvent::Click { pos, .. }) => {
+            (ToolId::Offset, PointerEvent::Click { pos, count, .. }) => {
                 self.typed.clear();
-                self.offset.click(doc, screen, pos)
+                self.offset.click(doc, screen, pos, count)
             }
             (ToolId::TapeMeasure, PointerEvent::Move(pos) | PointerEvent::Drag { pos, .. }) => {
                 self.tape.hover(doc, screen, pos);
@@ -700,6 +725,16 @@ impl Tools {
             }
             (ToolId::Rotate, PointerEvent::DragStart { origin }) => self.rotate.drag_start(doc, screen, origin),
             (ToolId::Rotate, PointerEvent::DragEnd { pos, .. }) => self.rotate.drag_end(doc, screen, pos),
+            (ToolId::Protractor, PointerEvent::Move(pos) | PointerEvent::Drag { pos, .. }) => {
+                self.protractor.hover(doc, screen, pos);
+                Ok(())
+            }
+            (ToolId::Protractor, PointerEvent::Click { pos, .. }) => {
+                self.typed.clear();
+                self.protractor.click(doc, screen, pos)
+            }
+            (ToolId::Protractor, PointerEvent::DragStart { origin }) => self.protractor.drag_start(doc, screen, origin),
+            (ToolId::Protractor, PointerEvent::DragEnd { pos, .. }) => self.protractor.drag_end(doc, screen, pos),
             (ToolId::PaintBucket, PointerEvent::Move(pos)) => {
                 self.paint.hover(doc, screen, pos);
                 Ok(())
@@ -726,11 +761,12 @@ impl Tools {
             && doc.selection().iter().all(|e| matches!(e, woodsketch_doc::Entity::Face(_)));
         let drawing = matches!(
             self.active,
-            ToolId::Line | ToolId::Rectangle | ToolId::Circle | ToolId::Arc | ToolId::PushPull | ToolId::Offset
+            ToolId::Line | ToolId::Rectangle | ToolId::Circle | ToolId::Polygon | ToolId::Arc | ToolId::PushPull | ToolId::Offset
         ) && !offsetting_selection;
         let busy = self.line.is_busy()
             || self.rectangle.is_busy()
             || self.circle.is_busy()
+            || self.polygon.is_busy()
             || self.arc.is_busy()
             || self.push_pull.is_busy()
             || self.offset.is_busy();
@@ -768,6 +804,7 @@ impl Tools {
             ToolId::TapeMeasure => self.tape.cycle_mode(),
             ToolId::Board => self.board.toggle_on_edge(),
             ToolId::Scale => self.scale.toggle_center(),
+            ToolId::PushPull => self.push_pull.toggle_copy(),
             _ => {}
         }
     }
@@ -780,6 +817,7 @@ impl Tools {
             ToolId::Board => self.board.lock_axis(axis),
             ToolId::Move => self.move_tool.lock_axis(axis),
             ToolId::Rotate => self.rotate.lock_axis(axis),
+            ToolId::Protractor => self.protractor.lock_axis(axis),
             _ => {}
         }
     }
@@ -792,7 +830,8 @@ impl Tools {
 
     /// Whether `c` starts a Measurements entry rather than a tool shortcut.
     pub fn starts_value(c: char) -> bool {
-        c.is_ascii_digit() || matches!(c, '.' | '-' | '+' | ',' | ';' | '\'' | '"' | '/')
+        // `[x,y,z]` and `<x,y,z>` start typed points and vectors too.
+        c.is_ascii_digit() || matches!(c, '.' | '-' | '+' | ',' | ';' | '\'' | '"' | '/' | '[' | '<')
     }
 
     pub fn type_char(&mut self, c: char) {
@@ -816,6 +855,7 @@ impl Tools {
             ToolId::Offset => self.offset.enter(doc, &typed),
             ToolId::Arc => self.arc.enter(doc, &typed),
             ToolId::Circle => self.circle.enter(doc, &typed),
+            ToolId::Polygon => self.polygon.enter(doc, &typed),
             ToolId::Board => self.board.enter(doc, &typed),
             ToolId::Scale => self.scale.enter(doc, &typed),
             ToolId::Rectangle => self.rectangle.enter(doc, &typed),
@@ -823,6 +863,7 @@ impl Tools {
             ToolId::Move if self.grip_active() => self.rotate.enter(doc, &typed),
             ToolId::Move => self.move_tool.enter(doc, &typed),
             ToolId::Rotate => self.rotate.enter(doc, &typed),
+            ToolId::Protractor => self.protractor.enter(doc, &typed),
             _ => Err(format!("{} doesn't take typed values.", self.active.name())),
         };
         if let Err(message) = result {
@@ -842,13 +883,15 @@ impl Tools {
             || self.offset.is_busy()
             || self.arc.is_busy()
             || self.circle.is_busy()
+            || self.polygon.is_busy()
             || self.board.is_busy()
             || self.scale.is_busy()
             || self.eraser.is_busy()
             || self.rectangle.is_busy()
             || self.push_pull.is_busy()
             || self.move_tool.is_busy()
-            || self.rotate.is_busy();
+            || self.rotate.is_busy()
+            || self.protractor.is_busy();
         if self.is_typing() {
             self.typed.clear();
         } else if busy {
@@ -919,6 +962,7 @@ impl Tools {
             ToolId::Offset => self.offset.status().into(),
             ToolId::Arc => self.arc.status(),
             ToolId::Circle => self.circle.status(),
+            ToolId::Polygon => self.polygon.status(),
             ToolId::Board => self.board.status(),
             ToolId::Scale => self.scale.status(),
             ToolId::Eraser => self.eraser.status().into(),
@@ -927,6 +971,7 @@ impl Tools {
             ToolId::Move if self.rotate.is_busy() => self.rotate.status(),
             ToolId::Move => self.move_tool.status(),
             ToolId::Rotate => self.rotate.status(),
+            ToolId::Protractor => self.protractor.status(),
             ToolId::PaintBucket => self.paint.status().into(),
             ToolId::Orbit => "Drag to orbit.".into(),
             ToolId::Pan => "Drag to pan.".into(),
@@ -941,10 +986,12 @@ impl Tools {
             ToolId::Line | ToolId::TapeMeasure => "Length",
             ToolId::Arc => self.arc.measurement_label(),
             ToolId::Circle => "Radius",
+            ToolId::Polygon => "Radius",
             ToolId::Board => self.board.measurement_label(),
             ToolId::Scale => "Scale",
             ToolId::PushPull | ToolId::Move | ToolId::Offset => "Distance",
             ToolId::Rotate => "Angle",
+            ToolId::Protractor => "Angle",
             _ => "Measurements",
         }
     }
@@ -960,6 +1007,7 @@ impl Tools {
             ToolId::Offset => self.offset.measurement(),
             ToolId::Arc => self.arc.measurement(),
             ToolId::Circle => self.circle.measurement(),
+            ToolId::Polygon => self.polygon.measurement(),
             ToolId::Board => self.board.measurement(),
             ToolId::Scale => self.scale.measurement(),
             ToolId::Rectangle => self.rectangle.measurement(),
@@ -967,6 +1015,7 @@ impl Tools {
             ToolId::Move if self.grip_active() => self.rotate.measurement(),
             ToolId::Move => self.move_tool.measurement(),
             ToolId::Rotate => self.rotate.measurement(),
+            ToolId::Protractor => self.protractor.measurement(),
             _ => String::new(),
         }
     }
@@ -992,6 +1041,7 @@ impl Tools {
             ToolId::Offset => self.offset.overlay(doc, &mut overlay),
             ToolId::Arc => self.arc.overlay(&mut overlay),
             ToolId::Circle => self.circle.overlay(&mut overlay),
+            ToolId::Polygon => self.polygon.overlay(&mut overlay),
             ToolId::Board => self.board.overlay(&mut overlay),
             ToolId::Scale => self.scale.overlay(&mut overlay),
             ToolId::Eraser => self.eraser.overlay(doc, &mut overlay),
@@ -1000,6 +1050,7 @@ impl Tools {
             ToolId::Move if self.rotate.is_busy() => self.rotate.overlay(doc, &mut overlay),
             ToolId::Move => self.move_tool.overlay(doc, &mut overlay),
             ToolId::Rotate => self.rotate.overlay(doc, &mut overlay),
+            ToolId::Protractor => self.protractor.overlay(doc, &mut overlay),
             ToolId::PaintBucket => self.paint.overlay(doc, &mut overlay),
             _ => {}
         }
@@ -1100,9 +1151,10 @@ mod tests {
 
     #[test]
     fn shortcuts_are_unique_and_round_trip() {
-        for tool in ToolId::ALL {
+        for tool in ToolId::ALL.into_iter().filter(|t| t.shortcut() != '\0') {
             assert_eq!(ToolId::from_shortcut(tool.shortcut()), Some(tool));
         }
+        assert_eq!(ToolId::from_shortcut('\0'), None, "no key, no tool");
         assert_eq!(ToolId::from_shortcut(' '), Some(ToolId::Select));
         assert_eq!(ToolId::from_shortcut('R'), None);
     }

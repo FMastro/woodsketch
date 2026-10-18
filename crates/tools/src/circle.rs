@@ -1,4 +1,4 @@
-//! The Circle tool (C). Click the center (on a face, the circle lies on it), move out and click,
+//! The Circle tool (C), and Polygon (the same with straight sides you see, 6 to start). Click the center (on a face, the circle lies on it), move out and click,
 //! or type the radius. Type `32s` to use 32 sides instead of 24, before or right after drawing;
 //! typing a radius right after drawing resizes the circle just drawn.
 
@@ -16,6 +16,8 @@ pub struct CircleTool {
     radius: f64,
     segments: u32,
     last: Option<Drawn>,
+    /// The Polygon tool: said as a polygon's sides and inscribed radius.
+    polygon: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -28,7 +30,7 @@ struct Drawn {
 
 impl Default for CircleTool {
     fn default() -> Self {
-        Self { center: None, hover: None, radius: 0.0, segments: CIRCLE_SEGMENTS, last: None }
+        Self { center: None, hover: None, radius: 0.0, segments: CIRCLE_SEGMENTS, last: None, polygon: false }
     }
 }
 
@@ -42,6 +44,11 @@ pub(crate) fn parse_segments(typed: &str) -> Option<Result<u32, String>> {
 }
 
 impl CircleTool {
+    /// The Polygon tool: a hexagon to start; type `8s` for an octagon.
+    pub fn polygon() -> Self {
+        Self { segments: 6, polygon: true, ..Self::default() }
+    }
+
     pub fn is_busy(&self) -> bool {
         self.center.is_some()
     }
@@ -94,9 +101,10 @@ impl CircleTool {
     pub fn status(&self) -> String {
         let sides = self.segments;
         if self.center.is_some() {
-            format!("Select edge of circle or enter radius. Sides: {sides} (type 32s to change).")
+            let what = if self.polygon { "polygon" } else { "circle" };
+            format!("Select a corner of the {what} or enter its radius. Sides: {sides} (type 8s to change).")
         } else {
-            format!("Select center point. Sides: {sides} (type 32s to change).")
+            format!("Select center point. Sides: {sides} (type {}s to change).", if self.polygon { 8 } else { 32 })
         }
     }
 
@@ -182,6 +190,21 @@ mod tests {
         assert_eq!(tool.measurement(), "2\"");
         doc.undo();
         assert!(doc.model().is_empty());
+    }
+
+    #[test]
+    fn a_polygon_is_a_hexagon_until_you_type_its_sides() {
+        let mut doc = Document::default();
+        let camera = screen_setup();
+        let screen = Screen::new(&camera, SIZE);
+        let mut tool = CircleTool::polygon();
+        assert!(tool.status().contains("Sides: 6"));
+        tool.click(&mut doc, screen, at(screen, 5.0, 5.0)).unwrap();
+        tool.enter(&mut doc, "3").unwrap();
+        assert_eq!(doc.model().edges().count(), 6, "a hexagon");
+        assert_eq!(doc.model().faces().count(), 1);
+        tool.enter(&mut doc, "8s").unwrap();
+        assert_eq!(doc.model().edges().count(), 8, "now an octagon in its place");
     }
 
     #[test]

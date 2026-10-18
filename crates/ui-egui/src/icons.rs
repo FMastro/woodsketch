@@ -20,6 +20,8 @@ pub fn tool(tool: ToolId) -> &'static str {
         ToolId::Arc => ph::BEZIER_CURVE,
         ToolId::Rectangle => ph::RECTANGLE,
         ToolId::Circle => ph::CIRCLE,
+        ToolId::Polygon => ph::HEXAGON,
+        ToolId::Protractor => ph::ANGLE,
         ToolId::Board => ph::LOG,
         ToolId::PushPull => ph::ARROW_FAT_LINES_UP,
         ToolId::Move => ph::ARROWS_OUT_CARDINAL,
