@@ -19,6 +19,7 @@ pub fn tool(tool: ToolId) -> &'static str {
         ToolId::Line => ph::LINE_SEGMENT,
         ToolId::Arc => ph::BEZIER_CURVE,
         ToolId::Rectangle => ph::RECTANGLE,
+        ToolId::RotatedRectangle => ph::DIAMOND,
         ToolId::Circle => ph::CIRCLE,
         ToolId::Polygon => ph::HEXAGON,
         ToolId::CenterArc => ph::CIRCLE_HALF,

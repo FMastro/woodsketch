@@ -5,8 +5,9 @@ use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_lengths};
 use woodsketch_doc::{Document, EPS};
 
-use crate::Overlay;
-use crate::pick::{Screen, Snap, SnapKind, snap};
+use crate::infer::Hints;
+use crate::pick::{AXIS_RADIUS, Screen, Snap, SnapKind, snap};
+use crate::{Axis, Overlay};
 
 #[derive(Default)]
 pub struct RectangleTool {
@@ -14,6 +15,8 @@ pub struct RectangleTool {
     /// The rectangle just drawn, which typed dimensions can still resize.
     last: Option<Drawn>,
     hover: Option<Snap>,
+    /// Points the cursor passed over, for lining the far corner up with ("From Point").
+    hints: Hints,
 }
 
 struct Sizing {
@@ -22,6 +25,8 @@ struct Sizing {
     extents: (f64, f64),
     /// Snapped to a square or a golden rectangle: its name, for the note by the cursor.
     proportion: Option<&'static str>,
+    /// The far corner lined up with a remembered point: (that point, the corner, along).
+    aligned: Option<(DVec3, DVec3, Axis)>,
     /// Started by press-and-drag; finishes on release.
     dragging: bool,
 }
@@ -56,13 +61,35 @@ impl RectangleTool {
         let plane = self.sizing.as_ref().map(|s| (s.frame.corner, s.frame.normal));
         // Snap to anything in the drawing, including other groups.
         self.hover = snap(doc.view().model(), screen, cursor, plane);
+        self.hints.note(self.hover.as_ref());
         if let (Some(sizing), Some(hover)) = (self.sizing.as_mut(), self.hover) {
-            let d = hover.point - sizing.frame.corner;
+            let free = matches!(hover.kind, SnapKind::OnFace | SnapKind::OnPlane | SnapKind::OnGround);
+            // Off any point: the far corner lines up with a point passed over, along the sides.
+            sizing.aligned = None;
+            let mut point = hover.point;
+            if free && let Some(anchor) = self.hints.point.filter(|a| a.distance(sizing.frame.corner) > EPS) {
+                let Frame { corner, normal, u, v } = sizing.frame;
+                let anchor = anchor - normal * (anchor - corner).dot(normal);
+                let best = [u, v]
+                    .into_iter()
+                    .filter_map(|side| {
+                        let axis = Axis::ALL.into_iter().find(|a| a.dir().cross(side).length() < 1e-9)?;
+                        let on_line = anchor + side * (point - anchor).dot(side);
+                        let distance = screen.project(on_line)?.distance(screen.project(point)?);
+                        (distance < AXIS_RADIUS).then_some((distance, on_line, axis))
+                    })
+                    .min_by(|a, b| a.0.total_cmp(&b.0));
+                if let Some((_, on_line, axis)) = best {
+                    point = on_line;
+                    sizing.aligned = Some((anchor, on_line, axis));
+                }
+            }
+            let d = point - sizing.frame.corner;
             sizing.extents = (d.dot(sizing.frame.u), d.dot(sizing.frame.v));
             // Near a square or a golden rectangle (and not on a point in the drawing): snap to it,
             // as SketchUp does, and say so.
             sizing.proportion = None;
-            if matches!(hover.kind, SnapKind::OnFace | SnapKind::OnPlane | SnapKind::OnGround) {
+            if free && sizing.aligned.is_none() {
                 let (w, h) = sizing.extents;
                 let golden = (1.0 + 5f64.sqrt()) / 2.0;
                 for (ratio, name) in [(1.0, "Square"), (golden, "Golden section"), (1.0 / golden, "Golden section")] {
@@ -115,7 +142,7 @@ impl RectangleTool {
             let corner = crate::move_tool::parse_offset(typed, DVec3::ZERO, DVec3::ZERO)?;
             let (u, v) = plane_axes(DVec3::Z);
             self.last = None;
-            self.sizing = Some(Sizing { frame: Frame { corner, normal: DVec3::Z, u, v }, extents: (0.0, 0.0), dragging: false, proportion: None });
+            self.sizing = Some(Sizing { frame: Frame { corner, normal: DVec3::Z, u, v }, extents: (0.0, 0.0), dragging: false, proportion: None, aligned: None });
             return Ok(());
         }
         let values = parse_lengths(typed).map_err(|e| e.to_string())?;
@@ -179,6 +206,7 @@ impl RectangleTool {
                 overlay.lines.push([corners[0], corners[2]]);
                 overlay.cursor_note = Some(name);
             }
+            overlay.alignment = sizing.aligned;
         }
     }
 
@@ -191,6 +219,7 @@ impl RectangleTool {
             extents: (0.0, 0.0),
             dragging: false,
             proportion: None,
+            aligned: None,
         });
     }
 
@@ -247,6 +276,23 @@ mod tests {
     fn face_size(doc: &Document) -> (f64, f64) {
         let (lo, hi) = doc.model().bounds().unwrap();
         ((hi - lo).x, (hi - lo).y)
+    }
+
+    #[test]
+    fn the_far_corner_lines_up_with_a_point_passed_over() {
+        let mut doc = Document::default();
+        // A loose line whose end, (6, 9), is the point to line up with.
+        doc.edit(|m| m.add_line(DVec3::new(5.0, 9.0, 0.0), DVec3::new(6.0, 9.0, 0.0)));
+        let camera = camera();
+        let screen = Screen::new(&camera, SIZE);
+        let mut tool = RectangleTool::default();
+        tool.click(&mut doc, screen, at(screen, 0.0, 0.0)).unwrap();
+        tool.hover(&doc, screen, at(screen, 6.0, 9.0));
+        // Now near (3.03, 9): close to the line through (6, 9) along red.
+        tool.hover(&doc, screen, at(screen, 3.0, 9.03));
+        let sizing = tool.sizing.as_ref().unwrap();
+        assert!(sizing.aligned.is_some());
+        assert!((sizing.extents.1 - 9.0).abs() < 1e-9, "lined up with the point: {:?}", sizing.extents);
     }
 
     #[test]

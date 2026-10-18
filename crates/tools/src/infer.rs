@@ -61,12 +61,19 @@ pub struct Hints {
     pub edge: Option<DVec3>,
     /// The last point hovered: an endpoint, midpoint, guide point or intersection.
     pub point: Option<DVec3>,
+    /// The last snap on geometry, which wins over a new one that isn't clearly closer
+    /// ("sticky", so the point doesn't flicker between two snaps near each other).
+    pub last_snap: Option<Snap>,
 }
 
 impl Hints {
     /// Remember what a snap is on.
     pub fn note(&mut self, snap: Option<&Snap>) {
-        let Some(snap) = snap else { return };
+        let Some(snap) = snap else {
+            self.last_snap = None;
+            return;
+        };
+        self.last_snap = Some(*snap);
         if let Some(dir) = snap.line {
             self.edge = Some(dir);
         }
@@ -114,7 +121,8 @@ pub fn target(
 ) -> Target {
     let base = query.base;
     let ray = screen.ray(cursor);
-    let feature = snap_feature(model, screen, cursor, exclude);
+    let last = query.hints.last_snap.filter(|l| still_there(model, l));
+    let feature = sticky(screen, cursor, last, snap_feature(model, screen, cursor, exclude));
 
     if let Some(lock) = query.lock {
         let t = match &feature {
@@ -181,6 +189,41 @@ impl Target {
         }
     }
 }
+
+/// Keep `last` (the snap before) over `new` while the cursor is still near it and `new` isn't
+/// clearly closer on screen.
+fn sticky(screen: Screen<'_>, cursor: Vec2, last: Option<Snap>, new: Option<Snap>) -> Option<Snap> {
+    // Only points stick (a point on an edge moves with the cursor).
+    let Some(last) = last.filter(|l| is_point(l.kind)) else { return new };
+    let Some(was) = screen.project(last.point).map(|p| p.distance(cursor)) else { return new };
+    if was > STICKY_RADIUS {
+        return new;
+    }
+    match new {
+        Some(n) if n.point.distance(last.point) < EPS => Some(n),
+        Some(n) if screen.project(n.point).is_some_and(|p| p.distance(cursor) < was * 0.5) => Some(n),
+        _ => Some(last),
+    }
+}
+
+/// Whether a remembered snap is still in the drawing (it may have been moved or erased since).
+fn still_there(model: &Model, snap: &Snap) -> bool {
+    match snap.kind {
+        SnapKind::Endpoint => model.vertices().any(|(_, p)| p.distance(snap.point) < EPS),
+        SnapKind::Midpoint => model.edges().any(|(_, e)| {
+            let [a, b] = model.edge_points(e);
+            ((a + b) * 0.5).distance(snap.point) < EPS
+        }),
+        _ => true,
+    }
+}
+
+fn is_point(kind: SnapKind) -> bool {
+    matches!(kind, SnapKind::Endpoint | SnapKind::Midpoint | SnapKind::GuidePoint | SnapKind::Intersection | SnapKind::Origin)
+}
+
+/// How near, in points, the cursor must stay to the last snap for it to stick.
+const STICKY_RADIUS: f32 = 10.0;
 
 /// Where the line `p + s d` meets the line through `q` along `e` (both unit), if they cross.
 fn line_crossing(p: DVec3, d: DVec3, q: DVec3, e: DVec3) -> Option<(f64, DVec3)> {
@@ -262,7 +305,7 @@ mod tests {
         let screen = Screen::new(&camera, SIZE);
         // An edge at 30 degrees was hovered.
         let edge = DVec3::new(30f64.to_radians().cos(), 30f64.to_radians().sin(), 0.0);
-        let hints = Hints { edge: Some(edge), point: None };
+        let hints = Hints { edge: Some(edge), point: None, last_snap: None };
         let base = DVec3::new(2.0, 2.0, 0.0);
         let near_parallel = base + edge * 6.0 + DVec3::new(0.05, -0.05, 0.0);
         let t = target(&model, screen, at(screen, near_parallel.x, near_parallel.y), &query(base, &hints), |_| false, ground);
@@ -276,12 +319,35 @@ mod tests {
     }
 
     #[test]
+    fn the_last_endpoint_sticks_until_another_is_clearly_closer() {
+        let mut model = Model::default();
+        model.add_line(DVec3::new(2.0, 2.0, 0.0), DVec3::new(2.3, 2.0, 0.0));
+        let camera = top();
+        let screen = Screen::new(&camera, SIZE);
+        let (a, b) = (DVec3::new(2.0, 2.0, 0.0), DVec3::new(2.3, 2.0, 0.0));
+        let mut hints = Hints::default();
+        let base = DVec3::ZERO;
+        let first = target(&model, screen, at(screen, 2.0, 2.0), &query(base, &hints), |_| false, ground);
+        assert!(first.point.abs_diff_eq(a, 1e-9));
+        hints.note(first.snap.as_ref());
+        // A little past halfway to the other end: still the first.
+        let (pa, pb) = (screen.project(a).unwrap(), screen.project(b).unwrap());
+        let cursor = pa + (pb - pa) * 0.55;
+        assert!(pa.distance(cursor) < STICKY_RADIUS, "test setup: {}", pa.distance(cursor));
+        let t = target(&model, screen, cursor, &query(base, &hints), |_| false, ground);
+        assert!(t.point.abs_diff_eq(a, 1e-9), "stuck: {}", t.point);
+        // Right on the other end: it wins.
+        let t = target(&model, screen, pb, &query(base, &hints), |_| false, ground);
+        assert!(t.point.abs_diff_eq(b, 1e-9));
+    }
+
+    #[test]
     fn lines_up_with_a_remembered_point() {
         let model = Model::default();
         let camera = top();
         let screen = Screen::new(&camera, SIZE);
         // A corner at (8, 6) was hovered; draw along red from the origin.
-        let hints = Hints { edge: None, point: Some(DVec3::new(8.0, 6.0, 0.0)) };
+        let hints = Hints { edge: None, point: Some(DVec3::new(8.0, 6.0, 0.0)), last_snap: None };
         let base = DVec3::ZERO;
         // Moving along red, the cursor passes under the corner: the point stops at x = 8.
         let t = target(&model, screen, at(screen, 8.1, 0.05), &query(base, &hints), |_| false, ground);

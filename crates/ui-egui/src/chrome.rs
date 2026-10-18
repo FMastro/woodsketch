@@ -23,6 +23,7 @@ const TOOL_SET: &[&[ToolId]] = &[
         ToolId::ThreePointArc,
         ToolId::Pie,
         ToolId::Rectangle,
+        ToolId::RotatedRectangle,
         ToolId::Circle,
         ToolId::Polygon,
         ToolId::Board,
@@ -80,7 +81,7 @@ impl WoodSketchApp {
                 self.edit_menu(ui);
                 self.view_menu(ui);
                 self.camera_menu(ui);
-                tool_menu(ui, &mut self.tools, "Draw", &[ToolId::Line, ToolId::Arc, ToolId::CenterArc, ToolId::ThreePointArc, ToolId::Pie, ToolId::Rectangle, ToolId::Circle, ToolId::Polygon, ToolId::Board]);
+                tool_menu(ui, &mut self.tools, "Draw", &[ToolId::Line, ToolId::Arc, ToolId::CenterArc, ToolId::ThreePointArc, ToolId::Pie, ToolId::Rectangle, ToolId::RotatedRectangle, ToolId::Circle, ToolId::Polygon, ToolId::Board]);
                 self.tools_menu(ui);
                 self.window_menu(ui);
                 self.help_menu(ui);

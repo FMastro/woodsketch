@@ -3,6 +3,16 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.32
+
+- Rotated Rectangle (Draw menu): a rectangle at any angle. Click two corners for the first side,
+  then move across.
+- Rectangle: the far corner lines up with points you passed over (dotted line, as Line does).
+- Arc: the end point infers like a line: along red, green or blue, parallel or perpendicular to
+  an edge, lined up with a point.
+- Snapping is "sticky": a point you snapped to holds until another is clearly closer, so it no
+  longer flickers between two points near each other.
+
 ## 0.1.31
 
 - A face you close by drawing lines now faces the same way as the faces around it (a box closed

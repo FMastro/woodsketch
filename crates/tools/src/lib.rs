@@ -16,6 +16,7 @@ mod paint;
 mod push_pull;
 mod rotate;
 mod rectangle;
+mod rotated;
 mod scale;
 mod select;
 mod tape;
@@ -56,6 +57,7 @@ pub enum ToolId {
     CenterArc,
     ThreePointArc,
     Pie,
+    RotatedRectangle,
     Board,
     PushPull,
     Move,
@@ -75,7 +77,7 @@ pub enum ToolId {
 }
 
 impl ToolId {
-    pub const ALL: [Self; 25] = [
+    pub const ALL: [Self; 26] = [
         Self::Select,
         Self::Eraser,
         Self::PaintBucket,
@@ -87,6 +89,7 @@ impl ToolId {
         Self::CenterArc,
         Self::ThreePointArc,
         Self::Pie,
+        Self::RotatedRectangle,
         Self::Board,
         Self::PushPull,
         Self::Move,
@@ -116,6 +119,7 @@ impl ToolId {
             Self::CenterArc => "Center Arc",
             Self::ThreePointArc => "3-Point Arc",
             Self::Pie => "Pie",
+            Self::RotatedRectangle => "Rotated Rectangle",
             Self::Board => "Board",
             Self::PushPull => "Push/Pull",
             Self::Move => "Move",
@@ -148,6 +152,7 @@ impl ToolId {
             Self::CenterArc => '\0',
             Self::ThreePointArc => '\0',
             Self::Pie => '\0',
+            Self::RotatedRectangle => '\0',
             Self::Protractor => '\0',
             Self::Walk => '\0',
             Self::Dimension => '\0',
@@ -408,6 +413,7 @@ pub struct Tools {
     center_arc: arcs::CenterArcTool,
     three_point_arc: arcs::ThreePointArcTool,
     pie: arcs::CenterArcTool,
+    rotated_rectangle: rotated::RotatedRectangleTool,
     board: BoardTool,
     scale: ScaleTool,
     eraser: EraserTool,
@@ -452,6 +458,7 @@ impl Default for Tools {
             center_arc: arcs::CenterArcTool::new(false),
             three_point_arc: arcs::ThreePointArcTool::default(),
             pie: arcs::CenterArcTool::new(true),
+            rotated_rectangle: rotated::RotatedRectangleTool::default(),
             board: BoardTool::default(),
             scale: ScaleTool::default(),
             eraser: EraserTool::default(),
@@ -579,6 +586,7 @@ impl Tools {
         self.center_arc.cancel();
         self.three_point_arc.cancel();
         self.pie.cancel();
+        self.rotated_rectangle.cancel();
         self.board.cancel();
         self.scale.cancel();
         self.eraser.cancel();
@@ -708,6 +716,14 @@ impl Tools {
             (ToolId::CenterArc, PointerEvent::Click { pos, .. }) => {
                 self.typed.clear();
                 self.center_arc.click(doc, screen, pos)
+            }
+            (ToolId::RotatedRectangle, PointerEvent::Move(pos) | PointerEvent::Drag { pos, .. }) => {
+                self.rotated_rectangle.hover(doc, screen, pos);
+                Ok(())
+            }
+            (ToolId::RotatedRectangle, PointerEvent::Click { pos, .. }) => {
+                self.typed.clear();
+                self.rotated_rectangle.click(doc, screen, pos)
             }
             (ToolId::Pie, PointerEvent::Move(pos) | PointerEvent::Drag { pos, .. }) => {
                 self.pie.hover(doc, screen, pos);
@@ -861,6 +877,7 @@ impl Tools {
                 | ToolId::CenterArc
                 | ToolId::ThreePointArc
                 | ToolId::Pie
+                | ToolId::RotatedRectangle
                 | ToolId::PushPull
                 | ToolId::Offset
         ) && !offsetting_selection;
@@ -872,6 +889,7 @@ impl Tools {
             || self.center_arc.is_busy()
             || self.three_point_arc.is_busy()
             || self.pie.is_busy()
+            || self.rotated_rectangle.is_busy()
             || self.push_pull.is_busy()
             || self.offset.is_busy();
         if !drawing || busy {
@@ -995,6 +1013,7 @@ impl Tools {
             ToolId::CenterArc => self.center_arc.enter(doc, &typed),
             ToolId::ThreePointArc => self.three_point_arc.enter(doc, &typed),
             ToolId::Pie => self.pie.enter(doc, &typed),
+            ToolId::RotatedRectangle => self.rotated_rectangle.enter(doc, &typed),
             ToolId::Board => self.board.enter(doc, &typed),
             ToolId::Scale => self.scale.enter(doc, &typed),
             ToolId::Rectangle => self.rectangle.enter(doc, &typed),
@@ -1029,6 +1048,7 @@ impl Tools {
             || self.center_arc.is_busy()
             || self.three_point_arc.is_busy()
             || self.pie.is_busy()
+            || self.rotated_rectangle.is_busy()
             || self.board.is_busy()
             || self.scale.is_busy()
             || self.eraser.is_busy()
@@ -1113,6 +1133,7 @@ impl Tools {
             ToolId::CenterArc => self.center_arc.status(),
             ToolId::ThreePointArc => self.three_point_arc.status(),
             ToolId::Pie => self.pie.status(),
+            ToolId::RotatedRectangle => self.rotated_rectangle.status().into(),
             ToolId::Board => self.board.status(),
             ToolId::Scale => self.scale.status(),
             ToolId::Eraser => self.eraser.status().into(),
@@ -1142,6 +1163,7 @@ impl Tools {
             ToolId::Polygon => "Radius",
             ToolId::CenterArc => self.center_arc.measurement_label(),
             ToolId::Pie => self.pie.measurement_label(),
+            ToolId::RotatedRectangle => "Length",
             ToolId::Board => self.board.measurement_label(),
             ToolId::Scale => "Scale",
             ToolId::PushPull | ToolId::Move | ToolId::Offset => "Distance",
@@ -1168,6 +1190,7 @@ impl Tools {
             ToolId::Polygon => self.polygon.measurement(),
             ToolId::CenterArc => self.center_arc.measurement(),
             ToolId::Pie => self.pie.measurement(),
+            ToolId::RotatedRectangle => self.rotated_rectangle.measurement(),
             ToolId::Board => self.board.measurement(),
             ToolId::Scale => self.scale.measurement(),
             ToolId::Rectangle => self.rectangle.measurement(),
@@ -1207,6 +1230,7 @@ impl Tools {
             ToolId::CenterArc => self.center_arc.overlay(&mut overlay),
             ToolId::ThreePointArc => self.three_point_arc.overlay(&mut overlay),
             ToolId::Pie => self.pie.overlay(&mut overlay),
+            ToolId::RotatedRectangle => self.rotated_rectangle.overlay(&mut overlay),
             ToolId::Board => self.board.overlay(&mut overlay),
             ToolId::Scale => self.scale.overlay(&mut overlay),
             ToolId::Eraser => self.eraser.overlay(doc, &mut overlay),

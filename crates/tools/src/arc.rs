@@ -11,6 +11,7 @@ use woodsketch_doc::{Document, EPS};
 use crate::circle::parse_segments;
 use crate::move_tool::parse_offset;
 use crate::pick::{Screen, Snap, snap};
+use crate::infer::{self, Hints, Query, Target};
 use crate::{Guide, Overlay};
 
 pub struct ArcTool {
@@ -18,6 +19,10 @@ pub struct ArcTool {
     hover: Option<Snap>,
     segments: u32,
     last: Option<Drawn>,
+    /// Points and edges passed over, for inferring the end (as Line does).
+    hints: Hints,
+    /// Where the end landed, and why.
+    target: Option<Target>,
 }
 
 #[derive(Clone, Copy)]
@@ -40,7 +45,7 @@ struct Drawn {
 
 impl Default for ArcTool {
     fn default() -> Self {
-        Self { stage: Stage::Start, hover: None, segments: ARC_SEGMENTS, last: None }
+        Self { stage: Stage::Start, hover: None, segments: ARC_SEGMENTS, last: None, hints: Hints::default(), target: None }
     }
 }
 
@@ -67,12 +72,25 @@ impl ArcTool {
     pub fn hover(&mut self, doc: &Document, screen: Screen<'_>, cursor: Vec2) {
         let model = doc.view().model();
         match &mut self.stage {
-            Stage::Start => self.hover = snap(model, screen, cursor, None),
+            Stage::Start => {
+                self.hover = snap(model, screen, cursor, None);
+                self.hints.note(self.hover.as_ref());
+            }
             Stage::End { a, normal, end } => {
-                self.hover = snap(model, screen, cursor, Some((*a, *normal)));
-                if let Some(h) = self.hover {
-                    *end = h.point;
+                // Inferred like a line from the start: axes, parallel or perpendicular to an edge
+                // passed over, lined up with a point; kept in the arc's plane.
+                let (base, n) = (*a, *normal);
+                let query = Query { base, hints: &self.hints, lock: None, plane_normal: n, current: *end };
+                let target = infer::target(model, screen, cursor, &query, |_| false, |ray| ray.hit_plane(base, n).map(|p| (p, None)));
+                self.hints.note(target.snap.as_ref());
+                let mut target = target;
+                if target.direction.is_some_and(|d| d.dir.dot(n).abs() > 1e-6) {
+                    // Out of the plane: just where the cursor meets it.
+                    target = Target { point: screen.ray(cursor).hit_plane(base, n).unwrap_or(*end), ..Target::default() };
                 }
+                *end = target.point - n * (target.point - base).dot(n);
+                self.hover = target.snap;
+                self.target = Some(target);
             }
             Stage::Bulge { a, b, normal, bulge } => {
                 self.hover = snap(model, screen, cursor, Some((*a, *normal)));
@@ -181,7 +199,9 @@ impl ArcTool {
         match self.stage {
             Stage::Start => {}
             Stage::End { a, end, .. } => {
-                overlay.guide = Some(Guide { from: a, to: end, along: None });
+                let target = self.target.unwrap_or_default();
+                overlay.guide = Some(Guide { from: a, to: end, along: target.direction.map(|d| d.along) });
+                overlay.alignment = target.from.map(|(anchor, axis)| (anchor, end, axis));
             }
             Stage::Bulge { a, b, normal, bulge } => {
                 for w in points(a, b, normal, bulge, self.segments).windows(2) {
@@ -235,6 +255,19 @@ mod tests {
         tool.enter(&mut doc, "1").unwrap();
         let xs: Vec<f64> = doc.model().vertices().map(|(_, p)| p.x).collect();
         assert!(xs.iter().any(|x| x.abs() < 1e-9) && xs.iter().any(|x| (x - 6.0).abs() < 1e-9), "{xs:?}");
+    }
+
+    #[test]
+    fn the_end_follows_the_red_axis_from_the_start() {
+        let mut doc = Document::default();
+        let camera = camera();
+        let screen = Screen::new(&camera, SIZE);
+        let mut tool = ArcTool::default();
+        tool.click(&mut doc, screen, at(screen, 0.0, 0.0)).unwrap();
+        tool.hover(&doc, screen, at(screen, 6.0, 0.15));
+        let Stage::End { end, .. } = tool.stage else { panic!() };
+        assert!(end.y.abs() < 1e-9 && (end.x - 6.0).abs() < 0.2, "on red: {end}");
+        assert!(tool.target.unwrap().direction.is_some());
     }
 
     #[test]
