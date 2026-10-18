@@ -2044,12 +2044,15 @@ fn report_a_problem_opens_a_github_issue_with_details_and_nothing_private() {
     assert!(!shown.contains("Secret part") && !shown.contains("private.woodsketch") && !shown.contains("someone"), "{shown}");
     snapshot(&mut harness, "report_a_problem");
 
-    // Type what happened (the title is optional), then open it on GitHub.
-    let inputs: Vec<_> = harness.query_all(egui_kittest::kittest::by().role(egui::accesskit::Role::MultilineTextInput)).collect();
-    assert_eq!(inputs.len(), 1);
-    inputs[0].click();
+    // The title has focus: type it, Tab to the description (not to the toolbar behind), type
+    // what happened, then open it on GitHub.
+    type_text(&mut harness, "Board gone");
+    harness.key_press(Key::Tab);
     harness.run();
     type_text(&mut harness, "The board vanished");
+    harness.key_press_modifiers(Modifiers::SHIFT, Key::Tab);
+    harness.run();
+    type_text(&mut harness, " again");
     harness.get_by_label("Open on GitHub").click();
     harness.step();
     let opened: Vec<String> = harness
@@ -2063,7 +2066,7 @@ fn report_a_problem_opens_a_github_issue_with_details_and_nothing_private() {
         })
         .collect();
     let [url] = &opened[..] else { panic!("one link opened: {opened:?}") };
-    assert!(url.starts_with("https://github.com/FMastro/woodsketch/issues/new?template=bug.yml&title=&what=The%20board%20vanished&details=WoodSketch%20"), "{url}");
+    assert!(url.starts_with("https://github.com/FMastro/woodsketch/issues/new?template=bug.yml&title=Board%20gone%20again&what=The%20board%20vanished&details=WoodSketch%20"), "{url}");
     assert!(!url.contains("Secret") && !url.contains("someone"), "{url}");
     harness.run();
     assert!(harness.query_by_label("Open on GitHub").is_none(), "the form closes");

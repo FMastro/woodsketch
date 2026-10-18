@@ -17,11 +17,13 @@ pub struct FeedbackWindow {
     what: String,
     /// Counts from the open drawing go with it (on by default; no names).
     skip_drawing: bool,
+    /// Focus the title when the form opens.
+    focus_title: bool,
 }
 
 impl FeedbackWindow {
     pub fn start(&mut self, kind: Kind) {
-        *self = Self { open: true, kind, ..Self::default() };
+        *self = Self { open: true, kind, focus_title: true, ..Self::default() };
     }
 
     /// The form. `graphics` is the card and driver; `last_error` the last error shown.
@@ -42,12 +44,27 @@ impl FeedbackWindow {
             });
             ui.add_space(4.0);
             ui.label("Title");
-            ui.add(egui::TextEdit::singleline(&mut self.title).desired_width(f32::INFINITY).hint_text("A few words"));
+            // Tab and Shift+Tab move between the title and the description (left to egui, Tab
+            // would go to the toolbar behind the window). Taken before the fields see it.
+            let (title_id, what_id) = (ui.make_persistent_id("feedback_title"), ui.make_persistent_id("feedback_what"));
+            let focused = |id| ui.memory(|m| m.has_focus(id));
+            let (in_title, in_what) = (focused(title_id), focused(what_id));
+            if (in_title || in_what) && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab) || i.consume_key(egui::Modifiers::SHIFT, egui::Key::Tab)) {
+                ui.memory_mut(|m| m.request_focus(if in_title { what_id } else { title_id }));
+            }
+            let title = ui.add(egui::TextEdit::singleline(&mut self.title).id(title_id).lock_focus(true).desired_width(f32::INFINITY).hint_text("A few words"));
+            if std::mem::take(&mut self.focus_title) {
+                title.request_focus();
+            }
+            // Enter in the title goes on to the description.
+            if title.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                ui.memory_mut(|m| m.request_focus(what_id));
+            }
             ui.label(match self.kind {
                 Kind::Problem => "What happened? (what you did, what you expected)",
                 Kind::Idea => "Your idea",
             });
-            ui.add(egui::TextEdit::multiline(&mut self.what).desired_width(f32::INFINITY).desired_rows(5));
+            ui.add(egui::TextEdit::multiline(&mut self.what).id(what_id).lock_focus(true).desired_width(f32::INFINITY).desired_rows(5));
             let mut with_drawing = !self.skip_drawing;
             ui.checkbox(&mut with_drawing, "Include counts from the open drawing (no names)")
                 .on_hover_text("How many parts, faces, joints and materials of each kind: helps reproduce a problem");
