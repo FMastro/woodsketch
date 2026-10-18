@@ -16,7 +16,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 41 | The next big feature; builds on templates and joinery |
-| 6 | Release polish | 48 | Signing before announcing widely |
+| 6 | Release polish | 79 | Signing before announcing widely |
 | 7 | Importing | 238 | Gets people's existing models in |
 | 8 | Cut list and materials | 171 | Better buying and cutting |
 | 9 | Wood movement | 32 | Fewer false warnings, clearer results |
@@ -28,7 +28,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 63 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1604** | |
+| | **All** | **1635** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -153,6 +153,19 @@ when their release is published).
     doesn't say which Windows or macOS version).
 12. [2] A scheduled check of new reports (a daily routine that reads `from-app` issues and drafts
     fixes for review); now they're checked at the start of each session (CLAUDE.md).
+13. [21] End-user help for every feature: a User Guide on woodsketch.net (/help), a page per
+    feature or tool (what it's for, step by step, the keys and typed values, tips, what it doesn't
+    do yet), written for woodworkers new to SketchUp as well as SketchUp users. Getting started
+    (draw a board, join two parts, print a cut list), each drawing tool, groups and components,
+    tags, materials and stock, the Board tool, joinery (each joint), edge profiles, templates,
+    drawers and doors, cut list and cutting diagrams, build sheets, wood movement, reference
+    face and edge, units, SketchUp import, export, updates and reporting a problem.
+14. [5] Screenshots for the guide made by the UI tests (egui_kittest snapshots of each step), so
+    they're redone when the app changes instead of going stale.
+15. [3] Help > User Guide, and F1 opening the page for the tool or panel in use; a "?" link in
+    each tray panel and window to its page.
+16. [2] Keep it current: every feature ships with its help page updated (a rule in CLAUDE.md
+    next to the CHANGELOG one), and the release notes link to the pages.
 
 ## 7. Importing
 Done: SketchUp 2021+ `.skp` (geometry, components, materials, tags and tag folders, hidden tags).
