@@ -3,6 +3,14 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.25
+
+- Dark mode: View > Theme > Dark (or Follow System to match your computer). The panels go
+  charcoal, the drawing gets a dusk sky and a dark ground, and the labels on the model follow.
+  It's remembered next time. Printed sheets stay light.
+- The sample drawing has a door with a floating solid panel and a bench top with glued
+  breadboard ends, to try View > Wood Movement on.
+
 ## 0.1.24
 
 - Wood movement: a solid panel let into grooves floats there and isn't flagged; tick "Fastened so

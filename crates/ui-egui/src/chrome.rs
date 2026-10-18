@@ -31,7 +31,19 @@ const VIEWS: [(&str, StandardView); 4] = [
 
 /// A light theme in the spirit of SketchUp's Windows interface: pale grey chrome, white fields,
 /// a soft blue selection.
-pub fn visuals() -> egui::Visuals {
+pub fn visuals(dark: bool) -> egui::Visuals {
+    if dark {
+        // Dark mode: soft charcoal panels (not black), the same blue selection, dimmed.
+        let mut v = egui::Visuals::dark();
+        v.panel_fill = egui::Color32::from_gray(36);
+        v.window_fill = egui::Color32::from_gray(42);
+        v.extreme_bg_color = egui::Color32::from_gray(24);
+        v.faint_bg_color = egui::Color32::from_gray(46);
+        v.selection.bg_fill = egui::Color32::from_rgb(38, 72, 110);
+        v.selection.stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(140, 190, 240));
+        v.widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(64));
+        return v;
+    }
     let mut v = egui::Visuals::light();
     v.panel_fill = egui::Color32::from_gray(240);
     v.window_fill = egui::Color32::from_gray(248);
@@ -42,6 +54,13 @@ pub fn visuals() -> egui::Visuals {
     v.widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(210));
     v
 }
+
+/// View > Theme's choices: the preference, its name, and how it's saved.
+pub const THEMES: [(egui::ThemePreference, &str, &str); 3] = [
+    (egui::ThemePreference::Light, "Light", "light"),
+    (egui::ThemePreference::Dark, "Dark", "dark"),
+    (egui::ThemePreference::System, "Follow System", "system"),
+];
 
 impl WoodSketchApp {
     pub(crate) fn menu_bar(&mut self, ui: &mut egui::Ui) {
@@ -206,6 +225,15 @@ impl WoodSketchApp {
             ui.checkbox(&mut self.viewport.show_grid, "Grid");
             ui.checkbox(&mut self.viewport.show_movement, "Wood Movement")
                 .on_hover_text("How much each solid-wood part moves across its grain: red where a part it meets holds it, green where it's free");
+            ui.menu_button("Theme", |ui| {
+                let current = ui.ctx().options(|o| o.theme_preference);
+                for (theme, name, _) in THEMES {
+                    if ui.radio(current == theme, name).on_hover_text("Dark is easier on the eyes at night; Follow System matches your computer").clicked() {
+                        ui.ctx().set_theme(theme);
+                        ui.close();
+                    }
+                }
+            });
             ui.menu_button("Units", |ui| {
                 use woodsketch_doc::units::{Units, set_units, units};
                 for choice in Units::ALL {

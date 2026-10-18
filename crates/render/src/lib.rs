@@ -14,8 +14,33 @@ pub const OUTPUT_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSr
 const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 const SAMPLE_COUNT: u32 = 4;
 /// Size of the `Globals` uniform: the view-projection matrix, the eye position (a vec4), the
-/// inverse view-projection matrix and the viewport (pixels and pixels per point).
-const GLOBALS_SIZE: u64 = 160;
+/// inverse view-projection matrix, the viewport (pixels and pixels per point) and the sky's
+/// three colors (vec4s).
+const GLOBALS_SIZE: u64 = 208;
+
+/// The sky behind the drawing, in linear colors: at the horizon, overhead, and the ground below
+/// the horizon.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Sky {
+    pub horizon: Color,
+    pub zenith: Color,
+    pub ground: Color,
+}
+
+impl Sky {
+    /// SketchUp's: pale blue at the horizon to light blue overhead, a near-white ground.
+    pub fn light() -> Self {
+        Self { horizon: srgb(233, 240, 246), zenith: srgb(175, 207, 233), ground: srgb(250, 250, 249) }
+    }
+
+    /// For dark mode: a dusk sky and a dark ground, easy on the eyes at night. Given as they
+    /// appear: egui shows the viewport image's linear values as they are, which barely changes
+    /// the light sky but would turn these dark colors black if they were converted.
+    pub fn dark() -> Self {
+        let shown = |r: u8, g: u8, b: u8| [f32::from(r) / 255.0, f32::from(g) / 255.0, f32::from(b) / 255.0, 1.0];
+        Self { horizon: shown(70, 78, 92), zenith: shown(34, 42, 58), ground: shown(50, 51, 54) }
+    }
+}
 
 pub struct ViewportRenderer {
     sky_pipeline: wgpu::RenderPipeline,
@@ -41,6 +66,8 @@ pub struct ViewportRenderer {
     selected_guides: Vec<SceneGuide>,
     targets: Option<Targets>,
     background: wgpu::Color,
+    /// Light or dark (set it for the theme).
+    pub sky: Sky,
 }
 
 struct GpuBuffer {
@@ -200,6 +227,7 @@ impl ViewportRenderer {
             guides: scene.guides.clone(),
             targets: None,
             background: wgpu::Color { r: r.into(), g: g.into(), b: b.into(), a: 1.0 },
+            sky: Sky::light(),
         }
     }
 
@@ -241,11 +269,14 @@ impl ViewportRenderer {
         }
         let targets = self.targets.as_ref().expect("targets were just created");
 
-        let mut globals = [0.0_f32; 40];
+        let mut globals = [0.0_f32; 52];
         globals[..16].copy_from_slice(&view_proj.to_cols_array());
         globals[16..19].copy_from_slice(&eye.to_array());
         globals[20..36].copy_from_slice(&view_proj.inverse().to_cols_array());
         globals[36..39].copy_from_slice(&[size[0] as f32, size[1] as f32, pixels_per_point]);
+        for (i, color) in [self.sky.horizon, self.sky.zenith, self.sky.ground].into_iter().enumerate() {
+            globals[40 + 4 * i..44 + 4 * i].copy_from_slice(&color);
+        }
         let all_guides: Vec<SceneGuide> = self.guides.iter().chain(&self.selected_guides).copied().collect();
         let dashed = GpuBuffer::new(device, "viewport guides", &guide_vertices(&all_guides, view_proj, eye));
         queue.write_buffer(&self.globals, 0, bytemuck::cast_slice(&globals));

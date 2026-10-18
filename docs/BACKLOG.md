@@ -24,11 +24,11 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 11 | Parts and boards | 11 | Small drawing conveniences |
 | 12 | Modeling tools | 255 | SketchUp parity for general modeling |
 | 13 | Groups, components and tags | 63 | Organizing bigger projects |
-| 14 | UI | 95 | Comfort and polish |
-| 15 | Rendering and performance | 63 | Only pressing for very big models |
+| 14 | UI | 87 | Comfort and polish |
+| 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1634** | |
+| | **All** | **1629** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -319,26 +319,22 @@ Done: roundover, chamfer, cove, ogee, around a face (mitered corners) or along a
 13. [13] Component browser (copy and paste or Move with Ctrl place more instances now).
 
 ## 14. UI
-1. [8] Dark mode: View > Theme (Light, Dark, Follow the system), remembered. egui's dark visuals for
-   the window and panels; the viewport's sky and ground (fixed in `shader.wgsl` now) passed in as
-   colors; overlay colors (labels' white backgrounds, reference marks, grain and movement arrows,
-   the green update button, warnings) with dark versions; build sheets and cut sheets stay light
-   (they're for printing). Asked for: the app is bright at night.
-2. [2] Eraser: erase a face by itself (select it and press Delete now).
-3. [3] Standard views: Back, Left, Bottom; a Parallel Projection toggle.
-4. [3] Units: centimeters, decimal inches, feet and inches.
-5. [3] Units saved with the drawing (an app preference now); joint descriptions follow the units
+Done: View > Theme (Light, Dark, Follow System), remembered; the viewport's sky and overlays follow it.
+1. [2] Eraser: erase a face by itself (select it and press Delete now).
+2. [3] Standard views: Back, Left, Bottom; a Parallel Projection toggle.
+3. [3] Units: centimeters, decimal inches, feet and inches.
+4. [3] Units saved with the drawing (an app preference now); joint descriptions follow the units
    (they keep the ones they were made in).
-6. [3] Sky and ground colors (fixed now).
-7. [5] Eraser: Shift hides, Ctrl softens/smooths.
-8. [5] Right-click menu: Hide, Entity Info, Intersect Faces and per-tool menus.
-9. [5] Per-tool cursors (the system arrow now).
-10. [5] File dialogs that don't block the window (rfd's synchronous API).
-11. [8] Tab moves between widgets (focus never stays on buttons now, so shortcuts and
+5. [3] Sky and ground colors of your own (light and dark presets now).
+6. [5] Eraser: Shift hides, Ctrl softens/smooths.
+7. [5] Right-click menu: Hide, Entity Info, Intersect Faces and per-tool menus.
+8. [5] Per-tool cursors (the system arrow now).
+9. [5] File dialogs that don't block the window (rfd's synchronous API).
+10. [8] Tab moves between widgets (focus never stays on buttons now, so shortcuts and
     Space/Enter aren't swallowed).
-12. [21] Components, Styles and Scenes panels.
-13. [21] Movable, customizable toolbars; tray panels reordered and undocked.
-14. [3] Updating reopens the drawing only if it has a file: a never-saved drawing (or a `.skp`
+11. [21] Components, Styles and Scenes panels.
+12. [21] Movable, customizable toolbars; tray panels reordered and undocked.
+13. [3] Updating reopens the drawing only if it has a file: a never-saved drawing (or a `.skp`
     opened and not saved) isn't brought back after the restart (carry it over through autosave).
 
 ## 15. Rendering and performance
@@ -359,6 +355,9 @@ Measured with `tests/perf.rs` (`cargo test --release -p woodsketch-ui-egui --tes
 9. [3] The selection tint is built on the CPU from the flattened view, a second copy of the
    geometry the GPU places; it's drawn unbiased so it doesn't z-fight (0.1.22). Draw it from the
    placed mesh instead (the selected placements again, tinted), so the two always match.
+10. [3] The viewport image is rendered to an sRGB target but egui shows its linear values as they
+    are, so material colors look darker in the drawing than their swatches (the dark sky is given
+    in shown values to match). Convert once, so a material looks the color you picked.
 
 ## 16. Export
 Done: OBJ (+ MTL colors) and ASCII STL, inches or millimeters.

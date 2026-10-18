@@ -33,6 +33,8 @@ const UPDATES_KEY: &str = "check_updates";
 const LAST_VERSION_KEY: &str = "last_version";
 /// Inches or millimeters (View > Units).
 const UNITS_KEY: &str = "units";
+/// Settings key for View > Theme.
+const THEME_KEY: &str = "theme";
 
 pub struct WoodSketchApp {
     doc: Document,
@@ -49,6 +51,8 @@ pub struct WoodSketchApp {
     feedback: feedback::FeedbackWindow,
     /// The graphics card and driver, for a problem report.
     graphics: String,
+    /// View > Theme, as last seen (saved with the settings).
+    theme: egui::ThemePreference,
     /// Units for File > Export.
     export_units: woodsketch_doc::export::ExportUnits,
     /// Drawings opened or saved lately, newest first (File > Open Recent); kept between runs.
@@ -81,7 +85,12 @@ impl WoodSketchApp {
             .as_ref()
             .expect("WoodSketch needs eframe's wgpu renderer");
         icons::install(&cc.egui_ctx);
-        cc.egui_ctx.set_visuals(chrome::visuals());
+        // Light and dark looks, and the one last chosen (View > Theme; light at first).
+        cc.egui_ctx.set_visuals_of(egui::Theme::Light, chrome::visuals(false));
+        cc.egui_ctx.set_visuals_of(egui::Theme::Dark, chrome::visuals(true));
+        let theme = cc.storage.and_then(|s| eframe::get_value::<String>(s, THEME_KEY));
+        let theme = chrome::THEMES.iter().find(|(_, _, key)| Some(*key) == theme.as_deref()).map_or(egui::ThemePreference::Light, |(t, _, _)| *t);
+        cc.egui_ctx.set_theme(theme);
         // Autosave only for the real app (tests have no settings storage).
         let dir = cc.storage.is_some().then(|| eframe::storage_dir("WoodSketch")).flatten().map(|d| d.join("autosave"));
         let autosave = autosave::Autosave::new(dir);
@@ -98,6 +107,7 @@ impl WoodSketchApp {
             show_tray: true,
             show_about: false,
             feedback: feedback::FeedbackWindow::default(),
+            theme,
             graphics: {
                 let info = render_state.adapter.get_info();
                 let driver = [info.driver.as_str(), info.driver_info.as_str()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
@@ -455,10 +465,15 @@ impl eframe::App for WoodSketchApp {
         eframe::set_value(storage, UPDATES_KEY, &self.check_updates);
         eframe::set_value(storage, LAST_VERSION_KEY, &updates::VERSION.to_owned());
         eframe::set_value(storage, UNITS_KEY, &woodsketch_doc::units::units());
+        let theme = self.theme;
+        if let Some((_, _, key)) = chrome::THEMES.iter().find(|(t, _, _)| *t == theme) {
+            eframe::set_value(storage, THEME_KEY, &key.to_string());
+        }
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        self.theme = ctx.options(|o| o.theme_preference);
         self.handle_files(&ctx);
         self.autosave_and_recover(&ctx);
         self.keep_up_to_date();

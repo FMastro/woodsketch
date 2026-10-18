@@ -101,6 +101,8 @@ impl Viewport {
             (rect.width() * pixels_per_point).round() as u32,
             (rect.height() * pixels_per_point).round() as u32,
         ];
+        // The sky follows the theme (View > Theme).
+        self.renderer.sky = if ui.visuals().dark_mode { woodsketch_render::Sky::dark() } else { woodsketch_render::Sky::light() };
         let resized = self.renderer.render(
             &render_state.device,
             &render_state.queue,
@@ -154,7 +156,7 @@ impl Viewport {
                 egui::Align2::LEFT_BOTTOM,
                 note,
                 egui::FontId::proportional(12.0),
-                egui::Color32::from_gray(40),
+                gray(&painter, 40),
             );
         }
     }
@@ -290,7 +292,7 @@ fn draw_protractor(
     } else if n.y.abs() > 0.999 {
         egui::Color32::from_rgb(0, 160, 0)
     } else {
-        egui::Color32::from_gray(60)
+        gray(painter, 60)
     };
     let stroke = egui::Stroke::new(1.5, color);
     let circle: Option<Vec<egui::Pos2>> = (0..=72).map(|i| screen(at(f64::from(i) * 5.0, radius))).collect();
@@ -307,11 +309,11 @@ fn draw_protractor(
     let Some(c) = screen(center) else { return };
     painter.circle_filled(c, 2.5, color);
     if let Some(from) = protractor.from.and_then(screen) {
-        let dashed = egui::Stroke::new(1.0, egui::Color32::from_gray(70));
+        let dashed = egui::Stroke::new(1.0, gray(painter, 70));
         painter.extend(egui::Shape::dashed_line(&[c, from], dashed, 5.0, 4.0));
     }
     if let Some(to) = protractor.to.and_then(screen) {
-        painter.line_segment([c, to], egui::Stroke::new(1.5, egui::Color32::BLACK));
+        painter.line_segment([c, to], egui::Stroke::new(1.5, gray(painter, 0)));
     }
 }
 
@@ -328,7 +330,7 @@ fn draw_guides(
     let forward = camera.forward().as_dvec3();
     let near = f64::from(camera.distance) * 0.02;
     for &(guide, selected) in &overlay.guides {
-        let color = if selected { egui::Color32::from_rgb(0, 90, 255) } else { egui::Color32::from_gray(60) };
+        let color = if selected { egui::Color32::from_rgb(0, 90, 255) } else { gray(painter, 60) };
         let stroke = egui::Stroke::new(if selected { 1.5 } else { 1.0 }, color);
         match guide {
             woodsketch_doc::Guide::Line { point, dir } => {
@@ -367,30 +369,30 @@ fn editing_badge(painter: &egui::Painter, rect: egui::Rect, doc: &Document) {
         return;
     }
     let text = format!("Editing  {}    Esc or click outside to close", names.join(" › "));
-    let galley = painter.layout_no_wrap(text, egui::FontId::proportional(13.0), egui::Color32::from_gray(30));
+    let galley = painter.layout_no_wrap(text, egui::FontId::proportional(13.0), gray(painter, 30));
     let badge = egui::Rect::from_min_size(rect.min + egui::vec2(10.0, 10.0), galley.size()).expand2(egui::vec2(8.0, 5.0));
     painter.rect(
         badge.translate(egui::vec2(8.0, 5.0)),
         4.0,
-        egui::Color32::from_rgba_unmultiplied(255, 255, 255, 230),
-        egui::Stroke::new(1.0, egui::Color32::from_gray(150)),
+        paper(painter, 230),
+        egui::Stroke::new(1.0, gray(painter, 150)),
         egui::StrokeKind::Outside,
     );
-    painter.galley(rect.min + egui::vec2(18.0, 15.0), galley, egui::Color32::from_gray(30));
+    painter.galley(rect.min + egui::vec2(18.0, 15.0), galley, gray(painter, 30));
 }
 
 /// A SketchUp-style inference tooltip below-right of `pos`.
 fn tooltip(painter: &egui::Painter, pos: egui::Pos2, label: &str) {
-    let galley = painter.layout_no_wrap(label.into(), egui::FontId::proportional(12.0), egui::Color32::BLACK);
+    let galley = painter.layout_no_wrap(label.into(), egui::FontId::proportional(12.0), gray(painter, 0));
     let text_rect = egui::Rect::from_min_size(pos + egui::vec2(12.0, 10.0), galley.size()).expand(3.0);
     painter.rect(
         text_rect,
         2.0,
-        egui::Color32::from_rgb(255, 255, 220),
+        if painter.ctx().theme() == egui::Theme::Dark { egui::Color32::from_rgb(70, 66, 40) } else { egui::Color32::from_rgb(255, 255, 220) },
         egui::Stroke::new(1.0, egui::Color32::GRAY),
         egui::StrokeKind::Outside,
     );
-    painter.galley(text_rect.min + egui::vec2(3.0, 3.0), galley, egui::Color32::BLACK);
+    painter.galley(text_rect.min + egui::vec2(3.0, 3.0), galley, gray(painter, 0));
 }
 
 /// Draw tool previews on top of the rendered model: preview edges, the inference point and its
@@ -415,7 +417,7 @@ fn draw_movement(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera
         }
         let galley = painter.layout_no_wrap(arrow.label.clone(), egui::FontId::proportional(12.0), color);
         let label = egui::Rect::from_center_size(a + (b - a) * 0.5 + side * 14.0, galley.size()).expand(3.0);
-        painter.rect_filled(label, 3.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 225));
+        painter.rect_filled(label, 3.0, paper(painter, 225));
         painter.galley(label.min + egui::vec2(3.0, 3.0), galley, color);
     }
 }
@@ -442,17 +444,17 @@ fn draw_overlay(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera,
         let mid = a + (b - a) * 0.5;
         let galley = painter.layout_no_wrap("Grain".into(), egui::FontId::proportional(12.0), color);
         let label = egui::Rect::from_center_size(mid + side * 14.0, galley.size()).expand(3.0);
-        painter.rect_filled(label, 3.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 220));
+        painter.rect_filled(label, 3.0, paper(painter, 220));
         painter.galley(label.min + egui::vec2(3.0, 3.0), galley, color);
     }
 
     // The selected part's reference face (an outline on it) and edge (a line along it), with
     // the woodworker's marks' names.
-    let mark = egui::Color32::from_rgb(40, 90, 200);
+    let mark = if painter.ctx().theme() == egui::Theme::Dark { egui::Color32::from_rgb(120, 170, 255) } else { egui::Color32::from_rgb(40, 90, 200) };
     let tag = |painter: &egui::Painter, at: egui::Pos2, text: &str| {
         let galley = painter.layout_no_wrap(text.into(), egui::FontId::proportional(12.0), mark);
         let label = egui::Rect::from_center_size(at, galley.size()).expand(3.0);
-        painter.rect_filled(label, 3.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 220));
+        painter.rect_filled(label, 3.0, paper(painter, 220));
         painter.galley(label.min + egui::vec2(3.0, 3.0), galley, mark);
     };
     if let Some(quad) = overlay.reference_face
@@ -472,7 +474,7 @@ fn draw_overlay(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera,
     }
 
     // The box around the group being edited, dashed as in SketchUp.
-    let dashed = egui::Stroke::new(1.0, egui::Color32::from_gray(70));
+    let dashed = egui::Stroke::new(1.0, gray(painter, 70));
     for [a, b] in &overlay.dashed {
         if let (Some(a), Some(b)) = (screen(*a), screen(*b)) {
             painter.extend(egui::Shape::dashed_line(&[a, b], dashed, 6.0, 4.0));
@@ -486,7 +488,7 @@ fn draw_overlay(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera,
         }
     }
 
-    let preview = egui::Stroke::new(1.5, egui::Color32::BLACK);
+    let preview = egui::Stroke::new(1.5, gray(painter, 0));
     for [a, b] in &overlay.lines {
         if let (Some(a), Some(b)) = (screen(*a), screen(*b)) {
             painter.line_segment([a, b], preview);
@@ -523,7 +525,7 @@ fn draw_overlay(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera,
                 axis_label = Some((to, along.label()));
             }
             None => {
-                let stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(80));
+                let stroke = egui::Stroke::new(1.0, gray(painter, 80));
                 painter.extend(egui::Shape::dashed_line(&[from, to], stroke, 5.0, 4.0));
             }
         }
@@ -557,10 +559,10 @@ fn draw_overlay(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera,
             SnapKind::Origin => egui::Color32::from_rgb(230, 170, 0),
             SnapKind::Midpoint => egui::Color32::from_rgb(0, 190, 210),
             SnapKind::OnEdge => egui::Color32::from_rgb(220, 0, 0),
-            SnapKind::GuidePoint | SnapKind::Intersection => egui::Color32::from_gray(20),
-            SnapKind::OnGuide => egui::Color32::from_gray(110),
+            SnapKind::GuidePoint | SnapKind::Intersection => gray(painter, 20),
+            SnapKind::OnGuide => gray(painter, 110),
             SnapKind::OnFace => egui::Color32::from_rgb(0, 90, 255),
-            SnapKind::OnPlane | SnapKind::OnGround => egui::Color32::from_gray(90),
+            SnapKind::OnPlane | SnapKind::OnGround => gray(painter, 90),
         };
         let radius = if matches!(snap.kind, SnapKind::OnPlane | SnapKind::OnGround) { 2.5 } else { 5.0 };
         painter.circle(pos, radius, color, egui::Stroke::new(1.0, egui::Color32::WHITE));
@@ -677,4 +679,15 @@ fn context_menu(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) -> boo
         ui.close();
     }
     zoom
+}
+
+/// A gray for lines and text over the drawing: as given in the light theme, flipped (dark becomes
+/// light) in the dark one, so it stays readable against the sky.
+fn gray(painter: &egui::Painter, value: u8) -> egui::Color32 {
+    if painter.ctx().theme() == egui::Theme::Dark { egui::Color32::from_gray(255 - value) } else { egui::Color32::from_gray(value) }
+}
+
+/// A label's background: white in the light theme, charcoal in the dark one, `alpha` opaque.
+fn paper(painter: &egui::Painter, alpha: u8) -> egui::Color32 {
+    if painter.ctx().theme() == egui::Theme::Dark { egui::Color32::from_rgba_unmultiplied(40, 42, 46, alpha) } else { egui::Color32::from_rgba_unmultiplied(255, 255, 255, alpha) }
 }

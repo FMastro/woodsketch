@@ -437,7 +437,7 @@ fn movement_tab(ui: &mut egui::Ui, doc: &mut Document) {
     if !report.allowed.is_empty() {
         ui.add_space(6.0);
         ui.strong(format!("{} Allowed for", ph::CHECK_CIRCLE));
-        let green = egui::Color32::from_rgb(40, 130, 60);
+        let green = if ui.visuals().dark_mode { egui::Color32::from_rgb(110, 200, 130) } else { egui::Color32::from_rgb(40, 130, 60) };
         for allowed in &report.allowed {
             ui.colored_label(green, format!("{} {}", ph::DOT_OUTLINE, allowed.describe()));
         }

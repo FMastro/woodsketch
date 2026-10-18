@@ -6,6 +6,10 @@ struct Globals {
     inv_view_proj: mat4x4<f32>,
     // Viewport width and height in pixels, pixels per point, unused.
     viewport: vec4<f32>,
+    // The sky (linear colors): at the horizon, overhead, and the ground below the horizon.
+    horizon: vec4<f32>,
+    zenith: vec4<f32>,
+    ground: vec4<f32>,
 };
 
 @group(0) @binding(0) var<uniform> globals: Globals;
@@ -63,8 +67,8 @@ fn fs_face(in: FaceOut) -> @location(0) vec4<f32> {
     return vec4<f32>(color.rgb * shade, color.a);
 }
 
-// SketchUp-style sky: a gradient from pale at the horizon to light blue overhead, and a plain
-// ground below the horizon. Drawn first, as one triangle covering the screen.
+// SketchUp-style sky: a gradient from pale at the horizon to light blue overhead (dusk colors in
+// dark mode), and a plain ground below the horizon. Drawn first, as one triangle covering the screen.
 struct SkyOut {
     @builtin(position) position: vec4<f32>,
     @location(0) ndc: vec2<f32>,
@@ -83,10 +87,10 @@ fn vs_sky(@builtin(vertex_index) index: u32) -> SkyOut {
 fn fs_sky(in: SkyOut) -> @location(0) vec4<f32> {
     let far = globals.inv_view_proj * vec4<f32>(in.ndc, 1.0, 1.0);
     let dir = normalize(far.xyz / far.w - globals.eye.xyz);
-    // Linear colors (the target is sRGB).
-    let horizon = vec3<f32>(0.80, 0.86, 0.92);
-    let zenith = vec3<f32>(0.42, 0.62, 0.83);
-    let ground = vec3<f32>(0.96, 0.96, 0.95);
+    // Linear colors (the target is sRGB), light or dark.
+    let horizon = globals.horizon.rgb;
+    let zenith = globals.zenith.rgb;
+    let ground = globals.ground.rgb;
     if dir.z < 0.0 {
         return vec4<f32>(ground, 1.0);
     }

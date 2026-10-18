@@ -37,6 +37,8 @@ fn app() -> App {
         .with_size([1200.0, 800.0])
         // Real frame timing, so quick successive clicks count as double-clicks.
         .with_step_dt(1.0 / 60.0)
+        // The app's own first theme (kittest's is dark).
+        .with_theme(egui::Theme::Light)
         .wgpu()
         .build_eframe(|cc| WoodSketchApp::new(cc));
     harness.run();
@@ -2182,4 +2184,37 @@ fn wood_movement_on_the_model_and_a_top_fastened_to_move() {
     harness.run();
     assert!(harness.query_by_label_contains("No parts fight each other's movement").is_some());
     assert!(harness.query_by_label_contains("Top moves about").is_some_and(|_| harness.query_by_label_contains("is fastened so it can move").is_some()), "listed under Allowed for");
+}
+
+#[test]
+fn view_theme_switches_to_dark_and_back() {
+    use egui_kittest::kittest::Queryable;
+    use glam::DVec3;
+    use woodsketch_doc::board::Board;
+    let mut harness = app();
+    {
+        let doc = harness.state_mut().document_mut();
+        let cherry = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Cherry").unwrap());
+        let board = doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::X, width_dir: DVec3::Y, length: 30.0, width: 16.0, thickness: 0.75 }, Some(cherry)).unwrap();
+        doc.selection_mut().extend([woodsketch_doc::Entity::Instance(board)]);
+    }
+    harness.run();
+    type_text(&mut harness, "Z");
+    assert_eq!(harness.ctx.theme(), egui::Theme::Light, "light to begin with");
+    harness.get_by_label("View").click();
+    harness.run();
+    harness.get_by_label_contains("Theme").click();
+    harness.run();
+    harness.get_by_label("Dark").click();
+    harness.run();
+    assert_eq!(harness.ctx.theme(), egui::Theme::Dark);
+    assert!(harness.ctx.style_of(egui::Theme::Dark).visuals.panel_fill.r() < 60, "charcoal panels");
+    snapshot(&mut harness, "theme_dark");
+    harness.get_by_label("View").click();
+    harness.run();
+    harness.get_by_label_contains("Theme").click();
+    harness.run();
+    harness.get_by_label("Light").click();
+    harness.run();
+    assert_eq!(harness.ctx.theme(), egui::Theme::Light);
 }
