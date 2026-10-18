@@ -200,6 +200,9 @@ add it there; when you finish an item, remove it.
    `Material::movement`, filled from the library and by name for older drawings; `check` gives each
    solid-wood part's movement across its grain for `Scene::moisture_swing`, default 4%, and
    conflicts where a touching part won't move that way). Cut List window > Wood movement tab.
+   Panels let into grooves (`JointKind::Groove`, cut there) float; `PartInfo::free_to_move` (Entity
+   Info) for buttons or slotted screws; both land in `Report::allowed`. `Report::arrows` (View > Wood
+   Movement, cached per model version); `Report::unknown` and `species_list` for "Moves like".
 27. Releases and updates: a `v*` tag (matching Cargo.toml's version) runs `.github/workflows/release.yml`:
    Windows x64, macOS arm64 and x64, Linux x64 builds, each packed by Velopack (`vpk`, version
    pinned to the `velopack` crate) on its own channel, into a DRAFT GitHub release (publish it to

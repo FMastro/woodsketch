@@ -123,6 +123,18 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut woodsketch_tools:
                 doc.edit_part(instance, |p| p.cut = cut);
             }
             ui.end_row();
+
+            // Glued solid, or fastened so it can move (the wood movement check lets it).
+            ui.label("Movement");
+            let mut free = info.free_to_move;
+            if ui
+                .checkbox(&mut free, "Fastened so it can move")
+                .on_hover_text("Tabletop buttons, figure-8s or screws in slotted holes, not glued or screwed solid: it's free to move across its grain")
+                .changed()
+            {
+                doc.edit_part(instance, |p| p.free_to_move = free);
+            }
+            ui.end_row();
         }
 
         // Solid wood: glued up from narrower boards (on its own when it's too wide for one).

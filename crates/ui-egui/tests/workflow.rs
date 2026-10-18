@@ -2139,3 +2139,47 @@ fn send_a_report_without_a_github_account_and_get_its_link() {
     assert!(harness.query_by_label_contains("a lot of reports").is_some());
     assert!(harness.query_by_label_contains("Open on GitHub instead").is_some(), "still there to try another way");
 }
+
+#[test]
+fn wood_movement_on_the_model_and_a_top_fastened_to_move() {
+    use egui_kittest::kittest::Queryable;
+    use glam::DVec3;
+    use woodsketch_doc::board::Board;
+    let mut harness = app();
+    let top = {
+        let doc = harness.state_mut().document_mut();
+        let cherry = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Cherry").unwrap());
+        let mut add = |name: &str, origin: DVec3, length_dir: DVec3, width_dir: DVec3, [length, width, thickness]: [f64; 3]| {
+            let id = doc.add_board(&Board { origin, length_dir, width_dir, length, width, thickness }, Some(cherry)).unwrap();
+            doc.rename_instance(id, name);
+            id
+        };
+        // A 30" x 16" top with a breadboard end across one end.
+        let top = add("Top", DVec3::ZERO, DVec3::X, DVec3::Y, [30.0, 16.0, 0.75]);
+        add("Breadboard end", DVec3::new(30.0, 0.0, 0.0), DVec3::Y, -DVec3::X, [16.0, 2.5, 0.75]);
+        doc.selection_mut().extend([woodsketch_doc::Entity::Instance(top)]);
+        top
+    };
+    harness.run();
+    type_text(&mut harness, "Z");
+    // View > Wood Movement: arrows on the parts (red: the breadboard end holds the top).
+    harness.get_by_label("View").click();
+    harness.run();
+    harness.get_by_label("Wood Movement").click();
+    harness.run();
+    harness.get_by_label("View").click();
+    harness.run();
+    snapshot(&mut harness, "wood_movement_arrows_held");
+
+    // Fastened so it can move (Entity Info): the warning becomes "allowed for".
+    harness.get_by_label("Fastened so it can move").click();
+    harness.run();
+    assert!(harness.state().document().part_info(top).unwrap().free_to_move);
+    snapshot(&mut harness, "wood_movement_arrows_free");
+    harness.get_by_label(egui_phosphor::regular::TABLE).click();
+    harness.run();
+    harness.get_by_label("Wood movement").click();
+    harness.run();
+    assert!(harness.query_by_label_contains("No parts fight each other's movement").is_some());
+    assert!(harness.query_by_label_contains("Top moves about").is_some_and(|_| harness.query_by_label_contains("is fastened so it can move").is_some()), "listed under Allowed for");
+}

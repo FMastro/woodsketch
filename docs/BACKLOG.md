@@ -19,7 +19,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 6 | Release polish | 79 | Signing before announcing widely |
 | 7 | Importing | 238 | Gets people's existing models in |
 | 8 | Cut list and materials | 171 | Better buying and cutting |
-| 9 | Wood movement | 32 | Fewer false warnings, clearer results |
+| 9 | Wood movement | 23 | Fewer false warnings, clearer results |
 | 10 | Edge profiles | 76 | More bits, profiles on any board |
 | 11 | Parts and boards | 11 | Small drawing conveniences |
 | 12 | Modeling tools | 255 | SketchUp parity for general modeling |
@@ -28,7 +28,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 63 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1635** | |
+| | **All** | **1626** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -218,13 +218,16 @@ Done: SketchUp 2021+ `.skp` (geometry, components, materials, tags and tag folde
 
 ## 9. Wood movement
 Done: Wood Handbook coefficients per species and cut, a moisture swing setting, movement per part,
-warnings where touching parts fight it (Cut List window).
-1. [3] Species data for custom woods (only names matching a known species get it).
-2. [8] Tell a floating panel or slotted fastening from a glued one (every touching cross-grain
-   meeting is flagged now; the assembly steps already know grooved panels float).
-3. [5] Movement in thickness and along the grain.
-4. [8] Arrows and numbers on the model.
-5. [8] Parts at an angle (only parts square to the axes are checked).
+warnings where touching parts fight it (Cut List window); panels in grooves float and parts can be
+"Fastened so it can move" (listed as allowed for); View > Wood Movement draws arrows on the parts;
+"Moves like" a species for custom woods, and woods without data are named.
+1. [5] Check a floating panel's grooves leave it room: groove depth against half its movement
+   each side (a panel can float yet still bind or fall out of a shallow groove).
+2. [3] "Fastened so it can move" is for the whole part; let each meeting choose (a top glued at
+   its middle and buttoned at its ends, a breadboard end pinned at the middle only).
+3. [2] Remember View > Wood Movement between runs.
+4. [5] Movement in thickness and along the grain.
+5. [8] Parts at an angle (only parts square to the axes are checked or get arrows).
 
 ## 10. Edge profiles
 Done: roundover, chamfer, cove, ogee, around a face (mitered corners) or along a length.

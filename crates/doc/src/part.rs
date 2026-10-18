@@ -177,6 +177,10 @@ pub struct PartInfo {
     /// The edge measured from (the edge mark): one of its two long edges.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reference_edge: Option<Side>,
+    /// Fastened so it can move across its grain (tabletop buttons, figure-8s, screws in slotted
+    /// holes) rather than glued or screwed solid: the movement check lets it move.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub free_to_move: bool,
 }
 
 /// A part's size: `[length, width, thickness]`, length along the grain.

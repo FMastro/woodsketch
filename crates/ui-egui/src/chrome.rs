@@ -204,6 +204,8 @@ impl WoodSketchApp {
     fn view_menu(&mut self, ui: &mut egui::Ui) {
         ui.menu_button("View", |ui| {
             ui.checkbox(&mut self.viewport.show_grid, "Grid");
+            ui.checkbox(&mut self.viewport.show_movement, "Wood Movement")
+                .on_hover_text("How much each solid-wood part moves across its grain: red where a part it meets holds it, green where it's free");
             ui.menu_button("Units", |ui| {
                 use woodsketch_doc::units::{Units, set_units, units};
                 for choice in Units::ALL {

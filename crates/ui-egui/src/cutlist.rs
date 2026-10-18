@@ -413,6 +413,13 @@ fn movement_tab(ui: &mut egui::Ui, doc: &mut Document) {
     });
     let report = movement::check(doc.scene(), swing);
     ui.add_space(6.0);
+    // Woods it can't speak for.
+    if !report.unknown.is_empty() {
+        ui.colored_label(
+            ui.visuals().warn_fg_color,
+            format!("{} No movement data for {}: set \"Moves like\" on it in the Materials panel to check its parts.", ph::INFO, report.unknown.join(", ")),
+        );
+    }
     if report.parts.is_empty() {
         ui.weak("No solid-wood parts with a known species yet. Paint parts with a wood from the library, like Cherry or Red Oak.");
         return;
@@ -423,6 +430,16 @@ fn movement_tab(ui: &mut egui::Ui, doc: &mut Document) {
         ui.strong(format!("{} Watch these joints", ph::WARNING));
         for conflict in &report.conflicts {
             ui.colored_label(ui.visuals().warn_fg_color, format!("{} {}", ph::DOT_OUTLINE, conflict.describe()));
+        }
+        ui.weak("If a part is fastened so it can move (tabletop buttons, figure-8s, slotted screw holes), tick \"Fastened so it can move\" for it in Entity Info.");
+    }
+    // Meetings that would fight but are free to move.
+    if !report.allowed.is_empty() {
+        ui.add_space(6.0);
+        ui.strong(format!("{} Allowed for", ph::CHECK_CIRCLE));
+        let green = egui::Color32::from_rgb(40, 130, 60);
+        for allowed in &report.allowed {
+            ui.colored_label(green, format!("{} {}", ph::DOT_OUTLINE, allowed.describe()));
         }
     }
     ui.add_space(8.0);

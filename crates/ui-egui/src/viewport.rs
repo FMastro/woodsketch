@@ -23,6 +23,10 @@ pub struct Viewport {
     /// The drawing's soft edges, kept for rebuilding the selection highlight alone.
     /// The ground grid (View > Grid). SketchUp has none, so it starts off.
     pub show_grid: bool,
+    /// Each solid-wood part's seasonal movement drawn on it (View > Wood Movement).
+    pub show_movement: bool,
+    /// The arrows, for the drawing version they were worked out for.
+    movement: Option<(u64, Vec<woodsketch_doc::movement::Arrow>)>,
     zoom_extents_pending: bool,
     last_hover: Option<Vec2>,
     /// Where the viewport was last laid out, in window points.
@@ -35,6 +39,8 @@ impl Viewport {
             camera: OrbitCamera::default(),
             renderer: ViewportRenderer::new(&render_state.device, &Scene::reference(false)),
             show_grid: false,
+            show_movement: false,
+            movement: None,
             texture: None,
             scene_version: None,
             selection_version: None,
@@ -127,6 +133,17 @@ impl Viewport {
         );
         let overlay = tools.overlay(doc);
         draw_overlay(&painter, rect, &self.camera, size, &overlay);
+        if self.show_movement {
+            // Worked out again only when the drawing changes (it compares every pair of parts).
+            let version = doc.model_version();
+            if self.movement.as_ref().is_none_or(|(v, _)| *v != version) {
+                let report = woodsketch_doc::movement::check(doc.scene(), doc.scene().moisture_swing());
+                self.movement = Some((version, report.arrows));
+            }
+            if let Some((_, arrows)) = &self.movement {
+                draw_movement(&painter, rect, &self.camera, size, arrows);
+            }
+        }
         editing_badge(&painter, rect, doc);
         // The tool's mode beside the pointer (the Tape Measure's "+ Guide").
         if let (Some(note), Some(pointer)) = (overlay.cursor_note, ui.input(|i| i.pointer.hover_pos()))
@@ -378,6 +395,31 @@ fn tooltip(painter: &egui::Painter, pos: egui::Pos2, label: &str) {
 
 /// Draw tool previews on top of the rendered model: preview edges, the inference point and its
 /// tooltip, and the selection window.
+/// View > Wood Movement: a double arrow across each solid-wood part's width with how much it
+/// moves, red where a part it meets holds it, green where it's free.
+fn draw_movement(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera, size: Vec2, arrows: &[woodsketch_doc::movement::Arrow]) {
+    let screen = |p: DVec3| camera.project(p.as_vec3(), size).map(|s| rect.min + egui::vec2(s.x, s.y));
+    for arrow in arrows {
+        let (Some(a), Some(b)) = (screen(arrow.from), screen(arrow.to)) else { continue };
+        if a.distance(b) < 16.0 {
+            continue;
+        }
+        let color = if arrow.held { egui::Color32::from_rgb(200, 60, 40) } else { egui::Color32::from_rgb(40, 140, 70) };
+        let stroke = egui::Stroke::new(2.5, color);
+        painter.line_segment([a, b], stroke);
+        let dir = (b - a).normalized();
+        let side = egui::vec2(-dir.y, dir.x);
+        for (tip, back) in [(a, dir), (b, -dir)] {
+            painter.line_segment([tip, tip + (back + side * 0.6) * 9.0], stroke);
+            painter.line_segment([tip, tip + (back - side * 0.6) * 9.0], stroke);
+        }
+        let galley = painter.layout_no_wrap(arrow.label.clone(), egui::FontId::proportional(12.0), color);
+        let label = egui::Rect::from_center_size(a + (b - a) * 0.5 + side * 14.0, galley.size()).expand(3.0);
+        painter.rect_filled(label, 3.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 225));
+        painter.galley(label.min + egui::vec2(3.0, 3.0), galley, color);
+    }
+}
+
 fn draw_overlay(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera, size: Vec2, overlay: &Overlay) {
     let screen = |p: DVec3| camera.project(p.as_vec3(), size).map(|s| rect.min + egui::vec2(s.x, s.y));
 

@@ -246,6 +246,28 @@ fn editor(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools, id: Material
                     ui.end_row();
                 }
             }
+
+            // How it swells and shrinks: a species from the Wood Handbook (a custom wood, or one
+            // not named for its species, picks the one it moves like).
+            if matches!(material.kind, MaterialKind::SolidWood | MaterialKind::DimensionalLumber) {
+                use woodsketch_doc::movement::{species_list, species_name};
+                ui.label("Moves like").on_hover_text("For the wood movement check: the species whose seasonal movement it shares");
+                let shown = match material.movement {
+                    Some(m) => species_name(m).unwrap_or_else(|| "Custom".to_owned()),
+                    None => "Not known".to_owned(),
+                };
+                egui::ComboBox::from_id_salt(("material_movement", id)).selected_text(shown).show_ui(ui, |ui| {
+                    if ui.selectable_label(material.movement.is_none(), "Not known").clicked() {
+                        doc.edit_material(id, |m| m.movement = None);
+                    }
+                    for (name, movement) in species_list() {
+                        if ui.selectable_label(material.movement == Some(movement), &name).clicked() {
+                            doc.edit_material(id, |m| m.movement = Some(movement));
+                        }
+                    }
+                });
+                ui.end_row();
+            }
         });
 
         if material.kind == MaterialKind::DimensionalLumber {

@@ -3,6 +3,16 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.24
+
+- Wood movement: a solid panel let into grooves floats there and isn't flagged; tick "Fastened so
+  it can move" in Entity Info for a part on tabletop buttons, figure-8s or slotted screws. Both are
+  listed under "Allowed for" in the Wood movement tab.
+- View > Wood Movement: an arrow across each solid-wood part with how much it moves, red where a
+  part it meets holds it, green where it's free.
+- Materials: "Moves like" picks the species a custom wood moves like; the Wood movement tab names
+  woods it has no data for.
+
 ## 0.1.23
 
 - Report a Problem and Send Feedback no longer need a GitHub account: Send posts it, and you get

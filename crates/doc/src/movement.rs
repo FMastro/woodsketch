@@ -29,10 +29,34 @@ pub struct Movement {
     pub radial: f64,
 }
 
+/// The species there's data for, by their usual name, for "Moves like" on a custom wood.
+pub fn species_list() -> Vec<(String, Movement)> {
+    SPECIES.iter().map(|&(names, tangential, radial)| (title(names[0]), Movement { tangential, radial })).collect()
+}
+
+/// The usual name of the species with these coefficients, if any.
+pub fn species_name(movement: Movement) -> Option<String> {
+    SPECIES.iter().find(|&&(_, t, r)| t == movement.tangential && r == movement.radial).map(|(names, _, _)| title(names[0]))
+}
+
+/// `red oak` -> `Red Oak`.
+fn title(name: &str) -> String {
+    let word = |w: &str| {
+        let mut c = w.chars();
+        c.next().map_or_else(String::new, |first| first.to_uppercase().chain(c).collect())
+    };
+    name.split(' ').map(word).collect::<Vec<_>>().join(" ")
+}
+
 /// Wood Handbook coefficients for the library's species (and common names for them).
 pub fn species(name: &str) -> Option<Movement> {
     let name = name.to_ascii_lowercase();
-    let table: &[(&[&str], f64, f64)] = &[
+    SPECIES.iter().find(|(names, _, _)| names.iter().any(|n| name.contains(n))).map(|&(_, tangential, radial)| Movement { tangential, radial })
+}
+
+/// Names (the usual one first), then the tangential and radial coefficients.
+#[allow(clippy::type_complexity)]
+const SPECIES: &[(&[&str], f64, f64)] = &[
         (&["red oak"], 0.00369, 0.00158),
         (&["white oak"], 0.00365, 0.00180),
         (&["hard maple", "sugar maple"], 0.00353, 0.00165),
@@ -48,9 +72,7 @@ pub fn species(name: &str) -> Option<Movement> {
         (&["douglas fir", "fir"], 0.00267, 0.00165),
         (&["pressure-treated", "southern pine", "southern yellow pine", "yellow pine"], 0.00259, 0.00165),
         (&["pine"], 0.00212, 0.00071),
-    ];
-    table.iter().find(|(names, _, _)| names.iter().any(|n| name.contains(n))).map(|&(_, tangential, radial)| Movement { tangential, radial })
-}
+];
 
 /// How much one part moves across its width.
 #[derive(Clone, Debug, PartialEq)]
@@ -103,10 +125,42 @@ impl Conflict {
     }
 }
 
+/// A meeting where a part would fight another but is free to move: a panel floating in its
+/// grooves, or a part fastened so it can move.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Allowed {
+    pub moving: String,
+    pub held_by: String,
+    pub movement: f64,
+    /// How it's free: `floats in its groove`.
+    pub how: &'static str,
+}
+
+impl Allowed {
+    pub fn describe(&self) -> String {
+        format!("{} moves about {} where it meets {}; it {}.", self.moving, format_length(self.movement), self.held_by, self.how)
+    }
+}
+
+/// A part's movement drawn on the model: a double arrow across its width, in world coordinates,
+/// labeled with how much it moves; `held` where it fights a part it meets.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Arrow {
+    pub from: DVec3,
+    pub to: DVec3,
+    pub label: String,
+    pub held: bool,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Report {
     pub parts: Vec<PartMovement>,
     pub conflicts: Vec<Conflict>,
+    pub allowed: Vec<Allowed>,
+    /// Solid woods without movement data (custom woods not named for a known species): their
+    /// parts aren't checked. Set "Moves like" in the Materials panel.
+    pub unknown: Vec<String>,
+    pub arrows: Vec<Arrow>,
 }
 
 /// Less than this over a joint isn't worth a warning (1/16"): ordinary apron tenons glued into
@@ -127,6 +181,11 @@ struct Placed {
     /// Which moving assembly it's in (a drawer or door, numbered), or 0 for the fixed ones: a
     /// drawer's parts don't fight the case it slides in.
     unit: usize,
+    /// Its design and where its geometry is in the world (to find a joint's cuts).
+    definition: crate::DefinitionId,
+    place: DAffine3,
+    /// Fastened so it can move.
+    free: bool,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -172,7 +231,19 @@ fn collect(scene: &Scene, container: &Container, inherited: Option<MaterialId>, 
                     b = b.max(c);
                 }
                 let material = material.or_else(|| def.container.model.faces().find_map(|(_, f)| f.material));
-                found.push(Placed { name: def.name.clone(), lo: a, hi: b, grain, across, material, cut: def.part.cut, unit });
+                found.push(Placed {
+                    name: def.name.clone(),
+                    lo: a,
+                    hi: b,
+                    grain,
+                    across,
+                    material,
+                    cut: def.part.cut,
+                    unit,
+                    definition: instance.definition,
+                    place: transform,
+                    free: def.part.free_to_move,
+                });
             }
         }
         collect(scene, &def.container, material, transform, unit, units, found);
@@ -198,6 +269,16 @@ pub fn check(scene: &Scene, swing: f64) -> Report {
     let mut parts = Vec::new();
     collect(scene, &scene.root, None, DAffine3::IDENTITY, 0, &mut 0, &mut parts);
     let mut report = Report::default();
+    // Solid wood the check can't speak for: no species data.
+    for p in &parts {
+        if let Some(m) = p.material.and_then(|m| scene.material(m))
+            && matches!(m.kind, MaterialKind::SolidWood | MaterialKind::DimensionalLumber)
+            && m.movement.is_none()
+            && !report.unknown.contains(&m.name)
+        {
+            report.unknown.push(m.name.clone());
+        }
+    }
     for p in &parts {
         let Some(c) = coefficient(scene, p.material, p.cut) else { continue };
         let width = p.hi[p.across] - p.lo[p.across];
@@ -212,6 +293,7 @@ pub fn check(scene: &Scene, swing: f64) -> Report {
     }
     report.parts.sort_by(|a, b| b.movement.total_cmp(&a.movement));
 
+    let mut held = vec![false; parts.len()];
     for (i, a) in parts.iter().enumerate() {
         let Some(c) = coefficient(scene, a.material, a.cut) else { continue };
         for (j, b) in parts.iter().enumerate() {
@@ -244,14 +326,65 @@ pub fn check(scene: &Scene, swing: f64) -> Report {
                 "is a stable sheet or other material that won't move with it"
             };
             let movement = span * c * swing;
-            if movement >= NEGLIGIBLE {
-                report.conflicts.push(Conflict { moving: a.name.clone(), fixed: b.name.clone(), span, movement, why, holders: 1 });
+            if movement < NEGLIGIBLE {
+                continue;
+            }
+            // Free to move here: fastened that way, or floating in a groove in `b`.
+            let how = if floats(scene, a, b, (lo, hi)) {
+                Some("floats in its groove there, so it's free to move")
+            } else if a.free {
+                Some("is fastened so it can move")
+            } else {
+                None
+            };
+            match how {
+                Some(how) => {
+                    let allowed = Allowed { moving: a.name.clone(), held_by: b.name.clone(), movement, how };
+                    if !report.allowed.contains(&allowed) {
+                        report.allowed.push(allowed);
+                    }
+                }
+                None => {
+                    held[i] = true;
+                    report.conflicts.push(Conflict { moving: a.name.clone(), fixed: b.name.clone(), span, movement, why, holders: 1 });
+                }
             }
         }
     }
     report.conflicts = merged(std::mem::take(&mut report.conflicts));
     report.conflicts.sort_by(|a, b| b.movement.total_cmp(&a.movement));
+
+    // On the model: across each moving part's width, on its face (the side its thickness faces
+    // up or out), most of the way across.
+    for (p, held) in parts.iter().zip(held) {
+        let Some(c) = coefficient(scene, p.material, p.cut) else { continue };
+        let width = p.hi[p.across] - p.lo[p.across];
+        let movement = width * c * swing;
+        // Less than shows at 1/16" (it would read "~ 0"): not worth an arrow.
+        if movement < 1.0 / 32.0 {
+            continue;
+        }
+        let thick = 3 - p.grain - p.across;
+        let mut middle = (p.lo + p.hi) / 2.0;
+        middle[thick] = p.hi[thick];
+        let half = DVec3::AXES[p.across] * width * 0.4;
+        report.arrows.push(Arrow { from: middle - half, to: middle + half, label: format!("moves {}", format_length(movement)), held });
+    }
     report
+}
+
+/// Whether `a` floats where it meets `b` (`meeting`, their overlap): let into a groove in `b`
+/// there (a panel in a frame, a drawer bottom), by a joint whose cuts are at this meeting.
+fn floats(scene: &Scene, a: &Placed, b: &Placed, meeting: (DVec3, DVec3)) -> bool {
+    scene.joints.iter().filter(|j| j.kind == crate::joinery::JointKind::Groove && j.cut == a.definition && j.into == b.definition).any(|j| {
+        j.ops.is_empty()
+            || j.ops.iter().any(|op| {
+                let place = if op.part == a.definition { a.place } else if op.part == b.definition { b.place } else { return false };
+                let grow = DVec3::splat(op.distance.abs() + TOUCH);
+                let (lo, hi) = (meeting.0 - grow, meeting.1 + grow);
+                op.points.iter().map(|p| place.transform_point3(*p)).any(|p| p.cmpge(lo).all() && p.cmple(hi).all())
+            })
+    })
 }
 
 /// One warning for a part held the same way by several (a face board on a drawer's panel and
@@ -372,6 +505,55 @@ mod tests {
         let conflict = &report.conflicts[0];
         assert_eq!((conflict.fixed.as_str(), conflict.holders), ("2 × Side", 2));
         assert!(conflict.describe().contains("where it meets 2 × Side, which are stable sheets"), "{}", conflict.describe());
+    }
+
+    #[test]
+    fn a_solid_panel_in_a_rails_groove_floats() {
+        let mut doc = Document::default();
+        // A rail (grain along X), and a 12" wide solid panel above it (grain up, moving along X).
+        let rail = board(&mut doc, "Cherry", "Rail", DVec3::new(0.0, 0.75, 0.0), DVec3::X, DVec3::Z, [12.0, 3.0, 0.75]);
+        let panel = board(&mut doc, "Cherry", "Panel", DVec3::new(0.0, 0.125, 3.0), DVec3::Z, DVec3::X, [20.0, 12.0, 0.5]);
+        let glued = check(doc.scene(), 4.0);
+        assert!(glued.conflicts.iter().any(|c| c.moving == "Panel" && c.fixed == "Rail"), "butted (or glued) it fights the rail");
+        assert!(glued.arrows.iter().any(|a| a.held));
+        assert_eq!(doc.let_in(panel, rail, 0.25), Ok(crate::joinery::JointKind::Groove));
+        let floating = check(doc.scene(), 4.0);
+        assert!(!floating.conflicts.iter().any(|c| c.moving == "Panel"), "{:?}", floating.conflicts);
+        let allowed = floating.allowed.iter().find(|a| a.moving == "Panel").expect("listed as free");
+        assert!(allowed.describe().contains("floats in its groove"), "{}", allowed.describe());
+        assert!(floating.arrows.iter().all(|a| !a.held), "free: green");
+    }
+
+    #[test]
+    fn a_top_fastened_to_move_is_allowed_and_its_arrow_shows_how_much() {
+        let mut doc = Document::default();
+        let top = board(&mut doc, "Cherry", "Top", DVec3::ZERO, DVec3::X, DVec3::Y, [30.0, 16.0, 0.75]);
+        board(&mut doc, "Cherry", "Breadboard end", DVec3::new(30.0, 0.0, 0.0), DVec3::Y, -DVec3::X, [16.0, 2.5, 0.75]);
+        assert!(check(doc.scene(), 4.0).arrows.iter().any(|a| a.held), "held by the breadboard end");
+        doc.edit_part(top, |p| p.free_to_move = true);
+        let report = check(doc.scene(), 4.0);
+        assert!(!report.conflicts.iter().any(|c| c.moving == "Top"));
+        assert!(report.allowed.iter().any(|a| a.moving == "Top" && a.how.contains("fastened so it can move")));
+        // The top's arrow: across its 16" width (along Y), on its top face, labeled with its
+        // movement (0.159", shown to the nearest 1/16").
+        let arrow = report.arrows.iter().find(|a| (a.to - a.from).y.abs() > 10.0).expect("the top's arrow");
+        assert!((arrow.from.z - 0.75).abs() < 1e-9 && (arrow.to - arrow.from).x.abs() < 1e-9);
+        assert_eq!(arrow.label, "moves ~ 3/16\"");
+        assert!(!arrow.held);
+    }
+
+    #[test]
+    fn a_wood_without_movement_data_is_named() {
+        let mut doc = Document::default();
+        let wood = doc.add_material(MaterialKind::SolidWood);
+        doc.edit_material(wood, |m| {
+            m.name = "Bubinga".into();
+            m.movement = None;
+        });
+        doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::X, width_dir: DVec3::Y, length: 30.0, width: 16.0, thickness: 0.75 }, Some(wood)).unwrap();
+        let report = check(doc.scene(), 4.0);
+        assert_eq!(report.unknown, ["Bubinga"]);
+        assert!(report.parts.is_empty());
     }
 
     /// `WOODSKETCH_MOVEMENT_FILE=<drawing.woodsketch>`: print a real drawing's warnings.
