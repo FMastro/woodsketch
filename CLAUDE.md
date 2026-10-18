@@ -238,7 +238,8 @@ points); keep general modeling working alongside it.
    materials (matched to the library by name) and layers as tags. File > Open opens one as a new
    unsaved drawing; File > Import SketchUp Model... pastes one in place (`Clip::from_scene`). Set
    `WOODSKETCH_SKP=<file>` to run the real-file tests in `skp` and `workflow.rs`. Flat things
-   (thinner than 1/64") aren't cut-list parts.
+   (thinner than 1/64") aren't cut-list parts. Groups are a second instance list (`138d` > `1d4c` > `1964`);
+   instance flags `07d3` bit 0 = hidden (onto a hidden "Hidden in SketchUp" tag); guide lines `1391` > `4269`.
 31. Big models and non-wood: the renderer draws each component once per placement on the GPU (a
    deck of 729,000 placed faces: first frame 1.2 s -> 0.06 s, a frame after an edit 1.2 s -> 0.03 s).
    SketchUp materials are solid wood or sheet goods only when their names say so (`skp::material_for`),

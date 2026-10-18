@@ -3,6 +3,15 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.34
+
+- SketchUp files open with everything in them: groups were being left out, so walls, rooms and
+  anything you had grouped in SketchUp was missing. Groups now come in as groups, named as in
+  SketchUp.
+- Things hidden in SketchUp (Edit > Hide) stay hidden: they go on a "Hidden in SketchUp" tag,
+  which you can show from the Tags panel.
+- SketchUp guide lines come in too.
+
 ## 0.1.33
 
 - Directions are sticky too: once a line follows red, green, blue or an edge, it holds a little

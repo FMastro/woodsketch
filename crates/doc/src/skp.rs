@@ -8,9 +8,10 @@
 //!
 //! What's read: component definitions (name, geometry, nested instances), the top-level
 //! geometry, vertices, edges, faces with holes and their material, instances (definition,
-//! placement, material, layer), materials (name and color) and layers (as tags). Not yet:
-//! groups (they come in as components), textures, hidden and soft edges, guides, scenes, and
-//! files from SketchUp 2020 and older (a different format).
+//! placement, material, layer), groups (listed apart from component instances), objects hidden
+//! in SketchUp (onto a hidden "Hidden in SketchUp" tag), endless guide lines, materials (name and
+//! color) and layers (as tags). Not yet: construction lines, dimensions, text, images, textures,
+//! hidden and soft edges, scenes, and files from SketchUp 2020 and older (a different format).
 
 use std::collections::HashMap;
 use std::fmt;
@@ -73,7 +74,7 @@ pub fn read(bytes: &[u8]) -> Result<Imported, SkpError> {
     };
     let model = entry("model.dat").ok_or_else(|| SkpError::Damaged("no model.dat".into()))?;
     let top = records(&model).next().ok_or_else(|| SkpError::Damaged("empty model.dat".into()))?;
-    let mut reader = Reader { scene: Scene::default(), materials: HashMap::new(), tags: HashMap::new(), definitions: HashMap::new(), skipped_faces: 0 };
+    let mut reader = Reader { scene: Scene::default(), materials: HashMap::new(), tags: HashMap::new(), definitions: HashMap::new(), skipped_faces: 0, hidden_tag: None };
     reader.materials(top, &mut entry);
     reader.layers(top);
     reader.definitions(top);
@@ -158,6 +159,8 @@ struct Reader {
     materials: HashMap<u64, MaterialId>,
     tags: HashMap<u64, TagId>,
     definitions: HashMap<u64, DefinitionId>,
+    /// The tag hidden objects go on ("Hidden in SketchUp", itself hidden), made when one turns up.
+    hidden_tag: Option<TagId>,
     skipped_faces: usize,
 }
 
@@ -328,17 +331,55 @@ impl Reader {
             let material = face.common(0x07d1).or_else(|| face.child(0x0daf).and_then(Record::int)).and_then(|m| self.materials.get(&m).copied());
             model.push_face(outer, corners, normal, material);
         }
-        for instance in entities.child(0x138c).into_iter().flat_map(|r| r.all(0x1964)) {
+        // Guide lines (`1391` > `4269` > `426a`: a point, a direction, and how far each way, 1e30
+        // for endless ones). Construction lines between two points (`1392` > `426c`, ends `426d` and
+        // `426e`) are left out: endless here, they'd cross the whole view.
+        for guide in entities.child(0x1391).into_iter().flat_map(|r| r.all(0x4269)) {
+            let v = guide.child(0x426a).map(Record::floats).unwrap_or_default();
+            if v.len() >= 6
+                && let Some(dir) = DVec3::new(v[3], v[4], v[5]).try_normalize()
+            {
+                container.model.add_guide(crate::Guide::Line { point: DVec3::new(v[0], v[1], v[2]), dir });
+            }
+        }
+        // Component instances (`138c` > `1964`), then groups (`138d` > `1d4c` > `1964`): the same
+        // record, a group's naming its own definition.
+        let components = entities.child(0x138c).into_iter().flat_map(|r| r.all(0x1964)).map(|i| (i, false));
+        let groups = entities.child(0x138d).into_iter().flat_map(|r| r.all(0x1d4c)).filter_map(|g| g.child(0x1964)).map(|i| (i, true));
+        for (instance, group) in components.chain(groups) {
             let Some(&definition) = instance.child(0x1967).and_then(Record::int).and_then(|d| self.definitions.get(&d)) else { continue };
+            // A group's definition is its own: it takes the group's name (`1965`), or "Group"
+            // as SketchUp shows an unnamed one (its definition is called `Group#24`).
+            if group && let Some(d) = self.scene.definition_mut(definition) {
+                d.kind = DefinitionKind::Group;
+                let name = instance.child(0x1965).map(Record::text).unwrap_or_default();
+                d.name = if name.trim().is_empty() { "Group".into() } else { name };
+            }
             let transform = instance.child(0x1966).map(Record::floats).and_then(|m| placement(&m)).unwrap_or(DAffine3::IDENTITY);
+            // Hidden in SketchUp (Edit > Hide): the low bit of the flags (`07d3`, normally 6).
+            let hidden = instance.common(0x07d3).is_some_and(|f| f & 1 == 1);
             container.add_instance(Instance {
                 definition,
                 transform,
-                tag: instance.common(0x07d2).and_then(|l| self.tags.get(&l).copied()),
+                tag: if hidden { Some(self.hidden_tag()) } else { instance.common(0x07d2).and_then(|l| self.tags.get(&l).copied()) },
                 material: instance.common(0x07d1).and_then(|m| self.materials.get(&m).copied()),
             });
         }
         container
+    }
+}
+
+impl Reader {
+    fn hidden_tag(&mut self) -> TagId {
+        if let Some(tag) = self.hidden_tag {
+            return tag;
+        }
+        let tag = self.scene.add_tag("Hidden in SketchUp");
+        if let Some(t) = self.scene.tag_mut(tag) {
+            t.visible = false;
+        }
+        self.hidden_tag = Some(tag);
+        tag
     }
 }
 
@@ -451,6 +492,7 @@ fn material_for(name: &str, color: [u8; 3]) -> Material {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Guide;
 
     /// Records written the way `.skp` files lay them out.
     fn rec(tag: u16, body: &[u8]) -> Vec<u8> {
@@ -538,6 +580,49 @@ mod tests {
         assert!(face.normal.z < -0.99, "faces keep their side: {:?}", face.normal);
         let walnut = scene.material(face.material.unwrap()).unwrap();
         assert_eq!((walnut.name.as_str(), walnut.color, walnut.kind), ("Walnut", [94, 64, 40], MaterialKind::SolidWood));
+    }
+
+    #[test]
+    fn reads_groups_as_well_as_components() {
+        // Groups are listed apart from component instances: `138d` > `1d4c` > `1964`.
+        let definitions = rec(
+            0x01f9,
+            &rec(0x1770, &rec(0x1771, &[rec(0x157c, &[rectangle_entities(50), rec(0x157e, b"Group#7")].concat()), rec(0x157c, &[rectangle_entities(51), rec(0x157e, b"Group#8")].concat())].concat())),
+        );
+        let group = |definition: u16, name: &[u8]| {
+            let m = floats(&[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
+            rec(0x1d4c, &rec(0x1964, &[rec(0x07d0, &id(60)), rec(0x1965, name), rec(0x1966, &m), rec(0x1967, &definition.to_le_bytes())].concat()))
+        };
+        let root = rec(0x01f6, &rec(0x1388, &[rec(0x07d0, &id(1)), rec(0x138d, &[group(50, b"North Wall"), group(51, b"")].concat())].concat()));
+        let imported = read(&file(&rec(0x01f4, &[definitions, root].concat()), "")).unwrap();
+        let scene = &imported.scene;
+        let mut names: Vec<(String, DefinitionKind)> =
+            scene.root.instances().map(|(_, i)| scene.definition(i.definition).unwrap()).map(|d| (d.name.clone(), d.kind)).collect();
+        names.sort_by(|a, b| a.0.cmp(&b.0));
+        assert_eq!(names, vec![("Group".to_owned(), DefinitionKind::Group), ("North Wall".to_owned(), DefinitionKind::Group)]);
+    }
+
+    #[test]
+    fn hidden_objects_go_on_a_hidden_tag() {
+        let definitions = rec(0x01f9, &rec(0x1770, &rec(0x1771, &rec(0x157c, &[rectangle_entities(50), rec(0x157e, b"Board")].concat()))));
+        let m = floats(&[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
+        let instance = |flags: u8| rec(0x1964, &[rec(0x07d0, &[id(60), rec(0x07d3, &[flags])].concat()), rec(0x1966, &m), rec(0x1967, &50u16.to_le_bytes())].concat());
+        let root = rec(0x01f6, &rec(0x1388, &[rec(0x07d0, &id(1)), rec(0x138c, &[instance(6), instance(7)].concat())].concat()));
+        let scene = read(&file(&rec(0x01f4, &[definitions, root].concat()), "")).unwrap().scene;
+        let tags: Vec<Option<TagId>> = scene.root.instances().map(|(_, i)| i.tag).collect();
+        assert_eq!(tags[0], None, "shown");
+        let hidden = scene.tag(tags[1].expect("hidden one tagged")).unwrap();
+        assert_eq!((hidden.name.as_str(), hidden.visible), ("Hidden in SketchUp", false));
+    }
+
+    #[test]
+    fn reads_guide_lines_but_not_construction_lines() {
+        let endless = rec(0x4269, &rec(0x426a, &floats(&[5.0, 6.0, 7.0, 1.0, 0.0, 0.0, -1e30, 1e30])));
+        let segment = rec(0x426c, &[rec(0x426d, &floats(&[1.0, 1.0, 10.0])), rec(0x426e, &floats(&[1.0, 1.0, 2.0]))].concat());
+        let root = rec(0x01f6, &rec(0x1388, &[rec(0x07d0, &id(1)), rec(0x1391, &endless), rec(0x1392, &segment)].concat()));
+        let scene = read(&file(&rec(0x01f4, &root), "")).unwrap().scene;
+        let guides: Vec<Guide> = scene.root.model.guides().map(|(_, g)| g.clone()).collect();
+        assert_eq!(guides, vec![Guide::Line { point: DVec3::new(5.0, 6.0, 7.0), dir: DVec3::X }], "construction lines left out");
     }
 
     #[test]

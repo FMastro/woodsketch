@@ -17,7 +17,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 31 | More for agents: editing piece by piece, copies, standalone downloads |
 | 6 | Release polish | 79 | Signing before announcing widely |
-| 7 | Importing | 238 | Gets people's existing models in |
+| 7 | Importing | 230 | Gets people's existing models in |
 | 8 | Cut list and materials | 171 | Better buying and cutting |
 | 9 | Wood movement | 23 | Fewer false warnings, clearer results |
 | 10 | Edge profiles | 76 | More bits, profiles on any board |
@@ -28,7 +28,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1472** | |
+| | **All** | **1464** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -167,30 +167,33 @@ when their release is published).
     next to the CHANGELOG one), and the release notes link to the pages.
 
 ## 7. Importing
-Done: SketchUp 2021+ `.skp` (geometry, components, materials, tags and tag folders, hidden tags).
+Done: SketchUp 2021+ `.skp` (geometry, components, groups, materials, tags and tag folders, hidden
+tags, hidden objects on a "Hidden in SketchUp" tag, guide lines); checked against 34 real files.
 1. [3] A SketchUp material named for a species (`cedar`) comes in as that species' boards (Cedar),
    not its lumber (Cedar Lumber), so a deck's 2x10s are matched by thickness, not as 2x10
    sections. Tell lumber from boards by the parts' sizes.
 2. [3] Painted wood parts (a material named like `[Color_009]`) come in as Other; materials are
    sorted into wood, sheet goods and Other by name only, and their stock may need setting.
-3. [5] More sample files: a model with groups, one saved by SketchUp 2021 or 2022, a detailed
-   piece of furniture (drawers, joinery). Each will turn up records that aren't read yet (tested
-   on SketchUp 2026 files only so far).
-4. [8] SketchUp groups (they come in as components; the flag that tells them apart isn't worked out).
-5. [5] SketchUp hidden and soft edges (edges between faces under 30° still draw soft).
-6. [5] SketchUp back-face materials and transparency.
-7. [3] SketchUp guides.
-8. [8] OBJ import (named groups, an MTL of colors).
-9. [21] COLLADA (.dae) import: groups, components, names and materials. Most 3D programs and
+3. [3] A sample saved by SketchUp 2021 or 2022 (only 2023-2026 files tested so far).
+4. [5] SketchUp hidden, soft and smooth edges (flags `07d3`: bit 0 hidden, then soft and smooth;
+   edges between faces under 30° still draw soft, hidden ones show).
+5. [5] SketchUp back-face materials and transparency.
+6. [3] SketchUp construction lines between two points (`1392`; left out, as guides are endless here)
+   and guide points.
+7. [8] OBJ import (named groups, an MTL of colors).
+8. [21] COLLADA (.dae) import: groups, components, names and materials. Most 3D programs and
    SketchUp (including the free SketchUp Make 2017) export it, so it's also a way in for
    SketchUp 2020 and older.
-10. [8] SketchUp scenes and cameras.
-11. [8] SketchUp dimensions and text (needs the Dimensions and Text tools).
-12. [8] SketchUp images.
-13. [13] SketchUp textures (needs textured materials).
-14. [40] SketchUp 2020 and older (a different format; refused with a message now: open and save
+9. [8] SketchUp scenes and cameras.
+10. [8] SketchUp dimensions (`1399` > `5bcc`) and text (`1398` > `55f0`): they hang on geometry
+   by reference; WoodSketch has the tools now.
+11. [8] SketchUp images (`1390` > `1f40`).
+12. [13] SketchUp textures (needs textured materials).
+13. [40] SketchUp 2020 and older (a different format; refused with a message now: open and save
     them in SketchUp 2021+ first, or use DAE).
-15. [100] Saving back to `.skp`.
+14. [100] Saving back to `.skp`.
+15. [2] A hidden SketchUp object loses its own tag: it goes on "Hidden in SketchUp" instead (no
+    per-object hiding here).
 
 ## 8. Cut list and materials
 1. [2] Warn when a part is thinner than the thinnest stock (it comes from it, silently, now).
