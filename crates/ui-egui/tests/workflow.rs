@@ -2252,6 +2252,37 @@ fn walk_looks_with_the_mouse_and_walks_with_the_keys() {
     assert!(moved.z.abs() < 1e-3, "on the level");
     assert_eq!(harness.state().tools().active(), ToolId::Walk, "W walks rather than picking the Board tool");
 
+    // E goes up (and isn't the Eraser).
+    let before = harness.state().camera().eye();
+    harness.event(Event::Key { key: Key::E, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE });
+    harness.event(Event::Text("e".into()));
+    harness.run_steps(10);
+    harness.event(Event::Key { key: Key::E, physical_key: None, pressed: false, repeat: false, modifiers: Modifiers::NONE });
+    harness.run_steps(2);
+    assert!(harness.state().camera().eye().z > before.z + 1.0, "went up");
+    assert_eq!(harness.state().tools().active(), ToolId::Walk);
+
+    // A typed eye height: 5'6".
+    type_text(&mut harness, "66");
+    harness.key_press(Key::Enter);
+    harness.run_steps(2);
+    assert!((harness.state().camera().eye().z - 66.0).abs() < 1e-2, "eye at 66\": {}", harness.state().camera().eye().z);
+    assert_eq!(harness.state().tools().measurement(), woodsketch_doc::units::format_length(66.0));
+
+    // A wall straight ahead stops it.
+    let (eye, ahead) = (harness.state().camera().eye().as_dvec3(), harness.state().camera().forward().as_dvec3());
+    let ahead = glam::DVec3::new(ahead.x, ahead.y, 0.0).normalize();
+    let wall = eye + ahead * 30.0;
+    let side = ahead.cross(glam::DVec3::Z) * 200.0;
+    harness.state_mut().document_mut().edit(|m| m.add_face(&[wall - side - glam::DVec3::Z * 66.0, wall + side - glam::DVec3::Z * 66.0, wall + side + glam::DVec3::Z * 60.0, wall - side + glam::DVec3::Z * 60.0]));
+    harness.event(Event::Key { key: Key::W, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE });
+    harness.event(Event::Text("w".into()));
+    harness.run_steps(120);
+    harness.event(Event::Key { key: Key::W, physical_key: None, pressed: false, repeat: false, modifiers: Modifiers::NONE });
+    harness.run_steps(2);
+    let gone = (harness.state().camera().eye().as_dvec3() - eye).dot(ahead);
+    assert!(gone > 5.0 && gone < 30.0, "walked up to the wall, not through it: {gone}");
+
     // Esc stops walking.
     harness.key_press(Key::Escape);
     harness.run();
@@ -2306,5 +2337,18 @@ fn dimension_a_board_and_add_a_note() {
     let text = harness.state().document().model().guides().find_map(|(_, g)| if let Guide::Text { text, .. } = g { Some(text.clone()) } else { None });
     assert_eq!(text.as_deref(), Some("Top: quartersawn white oak"), "letters and spaces went to the note");
     assert_eq!(harness.state().tools().active(), ToolId::Text, "typing didn't switch tools");
+
+    // Select, double-click the note: its words open in Entity Info to change.
+    harness.key_press(Key::Escape);
+    type_text(&mut harness, " ");
+    for pressed in [true, false, true, false] {
+        harness.event(Event::PointerButton { pos: words, button: PointerButton::Primary, pressed, modifiers: Modifiers::NONE });
+        harness.step();
+    }
+    harness.run();
+    assert!(matches!(harness.state().document().selection().iter().next(), Some(woodsketch_doc::Entity::Guide(_))));
+    type_text(&mut harness, ", flat");
+    let text = harness.state().document().model().guides().find_map(|(_, g)| if let Guide::Text { text, .. } = g { Some(text.clone()) } else { None });
+    assert!(text.as_deref().is_some_and(|t| t.contains("flat")), "typed into the note: {text:?}");
     snapshot(&mut harness, "dimension_and_text");
 }

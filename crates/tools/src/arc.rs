@@ -109,6 +109,13 @@ impl ArcTool {
                 _ => Ok(()),
             };
         }
+        // `[x,y,z]` before the first click: the arc starts there, lying flat.
+        if matches!(self.stage, Stage::Start) && typed.trim().starts_with('[') {
+            let a = parse_offset(typed, DVec3::ZERO, DVec3::ZERO)?;
+            self.last = None;
+            self.stage = Stage::End { a, normal: DVec3::Z, end: a };
+            return Ok(());
+        }
         match self.stage {
             Stage::Start => match self.last {
                 Some(l) if l.model_version == doc.model_version() => {
@@ -147,7 +154,7 @@ impl ArcTool {
     pub fn status(&self) -> String {
         let sides = self.segments;
         match self.stage {
-            Stage::Start => format!("Select start point. Sides: {sides} (type 24s to change)."),
+            Stage::Start => format!("Select start point (or type [x,y,z]). Sides: {sides} (type 24s to change)."),
             Stage::End { .. } => "Select end point or enter the chord length.".into(),
             Stage::Bulge { .. } => "Select bulge, or enter it (5r for a radius).".into(),
         }
@@ -217,6 +224,17 @@ mod tests {
 
     fn at(screen: Screen<'_>, x: f64, y: f64) -> Vec2 {
         screen.project(DVec3::new(x, y, 0.0)).unwrap()
+    }
+
+    #[test]
+    fn a_typed_start_then_end_and_bulge() {
+        let mut doc = Document::default();
+        let mut tool = ArcTool::default();
+        tool.enter(&mut doc, "[0,0,0]").unwrap();
+        tool.enter(&mut doc, "[6,0,0]").unwrap();
+        tool.enter(&mut doc, "1").unwrap();
+        let xs: Vec<f64> = doc.model().vertices().map(|(_, p)| p.x).collect();
+        assert!(xs.iter().any(|x| x.abs() < 1e-9) && xs.iter().any(|x| (x - 6.0).abs() < 1e-9), "{xs:?}");
     }
 
     #[test]

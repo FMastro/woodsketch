@@ -154,6 +154,12 @@ impl Model {
         self.guides.iter().map(|(i, g)| (GuideId(i), g))
     }
 
+    pub(crate) fn set_note_text(&mut self, id: GuideId, words: &str) {
+        if let Some(Guide::Text { text, .. }) = self.guides.get_mut(id.0) {
+            *text = words.to_owned();
+        }
+    }
+
     /// Move a guide with a move, rotation or scale.
     pub(crate) fn transform_guide(&mut self, id: GuideId, transform: &DAffine3) {
         if let Some(guide) = self.guides.get_mut(id.0) {
@@ -161,10 +167,9 @@ impl Model {
         }
     }
 
-    /// Take every guide out (keeping the ids already used).
-    pub(crate) fn remove_guides(&mut self) {
-        // Guides only: dimensions and text stay when guides are hidden.
-        let ids: Vec<GuideId> = self.guides().filter(|(_, g)| !g.is_note()).map(|(id, _)| id).collect();
+    /// Take out the guides (and dimensions and notes) `hidden` says, keeping the ids already used.
+    pub(crate) fn remove_guides(&mut self, hidden: impl Fn(&Guide) -> bool) {
+        let ids: Vec<GuideId> = self.guides().filter(|(_, g)| hidden(g)).map(|(id, _)| id).collect();
         for id in ids {
             self.guides.remove(id.0);
         }

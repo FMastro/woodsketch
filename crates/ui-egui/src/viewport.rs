@@ -30,6 +30,8 @@ pub struct Viewport {
     zoom_extents_pending: bool,
     /// Walking (Camera > Walk): the cursor is hidden and kept in the middle while it is.
     walking: bool,
+    /// Walk's speed, inches a second (the wheel changes it).
+    walk_speed: f32,
     last_hover: Option<Vec2>,
     /// Where the viewport was last laid out, in window points.
     rect: egui::Rect,
@@ -48,6 +50,7 @@ impl Viewport {
             selection_version: None,
             zoom_extents_pending: false,
             walking: false,
+            walk_speed: WALK_SPEED,
             last_hover: None,
             rect: egui::Rect::NOTHING,
         }
@@ -62,7 +65,7 @@ impl Viewport {
         let size = Vec2::new(rect.width(), rect.height());
         self.rect = rect;
 
-        self.walk(ui.ctx(), rect, tools.active() == woodsketch_tools::ToolId::Walk);
+        self.walk(ui.ctx(), rect, doc, tools);
         self.navigate(ui, &response, rect, size, doc);
         self.feed_tools(ui, &response, rect, size, doc, tools);
         // Right-click (not a right-drag, which pans): select what's there, then the menu.
@@ -179,7 +182,9 @@ impl Viewport {
         } else if response.dragged_by(egui::PointerButton::Secondary) {
             self.camera.pan(drag, size);
         }
+        // Walking, the wheel sets the speed instead.
         if scroll != 0.0
+            && !self.walking
             && let Some(pointer) = response.hover_pos()
         {
             let cursor = to_vec2(pointer - rect.min);
@@ -459,15 +464,19 @@ fn tooltip(painter: &egui::Painter, pos: egui::Pos2, label: &str) {
 
 /// Draw tool previews on top of the rendered model: preview edges, the inference point and its
 /// tooltip, and the selection window.
-/// How fast Walk goes, inches a second (a slow walk; Shift for three times that).
+/// How fast Walk starts out, inches a second (a slow walk; Shift for three times that).
 const WALK_SPEED: f32 = 48.0;
+/// How close Walk comes to a wall, inches.
+const WALL_CLEARANCE: f64 = 9.0;
 
 impl Viewport {
     /// Walk (Camera > Walk), as in a game: the mouse looks around, W A S D or the arrow keys
-    /// walk, Shift goes faster. The mouse's own motion turns the view, with the cursor hidden
-    /// and kept in the middle so it never runs into the screen's edge. Leaving Walk shows it.
-    fn walk(&mut self, ctx: &egui::Context, rect: egui::Rect, active: bool) {
-        if !active {
+    /// walk, Shift goes faster, E and Q go up and down, the wheel sets the speed; walls stop
+    /// it. The mouse's own motion turns the view, with the cursor hidden and kept in the middle
+    /// so it never runs into the screen's edge. Leaving Walk shows it. A typed eye height
+    /// (Measurements box) puts the eye that high.
+    fn walk(&mut self, ctx: &egui::Context, rect: egui::Rect, doc: &Document, tools: &mut Tools) {
+        if tools.active() != woodsketch_tools::ToolId::Walk {
             if self.walking {
                 self.walking = false;
                 ctx.send_viewport_cmd(egui::ViewportCommand::CursorVisible(true));
@@ -478,17 +487,27 @@ impl Viewport {
             self.walking = true;
             ctx.send_viewport_cmd(egui::ViewportCommand::CursorVisible(false));
         }
-        let (motion, delta, dt, keys) = ctx.input(|i| {
-            let down = |keys: &[egui::Key]| keys.iter().any(|k| i.key_down(*k));
+        if let Some(height) = tools.take_walk_eye() {
+            self.camera.raise(height as f32 - self.camera.eye().z);
+        }
+        let typing = tools.is_typing();
+        let (motion, delta, dt, keys, scroll) = ctx.input(|i| {
+            // Letters typed into the Measurements box don't walk.
+            let down = |keys: &[egui::Key]| !typing && keys.iter().any(|k| i.key_down(*k));
             let keys = (
                 down(&[egui::Key::W, egui::Key::ArrowUp]),
                 down(&[egui::Key::S, egui::Key::ArrowDown]),
                 down(&[egui::Key::A, egui::Key::ArrowLeft]),
                 down(&[egui::Key::D, egui::Key::ArrowRight]),
                 i.modifiers.shift,
+                f32::from(u8::from(down(&[egui::Key::E, egui::Key::PageUp]))) - f32::from(u8::from(down(&[egui::Key::Q, egui::Key::PageDown]))),
             );
-            (i.pointer.motion(), i.pointer.delta(), i.stable_dt.min(0.1), keys)
+            (i.pointer.motion(), i.pointer.delta(), i.stable_dt.min(0.1), keys, i.smooth_scroll_delta.y)
         });
+        if scroll != 0.0 {
+            self.walk_speed = (self.walk_speed * 1.25f32.powf(scroll / POINTS_PER_ZOOM_STEP)).clamp(6.0, 1200.0);
+            tools.set_message(format!("Walking speed: {} a second", woodsketch_doc::units::format_length(f64::from(self.walk_speed))));
+        }
         // Raw motion when the system gives it (and then the cursor goes back to the middle);
         // else how far the pointer moved.
         match motion {
@@ -499,16 +518,41 @@ impl Viewport {
             Some(_) => {}
             None => self.camera.look(Vec2::new(delta.x, delta.y)),
         }
-        let (ahead, back, left, right, fast) = keys;
+        let (ahead, back, left, right, fast, up) = keys;
         let forward = f32::from(u8::from(ahead)) - f32::from(u8::from(back));
         let across = f32::from(u8::from(right)) - f32::from(u8::from(left));
+        let step = self.walk_speed * if fast { 3.0 } else { 1.0 } * dt;
         if forward != 0.0 || across != 0.0 {
-            let step = WALK_SPEED * if fast { 3.0 } else { 1.0 } * dt;
+            let before = self.camera.target;
             self.camera.walk(forward * step, across * step);
+            let moved = (self.camera.target - before).as_dvec3();
+            if blocked(doc, self.camera.eye().as_dvec3() - moved, moved) {
+                self.camera.target = before;
+            }
+        }
+        if up != 0.0 {
+            self.camera.raise(up * step);
+        }
+        tools.set_walk_eye(f64::from(self.camera.eye().z));
+        if forward != 0.0 || across != 0.0 || up != 0.0 {
             // Keep walking while a key is held.
             ctx.request_repaint();
         }
     }
+}
+
+/// Whether walking `moved` from `eye` would take it into a wall: a face ahead, within the step
+/// and a little room, at eye height or lower down (a tabletop at the waist stops it too).
+fn blocked(doc: &Document, eye: DVec3, moved: DVec3) -> bool {
+    let Some(dir) = moved.try_normalize() else { return false };
+    let to_local = doc.context_transform().inverse();
+    let reach = moved.length() + WALL_CLEARANCE;
+    let model = doc.view().model();
+    [0.0, 0.5].iter().any(|&down| {
+        let from = eye - DVec3::Z * (eye.z.max(0.0) * down);
+        let ray = woodsketch_tools::pick::Ray { origin: to_local.transform_point3(from), dir: to_local.transform_vector3(dir).normalize() };
+        woodsketch_tools::pick::hit_face(model, &ray).is_some_and(|(_, p)| to_local.inverse().transform_point3(p).distance(from) < reach)
+    })
 }
 
 /// View > Wood Movement: a double arrow across each solid-wood part's width with how much it

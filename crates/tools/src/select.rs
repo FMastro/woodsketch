@@ -13,6 +13,8 @@ use crate::{Modifiers, Overlay, SelectionWindow};
 #[derive(Default)]
 pub struct SelectTool {
     window: Option<(Vec2, Vec2)>,
+    /// A text note double-clicked: its words are to be edited (in Entity Info).
+    pub(crate) edit_note: Option<woodsketch_doc::GuideId>,
 }
 
 impl SelectTool {
@@ -44,6 +46,10 @@ impl SelectTool {
             Entity::Instance(id) if count >= 2 => {
                 doc.enter(id);
                 return;
+            }
+            Entity::Guide(id) if count >= 2 && doc.note_text(id).is_some() => {
+                self.edit_note = Some(id);
+                vec![entity]
             }
             Entity::Instance(_) | Entity::Guide(_) => vec![entity],
             _ if count >= 3 => model.connected(entity).into_iter().collect(),

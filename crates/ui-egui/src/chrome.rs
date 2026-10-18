@@ -247,6 +247,14 @@ impl WoodSketchApp {
             if ui.checkbox(&mut guides, "Guides").on_hover_text("Show or hide every guide (hidden ones aren't snapped to)").changed() {
                 self.doc.set_guides_hidden(!guides);
             }
+            let mut dimensions = !self.doc.scene().dimensions_hidden;
+            if ui.checkbox(&mut dimensions, "Dimensions").on_hover_text("Show or hide every dimension").changed() {
+                self.doc.set_dimensions_hidden(!dimensions);
+            }
+            let mut text = !self.doc.scene().text_hidden;
+            if ui.checkbox(&mut text, "Text").on_hover_text("Show or hide every text note").changed() {
+                self.doc.set_text_hidden(!text);
+            }
             ui.checkbox(&mut self.show_tray, "Default Tray");
         });
     }
@@ -419,6 +427,11 @@ impl WoodSketchApp {
 
     /// SketchUp's Default Tray: Entity Info, Materials, Tags and Outliner, each collapsible.
     pub(crate) fn tray(&mut self, ui: &mut egui::Ui) {
+        // A text note double-clicked: its words, in Entity Info, ready to type over.
+        if let Some(note) = self.tools.take_edit_note() {
+            self.show_tray = true;
+            ui.memory_mut(|m| m.request_focus(tags::note_field_id(note)));
+        }
         if !self.show_tray {
             return;
         }

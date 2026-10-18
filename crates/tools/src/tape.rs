@@ -205,6 +205,15 @@ impl TapeTool {
             self.place(doc, start, offset);
             return Ok(());
         }
+        // `[x,y,z]` before the first click: measure from that point.
+        if typed.trim().starts_with('[') {
+            let point = parse_offset(typed, DVec3::ZERO, DVec3::ZERO)?;
+            self.last = None;
+            self.start = Some(Start { point, line: None });
+            self.end = None;
+            self.plane = DVec3::Z;
+            return Ok(());
+        }
         match self.last {
             Some(last) if last.model_version.is_some_and(|v| v == doc.model_version()) => {
                 let offset = Self::project(last.start, parse_offset(typed, last.offset, last.start.point)?);
@@ -337,6 +346,17 @@ mod tests {
         let mut doc = Document::default();
         doc.edit(|m| m.add_rectangle(DVec3::ZERO, DVec3::X * 10.0, DVec3::Y * 10.0, DVec3::Z));
         doc
+    }
+
+    #[test]
+    fn a_typed_start_point() {
+        let mut doc = Document::default();
+        let mut tool = TapeTool::default();
+        tool.enter(&mut doc, "[3,4,0]").unwrap();
+        assert!(tool.is_busy(), "measuring from there");
+        tool.enter(&mut doc, "[3,10,0]").unwrap();
+        let guides: Vec<Guide> = doc.model().guides().map(|(_, g)| g.clone()).collect();
+        assert!(!guides.is_empty(), "placed: {guides:?}");
     }
 
     #[test]

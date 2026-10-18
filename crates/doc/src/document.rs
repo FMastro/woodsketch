@@ -185,6 +185,26 @@ impl Document {
         });
     }
 
+    /// A text note's words, in the container being edited.
+    pub fn note_text(&self, id: crate::GuideId) -> Option<&str> {
+        match self.model().guide(id)? {
+            crate::Guide::Text { text, .. } => Some(text),
+            _ => None,
+        }
+    }
+
+    /// Change a text note's words (typing merges into one undo step). Blank words are refused.
+    pub fn set_note_text(&mut self, id: crate::GuideId, text: &str) {
+        let text = text.trim();
+        if text.is_empty() || self.note_text(id).is_none_or(|t| t == text) {
+            return;
+        }
+        self.edit_scene_merging(&format!("note {id:?}"), |scene, path| {
+            let model = &mut scene.container_mut(path).expect("the editing path stays valid").model;
+            model.set_note_text(id, text);
+        });
+    }
+
     /// A group's or component's woodworking properties (grain, cut).
     pub fn part_info(&self, id: InstanceId) -> Option<crate::part::PartInfo> {
         let definition = self.container().instance(id)?.definition;
@@ -783,7 +803,6 @@ impl Document {
         true
     }
 
-    /// Show or hide every guide (View > Guides); hidden ones aren't drawn, picked or snapped to.
     /// Add a guide to the container being edited, showing guides if they're hidden (a guide just
     /// made should be seen), as one undo step.
     pub fn add_guide(&mut self, guide: crate::Guide) -> crate::GuideId {
@@ -793,14 +812,37 @@ impl Document {
         })
     }
 
-    /// Add a dimension or text note to the container being edited, as one undo step.
+    /// Add a dimension or text note to the container being edited, showing its kind if hidden,
+    /// as one undo step.
     pub fn add_note(&mut self, note: crate::Guide) -> crate::GuideId {
-        self.edit_scene(|scene, path| scene.container_mut(path).expect("the editing path stays valid").model.add_guide(note))
+        self.edit_scene(|scene, path| {
+            match note {
+                crate::Guide::Dimension { .. } => scene.dimensions_hidden = false,
+                crate::Guide::Text { .. } => scene.text_hidden = false,
+                _ => scene.guides_hidden = false,
+            }
+            scene.container_mut(path).expect("the editing path stays valid").model.add_guide(note)
+        })
     }
 
+    /// Show or hide every guide (View > Guides); hidden ones aren't drawn, picked or snapped to.
     pub fn set_guides_hidden(&mut self, hidden: bool) {
         if self.scene().guides_hidden != hidden {
             self.edit_scene(|scene, _| scene.guides_hidden = hidden);
+        }
+    }
+
+    /// Show or hide every dimension (View > Dimensions).
+    pub fn set_dimensions_hidden(&mut self, hidden: bool) {
+        if self.scene().dimensions_hidden != hidden {
+            self.edit_scene(|scene, _| scene.dimensions_hidden = hidden);
+        }
+    }
+
+    /// Show or hide every text note (View > Text).
+    pub fn set_text_hidden(&mut self, hidden: bool) {
+        if self.scene().text_hidden != hidden {
+            self.edit_scene(|scene, _| scene.text_hidden = hidden);
         }
     }
 
@@ -1166,5 +1208,23 @@ mod context_tests {
         doc.set_guides_hidden(true);
         assert_eq!(doc.view().model().guides().count(), 0);
         assert_eq!(doc.model().guides().count(), 1, "still in the drawing");
+    }
+
+    #[test]
+    fn dimensions_and_text_hide_on_their_own() {
+        let mut doc = Document::default();
+        doc.add_guide(Guide::Point(DVec3::ONE));
+        doc.add_note(Guide::Dimension { a: DVec3::ZERO, b: DVec3::X, offset: DVec3::Y });
+        doc.add_note(Guide::Text { at: DVec3::ZERO, offset: DVec3::ZERO, text: "Top".into() });
+        let shown = |doc: &Document| doc.view().model().guides().count();
+        doc.set_guides_hidden(true);
+        assert_eq!(shown(&doc), 2, "notes stay when guides are hidden");
+        doc.set_dimensions_hidden(true);
+        assert_eq!(shown(&doc), 1);
+        doc.set_text_hidden(true);
+        assert_eq!(shown(&doc), 0);
+        doc.add_note(Guide::Text { at: DVec3::ONE, offset: DVec3::ZERO, text: "Back".into() });
+        assert_eq!(shown(&doc), 2, "a new note shows its kind again");
+        assert!(doc.scene().dimensions_hidden);
     }
 }

@@ -56,7 +56,7 @@ impl Keyboard {
                 }
                 egui::Event::Paste(_) if ctx.input(|i| i.modifiers.shift) => tools.paste_in_place(doc),
                 egui::Event::Paste(_) => tools.paste(doc),
-                egui::Event::Text(text) if walking && text.chars().all(|c| "wasdWASD".contains(c)) => {}
+                egui::Event::Text(text) if walking && !tools.is_typing() && text.chars().all(|c| "wasdqeWASDQE".contains(c)) => {}
                 egui::Event::Key { key: egui::Key::Escape, pressed: true, .. } if walking => tools.activate(ToolId::Select),
                 egui::Event::Key { key: egui::Key::ArrowUp | egui::Key::ArrowDown | egui::Key::ArrowLeft | egui::Key::ArrowRight, .. } if walking => {}
                 egui::Event::Text(text) => {

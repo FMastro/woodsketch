@@ -258,6 +258,12 @@ pub struct Scene {
     /// Guides hidden (View > Guides): not drawn, picked or snapped to.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub guides_hidden: bool,
+    /// Dimensions hidden (View > Dimensions).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub dimensions_hidden: bool,
+    /// Text notes hidden (View > Text).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub text_hidden: bool,
     /// The seasonal moisture swing wood movement is checked for, percent (`None`: 4%).
     #[serde(default)]
     pub moisture_swing: Option<f64>,
@@ -334,6 +340,15 @@ impl Scene {
     }
 
     /// Whether a tag shows: it and every folder it's in are visible.
+    /// Whether View > Guides, Dimensions or Text hides `guide`.
+    pub fn guide_hidden(&self, guide: &crate::Guide) -> bool {
+        match guide {
+            crate::Guide::Dimension { .. } => self.dimensions_hidden,
+            crate::Guide::Text { .. } => self.text_hidden,
+            _ => self.guides_hidden,
+        }
+    }
+
     pub fn tag_shown(&self, tag: TagId) -> bool {
         self.tag_ancestors(tag).all(|t| self.tag(t).is_some_and(|t| t.visible))
     }
@@ -724,9 +739,9 @@ impl View {
                 }
             }
         }
-        // View > Guides off: none to draw, pick or snap to.
-        if scene.guides_hidden {
-            view.model.remove_guides();
+        // View > Guides, Dimensions or Text off: none to draw, pick or snap to.
+        if scene.guides_hidden || scene.dimensions_hidden || scene.text_hidden {
+            view.model.remove_guides(|g| scene.guide_hidden(g));
         }
         view
     }

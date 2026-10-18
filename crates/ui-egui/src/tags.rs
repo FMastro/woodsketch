@@ -198,14 +198,23 @@ pub fn entity_info(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
     }
     let instances = doc.selection().iter().filter(|e| matches!(e, woodsketch_doc::Entity::Instance(_))).count();
     let single = doc.selection().iter().find_map(|e| if let woodsketch_doc::Entity::Instance(i) = e { Some(i) } else { None });
+    let note = doc.selection().iter().find_map(|e| if let woodsketch_doc::Entity::Guide(g) = e { Some(g) } else { None });
     match (count, instances, single) {
         (1, 1, Some(instance)) => name_field(ui, doc, instance),
+        (1, 0, _) if note.is_some_and(|g| doc.note_text(g).is_some()) => note_field(ui, doc, note.expect("checked")),
+        (1, 0, _) if let Some(length) = note.and_then(|g| dimension_length(doc, g)) => {
+            ui.label(format!("Dimension  {}", woodsketch_doc::units::format_length(length)));
+        }
         (n, 0, _) => {
             ui.label(format!("{n} loose entities"));
         }
         (n, i, _) => {
             ui.label(format!("{n} selected ({i} groups/components)"));
         }
+    }
+    // Guides, dimensions and notes take no material or tag.
+    if doc.selection().iter().all(|e| matches!(e, woodsketch_doc::Entity::Guide(_))) {
+        return;
     }
     crate::materials::entity_info_material(ui, doc, tools);
     // One group or component: its part details (size, stock, grain, cut).
@@ -270,6 +279,35 @@ fn name_field(ui: &mut egui::Ui, doc: &mut Document, instance: woodsketch_doc::I
             ui.data_mut(|d| d.remove::<String>(key));
         }
     });
+}
+
+/// The Entity Info field with a text note's words.
+pub(crate) fn note_field_id(note: woodsketch_doc::GuideId) -> egui::Id {
+    egui::Id::new(("entity_info_note", note))
+}
+
+fn note_field(ui: &mut egui::Ui, doc: &mut Document, note: woodsketch_doc::GuideId) {
+    let key = note_field_id(note);
+    let current = doc.note_text(note).unwrap_or_default().to_owned();
+    // While typing, keep what's typed (even blank); otherwise show the drawing's words.
+    let mut text = ui.data(|d| d.get_temp::<String>(key)).unwrap_or(current);
+    ui.label("Text");
+    let response = ui.add(egui::TextEdit::multiline(&mut text).id(key).desired_rows(2).desired_width(f32::INFINITY));
+    if response.changed() {
+        doc.set_note_text(note, &text);
+    }
+    if response.has_focus() {
+        ui.data_mut(|d| d.insert_temp(key, text));
+    } else {
+        ui.data_mut(|d| d.remove::<String>(key));
+    }
+}
+
+fn dimension_length(doc: &Document, id: woodsketch_doc::GuideId) -> Option<f64> {
+    match doc.model().guide(id)? {
+        woodsketch_doc::Guide::Dimension { a, b, .. } => Some(a.distance(*b)),
+        _ => None,
+    }
 }
 
 /// A tag being dragged in the Tags panel.

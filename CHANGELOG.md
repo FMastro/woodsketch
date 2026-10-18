@@ -3,6 +3,16 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.30
+
+- Double-click a text note to change its words in Entity Info; a selected dimension shows its length
+  there.
+- Dimension: click along an edge to dimension the whole edge in one click.
+- View > Dimensions and View > Text show or hide them on their own.
+- Type `[x,y,z]` before the first click to start Move, Tape Measure, Circle or Arc at that point.
+- Walk: E and Q (or Page Up and Page Down) go up and down, the mouse wheel sets the speed, walls
+  stop you, and typing a length sets the eye height.
+
 ## 0.1.29
 
 - Dimensions tool (Tools > Dimension): click two points, then move out and click (or type how far

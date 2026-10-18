@@ -231,6 +231,17 @@ impl MoveTool {
             let offset = parse_offset(typed, direction, op.base)?;
             return self.finish(doc, Some(offset));
         }
+        // `[x,y,z]` with something selected and nothing to retype: the base point there.
+        let fresh = !self.last.as_ref().is_some_and(|l| l.model_version == doc.model_version());
+        if fresh && typed.starts_with('[') && !doc.selection().is_empty() {
+            let base = parse_offset(typed, DVec3::ZERO, DVec3::ZERO)?;
+            let entities: Vec<Entity> = doc.selection().iter().collect();
+            let vertices = doc.view().vertices_of(&entities);
+            self.last = None;
+            self.hover = None;
+            self.op = Some(Op { entities, vertices, base, offset: DVec3::ZERO, direction: self.lock, from: None, dragging: false });
+            return Ok(());
+        }
         match self.last.take().filter(|l| l.model_version == doc.model_version()) {
             Some(last) => {
                 let offset = parse_offset(typed, last.offset, DVec3::ZERO)?;
@@ -248,7 +259,7 @@ impl MoveTool {
         if self.op.is_some() {
             format!("Pick the destination, or enter a distance{copy}. Arrow keys lock an axis; tap Ctrl to copy.")
         } else {
-            format!("Pick a base point to move{copy}. Tap Ctrl to copy; type 3x or /3 after a copy for an array.")
+            format!("Pick a base point to move{copy} (or type [x,y,z]). Tap Ctrl to copy; type 3x or /3 after a copy for an array.")
         }
     }
 
@@ -523,6 +534,16 @@ mod tests {
     use super::*;
 
     const SIZE: Vec2 = Vec2::new(1000.0, 800.0);
+
+    #[test]
+    fn a_typed_base_point_then_a_typed_target() {
+        let (mut doc, _) = setup();
+        let mut tool = MoveTool::default();
+        tool.enter(&mut doc, "[0,0,0]").unwrap();
+        tool.enter(&mut doc, "[5,0,0]").unwrap();
+        let min = doc.model().vertices().map(|(_, p)| p.x).fold(f64::MAX, f64::min);
+        assert!((min - 5.0).abs() < 1e-9, "moved 5\" along red: {min}");
+    }
 
     /// An 8' 2x4 standing at the origin, fully selected, seen from the front-left.
     fn setup() -> (Document, OrbitCamera) {

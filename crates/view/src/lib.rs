@@ -107,6 +107,11 @@ impl OrbitCamera {
         self.target = eye - self.offset_dir() * self.distance;
     }
 
+    /// Raise the eye (and what it looks at) by `dz`, model units.
+    pub fn raise(&mut self, dz: f32) {
+        self.target.z += dz;
+    }
+
     /// Walk the eye (and what it looks at) along the ground, `forward` the way it faces and
     /// `right` across, in model units; its height stays.
     pub fn walk(&mut self, forward: f32, right: f32) {

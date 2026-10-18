@@ -116,6 +116,14 @@ impl CircleTool {
                 _ => Ok(()),
             };
         }
+        // `[x,y,z]` before the first click: the center there (facing up, or along a locked axis).
+        if self.center.is_none() && typed.trim().starts_with('[') {
+            let center = crate::move_tool::parse_offset(typed, DVec3::ZERO, DVec3::ZERO)?;
+            self.center = Some((center, self.lock.map_or(DVec3::Z, crate::Axis::dir)));
+            self.radius = 0.0;
+            self.last = None;
+            return Ok(());
+        }
         let radius = parse_length(typed).map_err(|e| e.to_string())?.abs();
         if self.center.is_some() {
             return self.draw(doc, radius);
@@ -137,7 +145,7 @@ impl CircleTool {
                 (true, false) => " Radius to a corner (tap Ctrl: to a side).",
                 (true, true) => " Radius to a side's middle (tap Ctrl: to a corner).",
             };
-            format!("Select center point. Sides: {sides} (type {}s to change). Arrow keys face it along an axis.{ctrl}", if self.polygon { 8 } else { 32 })
+            format!("Select center point (or type [x,y,z]). Sides: {sides} (type {}s to change). Arrow keys face it along an axis.{ctrl}", if self.polygon { 8 } else { 32 })
         }
     }
 
@@ -192,6 +200,17 @@ mod tests {
     use super::*;
 
     const SIZE: Vec2 = Vec2::new(1000.0, 800.0);
+
+    #[test]
+    fn a_typed_center_then_a_typed_radius() {
+        let mut doc = Document::default();
+        let mut tool = CircleTool::default();
+        tool.enter(&mut doc, "[10,0,0]").unwrap();
+        tool.enter(&mut doc, "2").unwrap();
+        let model = doc.model();
+        assert_eq!(model.faces().count(), 1);
+        assert!(model.vertices().all(|(_, p)| (p.distance(DVec3::X * 10.0) - 2.0).abs() < 1e-9 && p.z.abs() < 1e-12));
+    }
 
     fn screen_setup() -> OrbitCamera {
         let mut camera = OrbitCamera { target: glam::Vec3::new(5.0, 5.0, 0.0), distance: 40.0, ..Default::default() };

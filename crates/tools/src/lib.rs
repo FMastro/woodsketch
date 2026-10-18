@@ -20,7 +20,7 @@ mod select;
 mod tape;
 
 use glam::{DAffine3, DVec3, Vec2};
-use woodsketch_doc::Document;
+use woodsketch_doc::{Document, units};
 use woodsketch_view::OrbitCamera;
 
 pub use pick::{Snap, SnapKind};
@@ -417,6 +417,9 @@ pub struct Tools {
     clip: Option<woodsketch_doc::clipboard::Clip>,
     /// Entity Info's "Pick": the part whose reference face or edge the next click sets.
     picking_reference: Option<woodsketch_doc::InstanceId>,
+    /// Walking: the eye's height (the viewport keeps it up to date), and a typed one to go to.
+    walk_eye: f64,
+    walk_eye_typed: Option<f64>,
 }
 
 impl Default for Tools {
@@ -448,6 +451,8 @@ impl Default for Tools {
             message: None,
             clip: None,
             picking_reference: None,
+            walk_eye: 0.0,
+            walk_eye_typed: None,
         }
     }
 }
@@ -872,6 +877,26 @@ impl Tools {
         !self.typed.is_empty()
     }
 
+    /// Show `message` in the status bar until the next action.
+    pub fn set_message(&mut self, message: String) {
+        self.message = Some(message);
+    }
+
+    /// Walking: the eye's height now, shown in the Measurements box.
+    pub fn set_walk_eye(&mut self, height: f64) {
+        self.walk_eye = height;
+    }
+
+    /// Walking: an eye height typed in the Measurements box, for the viewport to go to.
+    pub fn take_walk_eye(&mut self) -> Option<f64> {
+        self.walk_eye_typed.take()
+    }
+
+    /// A text note the Select tool just double-clicked, whose words the UI should open for editing.
+    pub fn take_edit_note(&mut self) -> Option<woodsketch_doc::GuideId> {
+        self.select.edit_note.take()
+    }
+
     /// Whether letters (and spaces) typed now are a text note's words rather than shortcuts:
     /// right after the Text tool places one.
     pub fn takes_text(&self, doc: &Document) -> bool {
@@ -915,6 +940,7 @@ impl Tools {
             ToolId::Rotate => self.rotate.enter(doc, &typed),
             ToolId::Protractor => self.protractor.enter(doc, &typed),
             ToolId::Dimension => self.dimension.enter(doc, &typed),
+            ToolId::Walk => units::parse_length(&typed).map_err(|e| e.to_string()).map(|h| self.walk_eye_typed = Some(h)),
             ToolId::Text => self.text.enter(doc, &typed),
             _ => Err(format!("{} doesn't take typed values.", self.active.name())),
         };
@@ -1032,7 +1058,7 @@ impl Tools {
             ToolId::Orbit => "Drag to orbit.".into(),
             ToolId::Pan => "Drag to pan.".into(),
             ToolId::Zoom => "Drag up to zoom in, down to zoom out.".into(),
-            ToolId::Walk => "Walking: move the mouse to look around; W A S D or the arrow keys to walk (Shift goes faster); Esc stops.".into(),
+            ToolId::Walk => "Walking: move the mouse to look; W A S D or the arrows walk (Shift: faster), E and Q go up and down, the wheel sets the speed; type an eye height. Esc stops.".into(),
         }
     }
 
@@ -1051,6 +1077,7 @@ impl Tools {
             ToolId::Protractor => "Angle",
             ToolId::Dimension => "Length",
             ToolId::Text => "Text",
+            ToolId::Walk => "Eye height",
             _ => "Measurements",
         }
     }
@@ -1076,6 +1103,7 @@ impl Tools {
             ToolId::Rotate => self.rotate.measurement(),
             ToolId::Protractor => self.protractor.measurement(),
             ToolId::Dimension => self.dimension.measurement(),
+            ToolId::Walk => units::format_length(self.walk_eye),
             _ => String::new(),
         }
     }

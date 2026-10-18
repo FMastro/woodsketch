@@ -9,7 +9,7 @@ use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS, Entity, Guide};
 
 use crate::Overlay;
-use crate::pick::{Screen, Snap, snap};
+use crate::pick::{Screen, Snap, SnapKind, pick_entity, snap};
 
 #[derive(Default)]
 pub struct DimensionTool {
@@ -54,6 +54,16 @@ impl DimensionTool {
         match self.stage {
             DimensionStage::First => {
                 let Some(hover) = self.hover else { return Ok(()) };
+                // Clicking along an edge (not at its ends or middle) dimensions the whole edge.
+                if hover.kind == SnapKind::OnEdge
+                    && let Some(Entity::Edge(edge)) = pick_entity(doc.view().model(), screen, cursor)
+                    && let Some(e) = doc.view().model().edge(edge)
+                {
+                    let [a, b] = doc.view().model().edge_points(e);
+                    let offset = place_offset(screen, cursor, a, b).unwrap_or(DVec3::ZERO);
+                    self.stage = DimensionStage::Place { a, b, offset };
+                    return Ok(());
+                }
                 self.stage = DimensionStage::Second { a: hover.point, b: None };
                 Ok(())
             }
@@ -87,7 +97,7 @@ impl DimensionTool {
 
     pub fn status(&self) -> &'static str {
         match self.stage {
-            DimensionStage::First => "Pick the first point to measure from.",
+            DimensionStage::First => "Pick the first point to measure from, or click an edge to dimension it.",
             DimensionStage::Second { .. } => "Pick the second point.",
             DimensionStage::Place { .. } => "Move out to place the dimension, then click, or type how far out.",
         }
@@ -137,10 +147,11 @@ pub struct TextTool {
     at: Option<(DVec3, String)>,
     /// Where the words would go.
     offset: DVec3,
-    /// The note just placed, whose words typing replaces.
+    /// The note just placed, whose words typing replaces (once).
     last: Option<Placed>,
 }
 
+#[derive(Clone, Copy)]
 struct Placed {
     at: DVec3,
     offset: DVec3,
@@ -149,7 +160,8 @@ struct Placed {
 
 impl TextTool {
     pub fn is_busy(&self) -> bool {
-        self.at.is_some()
+        // Waiting for words counts too, so Esc ends that.
+        self.at.is_some() || self.last.is_some()
     }
 
     pub fn cancel(&mut self) {
@@ -199,7 +211,7 @@ impl TextTool {
         };
         doc.undo();
         doc.add_note(Guide::Text { at: last.at, offset: last.offset, text: typed.trim().to_owned() });
-        self.last = Some(Placed { model_version: doc.model_version(), ..last });
+        // Done: letters are shortcuts again (Entity Info changes the words later).
         Ok(())
     }
 
@@ -270,6 +282,20 @@ mod tests {
         assert!((a.distance(b) - 20.0).abs() < 0.3, "{a} {b}");
         assert!((offset.length() - 2.0).abs() < 1e-9 && offset.y < 0.0, "2\" out toward the cursor: {offset}");
         assert!((offset.dot(b - a)).abs() < 1e-6, "square to the line");
+    }
+
+    #[test]
+    fn clicking_along_an_edge_dimensions_it() {
+        let mut doc = Document::default();
+        doc.edit(|m| m.add_line(DVec3::new(0.0, 0.0, 0.0), DVec3::new(16.0, 0.0, 0.0)));
+        let camera = camera();
+        let screen = Screen::new(&camera, SIZE);
+        let mut tool = DimensionTool::default();
+        tool.click(&mut doc, screen, at(screen, 5.0, 0.0)).unwrap();
+        assert_eq!(tool.measurement(), format_length(16.0), "the whole edge");
+        tool.click(&mut doc, screen, at(screen, 8.0, -2.0)).unwrap();
+        let [Guide::Dimension { a, b, .. }] = doc.model().guides().map(|(_, g)| g.clone()).collect::<Vec<_>>()[..] else { panic!() };
+        assert!((a.distance(b) - 16.0).abs() < 1e-9);
     }
 
     #[test]
