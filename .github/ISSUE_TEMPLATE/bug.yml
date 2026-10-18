@@ -1,0 +1,23 @@
+name: Report a problem
+description: Something in WoodSketch didn't work. Help > Report a Problem... in the app fills in the details.
+title: "[Bug] "
+labels: ["bug", "from-app"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      description: The steps, if you know them. A drawing that shows it helps a lot; you can drag a .woodsketch file here (it's public, so only if you're happy to share it).
+  - type: textarea
+    id: details
+    attributes:
+      label: Details from WoodSketch
+      description: Filled in by the app (version, system, graphics, a count of what's in the drawing). Nothing private.
+      render: text

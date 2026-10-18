@@ -3,6 +3,13 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.21
+
+- Help > Report a Problem... and Help > Send Feedback...: write what happened (or your idea), see
+  exactly what goes with it (version, system, graphics card, units, the last error with file paths
+  taken out, and counts from the drawing; no names, no files), then open it as a GitHub issue to
+  submit. When a reported problem is fixed, the issue closes with the version that has the fix.
+
 ## 0.1.20
 
 - Reference face and edge: Entity Info > Reference > Pick, then click the part's wide face or long

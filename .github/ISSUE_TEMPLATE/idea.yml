@@ -1,0 +1,18 @@
+name: Suggest an idea
+description: A feature you'd like, or other feedback. Help > Send Feedback... in the app fills in the details.
+title: "[Idea] "
+labels: ["enhancement", "from-app"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Your idea
+      description: What you'd like WoodSketch to do, and what you're making when you want it.
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details from WoodSketch
+      description: Filled in by the app (version and system). Nothing private.
+      render: text

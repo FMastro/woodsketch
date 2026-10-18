@@ -2017,3 +2017,54 @@ fn pick_a_boards_reference_face_and_edge_on_the_model() {
     click(&mut harness, end);
     assert!(harness.state().tools().status().starts_with("That's an end"), "{}", harness.state().tools().status());
 }
+
+#[test]
+fn report_a_problem_opens_a_github_issue_with_details_and_nothing_private() {
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    {
+        let doc = harness.state_mut().document_mut();
+        let board = add_board(doc, glam::DVec3::ZERO, 24.0, 3.5, 1.5);
+        let woodsketch_doc::Entity::Instance(board) = board else { unreachable!() };
+        doc.rename_instance(board, "Secret part");
+    }
+    harness.state_mut().show_error(r"Couldn't open C:\Users\someone\Documents\private.woodsketch: denied".to_owned());
+    harness.run();
+    harness.get_by_label("OK").click();
+    harness.run();
+    harness.get_by_label("Help").click();
+    harness.run();
+    harness.get_by_label("Report a Problem...").click();
+    harness.run();
+    // The details it sends are shown: version, a count of the drawing, the error without its path.
+    assert!(harness.query_by_label_contains(&format!("WoodSketch {}", woodsketch_ui_egui::updates::VERSION)).is_some());
+    assert!(harness.query_by_label_contains("1 groups/components").is_some());
+    assert!(harness.query_by_label_contains("Couldn't open [path]: denied").is_some());
+    let shown = { use egui_kittest::kittest::NodeT; harness.get_by_label_contains("Graphics:").accesskit_node().label().unwrap_or_default() };
+    assert!(!shown.contains("Secret part") && !shown.contains("private.woodsketch") && !shown.contains("someone"), "{shown}");
+    snapshot(&mut harness, "report_a_problem");
+
+    // Type what happened (the title is optional), then open it on GitHub.
+    let inputs: Vec<_> = harness.query_all(egui_kittest::kittest::by().role(egui::accesskit::Role::MultilineTextInput)).collect();
+    assert_eq!(inputs.len(), 1);
+    inputs[0].click();
+    harness.run();
+    type_text(&mut harness, "The board vanished");
+    harness.get_by_label("Open on GitHub").click();
+    harness.step();
+    let opened: Vec<String> = harness
+        .output()
+        .platform_output
+        .commands
+        .iter()
+        .filter_map(|c| match c {
+            egui::OutputCommand::OpenUrl(open) => Some(open.url.clone()),
+            _ => None,
+        })
+        .collect();
+    let [url] = &opened[..] else { panic!("one link opened: {opened:?}") };
+    assert!(url.starts_with("https://github.com/FMastro/woodsketch/issues/new?template=bug.yml&title=&what=The%20board%20vanished&details=WoodSketch%20"), "{url}");
+    assert!(!url.contains("Secret") && !url.contains("someone"), "{url}");
+    harness.run();
+    assert!(harness.query_by_label("Open on GitHub").is_none(), "the form closes");
+}

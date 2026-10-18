@@ -16,7 +16,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 41 | The next big feature; builds on templates and joinery |
-| 6 | Release polish | 43 | Signing before announcing widely |
+| 6 | Release polish | 46 | Signing before announcing widely |
 | 7 | Importing | 238 | Gets people's existing models in |
 | 8 | Cut list and materials | 171 | Better buying and cutting |
 | 9 | Wood movement | 32 | Fewer false warnings, clearer results |
@@ -28,7 +28,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 60 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1593** | |
+| | **All** | **1596** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -130,25 +130,24 @@ doors and hardware) are the building blocks a recipe calls.
    check the round trip).
 
 ## 6. Release polish
-Done: installers, auto-update, icons, release notes, the site's download links.
+Done: installers, auto-update, icons, release notes, the site's download links; Help > Report a
+Problem / Send Feedback (GitHub issue forms, details with nothing private; fixed issues close
+when their release is published).
 1. [5] Windows signing with Azure Artifact Signing (~$9.99/month; individuals in the US/Canada; a
    paid Azure subscription; identity validation takes days; CI signs via OIDC, no stored key).
    Until then SmartScreen warns. Do it before announcing WoodSketch widely.
 2. [8] macOS signing with an Apple Developer ID ($99/year) plus notarization, or Gatekeeper blocks it.
-3. [5] Report a problem or send feedback: Help > Report a Problem... opens a new GitHub issue
-   (github.com/FMastro/woodsketch/issues/new) filled in from a template, with what helps and
-   nothing private: WoodSketch version, OS and version, graphics adapter and driver (wgpu's
-   adapter info), units setting, the last error shown, and counts from the open drawing (parts,
-   faces, joints, materials by type). No file names or paths, user or machine names, part or
-   material names, or the drawing itself; the user sees the text before it's sent and can attach a
-   drawing themselves. Issue templates in the repo (bug, feature idea); a link on woodsketch.net too.
-4. [2] SHA-256 checksums (Linux needs no signing; optionally GPG-signed checksums).
-5. [2] A Download button on woodsketch.net that picks the visitor's OS.
-6. [3] Delta updates (download the previous release before packing, so updates are small).
-7. [5] `.woodsketch` file association on all three (double-click opens it).
-8. [3] A macOS DMG.
-9. [5] Linux .deb and .rpm.
-10. [5] Windows ARM64 and Linux ARM64 builds.
+3. [2] SHA-256 checksums (Linux needs no signing; optionally GPG-signed checksums).
+4. [2] A Download button on woodsketch.net that picks the visitor's OS.
+5. [3] Delta updates (download the previous release before packing, so updates are small).
+6. [5] `.woodsketch` file association on all three (double-click opens it).
+7. [3] A macOS DMG.
+8. [5] Linux .deb and .rpm.
+9. [5] Windows ARM64 and Linux ARM64 builds.
+10. [5] After a crash, offer to report it at the next start: a panic hook saves the message and
+    where it happened (paths scrubbed), and Report a Problem opens with it filled in.
+11. [3] The OS version in a report's details (only the OS and processor now: Rust's standard library
+    doesn't say which Windows or macOS version).
 
 ## 7. Importing
 Done: SketchUp 2021+ `.skp` (geometry, components, materials, tags and tag folders, hidden tags).

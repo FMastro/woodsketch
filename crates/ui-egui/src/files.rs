@@ -29,6 +29,8 @@ pub struct Files {
     pending: Option<Discard>,
     /// An error to show (failed to open or save).
     error: Option<String>,
+    /// The last error shown, kept for a problem report.
+    pub last_error: Option<String>,
     /// Set once the user has agreed to close, so the next close request goes through.
     closing: bool,
     title: String,
@@ -82,6 +84,7 @@ impl Files {
     }
 
     pub fn show_error(&mut self, error: String) {
+        self.last_error = Some(error.clone());
         self.error = Some(error);
     }
 

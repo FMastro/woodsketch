@@ -1,0 +1,25 @@
+# When a release is published, close the issues fixed for it (labeled fixed-pending-release on
+# main), telling the reporter which version has the fix.
+name: Close fixed issues
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  issues: write
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close issues fixed in this release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+          URL: ${{ github.event.release.html_url }}
+        run: |
+          for n in $(gh issue list -R "$GITHUB_REPOSITORY" --label fixed-pending-release --state open --json number -q '.[].number'); do
+            gh issue close "$n" -R "$GITHUB_REPOSITORY" --comment "Fixed in WoodSketch ${TAG#v} ($URL). Help > Check for Updates in the app gets it. Thanks for reporting it!"
+            gh issue edit "$n" -R "$GITHUB_REPOSITORY" --remove-label fixed-pending-release
+          done

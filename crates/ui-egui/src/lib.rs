@@ -1,6 +1,7 @@
 //! The WoodSketch window: a 3D viewport inside SketchUp-style chrome (`chrome.rs`).
 
 mod chrome;
+mod feedback;
 mod cutlist;
 pub mod files;
 mod icons;
@@ -44,6 +45,10 @@ pub struct WoodSketchApp {
     cut_list: cutlist::CutListWindow,
     show_tray: bool,
     show_about: bool,
+    /// Help > Report a Problem / Send Feedback.
+    feedback: feedback::FeedbackWindow,
+    /// The graphics card and driver, for a problem report.
+    graphics: String,
     /// Units for File > Export.
     export_units: woodsketch_doc::export::ExportUnits,
     /// Drawings opened or saved lately, newest first (File > Open Recent); kept between runs.
@@ -92,6 +97,12 @@ impl WoodSketchApp {
             cut_list: cutlist::CutListWindow::default(),
             show_tray: true,
             show_about: false,
+            feedback: feedback::FeedbackWindow::default(),
+            graphics: {
+                let info = render_state.adapter.get_info();
+                let driver = [info.driver.as_str(), info.driver_info.as_str()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
+                format!("{} ({:?}{})", info.name, info.backend, if driver.is_empty() { String::new() } else { format!(", {driver}") })
+            },
             export_units: woodsketch_doc::export::ExportUnits::Inches,
             recent: cc.storage.and_then(|s| eframe::get_value(s, RECENT_KEY)).unwrap_or_default(),
             autosave,
@@ -463,6 +474,7 @@ impl eframe::App for WoodSketchApp {
             self.show_tray = true;
         }
         self.about_window(&ctx);
+        self.feedback.show(&ctx, &self.doc, &self.graphics, self.files.last_error.as_deref());
 
         egui::CentralPanel::no_frame()
             .show(ui, |ui| self.viewport.show(ui, frame, &mut self.doc, &mut self.tools));

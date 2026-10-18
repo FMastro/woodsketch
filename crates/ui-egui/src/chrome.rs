@@ -281,6 +281,16 @@ impl WoodSketchApp {
                 ui.close();
                 ui.ctx().open_url(egui::OpenUrl::new_tab(crate::updates::RELEASES_URL));
             }
+            ui.separator();
+            if ui.button("Report a Problem...").on_hover_text("Tell us what went wrong: opens a GitHub issue with details that help, nothing private").clicked() {
+                ui.close();
+                self.feedback.start(woodsketch_doc::feedback::Kind::Problem);
+            }
+            if ui.button("Send Feedback...").on_hover_text("An idea or anything else: opens a GitHub issue").clicked() {
+                ui.close();
+                self.feedback.start(woodsketch_doc::feedback::Kind::Idea);
+            }
+            ui.separator();
             if ui.button("About WoodSketch").clicked() {
                 ui.close();
                 self.show_about = true;
