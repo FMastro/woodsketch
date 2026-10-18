@@ -241,7 +241,7 @@ Done: roundover, chamfer, cove, ogee, around a face (mitered corners) or along a
 3. [5] Tab cycles a board's faces against a surface.
 
 ## 12. Modeling tools
-Tools
+### Tools
 1. [3] Polygon tool.
 2. [5] Push/Pull: Ctrl keeps the original face (push/pull copy).
 3. [3] Double-click repeat across tools (Push/Pull repeats only its own).
@@ -255,7 +255,7 @@ Tools
 9. [21] Follow Me.
 10. [21] Section Plane.
 
-Inference and snapping
+### Inference and snapping
 11. [3] Line: change a typed length after the line is drawn.
 12. [3] Rectangle: square and golden-ratio diagonal hints.
 13. [5] Faces closed from loose lines face to match connected faces (up, front, then right now;
@@ -265,7 +265,7 @@ Inference and snapping
     Move and Tape do).
 16. [8] Rectangles off the axes.
 
-Circles and arcs
+### Circles and arcs
 17. [3] Circles off any face lie flat on the ground; follow the axis or a face under the cursor.
 18. [5] Arc: tangent inference.
 19. [5] 3-point Arc and Pie.
@@ -274,7 +274,7 @@ Circles and arcs
 21. [13] Curves as one entity (a circle is 24 edges now; SketchUp selects it with one click and
     shows its radius and sides).
 
-Offset, Tape Measure, Scale, Rotate
+### Offset, Tape Measure, Scale, Rotate
 22. [1] New guides made while guides are hidden stay hidden; show them.
 23. [3] Offset: snap the distance to points the cursor passes.
 24. [3] Offset: rounded outward corners (always mitered now).
@@ -291,7 +291,7 @@ Offset, Tape Measure, Scale, Rotate
 34. [8] Scale: a rotated group among several scaled together gets sheared (they use the
     red/green/blue axes), and the cut list measures it only approximately.
 
-Geometry
+### Geometry
 35. [5] Collinear leftovers: other merges (pulling part of a top up flush with a side) can still
     leave a corner on a straight edge (erasing a seam heals them).
 36. [8] Coplanar faces sharing an edge merge on their own (boards glued end to end keep a seam).
