@@ -231,6 +231,56 @@ impl Document {
         Some([center - half, center + half].map(|p| instance.transform.transform_point3(p)))
     }
 
+    /// Set a part's reference face or edge from the side of it facing `normal` (in its own axes,
+    /// as clicked): one of its wide faces sets the face, one of its long edges the edge. Says
+    /// which it set; an end, or an assembly, can't be one.
+    pub fn set_reference(&mut self, id: InstanceId, normal: DVec3) -> Result<&'static str, &'static str> {
+        let (Some(extents), Some(info)) = (self.part_extents(id), self.part_info(id)) else {
+            return Err("Pick a face of a single part.");
+        };
+        let [_, width, thickness] = crate::part::axes(extents, &info);
+        let side = crate::part::Side::facing(normal);
+        let axis = side.axis.index();
+        if axis == thickness {
+            self.edit_part(id, |p| p.reference_face = Some(side));
+            Ok("Reference face set: it's measured from this face.")
+        } else if axis == width {
+            self.edit_part(id, |p| p.reference_edge = Some(side));
+            Ok("Reference edge set: it's measured from this edge.")
+        } else {
+            Err("That's an end: click one of the wide faces for the reference face, or a long edge for the reference edge.")
+        }
+    }
+
+    /// Where a part's reference face and edge are, in the edited container's coordinates: an
+    /// outline just inside the face, and a line along the middle of the edge.
+    pub fn reference_marks(&self, id: InstanceId) -> (Option<[DVec3; 4]>, Option<[DVec3; 2]>) {
+        let (Some(instance), Some(extents), Some(info)) = (self.container().instance(id).copied(), self.part_extents(id), self.part_info(id)) else {
+            return (None, None);
+        };
+        let Some((lo, hi)) = self.state.scene.definition(instance.definition).and_then(|d| d.container.model.bounds()) else { return (None, None) };
+        let [l, w, t] = crate::part::axes(extents, &info);
+        let at = |side: crate::part::Side| if side.positive { hi[side.axis.index()] } else { lo[side.axis.index()] };
+        let place = |p: DVec3| instance.transform.transform_point3(p);
+        let point = |coords: [(usize, f64); 3]| {
+            let mut p = DVec3::ZERO;
+            for (axis, v) in coords {
+                p[axis] = v;
+            }
+            p
+        };
+        let inset = |axis: usize, k: f64| lo[axis] + (hi[axis] - lo[axis]) * k;
+        let face = info.reference_face.filter(|s| s.axis.index() == t).map(|side| {
+            let z = at(side);
+            [(0.12, 0.2), (0.88, 0.2), (0.88, 0.8), (0.12, 0.8)].map(|(a, b)| place(point([(l, inset(l, a)), (w, inset(w, b)), (t, z)])))
+        });
+        let edge = info.reference_edge.filter(|s| s.axis.index() == w).map(|side| {
+            let y = at(side);
+            [0.12, 0.88].map(|a| place(point([(l, inset(l, a)), (w, y), (t, inset(t, 0.5))])))
+        });
+        (face, edge)
+    }
+
     /// How long a part is along each of its own axes (red, green, blue), or `None` for an
     /// assembly.
     pub fn part_extents(&self, id: InstanceId) -> Option<DVec3> {

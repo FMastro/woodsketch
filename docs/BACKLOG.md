@@ -11,12 +11,12 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 ## Summary (recommended order)
 | # | Category | Points | Why here |
 |---|---|---|---|
-| 1 | Build sheets and assembly | 63 | Finishes what just shipped; shop output is what woodworkers keep |
+| 1 | Build sheets and assembly | 53 | Finishes what just shipped; shop output is what woodworkers keep |
 | 2 | Joinery | 92 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 41 | The next big feature; builds on templates and joinery |
-| 6 | Release polish | 38 | Signing before announcing widely |
+| 6 | Release polish | 43 | Signing before announcing widely |
 | 7 | Importing | 238 | Gets people's existing models in |
 | 8 | Cut list and materials | 171 | Better buying and cutting |
 | 9 | Wood movement | 32 | Fewer false warnings, clearer results |
@@ -28,28 +28,33 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 60 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1598** | |
+| | **All** | **1593** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
 (exploded drawing with leader lines and glue-up order per assembly, sub-assemblies first, hardware
 at the step it's used); hidden lines dashed in the part views; each cut once with how many; alike
-and mirrored parts on one page; glue-up boards drawn; File > Print Build Sheets.
-1. [13] Pick the reference face and edge on the model (Parts section of Entity Info).
-2. [13] Where each joint and profile sits: dimensions to it from the reference face and edge
-   (needs 1).
-3. [8] A glue-up order for parts with no joints made (now they're only "fastened").
-4. [8] An exploded drawing for each step instead of one per assembly.
-5. [8] Assembly order for parts at an angle (touching is judged on boxes square to the axes).
-6. [5] Leader lines can cross other parts on their way to the label column; route them around,
+and mirrored parts on one page; glue-up boards drawn; reference face and edge picked on the model
+(Entity Info > Pick) and each cut placed from them on the sheet; File > Print Build Sheets.
+1. [5] Where each profile sits on the build sheet: its edges drawn and named on the views (joints
+   are placed; profiles are only listed as steps).
+2. [5] Dimension lines for a cut's length position and depth on the views (only its distance from
+   the reference edge is drawn; the rest is in the "Where the cuts are" list).
+3. [3] A reference end: lengths are measured from the left end as the views draw it.
+4. [3] The traditional face and edge mark symbols (the loop and the caret) on the views and
+   the model, not only blue lines.
+5. [8] A glue-up order for parts with no joints made (now they're only "fastened").
+6. [8] An exploded drawing for each step instead of one per assembly.
+7. [8] Assembly order for parts at an angle (touching is judged on boxes square to the axes).
+8. [5] Leader lines can cross other parts on their way to the label column; route them around,
    or put the label on the part where there's room.
-7. [3] Hardware lying on two parts (a pair of slides on both box sides) is said to go on one
+9. [3] Hardware lying on two parts (a pair of slides on both box sides) is said to go on one
    ("on J (Drawer box side)"); name both.
-8. [3] Parts alike but drawn a little differently (an extra seam line, a leftover point on an
-   edge) aren't recognized as the same part, so they keep a page each; compare their shapes, not
-   their points.
-9. [2] A cut used by different parts on different copies reads "Cut the mortise for Front and
-   back apron or Side apron"; say which corner takes which.
+10. [3] Parts alike but drawn a little differently (an extra seam line, a leftover point on an
+    edge) aren't recognized as the same part, so they keep a page each; compare their shapes, not
+    their points.
+11. [2] A cut used by different parts on different copies reads "Cut the mortise for Front and
+    back apron or Side apron"; say which corner takes which.
 
 ## 2. Joinery
 Done: dado, groove, rabbet, mortise and tenon (through, haunched), dovetails (through,
@@ -130,13 +135,20 @@ Done: installers, auto-update, icons, release notes, the site's download links.
    paid Azure subscription; identity validation takes days; CI signs via OIDC, no stored key).
    Until then SmartScreen warns. Do it before announcing WoodSketch widely.
 2. [8] macOS signing with an Apple Developer ID ($99/year) plus notarization, or Gatekeeper blocks it.
-3. [2] SHA-256 checksums (Linux needs no signing; optionally GPG-signed checksums).
-4. [2] A Download button on woodsketch.net that picks the visitor's OS.
-5. [3] Delta updates (download the previous release before packing, so updates are small).
-6. [5] `.woodsketch` file association on all three (double-click opens it).
-7. [3] A macOS DMG.
-8. [5] Linux .deb and .rpm.
-9. [5] Windows ARM64 and Linux ARM64 builds.
+3. [5] Report a problem or send feedback: Help > Report a Problem... opens a new GitHub issue
+   (github.com/FMastro/woodsketch/issues/new) filled in from a template, with what helps and
+   nothing private: WoodSketch version, OS and version, graphics adapter and driver (wgpu's
+   adapter info), units setting, the last error shown, and counts from the open drawing (parts,
+   faces, joints, materials by type). No file names or paths, user or machine names, part or
+   material names, or the drawing itself; the user sees the text before it's sent and can attach a
+   drawing themselves. Issue templates in the repo (bug, feature idea); a link on woodsketch.net too.
+4. [2] SHA-256 checksums (Linux needs no signing; optionally GPG-signed checksums).
+5. [2] A Download button on woodsketch.net that picks the visitor's OS.
+6. [3] Delta updates (download the previous release before packing, so updates are small).
+7. [5] `.woodsketch` file association on all three (double-click opens it).
+8. [3] A macOS DMG.
+9. [5] Linux .deb and .rpm.
+10. [5] Windows ARM64 and Linux ARM64 builds.
 
 ## 7. Importing
 Done: SketchUp 2021+ `.skp` (geometry, components, materials, tags and tag folders, hidden tags).

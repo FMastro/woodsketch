@@ -10,7 +10,7 @@ use woodsketch_doc::part::{Cut, EdgeJoint, GlueUp, PartAxis};
 use woodsketch_doc::units::format_length;
 use woodsketch_doc::{Document, Entity, InstanceId, MaterialKind};
 
-pub fn show(ui: &mut egui::Ui, doc: &mut Document, instance: InstanceId) {
+pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut woodsketch_tools::Tools, instance: InstanceId) {
     let (Some(size), Some(extents), Some(info)) = (doc.part_size(instance), doc.part_extents(instance), doc.part_info(instance)) else {
         ui.weak("An assembly: its parts are the groups and components inside.");
         return;
@@ -68,6 +68,38 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, instance: InstanceId) {
         if let Some(grain) = picked {
             doc.edit_part(instance, |p| p.grain = grain);
         }
+        ui.end_row();
+
+        // The face and edge it's measured from, named by where they face in the drawing; stacked,
+        // so the tray keeps its width.
+        ui.label("Reference").on_hover_text("The face and edge the build sheet measures from (a woodworker's face and edge marks)");
+        let axes = doc.container().instance(instance).map(|i| doc.context_transform().matrix3 * i.transform.matrix3);
+        let named = |side: Option<woodsketch_doc::part::Side>| match (side, axes) {
+            (Some(side), Some(axes)) => crate::profile::facing(axes * side.normal()).to_owned(),
+            _ => "not set".to_owned(),
+        };
+        ui.vertical(|ui| {
+            ui.label(format!("Face {}, edge {}", named(info.reference_face), named(info.reference_edge)));
+            ui.horizontal(|ui| {
+                let picking = tools.picking_reference();
+                let pick = ui
+                    .selectable_label(picking, format!("{} Pick", ph::CURSOR_CLICK))
+                    .on_hover_text("Then click the part: a wide face sets the reference face, a long edge the reference edge");
+                if pick.clicked() {
+                    if picking {
+                        tools.cancel();
+                    } else {
+                        tools.pick_reference_on(instance);
+                    }
+                }
+                if (info.reference_face.is_some() || info.reference_edge.is_some()) && ui.small_button("Clear").clicked() {
+                    doc.edit_part(instance, |p| {
+                        p.reference_face = None;
+                        p.reference_edge = None;
+                    });
+                }
+            });
+        });
         ui.end_row();
 
         // Sawn boards only: sheet goods don't move like solid wood.

@@ -404,6 +404,31 @@ fn draw_overlay(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera,
         painter.galley(label.min + egui::vec2(3.0, 3.0), galley, color);
     }
 
+    // The selected part's reference face (an outline on it) and edge (a line along it), with
+    // the woodworker's marks' names.
+    let mark = egui::Color32::from_rgb(40, 90, 200);
+    let tag = |painter: &egui::Painter, at: egui::Pos2, text: &str| {
+        let galley = painter.layout_no_wrap(text.into(), egui::FontId::proportional(12.0), mark);
+        let label = egui::Rect::from_center_size(at, galley.size()).expand(3.0);
+        painter.rect_filled(label, 3.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 220));
+        painter.galley(label.min + egui::vec2(3.0, 3.0), galley, mark);
+    };
+    if let Some(quad) = overlay.reference_face
+        && let Some(points) = quad.iter().map(|p| screen(*p)).collect::<Option<Vec<_>>>()
+    {
+        painter.add(egui::Shape::closed_line(points.clone(), egui::Stroke::new(2.0, mark)));
+        // Toward one end, clear of the grain arrow's label in the middle.
+        let toward_end = points[0] + (points[3] - points[0]) * 0.5;
+        let middle = points.iter().fold(egui::Vec2::ZERO, |sum, p| sum + p.to_vec2()) / points.len() as f32;
+        tag(painter, middle.to_pos2() + (toward_end - middle.to_pos2()) * 0.6, "Reference face");
+    }
+    if let Some([a, b]) = overlay.reference_edge
+        && let (Some(a), Some(b)) = (screen(a), screen(b))
+    {
+        painter.line_segment([a, b], egui::Stroke::new(3.0, mark));
+        tag(painter, a + (b - a) * 0.8 + egui::vec2(0.0, 14.0), "Reference edge");
+    }
+
     // The box around the group being edited, dashed as in SketchUp.
     let dashed = egui::Stroke::new(1.0, egui::Color32::from_gray(70));
     for [a, b] in &overlay.dashed {

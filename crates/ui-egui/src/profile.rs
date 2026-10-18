@@ -20,7 +20,7 @@ struct Choices {
 }
 
 /// Where a direction in the part points in the drawing: Top, Bottom, Left, Right, Front, Back.
-fn facing(world: DVec3) -> &'static str {
+pub(crate) fn facing(world: DVec3) -> &'static str {
     let a = world.abs();
     if a.z >= a.x && a.z >= a.y {
         if world.z > 0.0 { "Top" } else { "Bottom" }

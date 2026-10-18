@@ -1972,3 +1972,48 @@ fn view_units_switches_lengths_to_millimeters() {
     // Back to inches for any test that runs on this thread next.
     woodsketch_doc::units::set_units(woodsketch_doc::units::Units::Inches);
 }
+
+#[test]
+fn pick_a_boards_reference_face_and_edge_on_the_model() {
+    use egui_kittest::kittest::Queryable;
+    use glam::DVec3;
+    use woodsketch_doc::board::Board;
+    use woodsketch_doc::part::{PartAxis, Side};
+    let mut harness = app();
+    let board = {
+        let doc = harness.state_mut().document_mut();
+        // Flat: 24" along red, 6" wide along green, 3/4" thick, its top up.
+        let board = doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::X, width_dir: DVec3::Y, length: 24.0, width: 6.0, thickness: 0.75 }, None).unwrap();
+        doc.selection_mut().extend([woodsketch_doc::Entity::Instance(board)]);
+        board
+    };
+    harness.run();
+    type_text(&mut harness, "Z");
+    assert!(harness.query_by_label_contains("Face not set, edge not set").is_some());
+    let info = |harness: &Harness<'_, WoodSketchApp>| harness.state().document().part_info(board).unwrap();
+
+    // Pick, then the top: the reference face.
+    harness.get_by_label_contains("Pick").click();
+    harness.run();
+    assert!(harness.state().tools().status().starts_with("Click the part's reference face"));
+    let top = harness.state().to_window(DVec3::new(12.0, 3.0, 0.75)).unwrap();
+    click(&mut harness, top);
+    assert_eq!(info(&harness).reference_face, Some(Side { axis: PartAxis::Z, positive: true }));
+    assert!(harness.state().document().selection().contains(woodsketch_doc::Entity::Instance(board)), "still selected");
+
+    // Pick, then the front edge: the reference edge.
+    harness.get_by_label_contains("Pick").click();
+    harness.run();
+    let front = harness.state().to_window(DVec3::new(12.0, 0.0, 0.375)).unwrap();
+    click(&mut harness, front);
+    assert_eq!(info(&harness).reference_edge, Some(Side { axis: PartAxis::Y, positive: false }));
+    assert!(harness.query_by_label_contains("Face Top, edge Front").is_some());
+    snapshot(&mut harness, "reference_marks");
+
+    // An end can't be either.
+    harness.get_by_label_contains("Pick").click();
+    harness.run();
+    let end = harness.state().to_window(DVec3::new(0.0, 3.0, 0.375)).unwrap();
+    click(&mut harness, end);
+    assert!(harness.state().tools().status().starts_with("That's an end"), "{}", harness.state().tools().status());
+}

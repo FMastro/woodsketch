@@ -688,6 +688,18 @@ mod tests {
         c.fills[2] = Fill::Drawer;
         c.fills[0] = Fill::Doors;
         doc.add_template(&Template::Cabinet(c), Some(cherry)).unwrap();
+        // Reference faces and edges picked on every part: the far side of its thickness and width.
+        doc.edit_scene(|scene, _| {
+            let ids: Vec<DefinitionId> = scene.definitions().map(|(id, _)| id).collect();
+            for id in ids {
+                let Some(def) = scene.definition(id) else { continue };
+                let Some(extents) = crate::part::extents(def, glam::DMat3::IDENTITY) else { continue };
+                let [_, w, t] = crate::part::axes(extents, &def.part);
+                let def = scene.definition_mut(id).unwrap();
+                def.part.reference_face = Some(crate::part::Side { axis: crate::part::PartAxis::ALL[t], positive: true });
+                def.part.reference_edge = Some(crate::part::Side { axis: crate::part::PartAxis::ALL[w], positive: false });
+            }
+        });
         let list = crate::cutlist::cut_list(doc.scene());
         std::fs::write(path, crate::buildsheet::to_html(doc.scene(), &list, "Samples")).unwrap();
     }

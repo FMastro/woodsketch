@@ -3,6 +3,14 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.20
+
+- Reference face and edge: Entity Info > Reference > Pick, then click the part's wide face or long
+  edge. They're marked in blue on the selected part (shared by copies of a component).
+- Build sheets place each cut from them: the reference face and edge marked on the views, each
+  cut numbered with its distance from the reference edge, and a "Where the cuts are" list (from
+  the left end, from the reference edge, how deep from the reference face).
+
 ## 0.1.19
 
 - Build sheets: a part made as copies (four legs from one component) lists each of its cuts once,

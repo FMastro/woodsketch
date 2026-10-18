@@ -188,6 +188,9 @@ pub struct Overlay {
     pub axis_lines: Vec<(DVec3, DVec3, Axis)>,
     /// The selected part's grain direction: a line through it along the grain.
     pub grain: Option<[DVec3; 2]>,
+    /// The selected part's reference face (an outline just inside it) and edge (a line along it).
+    pub reference_face: Option<[DVec3; 4]>,
+    pub reference_edge: Option<[DVec3; 2]>,
     /// Dashed lines: the box around the group being edited.
     pub dashed: Vec<[DVec3; 2]>,
     /// Guides to preview or highlight (the drawing's own guides are drawn by the renderer), and
@@ -380,6 +383,8 @@ pub struct Tools {
     message: Option<String>,
     /// What Copy or Cut took, for Paste.
     clip: Option<woodsketch_doc::clipboard::Clip>,
+    /// Entity Info's "Pick": the part whose reference face or edge the next click sets.
+    picking_reference: Option<woodsketch_doc::InstanceId>,
 }
 
 impl Default for Tools {
@@ -406,11 +411,37 @@ impl Default for Tools {
             typed: String::new(),
             message: None,
             clip: None,
+            picking_reference: None,
         }
     }
 }
 
+/// The reference face or edge of `part` from a click on it: the side of it under the cursor.
+fn pick_reference(doc: &mut Document, screen: Screen<'_>, part: woodsketch_doc::InstanceId, pos: Vec2) -> Result<&'static str, &'static str> {
+    let instance = *doc.container().instance(part).ok_or("That part is gone.")?;
+    let model = &doc.scene().definition(instance.definition).ok_or("That part is gone.")?.container.model;
+    // The click as a ray in the part's own coordinates.
+    let ray = screen.ray(pos);
+    let to_part = instance.transform.inverse();
+    let local = pick::Ray { origin: to_part.transform_point3(ray.origin), dir: to_part.transform_vector3(ray.dir).normalize() };
+    let (face, _) = pick::hit_face(model, &local).ok_or("Click on the part itself to pick its reference face or edge.")?;
+    let normal = model.face(face).ok_or("Click on the part itself.")?.normal;
+    doc.set_reference(part, normal)
+}
+
 impl Tools {
+    /// Entity Info's "Pick": the next click on `part` sets its reference face or edge.
+    pub fn pick_reference_on(&mut self, part: woodsketch_doc::InstanceId) {
+        self.cancel();
+        self.active = ToolId::Select;
+        self.picking_reference = Some(part);
+    }
+
+    /// Whether a click will pick a reference face or edge.
+    pub fn picking_reference(&self) -> bool {
+        self.picking_reference.is_some()
+    }
+
     /// The Board tool: the stock it draws with, and whether lumber stands on edge.
     pub fn board(&self) -> &BoardTool {
         &self.board
@@ -473,6 +504,7 @@ impl Tools {
 
     /// Abandon whatever the active tool is in the middle of.
     pub fn cancel(&mut self) {
+        self.picking_reference = None;
         self.grip_dragging = false;
         self.grip_rotated = false;
         self.typed.clear();
@@ -510,6 +542,15 @@ impl Tools {
             _ => {}
         }
 
+        // Picking a part's reference face or edge: the click goes to that.
+        if let Some(part) = self.picking_reference
+            && let PointerEvent::Click { pos, .. } = event
+        {
+            self.picking_reference = None;
+            let said = pick_reference(doc, Screen::in_context(camera, size, doc.context_transform()), part, pos);
+            self.message = Some(said.unwrap_or_else(|e| e).to_owned());
+            return;
+        }
         if let PointerEvent::Click { pos, .. } | PointerEvent::DragStart { origin: pos } = event {
             self.open_group_to_draw_on(doc, camera, size, pos);
         }
@@ -792,6 +833,9 @@ impl Tools {
     /// Esc: clear typing, else cancel the operation in progress, else drop the selection, else
     /// close the group being edited.
     pub fn escape(&mut self, doc: &mut Document) {
+        if self.picking_reference.take().is_some() {
+            return;
+        }
         let busy = self.select.is_busy()
             || self.line.is_busy()
             || self.tape.is_busy()
@@ -860,6 +904,9 @@ impl Tools {
     }
 
     pub fn status(&self) -> String {
+        if self.picking_reference.is_some() && self.message.is_none() {
+            return "Click the part's reference face (a wide face) or edge (a long edge). Esc stops.".into();
+        }
         if let Some(message) = &self.message {
             return message.clone();
         }
@@ -931,6 +978,7 @@ impl Tools {
         let selected: Vec<woodsketch_doc::Entity> = doc.selection().iter().collect();
         if let [woodsketch_doc::Entity::Instance(part)] = selected[..] {
             overlay.grain = doc.grain_line(part);
+            (overlay.reference_face, overlay.reference_edge) = doc.reference_marks(part);
         }
         if let Some((lo, hi)) = doc.editing_box() {
             // Just outside the geometry, so the box doesn't hide behind the group's own edges.

@@ -210,7 +210,7 @@ pub fn entity_info(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
     crate::materials::entity_info_material(ui, doc, tools);
     // One group or component: its part details (size, stock, grain, cut).
     if let (1, 1, Some(instance)) = (count, instances, single) {
-        crate::part::show(ui, doc, instance);
+        crate::part::show(ui, doc, tools, instance);
         crate::joinery::part_joints(ui, doc, instance);
         crate::profile::part_profiles(ui, doc, instance);
     }

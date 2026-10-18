@@ -33,6 +33,27 @@ impl PartAxis {
     }
 }
 
+/// One side of a part: along one of its own axes, at that axis's far (`positive`) or near end.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Side {
+    pub axis: PartAxis,
+    pub positive: bool,
+}
+
+impl Side {
+    /// The side whose outward direction is closest to `normal` (in the part's own axes).
+    pub fn facing(normal: DVec3) -> Self {
+        let a = normal.abs();
+        let index = if a.x >= a.y && a.x >= a.z { 0 } else if a.y >= a.z { 1 } else { 2 };
+        Self { axis: PartAxis::ALL[index], positive: normal[index] > 0.0 }
+    }
+
+    /// Its outward direction, in the part's own axes.
+    pub fn normal(self) -> DVec3 {
+        self.axis.dir() * if self.positive { 1.0 } else { -1.0 }
+    }
+}
+
 /// How a board was sawn from the log: it sets how much it moves across its width.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Cut {
@@ -149,6 +170,13 @@ pub struct PartInfo {
     /// A glue-up's seams: glue only, or reinforced.
     #[serde(default)]
     pub edge_joint: EdgeJoint,
+    /// The face everything is measured from (a woodworker's face mark): one of its two wide
+    /// faces. Picked on the model; `None` until then.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reference_face: Option<Side>,
+    /// The edge measured from (the edge mark): one of its two long edges.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reference_edge: Option<Side>,
 }
 
 /// A part's size: `[length, width, thickness]`, length along the grain.
