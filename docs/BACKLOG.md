@@ -12,11 +12,11 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | # | Category | Points | Why here |
 |---|---|---|---|
 | 1 | Build sheets and assembly | 53 | Finishes what just shipped; shop output is what woodworkers keep |
-| 2 | Joinery | 92 | Closes gaps in the core woodworking feature |
+| 2 | Joinery | 95 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 41 | The next big feature; builds on templates and joinery |
-| 6 | Release polish | 46 | Signing before announcing widely |
+| 6 | Release polish | 48 | Signing before announcing widely |
 | 7 | Importing | 238 | Gets people's existing models in |
 | 8 | Cut list and materials | 171 | Better buying and cutting |
 | 9 | Wood movement | 32 | Fewer false warnings, clearer results |
@@ -25,10 +25,10 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 12 | Modeling tools | 255 | SketchUp parity for general modeling |
 | 13 | Groups, components and tags | 63 | Organizing bigger projects |
 | 14 | UI | 87 | Comfort and polish |
-| 15 | Rendering and performance | 60 | Only pressing for very big models |
+| 15 | Rendering and performance | 63 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1596** | |
+| | **All** | **1604** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -74,6 +74,9 @@ mortises and dowel holes.
 9. [13] Angled dowels, half-laps and dovetails.
 10. [21] Compound angles, and a second angled joint on a part already cut at an angle in
     another plane.
+11. [3] Entity Info lists a part's joints once per copy's meeting ("Dovetails with Side" twice on
+    a drawer front made as copies); list each cut once, as the build sheets do
+    (`buildsheet::cuts`), and say which corners it's at.
 
 ## 3. Templates
 Done: cabinet (drawers and doors in its openings, adjustable shelves, hinge side), drawer, face
@@ -148,6 +151,8 @@ when their release is published).
     where it happened (paths scrubbed), and Report a Problem opens with it filled in.
 11. [3] The OS version in a report's details (only the OS and processor now: Rust's standard library
     doesn't say which Windows or macOS version).
+12. [2] A scheduled check of new reports (a daily routine that reads `from-app` issues and drafts
+    fixes for review); now they're checked at the start of each session (CLAUDE.md).
 
 ## 7. Importing
 Done: SketchUp 2021+ `.skp` (geometry, components, materials, tags and tag folders, hidden tags).
@@ -330,6 +335,9 @@ Measured with `tests/perf.rs` (`cargo test --release -p woodsketch-ui-egui --tes
 7. [13] A spatial index (BVH) for picking (every face's plane and box is tested now, cached per model).
 8. [21] Each edit clones the scene for undo and re-flattens the whole view for picking (about
    0.1 s on the deck); sharing unchanged definitions and per-definition caches would cut both.
+9. [3] The selection tint is built on the CPU from the flattened view, a second copy of the
+   geometry the GPU places; it's drawn unbiased so it doesn't z-fight (0.1.22). Draw it from the
+   placed mesh instead (the selected placements again, tinted), so the two always match.
 
 ## 16. Export
 Done: OBJ (+ MTL colors) and ASCII STL, inches or millimeters.
