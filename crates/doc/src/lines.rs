@@ -193,6 +193,27 @@ impl Model {
         }
     }
 
+    /// The side a face with the `outer` loop (counter-clockwise around `normal`) should face to
+    /// agree with a face out of its plane sharing one of its edges: two faces facing the same
+    /// way round run their shared edge in opposite directions.
+    fn side_matching_neighbors(&self, outer: &[VertexId], normal: DVec3, origin: DVec3) -> Option<DVec3> {
+        let n = outer.len();
+        let ours: BTreeSet<(VertexId, VertexId)> = (0..n).map(|i| (outer[i], outer[(i + 1) % n])).collect();
+        self.faces().filter(|(_, f)| !self.in_plane(f, normal, origin)).find_map(|(_, f)| {
+            let m = f.outer.len();
+            (0..m).find_map(|i| {
+                let (a, b) = (f.outer[i], f.outer[(i + 1) % m]);
+                if ours.contains(&(b, a)) {
+                    Some(normal)
+                } else if ours.contains(&(a, b)) {
+                    Some(-normal)
+                } else {
+                    None
+                }
+            })
+        })
+    }
+
     fn in_plane(&self, face: &Face, normal: DVec3, origin: DVec3) -> bool {
         face.normal.dot(normal).abs() > 1.0 - 1e-9 && (self.vertex(face.outer[0]) - origin).dot(normal).abs() <= TOL
     }
@@ -264,7 +285,13 @@ impl Model {
                     if !bounded_by_new || in_opening {
                         continue;
                     }
-                    (preferred_side(normal, facing), None)
+                    // Closed from loose lines: turned to match a face it shares an edge with, as
+                    // SketchUp does, so a box closed by hand faces out all round.
+                    let side = match facing {
+                        Some(_) => preferred_side(normal, facing),
+                        None => self.side_matching_neighbors(&region.outer, normal, origin).unwrap_or_else(|| preferred_side(normal, None)),
+                    };
+                    (side, None)
                 }
             };
             // Regions wind counter-clockwise around `normal`; faces wind around their front.
@@ -561,6 +588,22 @@ mod tests {
         assert_eq!(faces.len(), 1, "merged back");
         assert_eq!(model.face(faces[0]).unwrap().outer.len(), 4, "a square again: no corners left where the seam met its sides");
         assert_eq!(model.edges().count(), 4);
+        assert_wound(&model);
+    }
+
+    #[test]
+    fn a_side_closed_by_hand_faces_out_like_the_box() {
+        let mut model = Model::default();
+        let base = model.add_rectangle(DVec3::ZERO, DVec3::X * 10.0, DVec3::Y * 10.0, DVec3::Z).unwrap();
+        model.push_pull(base, 10.0).unwrap();
+        // Take off the side facing -x (whose normal would otherwise default to +x), then
+        // close it again with a diagonal: both triangles face out, like the rest of the box.
+        let side = model.faces().find(|(_, f)| f.normal.abs_diff_eq(-DVec3::X, 1e-9)).map(|(id, _)| id).unwrap();
+        model.remove_face(side);
+        model.add_line(DVec3::ZERO, DVec3::new(0.0, 10.0, 10.0));
+        let closed: Vec<DVec3> = model.faces().filter(|(_, f)| f.normal.x.abs() > 0.5 && model.vertex(f.outer[0]).x.abs() < 1e-9).map(|(_, f)| f.normal).collect();
+        assert_eq!(closed.len(), 2, "two triangles");
+        assert!(closed.iter().all(|n| n.abs_diff_eq(-DVec3::X, 1e-9)), "facing out: {closed:?}");
         assert_wound(&model);
     }
 

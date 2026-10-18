@@ -396,7 +396,23 @@ impl RotateTool {
 
 /// The normal of the face under the cursor, or the ground's.
 fn surface_normal(model: &Model, screen: Screen<'_>, cursor: Vec2) -> DVec3 {
-    hit_face(model, &screen.ray(cursor)).and_then(|(id, _)| model.face(id)).map_or(DVec3::Z, |f| f.normal)
+    if let Some(face) = hit_face(model, &screen.ray(cursor)).and_then(|(id, _)| model.face(id)) {
+        return face.normal;
+    }
+    // Off any face: the red, green or blue plane seen most squarely (so it's never edge-on),
+    // holding the edge under the cursor if there is one; turned toward the camera.
+    let view = screen.forward();
+    let edge = crate::pick::hit_edge(model, screen, cursor).and_then(|e| model.edge(e)).map(|e| {
+        let [a, b] = model.edge_points(e);
+        (b - a).normalize_or_zero()
+    });
+    let along_axes: Vec<DVec3> = Axis::ALL.iter().map(|a| a.dir()).filter(|n| edge.is_none_or(|e| n.dot(e).abs() < 1e-6)).collect();
+    let normal = match (along_axes.is_empty(), edge) {
+        // An edge off the axes: the plane through it facing the camera most.
+        (true, Some(e)) => e.cross(view).cross(e).try_normalize().unwrap_or(DVec3::Z),
+        _ => along_axes.into_iter().max_by(|a, b| a.dot(view).abs().total_cmp(&b.dot(view).abs())).unwrap_or(DVec3::Z),
+    };
+    if normal.dot(view) > 0.0 { -normal } else { normal }
 }
 
 /// Snap to the nearest multiple of [`ANGLE_STEP`] degrees when close to it.
@@ -447,6 +463,20 @@ mod tests {
     use super::*;
 
     const SIZE: Vec2 = Vec2::new(1000.0, 800.0);
+
+    #[test]
+    fn off_any_face_the_protractor_faces_the_camera() {
+        let model = Model::default();
+        let size = SIZE;
+        let mut camera = OrbitCamera { target: glam::Vec3::ZERO, distance: 80.0, ..Default::default() };
+        camera.set_view(StandardView::Front);
+        let screen = Screen::new(&camera, size);
+        let n = surface_normal(&model, screen, size * 0.5);
+        assert!(n.abs_diff_eq(-screen.forward().normalize(), 1e-6) && n.z.abs() < 1e-9, "upright, facing the camera: {n}");
+        camera.set_view(StandardView::Top);
+        let screen = Screen::new(&camera, size);
+        assert!(surface_normal(&model, screen, size * 0.5).abs_diff_eq(DVec3::Z, 1e-9), "flat from above");
+    }
 
     /// A 1.5" x 3.5" profile pulled 10" up at (10, 0), selected, seen from the top.
     fn setup() -> (Document, OrbitCamera) {

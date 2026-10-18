@@ -261,22 +261,23 @@ fn rotate_a_board_with_a_move_grip() {
     let (lo, hi) = harness.state().document().bounds().unwrap();
     let center = (lo + hi) * 0.5;
 
-    // Hover the board's side: grips appear on the visible faces of its bounding box.
+    // Hover the board's side: grips appear on the visible faces of its bounding box (not on
+    // its thin edges, too small on screen to hold four grips apart).
     let side = harness.state().to_window(glam::DVec3::new(center.x, lo.y, center.z)).unwrap();
     harness.hover_at(side);
     harness.run();
     let state = harness.state();
     let grips = state.tools().overlay(state.document()).grips;
-    assert_eq!(grips.len(), 12);
+    assert!(grips.len() >= 4 && grips.len() < 12, "{}", grips.len());
     snapshot(&mut harness, "grips");
 
-    // Grab a grip on the top and turn it.
-    let top = grips.iter().map(|(p, _)| *p).find(|p| (p.z - hi.z).abs() < 1e-9).unwrap();
-    let grip = harness.state().to_window(top).unwrap();
+    // Grab a grip on the front (the long face) and lay the stud down.
+    let front = grips.iter().map(|(p, _)| *p).find(|p| (p.y - lo.y).abs() < 1e-9).unwrap();
+    let grip = harness.state().to_window(front).unwrap();
     click(&mut harness, grip);
     assert_eq!(harness.state().tools().measurement_label(), "Angle");
-    let pivot = glam::DVec3::new(center.x, center.y, hi.z);
-    let turned = pivot + (top - pivot).cross(glam::DVec3::Z);
+    let pivot = glam::DVec3::new(center.x, lo.y, center.z);
+    let turned = pivot + (front - pivot).cross(glam::DVec3::Y);
     harness.hover_at(harness.state().to_window(turned).unwrap());
     harness.run();
     snapshot(&mut harness, "grip_rotate");
@@ -286,7 +287,7 @@ fn rotate_a_board_with_a_move_grip() {
 
     let (new_lo, new_hi) = harness.state().document().bounds().unwrap();
     let size = new_hi - new_lo;
-    assert!((size.x - 3.5).abs() < 1e-9 && (size.y - 1.5).abs() < 1e-9, "{size}");
+    assert!((size.x - 96.0).abs() < 1e-9 && (size.z - 1.5).abs() < 1e-9, "lying down: {size}");
     assert!(((new_lo + new_hi) * 0.5).abs_diff_eq(center, 1e-9));
     assert_eq!(harness.state().tools().active(), ToolId::Move);
 }

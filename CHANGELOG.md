@@ -3,6 +3,20 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.31
+
+- A face you close by drawing lines now faces the same way as the faces around it (a box closed
+  by hand faces out all round).
+- Guide lines snap where they pass through a face.
+- Offset snaps its distance to points you pass over.
+- Tape Measure: measure (tap Ctrl to Measure), then type the length it should be to resize the
+  whole model (one undo step).
+- Scale: hold Shift to switch between even scaling and stretching.
+- Move: rotation grips are hidden on faces too small on screen to use.
+- New Center Arc, 3-Point Arc and Pie tools (Draw menu and the tool set). Pie closes into a face.
+- Rotate and Protractor: off a face, the protractor stands in the plane you see most squarely
+  (through the edge under the cursor), never edge-on.
+
 ## 0.1.30
 
 - Double-click a text note to change its words in Entity Info; a selected dimension shows its length

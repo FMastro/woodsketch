@@ -301,6 +301,20 @@ pub fn snap_feature(
                 crossings.push((distance, point, SnapKind::Intersection, None));
             }
         }
+        // Where it passes through a face (a guide across a board marks a spot on its top).
+        for (id, face) in model.faces() {
+            let along = d.dot(face.normal);
+            if along.abs() < 1e-9 {
+                continue;
+            }
+            let point = p + d * ((model.vertex(face.outer[0]) - p).dot(face.normal) / along);
+            if let Some(distance) = near(point, SNAP_RADIUS)
+                && model.face_contains(face, point)
+                && !occluded(model, eye, point, |f| f == id)
+            {
+                crossings.push((distance, point, SnapKind::Intersection, None));
+            }
+        }
     }
     if let Some(snap) = nearest(crossings) {
         return Some(snap);
@@ -443,6 +457,21 @@ mod tests {
         let mut model = Model::default();
         model.add_rectangle(DVec3::ZERO, DVec3::X * 10.0, DVec3::Y * 10.0, DVec3::Z);
         model
+    }
+
+    #[test]
+    fn a_guide_line_snaps_where_it_passes_through_a_face() {
+        let mut model = square();
+        // A guide line slanting down through the square at (3, 4).
+        let dir = DVec3::new(1.0, 0.0, -1.0).normalize();
+        model.add_guide(Guide::Line { point: DVec3::new(3.0, 4.0, 0.0), dir });
+        let mut camera = top_camera();
+        camera.set_view(StandardView::Iso);
+        let screen = Screen::new(&camera, SIZE);
+        let cursor = screen.project(DVec3::new(3.0, 4.0, 0.0)).unwrap() + Vec2::new(2.0, 1.0);
+        let snap = snap_feature(&model, screen, cursor, |_| false).expect("a snap");
+        assert_eq!(snap.kind, SnapKind::Intersection);
+        assert!(snap.point.distance(DVec3::new(3.0, 4.0, 0.0)) < 1e-9, "{}", snap.point);
     }
 
     #[test]

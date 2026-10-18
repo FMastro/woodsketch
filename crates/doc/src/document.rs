@@ -455,6 +455,18 @@ impl Document {
         });
     }
 
+    /// Scale everything in the container being edited by `factor` about its origin (the Tape
+    /// Measure's resize: a measured distance made the typed length), as one undo step.
+    pub fn resize(&mut self, factor: f64) -> Result<(), MoveError> {
+        if !(factor.is_finite() && factor > 0.0) {
+            return Err(MoveError::WouldCollapse);
+        }
+        let container = self.container();
+        let all: Vec<Entity> =
+            container.model.entities().chain(container.instances().map(|(id, _)| Entity::Instance(id))).collect();
+        self.transform_entities(&all, &[DAffine3::from_scale(DVec3::splat(factor))], false).map(|_| ())
+    }
+
     pub fn select_all(&mut self) {
         let container = self.container();
         let all: Vec<Entity> =

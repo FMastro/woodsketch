@@ -32,11 +32,12 @@ pub struct Grips {
     pub hovered: Option<(usize, usize)>,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct GripFace {
     pub center: DVec3,
     pub normal: DVec3,
-    pub grips: [DVec3; 4],
+    /// Two or four: a pair too close together on screen is left out.
+    pub grips: Vec<DVec3>,
 }
 
 #[derive(Default)]
@@ -175,7 +176,7 @@ impl MoveTool {
         self.hover(doc, screen, cursor);
         let grips = self.grips.as_ref()?;
         let (f, g) = grips.hovered?;
-        let face = grips.faces[f];
+        let face = &grips.faces[f];
         Some(GripRotation {
             entities: grips.entities.clone(),
             vertices: grips.vertices.clone(),
@@ -291,7 +292,7 @@ impl MoveTool {
                 }
                 // Hovering a grip previews the protractor it would rotate with.
                 if let Some((f, g)) = grips.hovered {
-                    let face = grips.faces[f];
+                    let face = &grips.faces[f];
                     overlay.protractor =
                         Some(Protractor { center: face.center, normal: face.normal, from: Some(face.grips[g]), to: None });
                     overlay.snap = None;
@@ -434,6 +435,9 @@ pub struct GripRotation {
 /// grips halfway between the face's center and its sides. Flat boxes keep only their two big
 /// faces (one of them visible). A single group or component gets a box along its own axes, so
 /// a rotated board's grips stay on its faces.
+/// How far apart, in points, a face's opposite rotation grips must be on screen to show them.
+const MIN_GRIP_SPREAD: f32 = 12.0;
+
 fn grips_for(doc: &Document, screen: Screen<'_>, entities: Vec<Entity>) -> Option<Grips> {
     if entities.is_empty() {
         return None;
@@ -480,10 +484,24 @@ fn grips_for(doc: &Document, screen: Screen<'_>, entities: Vec<Entity>) -> Optio
                 face_center + v * hv * 0.5,
                 face_center - v * hv * 0.5,
             ];
+            // A pair close together on screen (across a thin board's edge) would crowd: left out.
+            let on_screen = |a: DVec3, b: DVec3| match (screen.project(frame.transform_point3(a)), screen.project(frame.transform_point3(b))) {
+                (Some(a), Some(b)) => a.distance(b),
+                _ => 0.0,
+            };
+            let kept: Vec<DVec3> = [[grips[0], grips[1]], [grips[2], grips[3]]]
+                .into_iter()
+                .filter(|&[a, b]| on_screen(a, b) >= MIN_GRIP_SPREAD)
+                .flatten()
+                .map(|g| frame.transform_point3(g))
+                .collect();
+            if kept.is_empty() {
+                continue;
+            }
             faces.push(GripFace {
                 center: frame.transform_point3(face_center),
                 normal: frame.transform_vector3(normal).normalize(),
-                grips: grips.map(|g| frame.transform_point3(g)),
+                grips: kept,
             });
         }
     }

@@ -11,7 +11,7 @@
 //! Click, or type the distance; typing right after placing a guide moves it.
 
 use glam::{DVec3, Vec2};
-use woodsketch_doc::units::format_length;
+use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS, Guide};
 
 use crate::infer::{self, Direction, Hints, Query, Target};
@@ -86,6 +86,8 @@ struct Done {
     offset: DVec3,
     /// The model version right after placing the guide; `None` if nothing was placed.
     model_version: Option<u64>,
+    /// The model version when it was measured (typing a length then resizes the model).
+    measured: u64,
 }
 
 impl TapeTool {
@@ -205,6 +207,20 @@ impl TapeTool {
             self.place(doc, start, offset);
             return Ok(());
         }
+        // Just measured (Ctrl: Measure): a typed length resizes the model so that distance
+        // becomes it.
+        if let Some(last) = self.last.filter(|l| l.mode == TapeMode::Measure && l.measured == doc.model_version())
+            && !typed.trim().starts_with('[')
+        {
+            let length = parse_length(typed).map_err(|e| e.to_string())?;
+            let measured = last.offset.length();
+            if measured < EPS || length <= EPS {
+                return Err("Measure a distance, then type the length it should be".into());
+            }
+            doc.resize(length / measured).map_err(|e| e.to_string())?;
+            self.last = None;
+            return Ok(());
+        }
         // `[x,y,z]` before the first click: measure from that point.
         if typed.trim().starts_with('[') {
             let point = parse_offset(typed, DVec3::ZERO, DVec3::ZERO)?;
@@ -237,7 +253,7 @@ impl TapeTool {
                 format!("Create Guide Lines: click an edge to offset a guide from it, or a point.{cycle}")
             }
             (TapeMode::GuidePoint, None) => format!("Create Guide Points: click where to measure from.{cycle}"),
-            (TapeMode::Measure, None) => format!("Measure: click where to measure from, or hover an edge.{cycle}"),
+            (TapeMode::Measure, None) => format!("Measure: click where to measure from, or hover an edge. Type a length after measuring to resize the model.{cycle}"),
             (_, Some(Start { line: Some(_), .. })) => "Move away from the edge; click or type the guide's offset.".into(),
             (TapeMode::Measure, Some(_)) => "Click the point to measure to.".into(),
             (_, Some(_)) => "Click the point to measure to, or type the distance.".into(),
@@ -316,11 +332,12 @@ impl TapeTool {
     }
 
     fn place(&mut self, doc: &mut Document, start: Start, offset: DVec3) {
+        let measured = doc.model_version();
         let model_version = Self::guide(start, offset, self.mode).map(|guide| {
             doc.add_guide(guide);
             doc.model_version()
         });
-        self.last = Some(Done { start, mode: self.mode, offset, model_version });
+        self.last = Some(Done { start, mode: self.mode, offset, model_version, measured });
     }
 }
 
@@ -379,6 +396,22 @@ mod tests {
         let (_, &Guide::Line { point, .. }) = doc.model().guides().next().unwrap() else { panic!() };
         assert!((point.y - 2.0).abs() < 1e-9);
         assert_eq!(doc.model().guides().count(), 1);
+    }
+
+    #[test]
+    fn measure_then_type_a_length_resizes_the_model() {
+        let mut doc = board();
+        let (lo, hi) = doc.bounds().unwrap();
+        let mut tool = TapeTool { mode: TapeMode::Measure, ..Default::default() };
+        tool.enter(&mut doc, &format!("[{},{},{}]", lo.x, lo.y, lo.z)).unwrap();
+        tool.enter(&mut doc, &format!("[{},{},{}]", hi.x, lo.y, lo.z)).unwrap();
+        let wide = hi.x - lo.x;
+        tool.enter(&mut doc, &format!("{}", wide * 2.0)).unwrap();
+        let (lo2, hi2) = doc.bounds().unwrap();
+        assert!(((hi2.x - lo2.x) - wide * 2.0).abs() < 1e-9, "twice as wide");
+        assert!(((hi2 - lo2) - (hi - lo) * 2.0).length() < 1e-9, "every way");
+        doc.undo();
+        assert!((doc.bounds().unwrap().1 - hi).length() < 1e-9, "one undo step");
     }
 
     #[test]

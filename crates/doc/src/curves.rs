@@ -71,6 +71,34 @@ pub fn arc_points(a: DVec3, b: DVec3, normal: DVec3, bulge: f64, side: DVec3, se
         .collect()
 }
 
+/// Points turning `start` about the line through `center` along unit `normal` by `angle`
+/// radians (counter-clockwise looking down `normal`): `segments + 1` of them.
+pub fn sweep_points(center: DVec3, start: DVec3, normal: DVec3, angle: f64, segments: u32) -> Vec<DVec3> {
+    let segments = segments.max(1);
+    (0..=segments)
+        .map(|i| center + DQuat::from_axis_angle(normal, angle * f64::from(i) / f64::from(segments)) * (start - center))
+        .collect()
+}
+
+/// The circle through three points: its center and the normal (right-handed a, b, c). `None`
+/// when they're in a line.
+pub fn circle_through(a: DVec3, b: DVec3, c: DVec3) -> Option<(DVec3, DVec3)> {
+    let (ab, ac) = (b - a, c - a);
+    let n = ab.cross(ac);
+    let n2 = n.length_squared();
+    if n2 < EPS * EPS {
+        return None;
+    }
+    let center = a + (n.cross(ab) * ac.length_squared() + ac.cross(n) * ab.length_squared()) / (2.0 * n2);
+    Some((center, n.normalize()))
+}
+
+/// The angle (radians, 0..TAU) from `from` to `to` about unit `normal`, counter-clockwise.
+pub fn angle_about(from: DVec3, to: DVec3, normal: DVec3) -> f64 {
+    let angle = from.cross(to).dot(normal).atan2(from.dot(to));
+    if angle < 0.0 { angle + std::f64::consts::TAU } else { angle }
+}
+
 impl Model {
     /// Draw a circle; returns its face (the disk) when one formed.
     pub fn draw_circle(&mut self, center: DVec3, normal: DVec3, radius: f64, segments: u32) -> Option<FaceId> {

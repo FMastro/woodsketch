@@ -2,7 +2,8 @@
 //! corners scale it uniformly, grips on the box's edges scale two directions, and grips in the
 //! middle of its faces stretch one. Click a grip, move, and click again, or type the scale:
 //! a factor (`2`, `0.5`, `1.5,2` for two directions) or a new size with units (`36"`). The
-//! opposite grip stays put; tap Ctrl to scale about the center instead. Typing right after
+//! opposite grip stays put; tap Ctrl to scale about the center instead; hold Shift to switch
+//! between even (corners) and stretched (edges, faces). Typing right after
 //! changes the scale just made.
 //!
 //! A single group or component scales along its own axes (its box turns with it); anything
@@ -25,6 +26,8 @@ pub struct ScaleTool {
     hovered: Option<[usize; 3]>,
     op: Option<Op>,
     about_center: bool,
+    /// Shift held: corners stretch each way, edges and faces scale evenly.
+    shift: bool,
     snap: Option<Snap>,
     last: Option<Done>,
 }
@@ -108,6 +111,10 @@ impl ScaleTool {
         self.target = None;
     }
 
+    pub fn set_shift(&mut self, shift: bool) {
+        self.shift = shift;
+    }
+
     pub fn toggle_center(&mut self) {
         self.about_center = !self.about_center;
         if let Some(op) = &mut self.op {
@@ -134,19 +141,26 @@ impl ScaleTool {
         let ray = screen.ray(cursor);
         let active = op.active();
         let along = |i: usize| (grip - op.anchor).dot(op.target.axes[i]);
-        let factors = match (active.len(), self.snap) {
+        // Corners scale evenly, edges and faces stretch; Shift switches it.
+        let uniform = (active.len() == 3) != self.shift;
+        let factors = match (uniform, active.len(), self.snap) {
             // A snapped point sets the size: the box reaches it.
-            (3, Some(s)) => {
+            (true, _, Some(s)) => {
                 let d = grip - op.anchor;
                 DVec3::splat((s.point - op.anchor).dot(d) / d.length_squared())
             }
-            (_, Some(s)) => factor_each(&active, |i| (s.point - op.anchor).dot(op.target.axes[i]) / along(i)),
-            (3, None) => {
+            (false, _, Some(s)) => factor_each(&active, |i| (s.point - op.anchor).dot(op.target.axes[i]) / along(i)),
+            (true, _, None) => {
                 let d = grip - op.anchor;
                 let Some(t) = closest_on_line(op.anchor, d.normalize(), &ray) else { return };
                 DVec3::splat(t / d.length())
             }
-            (2, None) => {
+            // A corner with Shift: each direction on its own, in the plane facing the camera.
+            (false, 3, None) => {
+                let Some(hit) = ray.hit_plane(grip, -screen.forward()) else { return };
+                factor_each(&active, |i| (hit - op.anchor).dot(op.target.axes[i]) / along(i))
+            }
+            (false, 2, None) => {
                 let normal = op.target.axes[(0..3).find(|i| !active.contains(i)).expect("one inactive")];
                 let Some(hit) = ray.hit_plane(grip, normal) else { return };
                 factor_each(&active, |i| (hit - op.anchor).dot(op.target.axes[i]) / along(i))
@@ -206,7 +220,7 @@ impl ScaleTool {
     pub fn status(&self) -> String {
         let center = if self.about_center { " About the center (tap Ctrl to anchor the opposite side)." } else { " Tap Ctrl to scale about the center." };
         if self.op.is_some() {
-            format!("Move to scale, or type a factor (2, 0.5) or a size (36\").{center}")
+            format!("Move to scale, or type a factor (2, 0.5) or a size (36\").{center} Hold Shift to switch even and stretched.")
         } else {
             "Click a grip: corners scale evenly, edges two ways, faces one way.".into()
         }
@@ -411,6 +425,23 @@ mod tests {
         let (lo, hi) = doc.bounds().unwrap();
         assert!((hi - lo).abs_diff_eq(DVec3::new(7.0, 3.0, 60.0), 1e-9));
         assert!(((lo + hi) * 0.5).abs_diff_eq(DVec3::new(1.75, 0.75, 15.0), 1e-9), "about the center");
+    }
+
+    #[test]
+    fn shift_makes_a_face_grip_scale_evenly() {
+        let (mut doc, camera, _) = setup();
+        let screen = Screen::new(&camera, SIZE);
+        let mut tool = ScaleTool::default();
+        tool.hover(&doc, screen, at(screen, DVec3::new(1.75, 0.0, 15.0)));
+        let top = at(screen, DVec3::new(1.75, 0.75, 30.0));
+        tool.hover(&doc, screen, top);
+        tool.click(&mut doc, screen, top).unwrap();
+        tool.set_shift(true);
+        let up = at(screen, DVec3::new(1.75, 0.75, 60.0));
+        tool.hover(&doc, screen, up);
+        tool.click(&mut doc, screen, up).unwrap();
+        let (lo, hi) = doc.bounds().unwrap();
+        assert!((hi - lo).abs_diff_eq(DVec3::new(7.0, 3.0, 60.0), 0.01), "twice as big every way: {}", hi - lo);
     }
 
     #[test]

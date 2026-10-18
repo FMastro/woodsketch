@@ -16,7 +16,17 @@ const BUTTON_SIZE: f32 = 32.0;
 /// The Large Tool Set, two columns, grouped as in SketchUp.
 const TOOL_SET: &[&[ToolId]] = &[
     &[ToolId::Select, ToolId::Eraser, ToolId::PaintBucket],
-    &[ToolId::Line, ToolId::Arc, ToolId::Rectangle, ToolId::Circle, ToolId::Polygon, ToolId::Board],
+    &[
+        ToolId::Line,
+        ToolId::Arc,
+        ToolId::CenterArc,
+        ToolId::ThreePointArc,
+        ToolId::Pie,
+        ToolId::Rectangle,
+        ToolId::Circle,
+        ToolId::Polygon,
+        ToolId::Board,
+    ],
     &[ToolId::PushPull, ToolId::Move, ToolId::Rotate, ToolId::Scale, ToolId::Offset],
     &[ToolId::TapeMeasure, ToolId::Protractor, ToolId::Dimension, ToolId::Text],
     &[ToolId::Orbit, ToolId::Pan, ToolId::Zoom, ToolId::Walk],
@@ -70,7 +80,7 @@ impl WoodSketchApp {
                 self.edit_menu(ui);
                 self.view_menu(ui);
                 self.camera_menu(ui);
-                tool_menu(ui, &mut self.tools, "Draw", &[ToolId::Line, ToolId::Arc, ToolId::Rectangle, ToolId::Circle, ToolId::Polygon, ToolId::Board]);
+                tool_menu(ui, &mut self.tools, "Draw", &[ToolId::Line, ToolId::Arc, ToolId::CenterArc, ToolId::ThreePointArc, ToolId::Pie, ToolId::Rectangle, ToolId::Circle, ToolId::Polygon, ToolId::Board]);
                 self.tools_menu(ui);
                 self.window_menu(ui);
                 self.help_menu(ui);

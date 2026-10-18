@@ -22,13 +22,13 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 9 | Wood movement | 23 | Fewer false warnings, clearer results |
 | 10 | Edge profiles | 76 | More bits, profiles on any board |
 | 11 | Parts and boards | 11 | Small drawing conveniences |
-| 12 | Modeling tools | 202 | SketchUp parity for general modeling |
+| 12 | Modeling tools | 129 | SketchUp parity for general modeling |
 | 13 | Groups, components and tags | 63 | Organizing bigger projects |
 | 14 | UI | 87 | Comfort and polish |
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1566** | |
+| | **All** | **1493** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -250,50 +250,45 @@ hints, arrow keys facing a circle along an axis, new guides showing hidden guide
 and Text tools (kept with the guides: saved, moved, copied, erased; drawn over the view). Notes
 edited in Entity Info (double-click one), an edge dimensioned in one click, View > Dimensions and
 View > Text, `[x,y,z]` starts for Move, Tape, Circle and Arc, Walk's eye height, E / Q, speed and walls.
+Faces closed from loose lines face like the faces they meet, guide lines snap where they pass
+through faces, Offset snaps its distance to points, Tape Measure resizes the model to a typed
+length, Shift switches Scale between even and stretched, and Move hides rotation grips on faces
+too small on screen. Off a face, Rotate and Protractor lie in the red, green or blue plane seen most
+squarely (through the edge under the cursor). Center Arc, 3-Point Arc and Pie.
+
 ### Tools
 1. [2] Notes: a text size, and leader-less text pinned to the screen (SketchUp's screen text).
 2. [5] Walk: following the floor (steps up stairs, falls off ledges); it keeps its height now.
-3. [21] Follow Me.
-4. [21] Section Plane.
 
 ### Inference and snapping
-5. [5] Faces closed from loose lines face to match connected faces (up, front, then right now;
-    Reverse Faces turns them over).
-6. [5] A "sticky" preference for the last inference (snapping only weighs screen distance).
-7. [8] Rectangle, Arc and Circle use parallel/perpendicular and From Point inference (Line,
+3. [5] A "sticky" preference for the last inference (snapping only weighs screen distance).
+4. [8] Rectangle, Arc and Circle use parallel/perpendicular and From Point inference (Line,
     Move and Tape do).
-8. [8] Rectangles off the axes.
+5. [8] Rectangles off the axes.
 
 ### Circles and arcs
-9. [5] Arc: tangent inference.
-10. [5] 3-point Arc and Pie.
-11. [8] Soften/Smooth per edge, and smooth shading (soft edges are worked out when drawing now,
+6. [5] Arc: tangent inference.
+7. [8] Soften/Smooth per edge, and smooth shading (soft edges are worked out when drawing now,
     facets are shaded flat).
-12. [13] Curves as one entity (a circle is 24 edges now; SketchUp selects it with one click and
+8. [13] Curves as one entity (a circle is 24 edges now; SketchUp selects it with one click and
     shows its radius and sides).
 
 ### Offset, Tape Measure, Scale, Rotate
-13. [3] Offset: snap the distance to points the cursor passes.
-14. [3] Offset: rounded outward corners (always mitered now).
-15. [5] Offset holes too (only a face's outer outline now).
-16. [5] Offset a selection of connected edges (only faces now).
-17. [3] Guide lines snap where they cross faces (edges and other guides only now).
-18. [5] Tape Measure: resize the model after measuring (scale everything so the measured distance
-    becomes the typed one).
-19. [3] Scale: Shift switches corner grips to non-uniform and edge grips to uniform.
-20. [3] Scale grips as green boxes, hiding the ones facing away (red crosses now).
-21. [3] Rotate: hide grips on faces that are tiny on screen (they crowd on thin boards).
-22. [5] Protractor auto-orients to the hovered edge's plane and flips when seen edge-on.
-23. [8] Scale: mirroring (negative factors are refused).
-24. [8] Scale: a rotated group among several scaled together gets sheared (they use the
+9. [3] Offset: rounded outward corners (always mitered now).
+10. [5] Offset holes too (only a face's outer outline now).
+11. [5] Offset a selection of connected edges (only faces now).
+12. [1] Tape Measure resize: ask first, as SketchUp does (it's one undo step now).
+13. [3] Scale grips as green boxes, hiding the ones facing away (red crosses now).
+14. [8] Scale: mirroring (negative factors are refused).
+15. [8] Scale: a rotated group among several scaled together gets sheared (they use the
     red/green/blue axes), and the cut list measures it only approximately.
 
 ### Geometry
-25. [5] Collinear leftovers: other merges (pulling part of a top up flush with a side) can still
+16. [5] Collinear leftovers: other merges (pulling part of a top up flush with a side) can still
     leave a corner on a straight edge (erasing a seam heals them).
-26. [8] Coplanar faces sharing an edge merge on their own (boards glued end to end keep a seam).
-27. [8] Move folds a face that would bend (adds a diagonal, as SketchUp does); refused now.
-28. [21] Auto-joining: moved or copied geometry welds to geometry it lands on (also pasted loose
+17. [8] Coplanar faces sharing an edge merge on their own (boards glued end to end keep a seam).
+18. [8] Move folds a face that would bend (adds a diagonal, as SketchUp does); refused now.
+19. [21] Auto-joining: moved or copied geometry welds to geometry it lands on (also pasted loose
     geometry). Fine while boards should stay separate.
 
 ## 13. Groups, components and tags
@@ -368,6 +363,9 @@ Done: OBJ (+ MTL colors) and ASCII STL, inches or millimeters.
 
 ## Not planned
 - Clamping notes and dry-fit steps in the assembly pages: basic practice every woodworker knows.
+- Follow Me (sweeping a profile along a path): edge profiles cover woodworking's cases. [21]
+- Section Plane (slicing the model to see inside): build sheets and hidden lines show joinery;
+  the one to revisit if seeing joints inside an assembly is wanted. [21]
 
 ## Deliberate differences from SketchUp (not planned)
 - Starting Line, Rectangle, Circle, Arc, Push/Pull or Offset on a closed group's face opens the

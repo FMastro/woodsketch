@@ -7,7 +7,7 @@ use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS, Entity, FaceId};
 
-use crate::pick::Screen;
+use crate::pick::{Screen, Snap, snap_feature};
 use crate::{Overlay, highlight_entity, pick_resolved};
 
 #[derive(Default)]
@@ -18,6 +18,8 @@ pub struct OffsetTool {
     last: Option<Done>,
     /// The last distance used, for double-click repeat (as Push/Pull has).
     repeat: Option<f64>,
+    /// A point the distance snapped to (an endpoint, a midpoint, on an edge).
+    snap: Option<Snap>,
 }
 
 struct Op {
@@ -58,7 +60,11 @@ impl OffsetTool {
         let model = doc.model();
         let Some(face) = model.face(op.face) else { return };
         let origin = model.vertex(face.outer[0]);
-        let Some(point) = screen.ray(cursor).hit_plane(origin, face.normal) else { return };
+        // A point the cursor passes (not on the outline itself) sets the distance to reach it.
+        let outline_ids = face.outer.clone();
+        self.snap = snap_feature(doc.view().model(), screen, cursor, |v| outline_ids.contains(&v));
+        let snapped = self.snap.map(|s| s.point - face.normal * (s.point - origin).dot(face.normal));
+        let Some(point) = snapped.or_else(|| screen.ray(cursor).hit_plane(origin, face.normal)) else { return };
         // How far the cursor is from the outline: inside is an inward offset.
         let outline = model.loop_points(&face.outer);
         let distance = (0..outline.len())
@@ -133,6 +139,9 @@ impl OffsetTool {
         if let Some(face) = face {
             highlight_entity(doc.view(), Entity::Face(face), overlay);
         }
+        if self.op.is_some() {
+            overlay.snap = self.snap;
+        }
         if let Some(op) = &self.op {
             let p = &op.preview;
             for i in 0..p.len() {
@@ -203,6 +212,18 @@ mod tests {
         tool.enter(&mut doc, "3").unwrap();
         doc.undo();
         assert_eq!(doc.model().faces().count(), 1);
+    }
+
+    #[test]
+    fn the_distance_snaps_to_a_point_the_cursor_passes() {
+        let (mut doc, camera) = setup();
+        // A short line on the face, its end 2" in from the left side.
+        doc.edit(|m| m.add_line(DVec3::new(2.0, 18.0, 0.0), DVec3::new(2.0, 20.0, 0.0)));
+        let screen = Screen::new(&camera, SIZE);
+        let mut tool = OffsetTool::default();
+        tool.click(&mut doc, screen, at(screen, 12.0, 18.0), 1).unwrap();
+        tool.hover(&doc, screen, at(screen, 2.0, 18.0) + Vec2::new(3.0, 2.0));
+        assert!((tool.op.as_ref().unwrap().distance - 2.0).abs() < 1e-9, "exactly 2\": {}", tool.op.as_ref().unwrap().distance);
     }
 
     #[test]

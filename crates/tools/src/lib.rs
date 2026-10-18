@@ -2,6 +2,7 @@
 //! keyboard input into calls on [`Tools`], and draws what [`Tools::overlay`] returns.
 
 mod arc;
+mod arcs;
 mod board;
 mod circle;
 mod notes;
@@ -52,6 +53,9 @@ pub enum ToolId {
     Rectangle,
     Circle,
     Polygon,
+    CenterArc,
+    ThreePointArc,
+    Pie,
     Board,
     PushPull,
     Move,
@@ -71,7 +75,7 @@ pub enum ToolId {
 }
 
 impl ToolId {
-    pub const ALL: [Self; 22] = [
+    pub const ALL: [Self; 25] = [
         Self::Select,
         Self::Eraser,
         Self::PaintBucket,
@@ -80,6 +84,9 @@ impl ToolId {
         Self::Rectangle,
         Self::Circle,
         Self::Polygon,
+        Self::CenterArc,
+        Self::ThreePointArc,
+        Self::Pie,
         Self::Board,
         Self::PushPull,
         Self::Move,
@@ -106,6 +113,9 @@ impl ToolId {
             Self::Rectangle => "Rectangle",
             Self::Circle => "Circle",
             Self::Polygon => "Polygon",
+            Self::CenterArc => "Center Arc",
+            Self::ThreePointArc => "3-Point Arc",
+            Self::Pie => "Pie",
             Self::Board => "Board",
             Self::PushPull => "Push/Pull",
             Self::Move => "Move",
@@ -135,6 +145,9 @@ impl ToolId {
             Self::Circle => 'c',
             // No key (as in SketchUp).
             Self::Polygon => '\0',
+            Self::CenterArc => '\0',
+            Self::ThreePointArc => '\0',
+            Self::Pie => '\0',
             Self::Protractor => '\0',
             Self::Walk => '\0',
             Self::Dimension => '\0',
@@ -392,6 +405,9 @@ pub struct Tools {
     arc: ArcTool,
     circle: CircleTool,
     polygon: CircleTool,
+    center_arc: arcs::CenterArcTool,
+    three_point_arc: arcs::ThreePointArcTool,
+    pie: arcs::CenterArcTool,
     board: BoardTool,
     scale: ScaleTool,
     eraser: EraserTool,
@@ -433,6 +449,9 @@ impl Default for Tools {
             arc: ArcTool::default(),
             circle: CircleTool::default(),
             polygon: CircleTool::polygon(),
+            center_arc: arcs::CenterArcTool::new(false),
+            three_point_arc: arcs::ThreePointArcTool::default(),
+            pie: arcs::CenterArcTool::new(true),
             board: BoardTool::default(),
             scale: ScaleTool::default(),
             eraser: EraserTool::default(),
@@ -557,6 +576,9 @@ impl Tools {
         self.arc.cancel();
         self.circle.cancel();
         self.polygon.cancel();
+        self.center_arc.cancel();
+        self.three_point_arc.cancel();
+        self.pie.cancel();
         self.board.cancel();
         self.scale.cancel();
         self.eraser.cancel();
@@ -678,6 +700,30 @@ impl Tools {
             (ToolId::Circle, PointerEvent::Click { pos, .. }) => {
                 self.typed.clear();
                 self.circle.click(doc, screen, pos)
+            }
+            (ToolId::CenterArc, PointerEvent::Move(pos) | PointerEvent::Drag { pos, .. }) => {
+                self.center_arc.hover(doc, screen, pos);
+                Ok(())
+            }
+            (ToolId::CenterArc, PointerEvent::Click { pos, .. }) => {
+                self.typed.clear();
+                self.center_arc.click(doc, screen, pos)
+            }
+            (ToolId::Pie, PointerEvent::Move(pos) | PointerEvent::Drag { pos, .. }) => {
+                self.pie.hover(doc, screen, pos);
+                Ok(())
+            }
+            (ToolId::Pie, PointerEvent::Click { pos, .. }) => {
+                self.typed.clear();
+                self.pie.click(doc, screen, pos)
+            }
+            (ToolId::ThreePointArc, PointerEvent::Move(pos) | PointerEvent::Drag { pos, .. }) => {
+                self.three_point_arc.hover(doc, screen, pos);
+                Ok(())
+            }
+            (ToolId::ThreePointArc, PointerEvent::Click { pos, .. }) => {
+                self.typed.clear();
+                self.three_point_arc.click(doc, screen, pos)
             }
             (ToolId::Polygon, PointerEvent::Move(pos) | PointerEvent::Drag { pos, .. }) => {
                 self.polygon.hover(doc, screen, pos);
@@ -807,13 +853,25 @@ impl Tools {
             && doc.selection().iter().all(|e| matches!(e, woodsketch_doc::Entity::Face(_)));
         let drawing = matches!(
             self.active,
-            ToolId::Line | ToolId::Rectangle | ToolId::Circle | ToolId::Polygon | ToolId::Arc | ToolId::PushPull | ToolId::Offset
+            ToolId::Line
+                | ToolId::Rectangle
+                | ToolId::Circle
+                | ToolId::Polygon
+                | ToolId::Arc
+                | ToolId::CenterArc
+                | ToolId::ThreePointArc
+                | ToolId::Pie
+                | ToolId::PushPull
+                | ToolId::Offset
         ) && !offsetting_selection;
         let busy = self.line.is_busy()
             || self.rectangle.is_busy()
             || self.circle.is_busy()
             || self.polygon.is_busy()
             || self.arc.is_busy()
+            || self.center_arc.is_busy()
+            || self.three_point_arc.is_busy()
+            || self.pie.is_busy()
             || self.push_pull.is_busy()
             || self.offset.is_busy();
         if !drawing || busy {
@@ -839,6 +897,7 @@ impl Tools {
         self.move_tool.set_shift(shift);
         self.tape.set_shift(shift);
         self.board.set_shift(shift);
+        self.scale.set_shift(shift);
     }
 
     /// A tap of Ctrl on its own: toggles copying in Move.
@@ -866,6 +925,8 @@ impl Tools {
             ToolId::Rotate => self.rotate.lock_axis(axis),
             ToolId::Circle => self.circle.lock_axis(axis),
             ToolId::Polygon => self.polygon.lock_axis(axis),
+            ToolId::CenterArc => self.center_arc.lock_axis(axis),
+            ToolId::Pie => self.pie.lock_axis(axis),
             ToolId::Protractor => self.protractor.lock_axis(axis),
             _ => {}
         }
@@ -931,6 +992,9 @@ impl Tools {
             ToolId::Arc => self.arc.enter(doc, &typed),
             ToolId::Circle => self.circle.enter(doc, &typed),
             ToolId::Polygon => self.polygon.enter(doc, &typed),
+            ToolId::CenterArc => self.center_arc.enter(doc, &typed),
+            ToolId::ThreePointArc => self.three_point_arc.enter(doc, &typed),
+            ToolId::Pie => self.pie.enter(doc, &typed),
             ToolId::Board => self.board.enter(doc, &typed),
             ToolId::Scale => self.scale.enter(doc, &typed),
             ToolId::Rectangle => self.rectangle.enter(doc, &typed),
@@ -962,6 +1026,9 @@ impl Tools {
             || self.arc.is_busy()
             || self.circle.is_busy()
             || self.polygon.is_busy()
+            || self.center_arc.is_busy()
+            || self.three_point_arc.is_busy()
+            || self.pie.is_busy()
             || self.board.is_busy()
             || self.scale.is_busy()
             || self.eraser.is_busy()
@@ -1043,6 +1110,9 @@ impl Tools {
             ToolId::Arc => self.arc.status(),
             ToolId::Circle => self.circle.status(),
             ToolId::Polygon => self.polygon.status(),
+            ToolId::CenterArc => self.center_arc.status(),
+            ToolId::ThreePointArc => self.three_point_arc.status(),
+            ToolId::Pie => self.pie.status(),
             ToolId::Board => self.board.status(),
             ToolId::Scale => self.scale.status(),
             ToolId::Eraser => self.eraser.status().into(),
@@ -1070,6 +1140,8 @@ impl Tools {
             ToolId::Arc => self.arc.measurement_label(),
             ToolId::Circle => "Radius",
             ToolId::Polygon => "Radius",
+            ToolId::CenterArc => self.center_arc.measurement_label(),
+            ToolId::Pie => self.pie.measurement_label(),
             ToolId::Board => self.board.measurement_label(),
             ToolId::Scale => "Scale",
             ToolId::PushPull | ToolId::Move | ToolId::Offset => "Distance",
@@ -1094,6 +1166,8 @@ impl Tools {
             ToolId::Arc => self.arc.measurement(),
             ToolId::Circle => self.circle.measurement(),
             ToolId::Polygon => self.polygon.measurement(),
+            ToolId::CenterArc => self.center_arc.measurement(),
+            ToolId::Pie => self.pie.measurement(),
             ToolId::Board => self.board.measurement(),
             ToolId::Scale => self.scale.measurement(),
             ToolId::Rectangle => self.rectangle.measurement(),
@@ -1130,6 +1204,9 @@ impl Tools {
             ToolId::Arc => self.arc.overlay(&mut overlay),
             ToolId::Circle => self.circle.overlay(&mut overlay),
             ToolId::Polygon => self.polygon.overlay(&mut overlay),
+            ToolId::CenterArc => self.center_arc.overlay(&mut overlay),
+            ToolId::ThreePointArc => self.three_point_arc.overlay(&mut overlay),
+            ToolId::Pie => self.pie.overlay(&mut overlay),
             ToolId::Board => self.board.overlay(&mut overlay),
             ToolId::Scale => self.scale.overlay(&mut overlay),
             ToolId::Eraser => self.eraser.overlay(doc, &mut overlay),
@@ -1284,6 +1361,15 @@ mod tests {
         tools.pointer(PointerEvent::Move(middle), &mut doc, &mut camera, size);
         let overlay = tools.overlay(&doc);
         assert_eq!(overlay.grips.len(), 12, "3 visible box faces x 4 grips");
+
+        // Far off, the board's narrow faces are too small on screen for grips.
+        let mut far = camera.clone();
+        far.distance = 400.0;
+        let middle_far = far.project(glam::Vec3::new(10.75, 0.0, 5.0), size).unwrap();
+        let mut fresh = Tools::default();
+        fresh.activate(ToolId::Move);
+        fresh.pointer(PointerEvent::Move(middle_far), &mut doc, &mut far, size);
+        assert!(fresh.overlay(&doc).grips.len() < 12, "{}", fresh.overlay(&doc).grips.len());
 
         // Click a grip on the top face (z = 10) and turn a quarter.
         let top_grip = overlay.grips.iter().map(|(p, _)| *p).find(|p| (p.z - 10.0).abs() < 1e-9).unwrap();
