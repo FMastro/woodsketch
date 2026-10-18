@@ -155,7 +155,10 @@ impl ViewportRenderer {
             },
         );
 
-        // The selection's tinted faces, redrawn over the same triangles: equal depth passes.
+        // The selection's tinted faces, redrawn over the faces. They're built on the CPU from the
+        // flattened view while the faces are placed on the GPU, so a face with a notched outline
+        // (dovetails) can be split into different triangles at a hair's different depth; unbiased,
+        // the tint sits just in front of the (biased-back) faces, so it never z-fights with them.
         let selected_face_pipeline = create_pipeline(
             device,
             &layout,
@@ -170,7 +173,7 @@ impl ViewportRenderer {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 depth_compare: wgpu::CompareFunction::LessEqual,
                 depth_write: false,
-                depth_bias: wgpu::DepthBiasState { constant: 2, slope_scale: 2.0, clamp: 0.0 },
+                depth_bias: wgpu::DepthBiasState::default(),
             },
         );
 

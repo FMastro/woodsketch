@@ -3,6 +3,11 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.22
+
+- Fix: a selected part with joinery (dovetails, a notched outline) no longer shows a flickering
+  striped pattern over its faces.
+
 ## 0.1.21
 
 - Help > Report a Problem... and Help > Send Feedback...: write what happened (or your idea), see
