@@ -3,7 +3,9 @@
 //!
 //! - a cherry side table: a glued-up top with a roundover; one chamfered leg component turned
 //!   to each corner; front/back and side apron components tenoned into the legs;
-//! - a red oak bookcase: shelves let into the sides (dados, rabbets at the top), a plywood back.
+//! - a red oak bookcase: shelves let into the sides (dados, rabbets at the top), a plywood back;
+//! - for View > Wood Movement: a white oak door with a solid panel floating in its grooves, and a
+//!   walnut bench top with breadboard ends glued on solid (the check warns).
 //!
 //! `cargo run -p woodsketch-doc --example sample_furniture -- "Sample Furniture.woodsketch"`
 
@@ -89,6 +91,39 @@ fn side_table(doc: &mut Document) {
     doc.profile_edges(top, Profile::Roundover, 0.25, Edges::AroundFace { axis: 2, positive: true, sides: [true; 4] }).expect("roundover");
     // Biscuits along the glue-up's seams keep the boards aligned while it's clamped.
     doc.edit_part(top, |p| p.edge_joint = woodsketch_doc::part::EdgeJoint::Biscuits);
+    // It's held down with tabletop buttons, so it's free to move across the side aprons.
+    doc.edit_part(top, |p| p.free_to_move = true);
+}
+
+/// For View > Wood Movement: a white oak frame-and-panel door whose solid panel floats in the
+/// frame's grooves (green), and a walnut bench top with breadboard ends glued on solid (red: the
+/// ends hold the top, which needs to move).
+fn movement_pieces(doc: &mut Document) {
+    let oak = wood(doc, "White Oak");
+    let x = 95.0;
+    // Stiles 2 1/2" wide and 24" tall, rails between them, mortised and tenoned.
+    let left = board(doc, oak, "Stile", DVec3::new(x, 0.0, 0.0), DVec3::Z, DVec3::X, [24.0, 2.5, 0.75]);
+    let right = board(doc, oak, "Stile", DVec3::new(x + 14.5, 0.0, 0.0), DVec3::Z, DVec3::X, [24.0, 2.5, 0.75]);
+    let bottom = board(doc, oak, "Bottom rail", DVec3::new(x + 2.5, 0.75, 0.0), DVec3::X, DVec3::Z, [12.0, 2.5, 0.75]);
+    let top = board(doc, oak, "Top rail", DVec3::new(x + 2.5, 0.75, 21.5), DVec3::X, DVec3::Z, [12.0, 2.5, 0.75]);
+    let tenon = Tenon { length: 1.0, thickness: 0.25, shoulder: 0.25, haunch: 0.0, fit: 0.0 };
+    for rail in [bottom, top] {
+        for stile in [left, right] {
+            doc.mortise_and_tenon(rail, stile, tenon).expect("mortise and tenon");
+        }
+    }
+    // A solid panel, 1/2" thick and 12" wide, let into grooves all round: it floats.
+    let panel = board(doc, oak, "Panel", DVec3::new(x + 2.5, 0.125, 2.5), DVec3::Z, DVec3::X, [19.0, 12.0, 0.5]);
+    for frame in [bottom, top, left, right] {
+        doc.let_in(panel, frame, 0.25).expect("panel into a groove");
+    }
+
+    // A walnut bench top, 24" x 14", with breadboard ends across its ends, glued on solid.
+    let walnut = wood(doc, "Walnut");
+    let x = 125.0;
+    board(doc, walnut, "Bench top", DVec3::new(x, 0.0, 18.0), DVec3::X, DVec3::Y, [24.0, 14.0, 0.75]);
+    board(doc, walnut, "Breadboard end", DVec3::new(x, 0.0, 18.0), DVec3::Y, -DVec3::X, [14.0, 2.5, 0.75]);
+    board(doc, walnut, "Breadboard end", DVec3::new(x + 26.5, 0.0, 18.0), DVec3::Y, -DVec3::X, [14.0, 2.5, 0.75]);
 }
 
 fn bookcase(doc: &mut Document) {
@@ -126,7 +161,9 @@ fn main() {
     side_table(&mut doc);
     let table = group_all(&mut doc, "Table", &[]);
     bookcase(&mut doc);
-    group_all(&mut doc, "Bookcase", &[table]);
+    let case = group_all(&mut doc, "Bookcase", &[table]);
+    movement_pieces(&mut doc);
+    group_all(&mut doc, "Wood movement examples", &[table, case]);
     std::fs::write(&path, woodsketch_doc::file::to_string(doc.scene())).expect("write the drawing");
     let list = woodsketch_doc::cutlist::cut_list(doc.scene());
     let report = woodsketch_doc::movement::check(doc.scene(), doc.scene().moisture_swing());
