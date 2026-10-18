@@ -793,6 +793,11 @@ impl Document {
         })
     }
 
+    /// Add a dimension or text note to the container being edited, as one undo step.
+    pub fn add_note(&mut self, note: crate::Guide) -> crate::GuideId {
+        self.edit_scene(|scene, path| scene.container_mut(path).expect("the editing path stays valid").model.add_guide(note))
+    }
+
     pub fn set_guides_hidden(&mut self, hidden: bool) {
         if self.scene().guides_hidden != hidden {
             self.edit_scene(|scene, _| scene.guides_hidden = hidden);

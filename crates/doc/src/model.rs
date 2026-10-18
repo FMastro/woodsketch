@@ -43,25 +43,49 @@ pub enum Entity {
     Guide(GuideId),
 }
 
-/// SketchUp's guides, made with the Tape Measure: dashed reference geometry to snap to while
-/// laying out (an offset from an edge, a point at a measured distance). Not part of any solid.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+/// SketchUp's guides, made with the Tape Measure and Protractor: dashed reference geometry to
+/// snap to while laying out (an offset from an edge, a point at a measured distance). Not part of
+/// any solid. Dimensions and text notes are kept with them: marks on the drawing that move,
+/// copy and erase the same way (but stay when guides are hidden or deleted).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Guide {
     /// An endless line through `point` along unit `dir`.
     Line { point: DVec3, dir: DVec3 },
     Point(DVec3),
+    /// A dimension (the Dimensions tool): the distance from `a` to `b`, shown on a line `offset`
+    /// away from them (a vector, so it turns and scales with them). The length is always measured,
+    /// never stored, so it stays right when the drawing changes.
+    Dimension { a: DVec3, b: DVec3, offset: DVec3 },
+    /// A text note (the Text tool): `text` at `at + offset`, with a leader line back to `at`
+    /// (none when `offset` is zero).
+    Text { at: DVec3, offset: DVec3, text: String },
 }
 
 impl Guide {
     /// The guide mapped through `transform` (moved, turned or scaled with what it marks out).
     pub fn transformed(&self, transform: &DAffine3) -> Guide {
-        match *self {
+        match self {
             Guide::Line { point, dir } => Guide::Line {
-                point: transform.transform_point3(point),
-                dir: transform.transform_vector3(dir).normalize(),
+                point: transform.transform_point3(*point),
+                dir: transform.transform_vector3(*dir).normalize(),
             },
-            Guide::Point(p) => Guide::Point(transform.transform_point3(p)),
+            Guide::Point(p) => Guide::Point(transform.transform_point3(*p)),
+            Guide::Dimension { a, b, offset } => Guide::Dimension {
+                a: transform.transform_point3(*a),
+                b: transform.transform_point3(*b),
+                offset: transform.transform_vector3(*offset),
+            },
+            Guide::Text { at, offset, text } => Guide::Text {
+                at: transform.transform_point3(*at),
+                offset: transform.transform_vector3(*offset),
+                text: text.clone(),
+            },
         }
+    }
+
+    /// A dimension or a text note, rather than a guide to lay out with.
+    pub fn is_note(&self) -> bool {
+        matches!(self, Guide::Dimension { .. } | Guide::Text { .. })
     }
 }
 
@@ -139,7 +163,8 @@ impl Model {
 
     /// Take every guide out (keeping the ids already used).
     pub(crate) fn remove_guides(&mut self) {
-        let ids: Vec<GuideId> = self.guides().map(|(id, _)| id).collect();
+        // Guides only: dimensions and text stay when guides are hidden.
+        let ids: Vec<GuideId> = self.guides().filter(|(_, g)| !g.is_note()).map(|(id, _)| id).collect();
         for id in ids {
             self.guides.remove(id.0);
         }
@@ -149,9 +174,10 @@ impl Model {
         GuideId(self.guides.insert(guide))
     }
 
-    /// Erase every guide (SketchUp's Delete Guides). Returns whether there were any.
+    /// Erase every guide (SketchUp's Delete Guides); dimensions and text stay. Returns whether
+    /// there were any.
     pub fn delete_guides(&mut self) -> bool {
-        let ids: Vec<u32> = self.guides.iter().map(|(i, _)| i).collect();
+        let ids: Vec<u32> = self.guides.iter().filter(|(_, g)| !g.is_note()).map(|(i, _)| i).collect();
         for &i in &ids {
             self.guides.remove(i);
         }

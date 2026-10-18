@@ -151,6 +151,22 @@ mod tests {
     }
 
     #[test]
+    fn dimensions_and_notes_are_saved_and_survive_delete_guides() {
+        use crate::{Document, Guide};
+        let mut doc = Document::default();
+        doc.add_note(Guide::Dimension { a: DVec3::ZERO, b: DVec3::X * 24.0, offset: -DVec3::Y * 2.0 });
+        doc.add_note(Guide::Text { at: DVec3::ONE, offset: DVec3::Y, text: "Glue only the middle".into() });
+        doc.add_guide(Guide::Point(DVec3::Z));
+        let scene = from_str(&to_string(doc.scene())).unwrap();
+        let notes: Vec<Guide> = scene.root.model.guides().map(|(_, g)| g.clone()).collect();
+        assert_eq!(notes.len(), 3);
+        assert!(notes.iter().any(|g| matches!(g, Guide::Text { text, .. } if text == "Glue only the middle")));
+        let mut model = scene.root.model.clone();
+        assert!(model.delete_guides());
+        assert_eq!(model.guides().count(), 2, "Delete Guides takes the guide point, not the dimension or the note");
+    }
+
+    #[test]
     fn other_files_are_rejected_clearly() {
         assert!(matches!(from_str("not json"), Err(FileError::NotWoodSketch)));
         assert!(matches!(from_str(r#"{"format":"other","version":1}"#), Err(FileError::NotWoodSketch)));

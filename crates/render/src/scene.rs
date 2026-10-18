@@ -182,7 +182,8 @@ impl Scene {
         if model.faces().next().is_some() || model.edges().next().is_some() {
             uses.add((definition, paint), placement(&world, faded));
         }
-        for (_, guide) in model.guides().filter(|_| !scene.guides_hidden) {
+        // Dimensions and text are drawn over the view by the UI (with their lengths and words).
+        for (_, guide) in model.guides().filter(|(_, g)| !scene.guides_hidden && !g.is_note()) {
             let color = if faded { srgb(170, 170, 170) } else { srgb(70, 70, 70) };
             self.guides.push(SceneGuide { guide: guide.transformed(&world), color });
         }
@@ -256,7 +257,7 @@ impl Scene {
                 self.selected_lines.extend([line_vertex(world(a), blue), line_vertex(world(b), blue)]);
             }
         }
-        for (id, guide) in model.guides() {
+        for (id, guide) in model.guides().filter(|(_, g)| !g.is_note()) {
             if is_selected(Entity::Guide(id)) {
                 self.selected_guides.push(SceneGuide { guide: guide.transformed(to_world), color: blue });
             }
@@ -278,7 +279,7 @@ impl Scene {
 
 
 /// A guide to draw, in world coordinates.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct SceneGuide {
     pub guide: Guide,
     pub color: Color,
@@ -336,6 +337,8 @@ pub fn guide_vertices(guides: &[SceneGuide], view_proj: Mat4, eye: Vec3) -> Vec<
                     out.extend([vertex(p - d, g.color, p - d, 0.0), vertex(p + d, g.color, p - d, 0.0)]);
                 }
             }
+            // Drawn by the UI.
+            Guide::Dimension { .. } | Guide::Text { .. } => {}
         }
     }
     out

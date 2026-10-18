@@ -75,7 +75,7 @@ impl EraserTool {
             match entity {
                 Entity::Guide(id) => {
                     if let Some(guide) = doc.model().guide(id) {
-                        overlay.guides.push((*guide, true));
+                        overlay.guides.push((guide.clone(), true));
                     }
                 }
                 _ => highlight_entity(view, entity, overlay),

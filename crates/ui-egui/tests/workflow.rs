@@ -615,7 +615,7 @@ fn tape_a_guide_off_an_edge_then_draw_from_where_it_crosses() {
     type_text(&mut harness, "3 1/2");
     harness.key_press(Key::Enter);
     harness.run();
-    let guides: Vec<Guide> = harness.state().document().model().guides().map(|(_, g)| *g).collect();
+    let guides: Vec<Guide> = harness.state().document().model().guides().map(|(_, g)| g.clone()).collect();
     let [Guide::Line { point, dir }] = guides[..] else { panic!("{guides:?}") };
     assert!((point.y - 3.5).abs() < 1e-9 && dir.cross(DVec3::X).length() < 1e-9, "{point} {dir}");
     snapshot(&mut harness, "tape_guide");
@@ -2256,4 +2256,55 @@ fn walk_looks_with_the_mouse_and_walks_with_the_keys() {
     harness.key_press(Key::Escape);
     harness.run();
     assert_eq!(harness.state().tools().active(), ToolId::Select);
+}
+
+#[test]
+fn dimension_a_board_and_add_a_note() {
+    use egui_kittest::kittest::Queryable;
+    use glam::DVec3;
+    use woodsketch_doc::Guide;
+    let mut harness = app();
+    {
+        let doc = harness.state_mut().document_mut();
+        let face = doc.edit(|m| m.add_rectangle(DVec3::ZERO, DVec3::X * 24.0, DVec3::Y * 6.0, DVec3::Z)).unwrap();
+        doc.push_pull(face, 0.75, false).unwrap();
+    }
+    harness.run();
+    type_text(&mut harness, "Z");
+    // Tools > Dimension: the board's front edge, from corner to corner, then out in front.
+    harness.get_by_label("Tools").click();
+    harness.run();
+    harness.get_by_label_contains("Dimension").click();
+    harness.run();
+    assert_eq!(harness.state().tools().active(), ToolId::Dimension);
+    let corner = |x: f64| harness.state().to_window(DVec3::new(x, 0.0, 0.75)).unwrap();
+    let (left, right) = (corner(0.0), corner(24.0));
+    click(&mut harness, left);
+    click(&mut harness, right);
+    let out = harness.state().to_window(DVec3::new(12.0, -4.0, 0.75)).unwrap();
+    harness.hover_at(out);
+    harness.run();
+    click(&mut harness, out);
+    let notes: Vec<Guide> = harness.state().document().model().guides().map(|(_, g)| g.clone()).collect();
+    let [Guide::Dimension { a, b, .. }] = notes[..] else { panic!("{notes:?}") };
+    assert!((a.distance(b) - 24.0).abs() < 1e-6, "corner to corner: {}", a.distance(b));
+
+    // Tools > Text: a point on the top, then where the words go; type them.
+    harness.get_by_label("Tools").click();
+    harness.run();
+    harness.get_by_label_contains("Text").click();
+    harness.run();
+    let top = harness.state().to_window(DVec3::new(6.0, 3.0, 0.75)).unwrap();
+    click(&mut harness, top);
+    let words = harness.state().to_window(DVec3::new(6.0, 12.0, 0.75)).unwrap();
+    harness.hover_at(words);
+    harness.run();
+    click(&mut harness, words);
+    type_text(&mut harness, "Top: quartersawn white oak");
+    harness.key_press(Key::Enter);
+    harness.run();
+    let text = harness.state().document().model().guides().find_map(|(_, g)| if let Guide::Text { text, .. } = g { Some(text.clone()) } else { None });
+    assert_eq!(text.as_deref(), Some("Top: quartersawn white oak"), "letters and spaces went to the note");
+    assert_eq!(harness.state().tools().active(), ToolId::Text, "typing didn't switch tools");
+    snapshot(&mut harness, "dimension_and_text");
 }

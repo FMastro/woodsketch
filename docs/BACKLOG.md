@@ -22,13 +22,13 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 9 | Wood movement | 23 | Fewer false warnings, clearer results |
 | 10 | Edge profiles | 76 | More bits, profiles on any board |
 | 11 | Parts and boards | 11 | Small drawing conveniences |
-| 12 | Modeling tools | 221 | SketchUp parity for general modeling |
+| 12 | Modeling tools | 207 | SketchUp parity for general modeling |
 | 13 | Groups, components and tags | 63 | Organizing bigger projects |
 | 14 | UI | 87 | Comfort and polish |
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1585** | |
+| | **All** | **1571** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -246,13 +246,16 @@ Done: roundover, chamfer, cove, ogee, around a face (mitered corners) or along a
 Done: Polygon (Ctrl: to a side or a corner), Protractor (angled guide lines), Push/Pull with Ctrl
 (keeps the face), Offset repeats on a double-click, `[x,y,z]` typed before the first click (Line,
 Rectangle), Walk (mouse looks, W A S D walk), retyping a line's length, Rectangle's square and golden
-hints, arrow keys facing a circle along an axis, new guides showing hidden guides.
+hints, arrow keys facing a circle along an axis, new guides showing hidden guides. Dimensions
+and Text tools (kept with the guides: saved, moved, copied, erased; drawn over the view).
 ### Tools
 1. [2] `[x,y,z]` typed before the first click for Move, Tape Measure, Circle and Arc too.
-2. [8] Text tool.
-3. [3] Walk: an eye height (5'6" to start, as SketchUp), up and down keys, a speed setting, and
+2. [5] Notes: double-click one to change its words, a text size, and clicking an edge to dimension
+   it in one click (two points now).
+3. [2] View > Dimensions and View > Text, shown or hidden on their own (they stay when guides are
+   hidden now).
+4. [3] Walk: an eye height (5'6" to start, as SketchUp), up and down keys, a speed setting, and
    stopping at walls.
-4. [13] Dimensions tool.
 5. [21] Follow Me.
 6. [21] Section Plane.
 

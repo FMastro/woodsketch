@@ -138,6 +138,7 @@ impl Viewport {
             egui::Color32::WHITE,
         );
         let overlay = tools.overlay(doc);
+        draw_notes(&painter, rect, &self.camera, size, doc);
         draw_overlay(&painter, rect, &self.camera, size, &overlay);
         if self.show_movement {
             // Worked out again only when the drawing changes (it compares every pair of parts).
@@ -333,10 +334,11 @@ fn draw_guides(
     let eye = camera.eye().as_dvec3();
     let forward = camera.forward().as_dvec3();
     let near = f64::from(camera.distance) * 0.02;
-    for &(guide, selected) in &overlay.guides {
+    for (guide, selected) in &overlay.guides {
+        let selected = *selected;
         let color = if selected { egui::Color32::from_rgb(0, 90, 255) } else { gray(painter, 60) };
         let stroke = egui::Stroke::new(if selected { 1.5 } else { 1.0 }, color);
-        match guide {
+        match *guide {
             woodsketch_doc::Guide::Line { point, dir } => {
                 // The stretch of the line nearest the eye, cut where it passes behind the camera.
                 let middle = point + dir * (eye - point).dot(dir);
@@ -361,7 +363,63 @@ fn draw_guides(
                     painter.line_segment([p - egui::vec2(r, -r), p + egui::vec2(r, -r)], stroke);
                 }
             }
+            // A dimension or note being drawn, or highlighted by a tool.
+            woodsketch_doc::Guide::Dimension { .. } | woodsketch_doc::Guide::Text { .. } => draw_note(painter, &screen, guide, Some(color)),
         }
+    }
+}
+
+/// The drawing's dimensions and text notes, over the view (the renderer can't draw words).
+/// Selected ones in the group being edited are blue.
+fn draw_notes(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera, size: Vec2, doc: &Document) {
+    let screen = |p: DVec3| camera.project(p.as_vec3(), size).map(|s| rect.min + egui::vec2(s.x, s.y));
+    let view = doc.view();
+    // The view is in the edited container's coordinates; the camera sees the world.
+    let to_world = doc.context_transform();
+    for (id, guide) in view.model().guides().filter(|(_, g)| g.is_note()) {
+        let entity = woodsketch_doc::Entity::Guide(id);
+        let selected = view.owner(entity) == woodsketch_doc::Owner::Active && doc.selection().contains(entity);
+        let color = selected.then(|| egui::Color32::from_rgb(0, 90, 255));
+        draw_note(painter, &screen, &guide.transformed(&to_world), color);
+    }
+}
+
+/// A dimension (extension lines, its line with slash ticks, the length measured now in the
+/// middle) or a text note (its leader and words), in `color` or the theme's ink.
+fn draw_note(painter: &egui::Painter, screen: &dyn Fn(DVec3) -> Option<egui::Pos2>, guide: &woodsketch_doc::Guide, color: Option<egui::Color32>) {
+    let ink = color.unwrap_or_else(|| gray(painter, 40));
+    let stroke = egui::Stroke::new(1.0, ink);
+    let label = |at: egui::Pos2, text: String| {
+        let galley = painter.layout_no_wrap(text, egui::FontId::proportional(12.0), ink);
+        let rect = egui::Rect::from_center_size(at, galley.size()).expand(2.0);
+        painter.rect_filled(rect, 2.0, paper(painter, 210));
+        painter.galley(rect.min + egui::vec2(2.0, 2.0), galley, ink);
+    };
+    match guide {
+        woodsketch_doc::Guide::Dimension { a, b, offset } => {
+            let (Some(pa), Some(pb), Some(qa), Some(qb)) = (screen(*a), screen(*b), screen(*a + *offset), screen(*b + *offset)) else { return };
+            // Extension lines from the points to a little past the dimension line.
+            let past = |from: egui::Pos2, to: egui::Pos2| if from.distance(to) > 1.0 { to + (to - from).normalized() * 5.0 } else { to };
+            painter.line_segment([pa, past(pa, qa)], stroke);
+            painter.line_segment([pb, past(pb, qb)], stroke);
+            painter.line_segment([qa, qb], stroke);
+            // A woodworker's slash at each end.
+            let along = (qb - qa).normalized();
+            let slash = (along + egui::vec2(-along.y, along.x)) * 4.0;
+            for q in [qa, qb] {
+                painter.line_segment([q - slash, q + slash], egui::Stroke::new(1.5, ink));
+            }
+            label(qa + (qb - qa) * 0.5, woodsketch_doc::units::format_length(a.distance(*b)));
+        }
+        woodsketch_doc::Guide::Text { at, offset, text } => {
+            let (Some(p), Some(q)) = (screen(*at), screen(*at + *offset)) else { return };
+            if p.distance(q) > 2.0 {
+                painter.line_segment([p, q], stroke);
+                painter.circle_filled(p, 2.0, ink);
+            }
+            label(q, text.clone());
+        }
+        _ => {}
     }
 }
 

@@ -61,7 +61,8 @@ impl Keyboard {
                 egui::Event::Key { key: egui::Key::ArrowUp | egui::Key::ArrowDown | egui::Key::ArrowLeft | egui::Key::ArrowRight, .. } if walking => {}
                 egui::Event::Text(text) => {
                     for c in text.chars() {
-                        if tools.is_typing() || Tools::starts_value(c) {
+                        // A text note's words take letters and spaces too.
+                        if tools.is_typing() || Tools::starts_value(c) || tools.takes_text(doc) {
                             tools.type_char(c);
                         } else if c == 'g' {
                             // SketchUp's Make Component shortcut.

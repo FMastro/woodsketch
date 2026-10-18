@@ -4,6 +4,7 @@
 mod arc;
 mod board;
 mod circle;
+mod notes;
 mod eraser;
 pub mod infer;
 mod line;
@@ -59,6 +60,8 @@ pub enum ToolId {
     Offset,
     TapeMeasure,
     Protractor,
+    Dimension,
+    Text,
     Orbit,
     Pan,
     Zoom,
@@ -68,7 +71,7 @@ pub enum ToolId {
 }
 
 impl ToolId {
-    pub const ALL: [Self; 20] = [
+    pub const ALL: [Self; 22] = [
         Self::Select,
         Self::Eraser,
         Self::PaintBucket,
@@ -85,6 +88,8 @@ impl ToolId {
         Self::Offset,
         Self::TapeMeasure,
         Self::Protractor,
+        Self::Dimension,
+        Self::Text,
         Self::Orbit,
         Self::Pan,
         Self::Zoom,
@@ -109,6 +114,8 @@ impl ToolId {
             Self::Offset => "Offset",
             Self::TapeMeasure => "Tape Measure",
             Self::Protractor => "Protractor",
+            Self::Dimension => "Dimension",
+            Self::Text => "Text",
             Self::Orbit => "Orbit",
             Self::Pan => "Pan",
             Self::Zoom => "Zoom",
@@ -130,6 +137,8 @@ impl ToolId {
             Self::Polygon => '\0',
             Self::Protractor => '\0',
             Self::Walk => '\0',
+            Self::Dimension => '\0',
+            Self::Text => '\0',
             Self::Board => 'w',
             Self::PushPull => 'p',
             Self::Move => 'm',
@@ -344,9 +353,11 @@ impl Overlay {
             *grip = p(*grip);
         }
         for (guide, _) in &mut self.guides {
-            *guide = match *guide {
+            *guide = match guide.clone() {
                 woodsketch_doc::Guide::Line { point, dir } => woodsketch_doc::Guide::Line { point: p(point), dir: n(dir) },
                 woodsketch_doc::Guide::Point(point) => woodsketch_doc::Guide::Point(p(point)),
+                woodsketch_doc::Guide::Dimension { a, b, offset } => woodsketch_doc::Guide::Dimension { a: p(a), b: p(b), offset: n(offset) * offset.length() },
+                woodsketch_doc::Guide::Text { at, offset, text } => woodsketch_doc::Guide::Text { at: p(at), offset: n(offset) * offset.length(), text },
             };
         }
         self
@@ -389,6 +400,8 @@ pub struct Tools {
     move_tool: MoveTool,
     rotate: RotateTool,
     protractor: RotateTool,
+    dimension: notes::DimensionTool,
+    text: notes::TextTool,
     paint: PaintTool,
     /// The material the Paint Bucket applies; `None` is the default material.
     pub active_material: Option<woodsketch_doc::MaterialId>,
@@ -425,6 +438,8 @@ impl Default for Tools {
             move_tool: MoveTool::default(),
             rotate: RotateTool::default(),
             protractor: RotateTool::protractor(),
+            dimension: notes::DimensionTool::default(),
+            text: notes::TextTool::default(),
             paint: PaintTool::default(),
             active_material: None,
             grip_dragging: false,
@@ -545,6 +560,8 @@ impl Tools {
         self.move_tool.cancel();
         self.rotate.cancel();
         self.protractor.cancel();
+        self.dimension.cancel();
+        self.text.cancel();
     }
 
     pub fn pointer(&mut self, event: PointerEvent, doc: &mut Document, camera: &mut OrbitCamera, size: Vec2) {
@@ -743,6 +760,22 @@ impl Tools {
             }
             (ToolId::Protractor, PointerEvent::DragStart { origin }) => self.protractor.drag_start(doc, screen, origin),
             (ToolId::Protractor, PointerEvent::DragEnd { pos, .. }) => self.protractor.drag_end(doc, screen, pos),
+            (ToolId::Dimension, PointerEvent::Move(pos) | PointerEvent::Drag { pos, .. }) => {
+                self.dimension.hover(doc, screen, pos);
+                Ok(())
+            }
+            (ToolId::Dimension, PointerEvent::Click { pos, .. }) => {
+                self.typed.clear();
+                self.dimension.click(doc, screen, pos)
+            }
+            (ToolId::Text, PointerEvent::Move(pos) | PointerEvent::Drag { pos, .. }) => {
+                self.text.hover(doc, screen, pos);
+                Ok(())
+            }
+            (ToolId::Text, PointerEvent::Click { pos, .. }) => {
+                self.typed.clear();
+                self.text.click(doc, screen, pos)
+            }
             (ToolId::PaintBucket, PointerEvent::Move(pos)) => {
                 self.paint.hover(doc, screen, pos);
                 Ok(())
@@ -839,6 +872,12 @@ impl Tools {
         !self.typed.is_empty()
     }
 
+    /// Whether letters (and spaces) typed now are a text note's words rather than shortcuts:
+    /// right after the Text tool places one.
+    pub fn takes_text(&self, doc: &Document) -> bool {
+        self.active == ToolId::Text && self.text.takes_words(doc)
+    }
+
     /// Whether `c` starts a Measurements entry rather than a tool shortcut.
     pub fn starts_value(c: char) -> bool {
         // `[x,y,z]` and `<x,y,z>` start typed points and vectors too.
@@ -875,6 +914,8 @@ impl Tools {
             ToolId::Move => self.move_tool.enter(doc, &typed),
             ToolId::Rotate => self.rotate.enter(doc, &typed),
             ToolId::Protractor => self.protractor.enter(doc, &typed),
+            ToolId::Dimension => self.dimension.enter(doc, &typed),
+            ToolId::Text => self.text.enter(doc, &typed),
             _ => Err(format!("{} doesn't take typed values.", self.active.name())),
         };
         if let Err(message) = result {
@@ -902,7 +943,9 @@ impl Tools {
             || self.push_pull.is_busy()
             || self.move_tool.is_busy()
             || self.rotate.is_busy()
-            || self.protractor.is_busy();
+            || self.protractor.is_busy()
+            || self.dimension.is_busy()
+            || self.text.is_busy();
         if self.is_typing() {
             self.typed.clear();
         } else if busy {
@@ -983,6 +1026,8 @@ impl Tools {
             ToolId::Move => self.move_tool.status(),
             ToolId::Rotate => self.rotate.status(),
             ToolId::Protractor => self.protractor.status(),
+            ToolId::Dimension => self.dimension.status().into(),
+            ToolId::Text => self.text.status().into(),
             ToolId::PaintBucket => self.paint.status().into(),
             ToolId::Orbit => "Drag to orbit.".into(),
             ToolId::Pan => "Drag to pan.".into(),
@@ -1004,6 +1049,8 @@ impl Tools {
             ToolId::PushPull | ToolId::Move | ToolId::Offset => "Distance",
             ToolId::Rotate => "Angle",
             ToolId::Protractor => "Angle",
+            ToolId::Dimension => "Length",
+            ToolId::Text => "Text",
             _ => "Measurements",
         }
     }
@@ -1028,6 +1075,7 @@ impl Tools {
             ToolId::Move => self.move_tool.measurement(),
             ToolId::Rotate => self.rotate.measurement(),
             ToolId::Protractor => self.protractor.measurement(),
+            ToolId::Dimension => self.dimension.measurement(),
             _ => String::new(),
         }
     }
@@ -1063,6 +1111,8 @@ impl Tools {
             ToolId::Move => self.move_tool.overlay(doc, &mut overlay),
             ToolId::Rotate => self.rotate.overlay(doc, &mut overlay),
             ToolId::Protractor => self.protractor.overlay(doc, &mut overlay),
+            ToolId::Dimension => self.dimension.overlay(&mut overlay),
+            ToolId::Text => self.text.overlay(&mut overlay),
             ToolId::PaintBucket => self.paint.overlay(doc, &mut overlay),
             _ => {}
         }

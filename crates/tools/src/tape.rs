@@ -349,7 +349,7 @@ mod tests {
         tool.click(&mut doc, screen, at(screen, 2.5, 0.0) + Vec2::new(0.0, 2.0)).unwrap();
         tool.hover(&doc, screen, at(screen, 3.0, 4.0));
         tool.enter(&mut doc, "3 1/2").unwrap();
-        let guides: Vec<Guide> = doc.model().guides().map(|(_, g)| *g).collect();
+        let guides: Vec<Guide> = doc.model().guides().map(|(_, g)| g.clone()).collect();
         let [Guide::Line { point, dir }] = guides[..] else { panic!("{guides:?}") };
         assert!(dir.cross(DVec3::X).length() < 1e-9, "parallel to the edge");
         assert!((point.y - 3.5).abs() < 1e-9 && point.z.abs() < 1e-9, "{point}");
@@ -410,7 +410,7 @@ mod tests {
         tool.lock_axis(Axis::X);
         tool.hover(&doc, screen, at(screen, 14.0, 10.0));
         tool.enter(&mut doc, "24").unwrap();
-        let guides: Vec<Guide> = doc.model().guides().map(|(_, g)| *g).collect();
+        let guides: Vec<Guide> = doc.model().guides().map(|(_, g)| g.clone()).collect();
         assert_eq!(guides, vec![Guide::Line { point: DVec3::new(10.0, 10.0, 0.0), dir: DVec3::X }]);
 
         // Guide point.
@@ -451,7 +451,7 @@ mod tests {
         assert!((foot.y).abs() < 1e-9 && (foot.x - tip.x).abs() < 1e-9, "straight across from the edge: {foot} {tip}");
         assert!((foot.x - 8.0).abs() < 0.2, "under the cursor, not back at the click: {foot}");
         tool.enter(&mut doc, "3").unwrap();
-        let (_, &guide) = doc.model().guides().next().unwrap();
+        let guide = doc.model().guides().next().unwrap().1.clone();
         let Guide::Line { point, dir } = guide else { panic!("{guide:?}") };
         assert!((point.y - 3.0).abs() < 1e-9 && dir.cross(DVec3::X).length() < 1e-9);
     }

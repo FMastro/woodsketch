@@ -10,6 +10,8 @@ use crate::Axis;
 pub const SNAP_RADIUS: f32 = 12.0;
 /// How close, in points, the cursor must be to pick an edge.
 pub const EDGE_RADIUS: f32 = 6.0;
+/// How close, in points, a click must come to a text note's place to pick it (its words are around it).
+pub const TEXT_RADIUS: f32 = 22.0;
 
 /// The camera and viewport size: everything needed to map between screen and model. Points are
 /// in the coordinates of the container being edited (a group's own axes when inside one).
@@ -251,7 +253,7 @@ pub fn snap_feature(
         .guides()
         .filter_map(|(_, g)| match *g {
             Guide::Line { point, dir } => Some((point, dir)),
-            Guide::Point(_) => None,
+            _ => None,
         })
         .collect();
 
@@ -265,7 +267,7 @@ pub fn snap_feature(
         })
         .chain(model.guides().filter_map(|(_, g)| match *g {
             Guide::Point(p) => near(p, SNAP_RADIUS).map(|d| (d, p, SnapKind::GuidePoint, None)),
-            Guide::Line { .. } => None,
+            _ => None,
         }))
         .chain(near(DVec3::ZERO, SNAP_RADIUS).map(|d| (d, DVec3::ZERO, SnapKind::Origin, None)))
         .collect();
@@ -367,6 +369,16 @@ pub fn hit_guide(model: &Model, screen: Screen<'_>, cursor: Vec2) -> Option<Guid
             let (point, radius) = match *g {
                 Guide::Point(p) => (p, SNAP_RADIUS),
                 Guide::Line { point, dir } => (point + dir * closest_on_line(point, dir, &ray)?, EDGE_RADIUS),
+                // A dimension: anywhere along its line.
+                Guide::Dimension { a, b, offset } => {
+                    let (pa, pb) = (screen.project(a + offset)?, screen.project(b + offset)?);
+                    let along = pb - pa;
+                    let t = ((cursor - pa).dot(along) / along.length_squared().max(1e-6)).clamp(0.0, 1.0);
+                    let distance = (pa + along * t).distance(cursor);
+                    return (distance <= EDGE_RADIUS).then_some((id, distance));
+                }
+                // A note: around its words.
+                Guide::Text { at, offset, .. } => (at + offset, TEXT_RADIUS),
             };
             let distance = screen.project(point)?.distance(cursor);
             (distance <= radius).then_some((id, distance))

@@ -510,7 +510,7 @@ mod tests {
         turn_toward(&mut tool, &mut doc, screen, 4.0, 4.0);
         tool.enter(&mut doc, "30").unwrap();
         assert!(!tool.is_busy());
-        let guides: Vec<_> = doc.model().guides().map(|(_, g)| *g).collect();
+        let guides: Vec<_> = doc.model().guides().map(|(_, g)| g.clone()).collect();
         let [woodsketch_doc::Guide::Line { point, dir }] = guides[..] else { panic!("one guide line: {guides:?}") };
         assert!(point.abs_diff_eq(DVec3::ZERO, 1e-9));
         let degrees = dir.y.atan2(dir.x).to_degrees();

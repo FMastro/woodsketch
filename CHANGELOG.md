@@ -3,6 +3,16 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.29
+
+- Dimensions tool (Tools > Dimension): click two points, then move out and click (or type how far
+  out) to place a dimension. It always shows the current length, so it stays right as the
+  drawing changes.
+- Text tool (Tools > Text): click a point, then where the words go. It starts with the part's name
+  or the edge's length; type your own words and press Enter.
+- Dimensions and notes are saved, selected, moved, copied and erased like guides, and stay when
+  guides are hidden or deleted.
+
 ## 0.1.28
 
 - Walk (Camera > Walk): look around with the mouse and walk with W A S D or the arrow keys, Shift

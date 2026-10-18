@@ -18,7 +18,7 @@ const TOOL_SET: &[&[ToolId]] = &[
     &[ToolId::Select, ToolId::Eraser, ToolId::PaintBucket],
     &[ToolId::Line, ToolId::Arc, ToolId::Rectangle, ToolId::Circle, ToolId::Polygon, ToolId::Board],
     &[ToolId::PushPull, ToolId::Move, ToolId::Rotate, ToolId::Scale, ToolId::Offset],
-    &[ToolId::TapeMeasure, ToolId::Protractor],
+    &[ToolId::TapeMeasure, ToolId::Protractor, ToolId::Dimension, ToolId::Text],
     &[ToolId::Orbit, ToolId::Pan, ToolId::Zoom, ToolId::Walk],
 ];
 
@@ -284,6 +284,8 @@ impl WoodSketchApp {
             ui.separator();
             tool_item(ui, &mut self.tools, ToolId::TapeMeasure);
             tool_item(ui, &mut self.tools, ToolId::Protractor);
+            tool_item(ui, &mut self.tools, ToolId::Dimension);
+            tool_item(ui, &mut self.tools, ToolId::Text);
             ui.separator();
             if ui.button("Cut List...").clicked() {
                 ui.close();

@@ -279,7 +279,7 @@ impl ViewportRenderer {
         for (i, color) in [self.sky.horizon, self.sky.zenith, self.sky.ground].into_iter().enumerate() {
             globals[40 + 4 * i..44 + 4 * i].copy_from_slice(&color);
         }
-        let all_guides: Vec<SceneGuide> = self.guides.iter().chain(&self.selected_guides).copied().collect();
+        let all_guides: Vec<SceneGuide> = self.guides.iter().chain(&self.selected_guides).cloned().collect();
         let dashed = GpuBuffer::new(device, "viewport guides", &guide_vertices(&all_guides, view_proj, eye));
         queue.write_buffer(&self.globals, 0, bytemuck::cast_slice(&globals));
 
