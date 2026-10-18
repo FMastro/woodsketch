@@ -32,6 +32,10 @@ reading (`doc::skp`) was worked out from `.skp` files only, without the SDK; kee
   (`viewport.rs`). `tests/workflow.rs` drives the real app headlessly with `egui_kittest` (set
   `WOODSKETCH_SNAPSHOT_DIR` to save rendered PNGs).
 - `apps/woodsketch`: the binary.
+- `apps/woodsketch-cli`: the command line and MCP server for agents (`woodsketch-cli help`):
+  builds recipes (`doc::recipe`), writes the shop sheets, renders PNGs headless
+  (`ViewportRenderer::read_pixels`); `mcp.rs` speaks MCP over stdio. Its guide is `docs/AGENTS.md`
+  (served by the `guide` tool; its example is built in a test, so keep it working).
 
 Keep logic out of `ui-egui`: anything testable belongs in a plain crate.
 
@@ -70,6 +74,7 @@ units, the last error with paths scrubbed, counts from the drawing; never names 
 
 ## Commands
 - `cargo run -p woodsketch`
+- `cargo run -p woodsketch-cli -- help` (build a recipe, render, MCP)
 - `cargo test --workspace`
 - `cargo clippy --workspace --all-targets` (keep it warning-free)
 
@@ -272,3 +277,10 @@ points); keep general modeling working alongside it.
    size; right-click menu (`Tools::select_under`, Reverse Faces, Make Unique), View > Guides
    (`Scene::guides_hidden`); `Model::dissolve_vertex` after seam merges; View > Units
    (`units::set_units`, per thread, inches or millimeters; bare numbers follow it).
+37. Agent-ready: `doc::recipe` (a project as JSON: materials, parts as boxes from their lowest corner,
+   templates with partial sizes, joints with suggested sizes, tags, groups; `build` lists every
+   problem by item; `summary`), `woodsketch-cli` (build, summary, cutlist, cutsheet, buildsheets,
+   movement, export, render) packed beside the app by `release.yml`, `woodsketch-cli mcp` (tools:
+   guide, build, open, save, summary, cut_list, movement, render, cut_sheet, build_sheets, export),
+   `docs/AGENTS.md`, llms.txt on the site. Dark mode: View > Theme (`chrome::visuals(dark)`,
+   `render::Sky`, viewport `gray`/`paper`).

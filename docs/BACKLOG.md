@@ -15,7 +15,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 2 | Joinery | 95 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
-| 5 | Agent-ready | 41 | The next big feature; builds on templates and joinery |
+| 5 | Agent-ready | 31 | More for agents: editing piece by piece, copies, standalone downloads |
 | 6 | Release polish | 79 | Signing before announcing widely |
 | 7 | Importing | 238 | Gets people's existing models in |
 | 8 | Cut list and materials | 171 | Better buying and cutting |
@@ -28,7 +28,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1629** | |
+| | **All** | **1619** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -116,21 +116,20 @@ hinges), pulls and knobs, shelf pins, all counted in the cut list's hardware.
 10. [13] Face-frame cabinets (fronts set in a face frame).
 
 ## 5. Agent-ready
-Let AI agents design with WoodSketch, so a woodworker can ask their assistant "build me a
-nightstand, 24" tall, from 3/4" cherry" and get a real drawing, cut list, cutting diagrams and
-shopping list. The engine (`doc`) already runs without the UI; templates (with their drawers,
-doors and hardware) are the building blocks a recipe calls.
-1. [13] A project recipe (JSON): parts as boards from stock (material, section or thickness,
-   length, place, orientation), templates, joints between them, tags; validated with clear
-   errors an agent can fix ("Shelf doesn't touch Side"). Builds a `.woodsketch`.
-2. [8] A command line: `woodsketch build recipe.json`, `cutlist`, `cutsheet` (HTML), `export`,
-   `render` (PNG views), headless.
-3. [13] An MCP server (`woodsketch mcp`) so Claude and other agents can call it directly: add
-   boards, make joints, read the cut list and diagrams, render views to check their work.
-4. [5] Docs for agents (AGENTS.md / llms.txt on woodsketch.net, with recipes for common
-   furniture).
-5. [2] The app opening what an agent made for editing by hand (it opens `.woodsketch` files;
-   check the round trip).
+Done: project recipes (`doc::recipe`: materials, parts as boxes, templates, joints, tags, groups;
+every problem named by item), `woodsketch-cli` (build, summary, cutlist, cutsheet, buildsheets,
+movement, export, render to PNG headless) installed beside the app, an MCP server
+(`woodsketch-cli mcp`), and the guide for agents (`docs/AGENTS.md`, llms.txt on the site).
+1. [8] Edit piece by piece over MCP (add, move or remove a part, make one joint) instead of
+   rebuilding the whole recipe; read the current drawing back as a recipe.
+2. [5] Recipes: copies (one component placed several times, turned), a grain direction, parts at
+   an angle and angled joints, edge profiles, reference faces.
+3. [5] Standalone `woodsketch-cli` downloads (a zip per OS on each release), for a machine without
+   the app; on Linux the AppImage keeps it inside.
+4. [5] A drawing made by hand turned into a recipe, so an agent can change it.
+5. [3] A JSON Schema for recipes (editors and agents validate before building).
+6. [3] MCP extras: the guide as a resource, prompts ("design a nightstand"), progress for big builds.
+7. [2] Render options: the dark theme, a chosen camera, a part highlighted.
 
 ## 6. Release polish
 Done: installers, auto-update, icons, release notes, the site's download links; Help > Report a

@@ -39,4 +39,4 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Tests (without the GPU)
         shell: bash
-        run: cargo test --locked -p woodsketch-doc -p woodsketch-tools -p woodsketch-view
+        run: cargo test --locked -p woodsketch-doc -p woodsketch-tools -p woodsketch-view -p woodsketch-cli

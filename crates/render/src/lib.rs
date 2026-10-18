@@ -81,6 +81,8 @@ struct Targets {
     msaa_color: wgpu::TextureView,
     depth: wgpu::TextureView,
     output: wgpu::TextureView,
+    /// The output itself, to copy out of (`read_pixels`).
+    output_texture: wgpu::Texture,
 }
 
 impl ViewportRenderer {
@@ -349,6 +351,40 @@ impl ViewportRenderer {
     pub fn output_view(&self) -> Option<&wgpu::TextureView> {
         self.targets.as_ref().map(|t| &t.output)
     }
+
+    /// The last frame's pixels: `(width, height, rgba)`, 8 bits a channel, sRGB, rows top to
+    /// bottom. For rendering a picture without a window (the command line, an agent checking
+    /// its work); waits for the GPU.
+    pub fn read_pixels(&self, device: &wgpu::Device, queue: &wgpu::Queue) -> Option<(u32, u32, Vec<u8>)> {
+        let targets = self.targets.as_ref()?;
+        let [width, height] = targets.size;
+        // Rows are copied padded to 256 bytes.
+        let row = width * 4;
+        let padded = row.div_ceil(wgpu::COPY_BYTES_PER_ROW_ALIGNMENT) * wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("viewport readback"),
+            size: u64::from(padded) * u64::from(height),
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("viewport readback") });
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo { texture: &targets.output_texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
+            wgpu::TexelCopyBufferInfo { buffer: &buffer, layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(padded), rows_per_image: Some(height) } },
+            wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
+        );
+        queue.submit([encoder.finish()]);
+        let slice = buffer.slice(..);
+        slice.map_async(wgpu::MapMode::Read, |_| {});
+        device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None }).ok()?;
+        let data = slice.get_mapped_range().ok()?;
+        let mut pixels = Vec::with_capacity((row * height) as usize);
+        for y in 0..height as usize {
+            let start = y * padded as usize;
+            pixels.extend_from_slice(&data[start..start + row as usize]);
+        }
+        Some((width, height, pixels))
+    }
 }
 
 impl GpuBuffer {
@@ -371,9 +407,8 @@ impl GpuBuffer {
 
 impl Targets {
     fn new(device: &wgpu::Device, size: [u32; 2]) -> Self {
-        let texture = |label, format, sample_count, usage| {
-            device
-                .create_texture(&wgpu::TextureDescriptor {
+        let make = |label, format, sample_count, usage| {
+            device.create_texture(&wgpu::TextureDescriptor {
                     label: Some(label),
                     size: wgpu::Extent3d {
                         width: size[0],
@@ -385,10 +420,16 @@ impl Targets {
                     dimension: wgpu::TextureDimension::D2,
                     format,
                     usage,
-                    view_formats: &[],
-                })
-                .create_view(&wgpu::TextureViewDescriptor::default())
+                view_formats: &[],
+            })
         };
+        let texture = |label, format, sample_count, usage| make(label, format, sample_count, usage).create_view(&wgpu::TextureViewDescriptor::default());
+        let output_texture = make(
+            "viewport output",
+            OUTPUT_FORMAT,
+            1,
+            wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
+        );
         Self {
             size,
             msaa_color: texture(
@@ -403,12 +444,8 @@ impl Targets {
                 SAMPLE_COUNT,
                 wgpu::TextureUsages::RENDER_ATTACHMENT,
             ),
-            output: texture(
-                "viewport output",
-                OUTPUT_FORMAT,
-                1,
-                wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-            ),
+            output: output_texture.create_view(&wgpu::TextureViewDescriptor::default()),
+            output_texture,
         }
     }
 }

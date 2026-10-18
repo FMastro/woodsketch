@@ -38,6 +38,10 @@ right-click the installer and choose *Open*.
   order.
 - **Wood movement checks.** Warns where a part will swell or shrink across its grain against
   a part that won't move with it.
+- **Works with your AI assistant.** `woodsketch-cli` (installed with the app) builds a drawing
+  from a project recipe (JSON) and writes the cut list, cut sheet, build sheets, movement check
+  and pictures; `woodsketch-cli mcp` is an MCP server for Claude and other agents. See
+  [docs/AGENTS.md](docs/AGENTS.md).
 - **Save, autosave and export.** `.woodsketch` files, crash recovery, OBJ and STL export.
 
 ![A part showing its grain direction](https://woodsketch.net/images/part-grain-direction.webp)

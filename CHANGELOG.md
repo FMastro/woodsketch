@@ -3,6 +3,13 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.26
+
+- Works with your AI assistant: `woodsketch-cli`, installed with the app, builds a drawing from
+  a project recipe (JSON) and writes the cut list, cut sheet, build sheets, wood movement check,
+  OBJ/STL and pictures. `woodsketch-cli mcp` lets Claude and other assistants design with
+  WoodSketch directly. See docs/AGENTS.md.
+
 ## 0.1.25
 
 - Dark mode: View > Theme > Dark (or Follow System to match your computer). The panels go
