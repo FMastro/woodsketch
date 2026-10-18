@@ -1,7 +1,7 @@
 //! The WoodSketch window: a 3D viewport inside SketchUp-style chrome (`chrome.rs`).
 
 mod chrome;
-mod feedback;
+pub mod feedback;
 mod cutlist;
 pub mod files;
 mod icons;
@@ -281,6 +281,11 @@ impl WoodSketchApp {
     /// Plug in the updater (the app binary does, with Velopack).
     pub fn set_updater(&mut self, updater: updates::Updater) {
         self.updater = Some(updater);
+    }
+
+    /// Send problem reports with `post` instead of to woodsketch.net (tests).
+    pub fn set_report_post(&mut self, post: feedback::Post) {
+        self.feedback.set_post(post);
     }
 
     /// The quiet check at startup (when it's on), and the result of one the user asked for.

@@ -17,10 +17,13 @@ egui.workspace = true
 egui-wgpu.workspace = true
 glam.workspace = true
 egui-phosphor = "0.14"
+# Sending a report to woodsketch.net (already built for Velopack's update checks).
+ureq = "3.4"
 
 [dev-dependencies]
 egui_kittest = { workspace = true, features = ["eframe", "wgpu"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
+serde_json.workspace = true
 
 [lints]
 workspace = true

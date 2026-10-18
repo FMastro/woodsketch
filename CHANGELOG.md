@@ -3,6 +3,13 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.23
+
+- Report a Problem and Send Feedback no longer need a GitHub account: Send posts it, and you get
+  the link to the issue it made. You can leave your email for questions; only the developer sees
+  it, it's never posted. Open on GitHub instead is still there.
+- In that form the title has focus, and Tab and Shift+Tab move between the title and description.
+
 ## 0.1.22
 
 - Fix: a selected part with joinery (dovetails, a notched outline) no longer shows a flickering

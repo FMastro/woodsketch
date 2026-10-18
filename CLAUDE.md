@@ -51,8 +51,10 @@ to the box too (so `38mm` isn't Move). Otherwise letters are tool shortcuts, Spa
 
 ## User reports (GitHub issues)
 Users send problems and ideas from Help > Report a Problem / Send Feedback (`doc::feedback`,
-`ui-egui::feedback`): a GitHub issue from the forms in `.github/ISSUE_TEMPLATE`, labeled `bug` or
-`enhancement` plus `from-app`, with a "Details from WoodSketch" block (version, OS, graphics,
+`ui-egui::feedback`): Send posts to woodsketch.net's relay (`feedback::RELAY`; the site repo's
+`api/report.js`), which makes the issue without the user needing a GitHub account and emails
+any address they left to the developer privately; or Open on GitHub instead, from the forms in
+`.github/ISSUE_TEMPLATE`. Either way it's labeled `bug` or `enhancement` plus `from-app`, with a "Details from WoodSketch" block (version, OS, graphics,
 units, the last error with paths scrubbed, counts from the drawing; never names or the file).
 - At the start of a session, and when asked, check them: `gh issue list --label from-app --state open`
   (read one with `gh issue view N --comments`). Tell the user what's new before starting other work.

@@ -2053,7 +2053,7 @@ fn report_a_problem_opens_a_github_issue_with_details_and_nothing_private() {
     harness.key_press_modifiers(Modifiers::SHIFT, Key::Tab);
     harness.run();
     type_text(&mut harness, " again");
-    harness.get_by_label("Open on GitHub").click();
+    harness.get_by_label_contains("Open on GitHub instead").click();
     harness.step();
     let opened: Vec<String> = harness
         .output()
@@ -2069,5 +2069,73 @@ fn report_a_problem_opens_a_github_issue_with_details_and_nothing_private() {
     assert!(url.starts_with("https://github.com/FMastro/woodsketch/issues/new?template=bug.yml&title=Board%20gone%20again&what=The%20board%20vanished&details=WoodSketch%20"), "{url}");
     assert!(!url.contains("Secret") && !url.contains("someone"), "{url}");
     harness.run();
-    assert!(harness.query_by_label("Open on GitHub").is_none(), "the form closes");
+    assert!(harness.query_by_label_contains("Open on GitHub instead").is_none(), "the form closes");
+}
+
+#[test]
+fn send_a_report_without_a_github_account_and_get_its_link() {
+    use egui_kittest::kittest::Queryable;
+    use std::sync::{Arc, Mutex};
+    let mut harness = app();
+    // woodsketch.net, stood in for: it takes the report and answers with the issue it made.
+    let posted = Arc::new(Mutex::new(Vec::<String>::new()));
+    let answer = Arc::new(Mutex::new((201u16, r#"{"number":7,"url":"https://github.com/FMastro/woodsketch/issues/7","emailed":true}"#.to_owned())));
+    {
+        let (posted, answer) = (posted.clone(), answer.clone());
+        harness.state_mut().set_report_post(Arc::new(move |body: &str| {
+            posted.lock().unwrap().push(body.to_owned());
+            Ok(answer.lock().unwrap().clone())
+        }));
+    }
+    harness.get_by_label("Help").click();
+    harness.run();
+    harness.get_by_label("Send Feedback...").click();
+    harness.run();
+    type_text(&mut harness, "Bed template");
+    harness.key_press(Key::Tab);
+    harness.run();
+    type_text(&mut harness, "A queen bed, please");
+
+    // A bad email holds it back; a good one lets it go.
+    let email = harness.query_all(egui_kittest::kittest::by().role(egui::accesskit::Role::TextInput)).find(|n| n.value().is_some_and(|v| v.is_empty())).map(|n| n.rect().center()).unwrap();
+    click(&mut harness, email);
+    type_text(&mut harness, "maker@example");
+    assert!(harness.query_by_label_contains("doesn't look right").is_some());
+    type_text(&mut harness, ".com");
+    harness.get_by_label(&format!("{} Send", egui_phosphor::regular::PAPER_PLANE_TILT)).click();
+    for _ in 0..20 {
+        harness.step();
+        if harness.query_by_label_contains("issue #7").is_some() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    harness.run_steps(2);
+    assert!(harness.query_by_label_contains("Thank you! It's issue #7").is_some(), "the link to the issue it made");
+    assert!(harness.query_by_label_contains("you'll get an email").is_some());
+    snapshot(&mut harness, "feedback_sent");
+    let body: serde_json::Value = serde_json::from_str(&posted.lock().unwrap()[0]).unwrap();
+    assert_eq!((body["kind"].as_str(), body["title"].as_str(), body["what"].as_str(), body["email"].as_str()), (Some("idea"), Some("Bed template"), Some("A queen bed, please"), Some("maker@example.com")));
+    assert!(body["details"].as_str().unwrap().contains("WoodSketch "));
+    harness.get_by_label("Close").click();
+    harness.run();
+    assert!(harness.query_by_label_contains("issue #7").is_none());
+
+    // Turned away (too many at once): it says why and the form stays to try again.
+    *answer.lock().unwrap() = (429, r#"{"error":"That's a lot of reports in a short time; please try again later."}"#.to_owned());
+    harness.get_by_label("Help").click();
+    harness.run();
+    harness.get_by_label("Report a Problem...").click();
+    harness.run();
+    harness.key_press(Key::Tab);
+    harness.run();
+    type_text(&mut harness, "It crashed");
+    harness.get_by_label(&format!("{} Send", egui_phosphor::regular::PAPER_PLANE_TILT)).click();
+    for _ in 0..20 {
+        harness.step();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    harness.run_steps(2);
+    assert!(harness.query_by_label_contains("a lot of reports").is_some());
+    assert!(harness.query_by_label_contains("Open on GitHub instead").is_some(), "still there to try another way");
 }
