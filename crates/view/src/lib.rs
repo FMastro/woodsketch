@@ -12,6 +12,8 @@ const MAX_PITCH: f32 = 89.9_f32.to_radians();
 const MIN_DISTANCE: f32 = 0.05;
 const MAX_DISTANCE: f32 = 1.0e6;
 const ORBIT_RADIANS_PER_POINT: f32 = 0.008;
+/// Walk's look-around: a little slower than orbiting, for aiming.
+const LOOK_RADIANS_PER_POINT: f32 = 0.004;
 /// Distance multiplier per zoom step; a mouse-wheel notch is roughly one step.
 const ZOOM_FACTOR_PER_STEP: f32 = 0.85;
 
@@ -94,6 +96,28 @@ impl OrbitCamera {
     pub fn orbit(&mut self, drag: Vec2) {
         self.yaw -= drag.x * ORBIT_RADIANS_PER_POINT;
         self.pitch = (self.pitch + drag.y * ORBIT_RADIANS_PER_POINT).clamp(MIN_PITCH, MAX_PITCH);
+    }
+
+    /// Look around from where the eye is (Walk), as in a game: the mouse moving right turns the
+    /// view right, moving up looks up. The eye stays put; what it looks at swings around it.
+    pub fn look(&mut self, delta: Vec2) {
+        let eye = self.eye();
+        self.yaw -= delta.x * LOOK_RADIANS_PER_POINT;
+        self.pitch = (self.pitch + delta.y * LOOK_RADIANS_PER_POINT).clamp(MIN_PITCH, MAX_PITCH);
+        self.target = eye - self.offset_dir() * self.distance;
+    }
+
+    /// Walk the eye (and what it looks at) along the ground, `forward` the way it faces and
+    /// `right` across, in model units; its height stays.
+    pub fn walk(&mut self, forward: f32, right: f32) {
+        let facing = self.forward();
+        let mut ahead = Vec3::new(facing.x, facing.y, 0.0).normalize_or_zero();
+        if ahead == Vec3::ZERO {
+            // Looking straight down: walk the way the top of the screen points.
+            ahead = Vec3::new(-self.yaw.cos(), -self.yaw.sin(), 0.0);
+        }
+        let side = ahead.cross(Vec3::Z);
+        self.target += ahead * forward + side * right;
     }
 
     /// Pan by a pointer drag so the point under the target stays under the pointer.
@@ -274,5 +298,27 @@ mod tests {
             let p = camera.project(corner, VIEWPORT).unwrap();
             assert!(p.x >= 0.0 && p.x <= VIEWPORT.x && p.y >= 0.0 && p.y <= VIEWPORT.y, "{p}");
         }
+    }
+
+    #[test]
+    fn looking_around_keeps_the_eye_and_walking_keeps_the_height() {
+        let mut camera = OrbitCamera::default();
+        camera.set_view(StandardView::Front);
+        let eye = camera.eye();
+        let ahead = camera.forward();
+        // Mouse right: turn right (from facing +Y toward +X); the eye doesn't move.
+        camera.look(Vec2::new(200.0, 0.0));
+        assert!(camera.eye().abs_diff_eq(eye, 1e-3), "{} vs {eye}", camera.eye());
+        assert!(ahead.cross(camera.forward()).z < 0.0, "turned clockwise from above: right");
+        // Mouse up: look up.
+        camera.look(Vec2::new(0.0, -100.0));
+        assert!(camera.forward().z > 0.0);
+        // Walk 24 forward and 6 right: the eye moves along the ground, its height kept.
+        let (before, facing) = (camera.eye(), camera.forward());
+        camera.walk(24.0, 6.0);
+        let moved = camera.eye() - before;
+        assert!(moved.z.abs() < 1e-3, "same height");
+        assert!((moved.length() - (24.0f32.powi(2) + 36.0).sqrt()).abs() < 1e-2);
+        assert!(moved.dot(Vec3::new(facing.x, facing.y, 0.0)) > 0.0, "forward is the way it faces");
     }
 }

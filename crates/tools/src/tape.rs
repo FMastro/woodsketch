@@ -308,7 +308,7 @@ impl TapeTool {
 
     fn place(&mut self, doc: &mut Document, start: Start, offset: DVec3) {
         let model_version = Self::guide(start, offset, self.mode).map(|guide| {
-            doc.edit(|m| m.add_guide(guide));
+            doc.add_guide(guide);
             doc.model_version()
         });
         self.last = Some(Done { start, mode: self.mode, offset, model_version });
@@ -359,6 +359,21 @@ mod tests {
         let (_, &Guide::Line { point, .. }) = doc.model().guides().next().unwrap() else { panic!() };
         assert!((point.y - 2.0).abs() < 1e-9);
         assert_eq!(doc.model().guides().count(), 1);
+    }
+
+    #[test]
+    fn a_guide_made_while_guides_are_hidden_shows_them() {
+        let mut doc = board();
+        doc.set_guides_hidden(true);
+        let camera = camera();
+        let screen = Screen::new(&camera, SIZE);
+        let mut tool = TapeTool::default();
+        tool.click(&mut doc, screen, at(screen, 2.5, 0.0) + Vec2::new(0.0, 2.0)).unwrap();
+        tool.hover(&doc, screen, at(screen, 3.0, 4.0));
+        tool.enter(&mut doc, "2").unwrap();
+        assert!(!doc.scene().guides_hidden, "shown, so the new guide is seen");
+        doc.undo();
+        assert!(doc.scene().guides_hidden, "one undo step puts it all back");
     }
 
     #[test]

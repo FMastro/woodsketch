@@ -448,6 +448,11 @@ impl WoodSketchApp {
         &self.tools
     }
 
+    /// The viewport's camera. For tests.
+    pub fn camera(&self) -> &woodsketch_view::OrbitCamera {
+        &self.viewport.camera
+    }
+
     /// Where a model point (inches) appears in the window. For tests that click on geometry.
     pub fn to_window(&self, point: glam::DVec3) -> Option<egui::Pos2> {
         self.viewport.to_window(point)

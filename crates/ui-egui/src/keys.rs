@@ -26,6 +26,8 @@ impl Keyboard {
         if let Some(focused) = ctx.memory(|m| m.focused()) {
             ctx.memory_mut(|m| m.surrender_focus(focused));
         }
+        // Walking: W A S D and the arrows walk (the viewport reads them), Esc stops.
+        let walking = tools.active() == ToolId::Walk;
         let events = ctx.input(|i| i.events.clone());
         for event in events {
             // Follow Ctrl in event order, so even a tap within one frame registers.
@@ -54,6 +56,9 @@ impl Keyboard {
                 }
                 egui::Event::Paste(_) if ctx.input(|i| i.modifiers.shift) => tools.paste_in_place(doc),
                 egui::Event::Paste(_) => tools.paste(doc),
+                egui::Event::Text(text) if walking && text.chars().all(|c| "wasdWASD".contains(c)) => {}
+                egui::Event::Key { key: egui::Key::Escape, pressed: true, .. } if walking => tools.activate(ToolId::Select),
+                egui::Event::Key { key: egui::Key::ArrowUp | egui::Key::ArrowDown | egui::Key::ArrowLeft | egui::Key::ArrowRight, .. } if walking => {}
                 egui::Event::Text(text) => {
                     for c in text.chars() {
                         if tools.is_typing() || Tools::starts_value(c) {

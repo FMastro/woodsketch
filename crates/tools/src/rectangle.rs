@@ -6,7 +6,7 @@ use woodsketch_doc::units::{format_length, parse_lengths};
 use woodsketch_doc::{Document, EPS};
 
 use crate::Overlay;
-use crate::pick::{Screen, Snap, snap};
+use crate::pick::{Screen, Snap, SnapKind, snap};
 
 #[derive(Default)]
 pub struct RectangleTool {
@@ -20,6 +20,8 @@ struct Sizing {
     frame: Frame,
     /// Signed extents along `u` and `v` under the cursor.
     extents: (f64, f64),
+    /// Snapped to a square or a golden rectangle: its name, for the note by the cursor.
+    proportion: Option<&'static str>,
     /// Started by press-and-drag; finishes on release.
     dragging: bool,
 }
@@ -57,6 +59,21 @@ impl RectangleTool {
         if let (Some(sizing), Some(hover)) = (self.sizing.as_mut(), self.hover) {
             let d = hover.point - sizing.frame.corner;
             sizing.extents = (d.dot(sizing.frame.u), d.dot(sizing.frame.v));
+            // Near a square or a golden rectangle (and not on a point in the drawing): snap to it,
+            // as SketchUp does, and say so.
+            sizing.proportion = None;
+            if matches!(hover.kind, SnapKind::OnFace | SnapKind::OnPlane | SnapKind::OnGround) {
+                let (w, h) = sizing.extents;
+                let golden = (1.0 + 5f64.sqrt()) / 2.0;
+                for (ratio, name) in [(1.0, "Square"), (golden, "Golden section"), (1.0 / golden, "Golden section")] {
+                    let snapped = w.abs() / ratio;
+                    if w.abs() > EPS && (h.abs() - snapped).abs() < 0.03 * w.abs().max(h.abs()) {
+                        sizing.extents.1 = snapped * h.signum();
+                        sizing.proportion = Some(name);
+                        break;
+                    }
+                }
+            }
         }
     }
 
@@ -98,7 +115,7 @@ impl RectangleTool {
             let corner = crate::move_tool::parse_offset(typed, DVec3::ZERO, DVec3::ZERO)?;
             let (u, v) = plane_axes(DVec3::Z);
             self.last = None;
-            self.sizing = Some(Sizing { frame: Frame { corner, normal: DVec3::Z, u, v }, extents: (0.0, 0.0), dragging: false });
+            self.sizing = Some(Sizing { frame: Frame { corner, normal: DVec3::Z, u, v }, extents: (0.0, 0.0), dragging: false, proportion: None });
             return Ok(());
         }
         let values = parse_lengths(typed).map_err(|e| e.to_string())?;
@@ -157,6 +174,11 @@ impl RectangleTool {
             for i in 0..4 {
                 overlay.lines.push([corners[i], corners[(i + 1) % 4]]);
             }
+            // A square or golden rectangle: its diagonal and its name.
+            if let Some(name) = sizing.proportion {
+                overlay.lines.push([corners[0], corners[2]]);
+                overlay.cursor_note = Some(name);
+            }
         }
     }
 
@@ -168,6 +190,7 @@ impl RectangleTool {
             frame: Frame { corner: hover.point, normal: hover.normal, u, v },
             extents: (0.0, 0.0),
             dragging: false,
+            proportion: None,
         });
     }
 
@@ -224,6 +247,28 @@ mod tests {
     fn face_size(doc: &Document) -> (f64, f64) {
         let (lo, hi) = doc.model().bounds().unwrap();
         ((hi - lo).x, (hi - lo).y)
+    }
+
+    #[test]
+    fn near_a_square_it_snaps_to_one() {
+        let mut doc = Document::default();
+        let camera = camera();
+        let screen = Screen::new(&camera, SIZE);
+        let mut tool = RectangleTool::default();
+        tool.click(&mut doc, screen, at(screen, 1.0, 1.0)).unwrap();
+        tool.hover(&doc, screen, at(screen, 5.0, 5.08));
+        let mut overlay = Overlay::default();
+        tool.overlay(&mut overlay);
+        assert_eq!(overlay.cursor_note, Some("Square"));
+        tool.click(&mut doc, screen, at(screen, 5.0, 5.08)).unwrap();
+        let (w, h) = face_size(&doc);
+        assert!((w - h).abs() < 1e-9, "a square: {w} x {h}");
+        // Well off a square or golden rectangle: as drawn.
+        tool.click(&mut doc, screen, at(screen, 10.0, 1.0)).unwrap();
+        tool.hover(&doc, screen, at(screen, 13.0, 5.5));
+        let mut overlay = Overlay::default();
+        tool.overlay(&mut overlay);
+        assert_eq!(overlay.cursor_note, None);
     }
 
     #[test]

@@ -22,13 +22,13 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 9 | Wood movement | 23 | Fewer false warnings, clearer results |
 | 10 | Edge profiles | 76 | More bits, profiles on any board |
 | 11 | Parts and boards | 11 | Small drawing conveniences |
-| 12 | Modeling tools | 238 | SketchUp parity for general modeling |
+| 12 | Modeling tools | 221 | SketchUp parity for general modeling |
 | 13 | Groups, components and tags | 63 | Organizing bigger projects |
 | 14 | UI | 87 | Comfort and polish |
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1602** | |
+| | **All** | **1585** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -243,61 +243,57 @@ Done: roundover, chamfer, cove, ogee, around a face (mitered corners) or along a
 3. [5] Tab cycles a board's faces against a surface.
 
 ## 12. Modeling tools
-Done: Polygon, Protractor (angled guide lines), Push/Pull with Ctrl (keeps the face), Offset
-repeats on a double-click, `[x,y,z]` typed before the first click (Line, Rectangle).
+Done: Polygon (Ctrl: to a side or a corner), Protractor (angled guide lines), Push/Pull with Ctrl
+(keeps the face), Offset repeats on a double-click, `[x,y,z]` typed before the first click (Line,
+Rectangle), Walk (mouse looks, W A S D walk), retyping a line's length, Rectangle's square and golden
+hints, arrow keys facing a circle along an axis, new guides showing hidden guides.
 ### Tools
-1. [2] Polygon: Ctrl switches between inscribed and circumscribed (its radius to a corner now).
-2. [2] `[x,y,z]` typed before the first click for Move, Tape Measure, Circle and Arc too.
-3. [8] Text tool.
-4. [8] Walk and Look Around, like a 3D game: the mouse looks around, W A S D or the arrow keys
-   walk (forward, left, back, right). While walking those keys move you instead of picking tools
-   (W, S, A are Board, Scale and Arc); Esc stops walking.
-5. [13] Dimensions tool.
-6. [21] Follow Me.
-7. [21] Section Plane.
+1. [2] `[x,y,z]` typed before the first click for Move, Tape Measure, Circle and Arc too.
+2. [8] Text tool.
+3. [3] Walk: an eye height (5'6" to start, as SketchUp), up and down keys, a speed setting, and
+   stopping at walls.
+4. [13] Dimensions tool.
+5. [21] Follow Me.
+6. [21] Section Plane.
 
 ### Inference and snapping
-8. [3] Line: change a typed length after the line is drawn.
-9. [3] Rectangle: square and golden-ratio diagonal hints.
-10. [5] Faces closed from loose lines face to match connected faces (up, front, then right now;
+7. [5] Faces closed from loose lines face to match connected faces (up, front, then right now;
     Reverse Faces turns them over).
-11. [5] A "sticky" preference for the last inference (snapping only weighs screen distance).
-12. [8] Rectangle, Arc and Circle use parallel/perpendicular and From Point inference (Line,
+8. [5] A "sticky" preference for the last inference (snapping only weighs screen distance).
+9. [8] Rectangle, Arc and Circle use parallel/perpendicular and From Point inference (Line,
     Move and Tape do).
-13. [8] Rectangles off the axes.
+10. [8] Rectangles off the axes.
 
 ### Circles and arcs
-14. [3] Circles off any face lie flat on the ground; follow the axis or a face under the cursor.
-15. [5] Arc: tangent inference.
-16. [5] 3-point Arc and Pie.
-17. [8] Soften/Smooth per edge, and smooth shading (soft edges are worked out when drawing now,
+11. [5] Arc: tangent inference.
+12. [5] 3-point Arc and Pie.
+13. [8] Soften/Smooth per edge, and smooth shading (soft edges are worked out when drawing now,
     facets are shaded flat).
-18. [13] Curves as one entity (a circle is 24 edges now; SketchUp selects it with one click and
+14. [13] Curves as one entity (a circle is 24 edges now; SketchUp selects it with one click and
     shows its radius and sides).
 
 ### Offset, Tape Measure, Scale, Rotate
-19. [1] New guides made while guides are hidden stay hidden; show them.
-20. [3] Offset: snap the distance to points the cursor passes.
-21. [3] Offset: rounded outward corners (always mitered now).
-22. [5] Offset holes too (only a face's outer outline now).
-23. [5] Offset a selection of connected edges (only faces now).
-24. [3] Guide lines snap where they cross faces (edges and other guides only now).
-25. [5] Tape Measure: resize the model after measuring (scale everything so the measured distance
+15. [3] Offset: snap the distance to points the cursor passes.
+16. [3] Offset: rounded outward corners (always mitered now).
+17. [5] Offset holes too (only a face's outer outline now).
+18. [5] Offset a selection of connected edges (only faces now).
+19. [3] Guide lines snap where they cross faces (edges and other guides only now).
+20. [5] Tape Measure: resize the model after measuring (scale everything so the measured distance
     becomes the typed one).
-26. [3] Scale: Shift switches corner grips to non-uniform and edge grips to uniform.
-27. [3] Scale grips as green boxes, hiding the ones facing away (red crosses now).
-28. [3] Rotate: hide grips on faces that are tiny on screen (they crowd on thin boards).
-29. [5] Protractor auto-orients to the hovered edge's plane and flips when seen edge-on.
-30. [8] Scale: mirroring (negative factors are refused).
-31. [8] Scale: a rotated group among several scaled together gets sheared (they use the
+21. [3] Scale: Shift switches corner grips to non-uniform and edge grips to uniform.
+22. [3] Scale grips as green boxes, hiding the ones facing away (red crosses now).
+23. [3] Rotate: hide grips on faces that are tiny on screen (they crowd on thin boards).
+24. [5] Protractor auto-orients to the hovered edge's plane and flips when seen edge-on.
+25. [8] Scale: mirroring (negative factors are refused).
+26. [8] Scale: a rotated group among several scaled together gets sheared (they use the
     red/green/blue axes), and the cut list measures it only approximately.
 
 ### Geometry
-32. [5] Collinear leftovers: other merges (pulling part of a top up flush with a side) can still
+27. [5] Collinear leftovers: other merges (pulling part of a top up flush with a side) can still
     leave a corner on a straight edge (erasing a seam heals them).
-33. [8] Coplanar faces sharing an edge merge on their own (boards glued end to end keep a seam).
-34. [8] Move folds a face that would bend (adds a diagonal, as SketchUp does); refused now.
-35. [21] Auto-joining: moved or copied geometry welds to geometry it lands on (also pasted loose
+28. [8] Coplanar faces sharing an edge merge on their own (boards glued end to end keep a seam).
+29. [8] Move folds a face that would bend (adds a diagonal, as SketchUp does); refused now.
+30. [21] Auto-joining: moved or copied geometry welds to geometry it lands on (also pasted loose
     geometry). Fine while boards should stay separate.
 
 ## 13. Groups, components and tags

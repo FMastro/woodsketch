@@ -784,6 +784,15 @@ impl Document {
     }
 
     /// Show or hide every guide (View > Guides); hidden ones aren't drawn, picked or snapped to.
+    /// Add a guide to the container being edited, showing guides if they're hidden (a guide just
+    /// made should be seen), as one undo step.
+    pub fn add_guide(&mut self, guide: crate::Guide) -> crate::GuideId {
+        self.edit_scene(|scene, path| {
+            scene.guides_hidden = false;
+            scene.container_mut(path).expect("the editing path stays valid").model.add_guide(guide)
+        })
+    }
+
     pub fn set_guides_hidden(&mut self, hidden: bool) {
         if self.scene().guides_hidden != hidden {
             self.edit_scene(|scene, _| scene.guides_hidden = hidden);

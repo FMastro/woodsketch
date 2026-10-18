@@ -19,7 +19,7 @@ const TOOL_SET: &[&[ToolId]] = &[
     &[ToolId::Line, ToolId::Arc, ToolId::Rectangle, ToolId::Circle, ToolId::Polygon, ToolId::Board],
     &[ToolId::PushPull, ToolId::Move, ToolId::Rotate, ToolId::Scale, ToolId::Offset],
     &[ToolId::TapeMeasure, ToolId::Protractor],
-    &[ToolId::Orbit, ToolId::Pan, ToolId::Zoom],
+    &[ToolId::Orbit, ToolId::Pan, ToolId::Zoom, ToolId::Walk],
 ];
 
 const VIEWS: [(&str, StandardView); 4] = [
@@ -262,7 +262,7 @@ impl WoodSketchApp {
                 }
             });
             ui.separator();
-            for tool in [ToolId::Orbit, ToolId::Pan, ToolId::Zoom] {
+            for tool in [ToolId::Orbit, ToolId::Pan, ToolId::Zoom, ToolId::Walk] {
                 tool_item(ui, &mut self.tools, tool);
             }
             if ui.add(egui::Button::new("Zoom Extents").shortcut_text("Shift+Z")).clicked() {

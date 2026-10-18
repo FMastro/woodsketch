@@ -3,6 +3,16 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.28
+
+- Walk (Camera > Walk): look around with the mouse and walk with W A S D or the arrow keys, Shift
+  for faster, Esc to stop.
+- Line: type a length, then another right after (before moving the mouse) to change that line.
+- Rectangle: snaps to a square or a golden rectangle when it's close, and says so.
+- Circle and Polygon: arrow keys stand them along an axis (Right red, Left green, Up blue).
+- Polygon: tap Ctrl to measure the radius to a side's middle instead of a corner.
+- A guide made while guides are hidden shows them again.
+
 ## 0.1.27
 
 - Polygon tool (Draw > Polygon): a hexagon to start; type `8s` for an octagon.

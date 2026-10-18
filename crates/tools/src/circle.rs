@@ -18,6 +18,12 @@ pub struct CircleTool {
     last: Option<Drawn>,
     /// The Polygon tool: said as a polygon's sides and inscribed radius.
     polygon: bool,
+    /// Locked with an arrow key: the circle faces along that axis (it lies on the face under the
+    /// cursor, else the ground, otherwise).
+    lock: Option<crate::Axis>,
+    /// Polygon with Ctrl: the radius reaches the middle of a side (circumscribed about a circle
+    /// that size) instead of a corner.
+    circumscribed: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -30,7 +36,7 @@ struct Drawn {
 
 impl Default for CircleTool {
     fn default() -> Self {
-        Self { center: None, hover: None, radius: 0.0, segments: CIRCLE_SEGMENTS, last: None, polygon: false }
+        Self { center: None, hover: None, radius: 0.0, segments: CIRCLE_SEGMENTS, last: None, polygon: false, lock: None, circumscribed: false }
     }
 }
 
@@ -58,6 +64,27 @@ impl CircleTool {
         self.last = None;
     }
 
+    /// Polygon's Ctrl: the radius to the middle of a side, or to a corner.
+    pub fn toggle_circumscribed(&mut self) {
+        if self.polygon {
+            self.circumscribed = !self.circumscribed;
+        }
+    }
+
+    /// How far the corners are for a `radius` as given.
+    fn corner_radius(&self, radius: f64) -> f64 {
+        if self.polygon && self.circumscribed { radius / (std::f64::consts::PI / f64::from(self.segments)).cos() } else { radius }
+    }
+
+    /// Arrow keys: face the circle along red (Right), green (Left) or blue (Up, Down); again to
+    /// unlock.
+    pub fn lock_axis(&mut self, axis: crate::Axis) {
+        self.lock = if self.lock == Some(axis) { None } else { Some(axis) };
+        if let Some((center, _)) = self.center {
+            self.center = Some((center, self.lock.map_or(DVec3::Z, crate::Axis::dir)));
+        }
+    }
+
     pub fn hover(&mut self, doc: &Document, screen: Screen<'_>, cursor: Vec2) {
         let model = doc.view().model();
         self.hover = snap(model, screen, cursor, self.center);
@@ -71,7 +98,8 @@ impl CircleTool {
         match self.center {
             None => {
                 let Some(hover) = self.hover else { return Ok(()) };
-                self.center = Some((hover.point, hover.normal));
+                let normal = self.lock.map_or(hover.normal, crate::Axis::dir);
+                self.center = Some((hover.point, normal));
                 self.radius = 0.0;
                 self.last = None;
                 Ok(())
@@ -104,7 +132,12 @@ impl CircleTool {
             let what = if self.polygon { "polygon" } else { "circle" };
             format!("Select a corner of the {what} or enter its radius. Sides: {sides} (type 8s to change).")
         } else {
-            format!("Select center point. Sides: {sides} (type {}s to change).", if self.polygon { 8 } else { 32 })
+            let ctrl = match (self.polygon, self.circumscribed) {
+                (false, _) => "",
+                (true, false) => " Radius to a corner (tap Ctrl: to a side).",
+                (true, true) => " Radius to a side's middle (tap Ctrl: to a corner).",
+            };
+            format!("Select center point. Sides: {sides} (type {}s to change). Arrow keys face it along an axis.{ctrl}", if self.polygon { 8 } else { 32 })
         }
     }
 
@@ -120,7 +153,7 @@ impl CircleTool {
         overlay.snap = self.hover;
         let Some((center, normal)) = self.center else { return };
         if self.radius > EPS {
-            let points = circle_points(center, normal, self.radius, self.segments);
+            let points = circle_points(center, normal, self.corner_radius(self.radius), self.segments);
             for i in 0..points.len() {
                 overlay.lines.push([points[i], points[(i + 1) % points.len()]]);
             }
@@ -135,7 +168,8 @@ impl CircleTool {
         if radius < EPS {
             return Err("Move away from the center, or type the radius".into());
         }
-        doc.edit(|m| m.draw_circle(center, normal, radius, self.segments));
+        let corner = self.corner_radius(radius);
+        doc.edit(|m| m.draw_circle(center, normal, corner, self.segments));
         self.center = None;
         self.last = Some(Drawn { center, normal, radius, model_version: doc.model_version() });
         Ok(())
@@ -205,6 +239,36 @@ mod tests {
         assert_eq!(doc.model().faces().count(), 1);
         tool.enter(&mut doc, "8s").unwrap();
         assert_eq!(doc.model().edges().count(), 8, "now an octagon in its place");
+    }
+
+    #[test]
+    fn ctrl_measures_a_polygon_to_its_sides() {
+        let mut doc = Document::default();
+        let camera = screen_setup();
+        let screen = Screen::new(&camera, SIZE);
+        let mut tool = CircleTool::polygon();
+        tool.enter(&mut doc, "4s").unwrap();
+        tool.toggle_circumscribed();
+        assert!(tool.status().contains("to a side's middle"));
+        tool.click(&mut doc, screen, at(screen, 5.0, 5.0)).unwrap();
+        tool.enter(&mut doc, "1").unwrap();
+        // A square around a 1" circle: its corners 1.414" out, its sides 1" from the center.
+        let far = doc.model().vertices().map(|(_, p)| p.distance(DVec3::new(5.0, 5.0, 0.0))).fold(0.0, f64::max);
+        assert!((far - 2f64.sqrt()).abs() < 0.02, "{far}");
+    }
+
+    #[test]
+    fn an_arrow_key_stands_the_circle_up() {
+        let mut doc = Document::default();
+        let camera = screen_setup();
+        let screen = Screen::new(&camera, SIZE);
+        let mut tool = CircleTool::default();
+        tool.lock_axis(crate::Axis::Y);
+        tool.click(&mut doc, screen, at(screen, 5.0, 5.0)).unwrap();
+        tool.enter(&mut doc, "2").unwrap();
+        let (lo, hi) = doc.model().bounds().unwrap();
+        assert!((hi.y - lo.y).abs() < 1e-9, "facing green: flat in y");
+        assert!((hi.z - lo.z - 4.0).abs() < 0.2, "standing up: {lo} {hi}");
     }
 
     #[test]

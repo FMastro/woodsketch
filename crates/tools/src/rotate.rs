@@ -330,7 +330,7 @@ impl RotateTool {
             let Stage::Rotate { from, .. } = op.stage else { return Ok(()) };
             let dir = glam::DQuat::from_axis_angle(op.normal, angle.to_radians()) * from;
             let point = op.center;
-            doc.edit(|m| m.add_guide(woodsketch_doc::Guide::Line { point, dir }));
+            doc.add_guide(woodsketch_doc::Guide::Line { point, dir });
             self.op = None;
             self.snap = None;
             return Ok(());

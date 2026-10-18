@@ -32,6 +32,7 @@ pub fn tool(tool: ToolId) -> &'static str {
         ToolId::Orbit => ph::ARROWS_CLOCKWISE,
         ToolId::Pan => ph::HAND,
         ToolId::Zoom => ph::MAGNIFYING_GLASS,
+        ToolId::Walk => ph::PERSON_SIMPLE_WALK,
     }
 }
 

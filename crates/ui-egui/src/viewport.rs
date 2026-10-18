@@ -28,6 +28,8 @@ pub struct Viewport {
     /// The arrows, for the drawing version they were worked out for.
     movement: Option<(u64, Vec<woodsketch_doc::movement::Arrow>)>,
     zoom_extents_pending: bool,
+    /// Walking (Camera > Walk): the cursor is hidden and kept in the middle while it is.
+    walking: bool,
     last_hover: Option<Vec2>,
     /// Where the viewport was last laid out, in window points.
     rect: egui::Rect,
@@ -45,6 +47,7 @@ impl Viewport {
             scene_version: None,
             selection_version: None,
             zoom_extents_pending: false,
+            walking: false,
             last_hover: None,
             rect: egui::Rect::NOTHING,
         }
@@ -59,6 +62,7 @@ impl Viewport {
         let size = Vec2::new(rect.width(), rect.height());
         self.rect = rect;
 
+        self.walk(ui.ctx(), rect, tools.active() == woodsketch_tools::ToolId::Walk);
         self.navigate(ui, &response, rect, size, doc);
         self.feed_tools(ui, &response, rect, size, doc, tools);
         // Right-click (not a right-drag, which pans): select what's there, then the menu.
@@ -397,6 +401,58 @@ fn tooltip(painter: &egui::Painter, pos: egui::Pos2, label: &str) {
 
 /// Draw tool previews on top of the rendered model: preview edges, the inference point and its
 /// tooltip, and the selection window.
+/// How fast Walk goes, inches a second (a slow walk; Shift for three times that).
+const WALK_SPEED: f32 = 48.0;
+
+impl Viewport {
+    /// Walk (Camera > Walk), as in a game: the mouse looks around, W A S D or the arrow keys
+    /// walk, Shift goes faster. The mouse's own motion turns the view, with the cursor hidden
+    /// and kept in the middle so it never runs into the screen's edge. Leaving Walk shows it.
+    fn walk(&mut self, ctx: &egui::Context, rect: egui::Rect, active: bool) {
+        if !active {
+            if self.walking {
+                self.walking = false;
+                ctx.send_viewport_cmd(egui::ViewportCommand::CursorVisible(true));
+            }
+            return;
+        }
+        if !self.walking {
+            self.walking = true;
+            ctx.send_viewport_cmd(egui::ViewportCommand::CursorVisible(false));
+        }
+        let (motion, delta, dt, keys) = ctx.input(|i| {
+            let down = |keys: &[egui::Key]| keys.iter().any(|k| i.key_down(*k));
+            let keys = (
+                down(&[egui::Key::W, egui::Key::ArrowUp]),
+                down(&[egui::Key::S, egui::Key::ArrowDown]),
+                down(&[egui::Key::A, egui::Key::ArrowLeft]),
+                down(&[egui::Key::D, egui::Key::ArrowRight]),
+                i.modifiers.shift,
+            );
+            (i.pointer.motion(), i.pointer.delta(), i.stable_dt.min(0.1), keys)
+        });
+        // Raw motion when the system gives it (and then the cursor goes back to the middle);
+        // else how far the pointer moved.
+        match motion {
+            Some(m) if m != egui::Vec2::ZERO => {
+                self.camera.look(Vec2::new(m.x, m.y));
+                ctx.send_viewport_cmd(egui::ViewportCommand::CursorPosition(rect.center()));
+            }
+            Some(_) => {}
+            None => self.camera.look(Vec2::new(delta.x, delta.y)),
+        }
+        let (ahead, back, left, right, fast) = keys;
+        let forward = f32::from(u8::from(ahead)) - f32::from(u8::from(back));
+        let across = f32::from(u8::from(right)) - f32::from(u8::from(left));
+        if forward != 0.0 || across != 0.0 {
+            let step = WALK_SPEED * if fast { 3.0 } else { 1.0 } * dt;
+            self.camera.walk(forward * step, across * step);
+            // Keep walking while a key is held.
+            ctx.request_repaint();
+        }
+    }
+}
+
 /// View > Wood Movement: a double arrow across each solid-wood part's width with how much it
 /// moves, red where a part it meets holds it, green where it's free.
 fn draw_movement(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera, size: Vec2, arrows: &[woodsketch_doc::movement::Arrow]) {

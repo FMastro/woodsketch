@@ -10,7 +10,7 @@
 //!   `[x,y,z]` to place the next point exactly.
 
 use glam::{DVec3, Vec2};
-use woodsketch_doc::units::format_length;
+use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS};
 
 use crate::infer::{self, Direction, Hints, Query, Target};
@@ -32,6 +32,16 @@ pub struct LineTool {
     shift: bool,
     /// The edge and point the cursor last passed over.
     hints: Hints,
+    /// The line a typed length just drew: typing another length (before the mouse moves)
+    /// redraws it that long, as in SketchUp.
+    retype: Option<Retype>,
+}
+
+#[derive(Clone, Copy)]
+struct Retype {
+    start: Start,
+    dir: DVec3,
+    model_version: u64,
 }
 
 #[derive(Clone, Copy)]
@@ -70,6 +80,7 @@ impl LineTool {
     }
 
     pub fn hover(&mut self, doc: &Document, screen: Screen<'_>, cursor: Vec2) {
+        self.retype = None;
         let model = doc.view().model();
         let Some(start) = self.start else {
             self.hover = snap(model, screen, cursor, None);
@@ -146,6 +157,21 @@ impl LineTool {
 
     /// A typed length or point for the next line's end.
     pub fn enter(&mut self, doc: &mut Document, typed: &str) -> Result<(), String> {
+        // A new length right after a typed one: that line again, this long.
+        let plain = !typed.contains([',', ';', '[', '<']);
+        if plain
+            && let Some(last) = self.retype.filter(|r| r.model_version == doc.model_version())
+        {
+            let length = parse_length(typed).map_err(|e| e.to_string())?;
+            if length.abs() < EPS {
+                return Err("Length must be greater than zero".into());
+            }
+            doc.undo();
+            self.start = Some(last.start);
+            self.draw(doc, last.start.point + last.dir * length);
+            self.retype = Some(Retype { model_version: doc.model_version(), ..last });
+            return Ok(());
+        }
         let Some(start) = self.start else {
             // `[x,y,z]` before the first click: start the line at that point.
             if typed.trim().starts_with('[') {
@@ -167,6 +193,9 @@ impl LineTool {
             return Err("Length must be greater than zero".into());
         }
         self.draw(doc, start.point + offset);
+        if plain {
+            self.retype = Some(Retype { start, dir: offset.normalize(), model_version: doc.model_version() });
+        }
         Ok(())
     }
 
@@ -231,6 +260,21 @@ mod tests {
 
     fn at(screen: Screen<'_>, x: f64, y: f64) -> Vec2 {
         screen.project(DVec3::new(x, y, 0.0)).unwrap()
+    }
+
+    #[test]
+    fn retype_a_length_right_after_drawing() {
+        let mut doc = Document::default();
+        let mut tool = LineTool::default();
+        tool.enter(&mut doc, "[0,0,0]").unwrap();
+        tool.enter(&mut doc, "1,0,0").unwrap();
+        // A direction from the last segment, then a length, then another length right after.
+        tool.end = Some(Target { point: DVec3::new(1.0, 5.0, 0.0), ..Target::default() });
+        tool.enter(&mut doc, "24").unwrap();
+        tool.enter(&mut doc, "30").unwrap();
+        let (lo, hi) = doc.model().bounds().unwrap();
+        assert!((hi.y - lo.y - 30.0).abs() < 1e-9, "the second line redrawn 30 long: {lo} {hi}");
+        assert_eq!(doc.model().edges().count(), 2, "redrawn, not another");
     }
 
     #[test]

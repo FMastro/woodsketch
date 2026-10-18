@@ -62,10 +62,13 @@ pub enum ToolId {
     Orbit,
     Pan,
     Zoom,
+    /// Walk through the drawing like a game: the mouse looks, W A S D or the arrows walk (the
+    /// viewport runs it; tools see no clicks).
+    Walk,
 }
 
 impl ToolId {
-    pub const ALL: [Self; 19] = [
+    pub const ALL: [Self; 20] = [
         Self::Select,
         Self::Eraser,
         Self::PaintBucket,
@@ -85,6 +88,7 @@ impl ToolId {
         Self::Orbit,
         Self::Pan,
         Self::Zoom,
+        Self::Walk,
     ];
 
     pub fn name(self) -> &'static str {
@@ -108,6 +112,7 @@ impl ToolId {
             Self::Orbit => "Orbit",
             Self::Pan => "Pan",
             Self::Zoom => "Zoom",
+            Self::Walk => "Walk",
         }
     }
 
@@ -124,6 +129,7 @@ impl ToolId {
             // No key (as in SketchUp).
             Self::Polygon => '\0',
             Self::Protractor => '\0',
+            Self::Walk => '\0',
             Self::Board => 'w',
             Self::PushPull => 'p',
             Self::Move => 'm',
@@ -546,6 +552,8 @@ impl Tools {
             self.message = None;
         }
         match self.active {
+            // Walking is the viewport's (the mouse looks without clicking).
+            ToolId::Walk => return,
             ToolId::Orbit | ToolId::Pan | ToolId::Zoom => {
                 if let PointerEvent::Drag { delta, .. } = event {
                     match self.active {
@@ -805,6 +813,7 @@ impl Tools {
             ToolId::Board => self.board.toggle_on_edge(),
             ToolId::Scale => self.scale.toggle_center(),
             ToolId::PushPull => self.push_pull.toggle_copy(),
+            ToolId::Polygon => self.polygon.toggle_circumscribed(),
             _ => {}
         }
     }
@@ -817,6 +826,8 @@ impl Tools {
             ToolId::Board => self.board.lock_axis(axis),
             ToolId::Move => self.move_tool.lock_axis(axis),
             ToolId::Rotate => self.rotate.lock_axis(axis),
+            ToolId::Circle => self.circle.lock_axis(axis),
+            ToolId::Polygon => self.polygon.lock_axis(axis),
             ToolId::Protractor => self.protractor.lock_axis(axis),
             _ => {}
         }
@@ -976,6 +987,7 @@ impl Tools {
             ToolId::Orbit => "Drag to orbit.".into(),
             ToolId::Pan => "Drag to pan.".into(),
             ToolId::Zoom => "Drag up to zoom in, down to zoom out.".into(),
+            ToolId::Walk => "Walking: move the mouse to look around; W A S D or the arrow keys to walk (Shift goes faster); Esc stops.".into(),
         }
     }
 

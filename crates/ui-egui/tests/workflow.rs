@@ -2218,3 +2218,42 @@ fn view_theme_switches_to_dark_and_back() {
     harness.run();
     assert_eq!(harness.ctx.theme(), egui::Theme::Light);
 }
+
+#[test]
+fn walk_looks_with_the_mouse_and_walks_with_the_keys() {
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    harness.get_by_label("Camera").click();
+    harness.run();
+    harness.get_by_label_contains("Walk").click();
+    harness.run();
+    assert_eq!(harness.state().tools().active(), ToolId::Walk);
+    assert!(harness.state().tools().status().starts_with("Walking"));
+    let (eye, yaw) = (harness.state().camera().eye(), harness.state().camera().yaw);
+
+    // The mouse looks around: the eye stays, the view turns.
+    let center = egui::pos2(500.0, 400.0);
+    harness.hover_at(center);
+    harness.run_steps(2);
+    harness.hover_at(center + egui::vec2(120.0, 0.0));
+    harness.run_steps(2);
+    assert_ne!(harness.state().camera().yaw, yaw, "turned");
+    assert!(harness.state().camera().eye().abs_diff_eq(eye, 1e-2), "from where it stands");
+
+    // W walks forward (and isn't the Board tool); the height stays.
+    let before = harness.state().camera().eye();
+    harness.event(Event::Key { key: Key::W, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE });
+    harness.event(Event::Text("w".into()));
+    harness.run_steps(20);
+    harness.event(Event::Key { key: Key::W, physical_key: None, pressed: false, repeat: false, modifiers: Modifiers::NONE });
+    harness.run_steps(2);
+    let moved = harness.state().camera().eye() - before;
+    assert!(moved.length() > 5.0, "walked: {moved}");
+    assert!(moved.z.abs() < 1e-3, "on the level");
+    assert_eq!(harness.state().tools().active(), ToolId::Walk, "W walks rather than picking the Board tool");
+
+    // Esc stops walking.
+    harness.key_press(Key::Escape);
+    harness.run();
+    assert_eq!(harness.state().tools().active(), ToolId::Select);
+}
