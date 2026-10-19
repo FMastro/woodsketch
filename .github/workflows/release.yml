@@ -136,23 +136,9 @@ jobs:
           ls -l release
           # This version's section of CHANGELOG.md (between its heading and the next).
           awk -v v="## $VERSION" '$0 == v {on = 1; next} /^## / {on = 0} on' source/CHANGELOG.md > changes.md
-          cat > notes.md <<EOF
-          WoodSketch $VERSION (beta).
-
-          $(cat changes.md)
-
-          **Download** the file for your computer:
-          - **Windows:** \`WoodSketch-win-x64-Setup.exe\`
-          - **Mac with Apple silicon (M1 and later):** \`WoodSketch-osx-arm64-Setup.pkg\`
-          - **Mac with an Intel processor:** \`WoodSketch-osx-x64-Setup.pkg\`
-          - **Linux:** the \`.AppImage\` (make it executable, then run it)
-
-          The installers aren't signed yet: Windows may say "Windows protected your PC" (click
-          More info, then Run anyway), and a Mac may refuse to open it at first (right-click the
-          file, choose Open). Installed copies check for updates when they start.
-          EOF
+          # The release notes are just that section.
           gh release create "v$VERSION" release/* \
             --repo "$GITHUB_REPOSITORY" \
             --draft \
             --title "WoodSketch $VERSION" \
-            --notes-file notes.md
+            --notes-file changes.md
