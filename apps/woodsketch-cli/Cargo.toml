@@ -12,6 +12,7 @@ woodsketch-render.workspace = true
 woodsketch-view.workspace = true
 wgpu.workspace = true
 glam.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 # Waiting on wgpu's adapter and device without an event loop (headless rendering).
 pollster = "1"

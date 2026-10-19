@@ -15,7 +15,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 2 | Joinery | 95 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
-| 5 | Agent-ready | 31 | More for agents: editing piece by piece, copies, standalone downloads |
+| 5 | Agent-ready | 11 | Shapes beyond boxes, the last read-back gaps |
 | 6 | Release polish | 79 | Signing before announcing widely |
 | 7 | Importing | 222 | Gets people's existing models in |
 | 8 | Cut list and materials | 171 | Better buying and cutting |
@@ -28,7 +28,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1406** | |
+| | **All** | **1386** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -53,7 +53,8 @@ where parts overlap; angled mortise and tenon and housings; Change and Remove; f
 mortises and dowel holes.
 1. [3] Fit allowance on slots, haunched tenons and angled joints (angled tenons go as deep as
    the overlap drawn).
-2. [3] Joints made before sizes were kept: Change starts from suggestions; fill in their sizes.
+2. [3] Joints made before sizes were kept: Change starts from suggestions; fill in their sizes
+   (from the joint's description; drawings before 0.1.40 also read back as recipes with suggested sizes).
 3. [5] Variable dovetail spacing.
 4. [5] An angled joint on one copy of a shared component makes it its own component (the
    others stay); square joints change every copy. Offer to change all of them.
@@ -109,17 +110,20 @@ hinges), pulls and knobs, shelf pins, all counted in the cut list's hardware.
 Done: project recipes (`doc::recipe`: materials, parts as boxes, templates, joints, tags, groups;
 every problem named by item), `woodsketch-cli` (build, summary, cutlist, cutsheet, buildsheets,
 movement, export, render to PNG headless) installed beside the app, an MCP server
-(`woodsketch-cli mcp`), and the guide for agents (`docs/AGENTS.md`, llms.txt on the site).
-1. [8] Edit piece by piece over MCP (add, move or remove a part, make one joint) instead of
-   rebuilding the whole recipe; read the current drawing back as a recipe.
-2. [5] Recipes: copies (one component placed several times, turned), a grain direction, parts at
-   an angle and angled joints, edge profiles, reference faces.
-3. [5] Standalone `woodsketch-cli` downloads (a zip per OS on each release), for a machine without
-   the app; on Linux the AppImage keeps it inside.
-4. [5] A drawing made by hand turned into a recipe, so an agent can change it.
-5. [3] A JSON Schema for recipes (editors and agents validate before building).
-6. [3] MCP extras: the guide as a resource, prompts ("design a nightstand"), progress for big builds.
-7. [2] Render options: the dark theme, a chosen camera, a part highlighted.
+(`woodsketch-cli mcp`), and the guide for agents (`docs/AGENTS.md`, llms.txt on the site). Recipes with copies,
+turns, grain and cut, reference faces, profiles and angled joints; any drawing read back as a
+recipe (`recipe_of`, `woodsketch-cli recipe`, MCP `open`) that builds it again; editing piece by
+piece over MCP (`add_part`, `change_part`, `remove`, `add_joint`, `remove_joint`, `add_profile`,
+`recipe`), each rebuilt and refused whole if it doesn't build; a JSON Schema (`schema`, and an MCP
+resource with the guide); a `design` prompt and progress notices; renders in the dark theme, from
+any angle, with parts highlighted; the CLI alone as a zip per platform on each release. Every
+joint keeps the sizes it was made with, wherever it was made.
+1. [5] Parts that aren't plain boxes (angled ends, curves, cuts made by hand) read back as their
+   box; a recipe part drawn as an outline and pulled to its thickness would keep them.
+2. [2] Read back too: tag folders and hidden tags, parts turned about two axes, profiles on some
+   of a face's edges, hardware placed by hand (each named in the notes now).
+3. [2] Highlight parts inside groups in renders (top-level parts and groups only now).
+4. [2] Progress for long builds that says how far along it is (only started and done now).
 
 ## 6. Release polish
 Done: installers, auto-update, icons, release notes, the site's download links; Help > Report a

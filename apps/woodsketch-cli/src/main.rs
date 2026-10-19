@@ -22,7 +22,10 @@ const USAGE: &str = "woodsketch-cli: WoodSketch from the command line.
   buildsheets <drawing> -o sheets.html          a page per part, then how it goes together
   movement <drawing>                            the wood movement check
   export <drawing> -o out.obj|out.stl [--mm]    3D model for other programs
-  render <drawing> -o view.png [--view iso|top|front|right] [--size 1200x800]
+  render <drawing> -o view.png [--view iso|top|front|right] [--angle 30,20] [--size 1200x800]
+                  [--dark] [--highlight 'Part name']...
+  recipe <drawing> [-o recipe.json]             the drawing as a recipe (to change it and rebuild)
+  schema [-o recipe.schema.json]                the recipe format as a JSON Schema
   mcp                                           serve these as MCP tools on stdin/stdout
   guide                                         how to write a recipe (for agents)
 
@@ -41,13 +44,16 @@ struct Args<'a> {
     input: Option<&'a str>,
     out: Option<&'a str>,
     view: &'a str,
+    angle: Option<&'a str>,
     size: [u32; 2],
     csv: bool,
     mm: bool,
+    dark: bool,
+    highlight: Vec<String>,
 }
 
 fn options(rest: &[String]) -> Result<Args<'_>, String> {
-    let mut args = Args { input: None, out: None, view: "iso", size: [1200, 800], csv: false, mm: false };
+    let mut args = Args { input: None, out: None, view: "iso", angle: None, size: [1200, 800], csv: false, mm: false, dark: false, highlight: Vec::new() };
     let mut i = 0;
     while i < rest.len() {
         let value = || rest.get(i + 1).map(String::as_str).ok_or_else(|| format!("{} needs a value.", rest[i]));
@@ -66,6 +72,15 @@ fn options(rest: &[String]) -> Result<Args<'_>, String> {
                 args.size = [w.parse().map_err(|_| "--size: a whole number of pixels")?, h.parse().map_err(|_| "--size: a whole number of pixels")?];
                 i += 1;
             }
+            "--angle" => {
+                args.angle = Some(value()?);
+                i += 1;
+            }
+            "--highlight" => {
+                args.highlight.push(value()?.to_owned());
+                i += 1;
+            }
+            "--dark" => args.dark = true,
             "--csv" => args.csv = true,
             "--mm" => args.mm = true,
             other if other.starts_with('-') => return Err(format!("Unknown option {other}.\n\n{USAGE}")),
@@ -115,9 +130,35 @@ fn run(args: &[String]) -> Result<(), String> {
         }
         "render" => {
             let doc = load(Path::new(input()?))?;
-            let png = picture::render(&doc, picture::view(a.view)?, a.size)?;
+            let options = picture::Options {
+                view: picture::view(a.view)?,
+                angle: a.angle.map(picture::angle).transpose()?,
+                size: a.size,
+                dark: a.dark,
+                highlight: a.highlight.clone(),
+            };
+            let png = picture::render(&doc, &options)?;
             std::fs::write(out()?, png).map_err(|e| format!("Couldn't write {}: {e}", out().unwrap_or_default()))?;
             println!("Wrote {}.", out()?);
+        }
+        "recipe" => {
+            let doc = load(Path::new(input()?))?;
+            let (recipe, notes) = woodsketch_doc::recipe_of::from_document(&doc);
+            let json = serde_json::to_string_pretty(&recipe).map_err(|e| e.to_string())?;
+            match a.out {
+                Some(to) => write(to, json)?,
+                None => println!("{json}"),
+            }
+            for note in notes {
+                eprintln!("Note: {note}");
+            }
+        }
+        "schema" => {
+            let json = serde_json::to_string_pretty(&recipe::schema()).map_err(|e| e.to_string())?;
+            match a.out {
+                Some(to) => write(to, json)?,
+                None => println!("{json}"),
+            }
         }
         "mcp" => mcp::serve(),
         "guide" => print!("{GUIDE}"),

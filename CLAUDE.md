@@ -288,3 +288,11 @@ points); keep general modeling working alongside it.
    guide, build, open, save, summary, cut_list, movement, render, cut_sheet, build_sheets, export),
    `docs/AGENTS.md`, llms.txt on the site. Dark mode: View > Theme (`chrome::visuals(dark)`,
    `render::Sky`, viewport `gray`/`paper`).
+   Recipes also take copies, turns, grain, cut, reference faces, `profiles`, angled joints and a
+   `called` name; `Recipe::add_part / change_part / remove / remove_joint` edit one piece;
+   `recipe::schema()` (schemars). `doc::recipe_of::from_document` reads any drawing back as a recipe
+   (parts at their pre-joint size from `Scene::joint_bases`, copies as copies, notes for what it
+   can't say). Every joint function records its sizes (`note_sizes_if_new`), which recipes read
+   back. MCP keeps the drawing and its recipe (`Session`): edits rebuild or change nothing; resources
+   (guide, schema, recipe), a `design` prompt, progress notices. Renders: `picture::Options` (dark,
+   angle, highlight). `release.yml` zips the CLI alone per platform.

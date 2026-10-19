@@ -3,6 +3,21 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.40
+
+For AI assistants and scripts (`woodsketch-cli`, its MCP server):
+
+- Change a design a piece at a time: add, change or remove a part, a joint or a profile, and the
+  drawing is rebuilt (an edit that wouldn't build changes nothing and says why).
+- Any drawing, including ones made by hand or opened from SketchUp, reads back as a recipe
+  (`woodsketch-cli recipe`), so an assistant can change it the same way.
+- Recipes can now place copies of a part (legs turned to each corner), turn parts (braces), set
+  grain, cut and reference faces, add edge profiles, and make angled joints.
+- A JSON Schema for recipes (`woodsketch-cli schema`), renders in the dark theme, from any angle,
+  with parts highlighted, and the command line on its own as a download on each release.
+- Joints now keep the sizes they were made with, however they were made, so Change in the Joinery
+  panel starts from them.
+
 ## 0.1.39
 
 - Center Arc and Pie: turning all the way round now closes a full circle (it snaps shut within a few

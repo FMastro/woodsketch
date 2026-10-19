@@ -107,6 +107,13 @@ jobs:
             --runtime "${{ matrix.runtime }}" \
             --icon "$icon" \
             --outputDir releases
+          # The command line on its own too, for a machine without the app (a server, CI).
+          cli_zip="woodsketch-cli-$VERSION-${{ matrix.channel }}.zip"
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            pwsh -NoProfile -Command "Compress-Archive -Path 'publish/${{ matrix.cli }}' -DestinationPath 'releases/$cli_zip'"
+          else
+            zip -j "releases/$cli_zip" "publish/${{ matrix.cli }}"
+          fi
           ls -l releases
       - uses: actions/upload-artifact@v4
         with:

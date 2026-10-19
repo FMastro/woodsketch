@@ -22,6 +22,7 @@ pub mod movement;
 pub mod part;
 pub mod profile;
 pub mod recipe;
+pub mod recipe_of;
 pub mod template;
 mod lines;
 mod model;

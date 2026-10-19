@@ -1,19 +1,29 @@
 //! `woodsketch-cli mcp`: WoodSketch as a Model Context Protocol server on stdin/stdout, so Claude
-//! and other assistants can design with it. One drawing is kept between calls: build it from a
-//! recipe (or open a file), check it (summary, cut list, wood movement, a picture), and save it
-//! or write the shop sheets. Messages are JSON-RPC 2.0, one per line.
+//! and other assistants can design with it. One drawing is kept between calls, with its recipe:
+//! build it from a recipe (or open a file, read back as one), change it a piece at a time (add,
+//! change or remove a part, a joint, a profile), check it (summary, cut list, wood movement, a
+//! picture), and save it or write the shop sheets. Messages are JSON-RPC 2.0, one per line. The
+//! guide and the recipe's JSON Schema are resources too, and there's a prompt to start a design.
 
 use std::io::{BufRead, Write};
 use std::path::Path;
 
 use serde_json::{Value, json};
-use woodsketch_doc::{Document, cutlist, recipe};
+use woodsketch_doc::recipe::{self, JointSpec, PartSpec, ProfileSpec, Recipe};
+use woodsketch_doc::{Document, cutlist};
 
 /// The protocol version answered when a client asks for one this doesn't know.
 const PROTOCOL: &str = "2025-06-18";
 
+/// What's kept between calls: the drawing, and the recipe that builds it.
+#[derive(Default)]
+pub struct Session {
+    pub drawing: Option<Document>,
+    pub recipe: Option<Recipe>,
+}
+
 pub fn serve() {
-    let mut drawing: Option<Document> = None;
+    let mut session = Session::default();
     let stdin = std::io::stdin();
     let mut stdout = std::io::stdout();
     for line in stdin.lock().lines() {
@@ -21,36 +31,81 @@ pub fn serve() {
         if line.trim().is_empty() {
             continue;
         }
-        let Some(reply) = handle(&line, &mut drawing) else { continue };
-        let _ = writeln!(stdout, "{reply}");
-        let _ = stdout.flush();
+        for message in handle(&line, &mut session) {
+            let _ = writeln!(stdout, "{message}");
+            let _ = stdout.flush();
+        }
     }
 }
 
-/// One message in, at most one answer out (notifications get none).
-pub fn handle(line: &str, drawing: &mut Option<Document>) -> Option<Value> {
+/// One message in; out, any progress notifications, then the answer (none for a notification).
+pub fn handle(line: &str, session: &mut Session) -> Vec<Value> {
     let Ok(message) = serde_json::from_str::<Value>(line) else {
-        return Some(json!({ "jsonrpc": "2.0", "id": null, "error": { "code": -32700, "message": "Not JSON" } }));
+        return vec![json!({ "jsonrpc": "2.0", "id": null, "error": { "code": -32700, "message": "Not JSON" } })];
     };
-    let id = message.get("id").cloned()?;
+    let Some(id) = message.get("id").cloned() else { return Vec::new() };
     let method = message["method"].as_str().unwrap_or("");
     let params = &message["params"];
+    let mut out = Vec::new();
     let result = match method {
         "initialize" => Ok(json!({
             "protocolVersion": params["protocolVersion"].as_str().unwrap_or(PROTOCOL),
-            "capabilities": { "tools": {} },
+            "capabilities": { "tools": {}, "resources": {}, "prompts": {} },
             "serverInfo": { "name": "woodsketch", "version": env!("CARGO_PKG_VERSION") },
-            "instructions": "WoodSketch designs woodworking projects. Call `guide` first: it explains the project recipe (JSON) that `build` takes. Then build, check with `summary`, `movement` and `render`, fix and rebuild, and `save` or write `cut_sheet` / `build_sheets` for the shop."
+            "instructions": "WoodSketch designs woodworking projects. Call `guide` first: it explains the project recipe (JSON) that `build` takes (its JSON Schema is the resource woodsketch://recipe-schema). Build, check with `summary`, `movement` and `render`, then change it a piece at a time (`add_part`, `change_part`, `remove`, `add_joint`, `add_profile`; `recipe` shows what it is now), and `save` or write `cut_sheet` / `build_sheets` for the shop."
         })),
         "ping" => Ok(json!({})),
         "tools/list" => Ok(json!({ "tools": tools() })),
-        "tools/call" => Ok(call(params["name"].as_str().unwrap_or(""), &params["arguments"], drawing)),
+        "tools/call" => {
+            // Progress for a client that asked (a build is quick, but says when it starts and ends).
+            let token = params["_meta"]["progressToken"].clone();
+            let progress = |out: &mut Vec<Value>, done: u32, what: &str| {
+                if !token.is_null() {
+                    out.push(json!({ "jsonrpc": "2.0", "method": "notifications/progress", "params": { "progressToken": token, "progress": done, "total": 2, "message": what } }));
+                }
+            };
+            progress(&mut out, 0, "Working");
+            let result = call(params["name"].as_str().unwrap_or(""), &params["arguments"], session);
+            progress(&mut out, 2, "Done");
+            Ok(result)
+        }
+        "resources/list" => Ok(json!({ "resources": [
+            { "uri": "woodsketch://guide", "name": "guide", "title": "How to write a WoodSketch recipe", "mimeType": "text/markdown" },
+            { "uri": "woodsketch://recipe-schema", "name": "recipe-schema", "title": "The recipe's JSON Schema", "mimeType": "application/schema+json" },
+            { "uri": "woodsketch://recipe", "name": "recipe", "title": "The current drawing's recipe", "mimeType": "application/json" }
+        ] })),
+        "resources/read" => match params["uri"].as_str().unwrap_or("") {
+            uri @ "woodsketch://guide" => Ok(json!({ "contents": [{ "uri": uri, "mimeType": "text/markdown", "text": crate::GUIDE }] })),
+            uri @ "woodsketch://recipe-schema" => Ok(json!({ "contents": [{ "uri": uri, "mimeType": "application/schema+json", "text": recipe::schema().to_string() }] })),
+            uri @ "woodsketch://recipe" => match &session.recipe {
+                Some(r) => Ok(json!({ "contents": [{ "uri": uri, "mimeType": "application/json", "text": serde_json::to_string_pretty(r).unwrap_or_default() }] })),
+                None => Err(json!({ "code": -32002, "message": "No drawing yet: build one from a recipe, or open a file." })),
+            },
+            other => Err(json!({ "code": -32002, "message": format!("No resource {other}") })),
+        },
+        "prompts/list" => Ok(json!({ "prompts": [{
+            "name": "design",
+            "title": "Design a woodworking project",
+            "description": "Design a piece of furniture in WoodSketch: a recipe built, checked and refined, then the shop sheets.",
+            "arguments": [
+                { "name": "project", "description": "What to make, like \"a cherry nightstand with one drawer\"", "required": true },
+                { "name": "size", "description": "Overall size, if it matters (\"24 x 16 x 26 inches\")", "required": false }
+            ]
+        }] })),
+        "prompts/get" => {
+            let project = params["arguments"]["project"].as_str().unwrap_or("a small bookcase");
+            let size = params["arguments"]["size"].as_str().map(|s| format!(" about {s}")).unwrap_or_default();
+            Ok(json!({ "description": "Design a woodworking project", "messages": [{ "role": "user", "content": { "type": "text", "text": format!(
+                "Design {project}{size} with WoodSketch. Read the `guide` tool first. Build it as a recipe with real joinery (dados, mortise and tenons, dovetails where they suit), check it with `summary`, `movement` and `render`, fix any problems or wood movement warnings, then change it piece by piece until it's right. Finish by writing the cut sheet and build sheets, and tell me what to buy."
+            ) } }] }))
+        }
         other => Err(json!({ "code": -32601, "message": format!("No method {other}") })),
     };
-    Some(match result {
+    out.push(match result {
         Ok(result) => json!({ "jsonrpc": "2.0", "id": id, "result": result }),
         Err(error) => json!({ "jsonrpc": "2.0", "id": id, "error": error }),
-    })
+    });
+    out
 }
 
 fn tool(name: &str, description: &str, properties: Value, required: &[&str]) -> Value {
@@ -59,6 +114,9 @@ fn tool(name: &str, description: &str, properties: Value, required: &[&str]) -> 
 
 fn tools() -> Vec<Value> {
     let path = json!({ "type": "string", "description": "A file path" });
+    let name = json!({ "type": "string", "description": "A part's name (or a copy's, template's or group's)" });
+    let schema = recipe::schema();
+    let def = |d: &str| schema["$defs"][d].clone();
     vec![
         tool("guide", "How to write a WoodSketch project recipe, with an example. Read this before build.", json!({}), &[]),
         tool(
@@ -67,7 +125,24 @@ fn tools() -> Vec<Value> {
             json!({ "recipe": { "type": "object", "description": "The project recipe (JSON object, or a string of JSON)" } }),
             &["recipe"],
         ),
-        tool("open", "Open a .woodsketch drawing, a recipe .json, or a SketchUp 2021+ .skp as the current drawing.", json!({ "path": path }), &["path"]),
+        tool("recipe", "The current drawing as a recipe (built from one, or read back from a file opened), with notes on anything a recipe can't say.", json!({}), &[]),
+        tool("add_part", "Add a part to the drawing (a board as a box, as in the recipe's parts) and rebuild.", json!({ "part": def("PartSpec") }), &["part"]),
+        tool(
+            "change_part",
+            "Change some of a part's fields (like {\"at\": [0, 0, 12]} or {\"size\": [30, 10, 0.75]}; a new name is followed by its joints) and rebuild.",
+            json!({ "name": name, "changes": { "type": "object" } }),
+            &["name", "changes"],
+        ),
+        tool("remove", "Take out a part (with its copies), template or group, and the joints and profiles on it, and rebuild.", json!({ "name": name }), &["name"]),
+        tool("add_joint", "Add a joint between two parts (as in the recipe's joints) and rebuild.", json!({ "joint": def("JointSpec") }), &["joint"]),
+        tool(
+            "remove_joint",
+            "Take out the joints of `part` into `into` (of one `kind`, or all) and rebuild.",
+            json!({ "part": name, "into": name, "kind": { "type": "string" } }),
+            &["part", "into"],
+        ),
+        tool("add_profile", "Add an edge profile to a part (as in the recipe's profiles) and rebuild.", json!({ "profile": def("ProfileSpec") }), &["profile"]),
+        tool("open", "Open a .woodsketch drawing, a recipe .json, or a SketchUp 2021+ .skp as the current drawing (read back as a recipe to change).", json!({ "path": path }), &["path"]),
         tool("save", "Save the current drawing as a .woodsketch file (the WoodSketch app opens it).", json!({ "path": path }), &["path"]),
         tool("summary", "The current drawing's overall size, parts by material with sizes, joints and wood movement warnings.", json!({}), &[]),
         tool(
@@ -79,8 +154,15 @@ fn tools() -> Vec<Value> {
         tool("movement", "The wood movement check: how much each solid-wood part moves across its grain, and where parts fight it.", json!({}), &[]),
         tool(
             "render",
-            "A picture of the current drawing (PNG), zoomed to fit, to check how it looks.",
-            json!({ "view": { "type": "string", "enum": ["iso", "top", "front", "right"] }, "width": { "type": "integer" }, "height": { "type": "integer" } }),
+            "A picture of the current drawing (PNG), zoomed to fit: from a standard view or any angle, light or dark, parts picked out.",
+            json!({
+                "view": { "type": "string", "enum": ["iso", "top", "front", "right"] },
+                "angle": { "type": "array", "items": { "type": "number" }, "description": "[around, up] in degrees: around from the front toward the right, up from level" },
+                "dark": { "type": "boolean" },
+                "highlight": { "type": "array", "items": { "type": "string" }, "description": "Parts or groups (top level) to pick out" },
+                "width": { "type": "integer" },
+                "height": { "type": "integer" }
+            }),
             &[],
         ),
         tool("cut_sheet", "Write the printable cut sheet (parts, what to buy, cutting diagrams) as an HTML file.", json!({ "path": path }), &["path"]),
@@ -94,77 +176,138 @@ fn text(text: impl Into<String>, error: bool) -> Value {
     json!({ "content": [{ "type": "text", "text": text.into() }], "isError": error })
 }
 
-fn call(name: &str, args: &Value, drawing: &mut Option<Document>) -> Value {
-    let path = || args["path"].as_str().map(Path::new).ok_or("Give a \"path\".".to_owned());
-    let current = |drawing: &Option<Document>| -> Result<(), String> {
-        if drawing.is_none() { Err("No drawing yet: build one from a recipe, or open a file.".into()) } else { Ok(()) }
+/// A recipe item from the arguments: an object, or a string of JSON.
+fn item<T: serde::de::DeserializeOwned>(value: &Value, what: &str) -> Result<T, String> {
+    let value = match value {
+        Value::String(s) => serde_json::from_str(s).map_err(|e| format!("The {what} isn't JSON: {e}"))?,
+        Value::Null => return Err(format!("Give a \"{what}\".")),
+        other => other.clone(),
     };
-    let result: Result<Value, String> = (|| match name {
-        "guide" => Ok(text(crate::GUIDE, false)),
-        "build" => {
-            let json = match &args["recipe"] {
-                Value::String(s) => s.clone(),
-                Value::Null => return Err("Give a \"recipe\".".into()),
-                other => other.to_string(),
-            };
-            let doc = crate::build(&json)?;
+    serde_json::from_value(value).map_err(|e| format!("The {what} doesn't fit the recipe format: {e}"))
+}
+
+fn call(name: &str, args: &Value, session: &mut Session) -> Value {
+    let path = || args["path"].as_str().map(Path::new).ok_or("Give a \"path\".".to_owned());
+    let result: Result<Value, String> = (|| {
+        // Edits: change the recipe and rebuild, or leave both as they were.
+        let mut edit = |change: &dyn Fn(&mut Recipe) -> Result<String, String>| -> Result<Value, String> {
+            let mut recipe = session.recipe.clone().ok_or("No drawing yet: build one from a recipe, or open a file.")?;
+            let said = change(&mut recipe)?;
+            let doc = recipe::build(&recipe).map_err(|errors| format!("That doesn't build, so nothing changed:\n- {}", errors.join("\n- ")))?;
             let summary = recipe::summary(&doc);
-            *drawing = Some(doc);
-            Ok(text(format!("Built.\n{summary}"), false))
+            (session.drawing, session.recipe) = (Some(doc), Some(recipe));
+            Ok(text(format!("{said}\n{summary}"), false))
+        };
+        match name {
+            "add_part" => {
+                let part: PartSpec = item(&args["part"], "part")?;
+                return edit(&|r| r.add_part(part.clone(), false).map(|()| format!("Added {}.", part.name)));
+            }
+            "change_part" => {
+                let who = args["name"].as_str().ok_or("Give the part's \"name\".")?.to_owned();
+                let changes = args["changes"].clone();
+                return edit(&|r| r.change_part(&who, &changes).map(|()| format!("Changed {who}.")));
+            }
+            "remove" => {
+                let who = args["name"].as_str().ok_or("Give the \"name\" to take out.")?.to_owned();
+                return edit(&|r| r.remove(&who).map(|()| format!("Took out {who}.")));
+            }
+            "add_joint" => {
+                let joint: JointSpec = item(&args["joint"], "joint")?;
+                return edit(&|r| {
+                    r.joints.push(joint.clone());
+                    Ok(format!("Added a {} of {} into {}.", joint.kind, joint.part, joint.into))
+                });
+            }
+            "remove_joint" => {
+                let (part, into) = (args["part"].as_str().ok_or("Give the \"part\".")?.to_owned(), args["into"].as_str().ok_or("Give \"into\".")?.to_owned());
+                let kind = args["kind"].as_str().map(str::to_owned);
+                return edit(&|r| r.remove_joint(&part, &into, kind.as_deref()).map(|n| format!("Took out {n} joint(s).")));
+            }
+            "add_profile" => {
+                let profile: ProfileSpec = item(&args["profile"], "profile")?;
+                return edit(&|r| {
+                    r.profiles.push(profile.clone());
+                    Ok(format!("Added a {} on {}.", profile.profile, profile.part))
+                });
+            }
+            _ => {}
         }
-        "open" => {
-            let doc = crate::load(path()?)?;
-            let summary = recipe::summary(&doc);
-            *drawing = Some(doc);
-            Ok(text(format!("Opened.\n{summary}"), false))
+        let current = || session.drawing.as_ref().ok_or("No drawing yet: build one from a recipe, or open a file.".to_owned());
+        match name {
+            "guide" => Ok(text(crate::GUIDE, false)),
+            "build" => {
+                let json = match &args["recipe"] {
+                    Value::String(s) => s.clone(),
+                    Value::Null => return Err("Give a \"recipe\".".into()),
+                    other => other.to_string(),
+                };
+                let parsed = recipe::parse(&json)?;
+                let doc = crate::build(&json)?;
+                let summary = recipe::summary(&doc);
+                (session.drawing, session.recipe) = (Some(doc), Some(parsed));
+                Ok(text(format!("Built.\n{summary}"), false))
+            }
+            "recipe" => {
+                let recipe = session.recipe.as_ref().ok_or("No drawing yet: build one from a recipe, or open a file.")?;
+                Ok(text(serde_json::to_string_pretty(recipe).map_err(|e| e.to_string())?, false))
+            }
+            "open" => {
+                let doc = crate::load(path()?)?;
+                let summary = recipe::summary(&doc);
+                let (read, notes) = woodsketch_doc::recipe_of::from_document(&doc);
+                let notes = if notes.is_empty() { String::new() } else { format!("\nRead back as a recipe, but:\n- {}", notes.join("\n- ")) };
+                (session.drawing, session.recipe) = (Some(doc), Some(read));
+                Ok(text(format!("Opened.\n{summary}{notes}"), false))
+            }
+            "save" => {
+                let to = path()?;
+                crate::save(current()?, to)?;
+                Ok(text(format!("Saved {}.", to.display()), false))
+            }
+            "summary" => Ok(text(recipe::summary(current()?), false)),
+            "cut_list" => {
+                let doc = current()?;
+                let list = cutlist::cut_list(doc.scene());
+                Ok(text(if args["format"].as_str() == Some("csv") { cutlist::to_csv(&list) } else { crate::cut_list_text(&list, doc.scene()) }, false))
+            }
+            "movement" => Ok(text(crate::movement_text(current()?), false)),
+            "render" => {
+                let doc = current()?;
+                let angle = match args["angle"].as_array().map(|a| a.iter().filter_map(Value::as_f64).collect::<Vec<_>>()) {
+                    Some(a) if a.len() == 2 => Some((a[0] as f32, a[1] as f32)),
+                    Some(_) => return Err("An angle is [around, up] in degrees.".into()),
+                    None => None,
+                };
+                let options = crate::picture::Options {
+                    view: crate::picture::view(args["view"].as_str().unwrap_or("iso"))?,
+                    angle,
+                    size: [args["width"].as_u64().unwrap_or(1000).clamp(64, 4096) as u32, args["height"].as_u64().unwrap_or(700).clamp(64, 4096) as u32],
+                    dark: args["dark"].as_bool().unwrap_or(false),
+                    highlight: args["highlight"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect()).unwrap_or_default(),
+                };
+                let png = crate::picture::render(doc, &options)?;
+                Ok(json!({ "content": [{ "type": "image", "data": base64(&png), "mimeType": "image/png" }], "isError": false }))
+            }
+            "cut_sheet" => {
+                let to = path()?;
+                std::fs::write(to, crate::cut_sheet(current()?)).map_err(|e| e.to_string())?;
+                Ok(text(format!("Wrote {}.", to.display()), false))
+            }
+            "build_sheets" => {
+                let to = path()?;
+                let doc = current()?;
+                let list = cutlist::cut_list(doc.scene());
+                std::fs::write(to, woodsketch_doc::buildsheet::to_html(doc.scene(), &list, "Build sheets")).map_err(|e| e.to_string())?;
+                Ok(text(format!("Wrote {}.", to.display()), false))
+            }
+            "export" => {
+                let to = path()?;
+                crate::export_to(current()?, to, args["millimeters"].as_bool().unwrap_or(false))?;
+                Ok(text(format!("Wrote {}.", to.display()), false))
+            }
+            other => Err(format!("No tool \"{other}\".")),
         }
-        "save" => {
-            current(drawing)?;
-            let to = path()?;
-            crate::save(drawing.as_ref().expect("checked"), to)?;
-            Ok(text(format!("Saved {}.", to.display()), false))
-        }
-        "summary" => {
-            current(drawing)?;
-            Ok(text(recipe::summary(drawing.as_ref().expect("checked")), false))
-        }
-        "cut_list" => {
-            current(drawing)?;
-            let list = cutlist::cut_list(drawing.as_ref().expect("checked").scene());
-            Ok(text(if args["format"].as_str() == Some("csv") { cutlist::to_csv(&list) } else { crate::cut_list_text(&list, drawing.as_ref().expect("checked").scene()) }, false))
-        }
-        "movement" => {
-            current(drawing)?;
-            Ok(text(crate::movement_text(drawing.as_ref().expect("checked")), false))
-        }
-        "render" => {
-            current(drawing)?;
-            let view = crate::picture::view(args["view"].as_str().unwrap_or("iso"))?;
-            let size = [args["width"].as_u64().unwrap_or(1000).clamp(64, 4096) as u32, args["height"].as_u64().unwrap_or(700).clamp(64, 4096) as u32];
-            let png = crate::picture::render(drawing.as_ref().expect("checked"), view, size)?;
-            Ok(json!({ "content": [{ "type": "image", "data": base64(&png), "mimeType": "image/png" }], "isError": false }))
-        }
-        "cut_sheet" => {
-            current(drawing)?;
-            let to = path()?;
-            std::fs::write(to, crate::cut_sheet(drawing.as_ref().expect("checked"))).map_err(|e| e.to_string())?;
-            Ok(text(format!("Wrote {}.", to.display()), false))
-        }
-        "build_sheets" => {
-            current(drawing)?;
-            let to = path()?;
-            let doc = drawing.as_ref().expect("checked");
-            let list = cutlist::cut_list(doc.scene());
-            std::fs::write(to, woodsketch_doc::buildsheet::to_html(doc.scene(), &list, "Build sheets")).map_err(|e| e.to_string())?;
-            Ok(text(format!("Wrote {}.", to.display()), false))
-        }
-        "export" => {
-            current(drawing)?;
-            let to = path()?;
-            crate::export_to(drawing.as_ref().expect("checked"), to, args["millimeters"].as_bool().unwrap_or(false))?;
-            Ok(text(format!("Wrote {}.", to.display()), false))
-        }
-        other => Err(format!("No tool \"{other}\".")),
     })();
     result.unwrap_or_else(|e| text(e, true))
 }
@@ -190,22 +333,30 @@ fn base64(bytes: &[u8]) -> String {
 mod tests {
     use super::*;
 
-    fn ask(drawing: &mut Option<Document>, message: Value) -> Value {
-        handle(&message.to_string(), drawing).expect("an answer")
+    /// The answer to a request (the last message out).
+    fn ask(session: &mut Session, message: Value) -> Value {
+        handle(&message.to_string(), session).pop().expect("an answer")
+    }
+
+    fn call_tool(session: &mut Session, id: u32, name: &str, arguments: Value) -> Value {
+        ask(session, json!({ "jsonrpc": "2.0", "id": id, "method": "tools/call", "params": { "name": name, "arguments": arguments } }))["result"].clone()
+    }
+
+    fn said(result: &Value) -> &str {
+        result["content"][0]["text"].as_str().unwrap_or("")
     }
 
     #[test]
     fn an_agent_initializes_lists_tools_and_builds_a_drawing() {
-        let mut drawing = None;
-        let init = ask(&mut drawing, json!({ "jsonrpc": "2.0", "id": 1, "method": "initialize", "params": { "protocolVersion": "2025-06-18" } }));
+        let mut session = Session::default();
+        let init = ask(&mut session, json!({ "jsonrpc": "2.0", "id": 1, "method": "initialize", "params": { "protocolVersion": "2025-06-18" } }));
         assert_eq!(init["result"]["serverInfo"]["name"], "woodsketch");
-        assert!(handle(&json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }).to_string(), &mut drawing).is_none(), "no answer to a notification");
-        let list = ask(&mut drawing, json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list" }));
+        assert!(handle(&json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }).to_string(), &mut session).is_empty(), "no answer to a notification");
+        let list = ask(&mut session, json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list" }));
         let names: Vec<&str> = list["result"]["tools"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap()).collect();
-        assert!(names.contains(&"build") && names.contains(&"render") && names.contains(&"guide"), "{names:?}");
+        assert!(names.contains(&"build") && names.contains(&"render") && names.contains(&"guide") && names.contains(&"change_part"), "{names:?}");
 
-        let guide = ask(&mut drawing, json!({ "jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": { "name": "guide", "arguments": {} } }));
-        assert!(guide["result"]["content"][0]["text"].as_str().unwrap().contains("\"parts\""));
+        assert!(said(&call_tool(&mut session, 3, "guide", json!({}))).contains("\"parts\""));
 
         let recipe = json!({
             "materials": [{ "id": "oak", "library": "Red Oak" }],
@@ -215,18 +366,65 @@ mod tests {
             ],
             "joints": [{ "kind": "let_in", "part": "Shelf", "into": "Side" }]
         });
-        let built = ask(&mut drawing, json!({ "jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": { "name": "build", "arguments": { "recipe": recipe } } }));
-        assert_eq!(built["result"]["isError"], false, "{built}");
-        assert!(built["result"]["content"][0]["text"].as_str().unwrap().contains("Red Oak"));
-        let cut = ask(&mut drawing, json!({ "jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": { "name": "cut_list", "arguments": { "format": "csv" } } }));
-        assert!(cut["result"]["content"][0]["text"].as_str().unwrap().contains("Shelf"));
+        let built = call_tool(&mut session, 4, "build", json!({ "recipe": recipe }));
+        assert_eq!(built["isError"], false, "{built}");
+        assert!(said(&built).contains("Red Oak"));
+        assert!(said(&call_tool(&mut session, 5, "cut_list", json!({ "format": "csv" }))).contains("Shelf"));
 
         // A mistake comes back as a tool error naming the item.
-        let bad = ask(&mut drawing, json!({ "jsonrpc": "2.0", "id": 6, "method": "tools/call", "params": { "name": "build", "arguments": { "recipe": { "parts": [{ "name": "Shelf", "size": [20, 10, 0.75], "material": "teak" }] } } } }));
-        assert_eq!(bad["result"]["isError"], true);
-        assert!(bad["result"]["content"][0]["text"].as_str().unwrap().contains("parts[0] (Shelf): no material \"teak\""));
-        let unknown = ask(&mut drawing, json!({ "jsonrpc": "2.0", "id": 7, "method": "resources/list" }));
+        let bad = call_tool(&mut session, 6, "build", json!({ "recipe": { "parts": [{ "name": "Shelf", "size": [20, 10, 0.75], "material": "teak" }] } }));
+        assert_eq!(bad["isError"], true);
+        assert!(said(&bad).contains("parts[0] (Shelf): no material \"teak\""));
+        let unknown = ask(&mut session, json!({ "jsonrpc": "2.0", "id": 7, "method": "nothing/here" }));
         assert_eq!(unknown["error"]["code"], -32601);
+    }
+
+    #[test]
+    fn an_agent_changes_the_drawing_a_piece_at_a_time() {
+        let mut session = Session::default();
+        let recipe = json!({
+            "materials": [{ "id": "oak", "library": "Red Oak" }],
+            "parts": [
+                { "name": "Side", "material": "oak", "size": [30, 11.25, 0.75], "length": "z", "width": "y" },
+                { "name": "Shelf", "material": "oak", "size": [20, 11.25, 0.75], "at": [0.75, 0, 12] }
+            ]
+        });
+        call_tool(&mut session, 1, "build", json!({ "recipe": recipe }));
+        // A second shelf, a joint, the first shelf moved up, a profile.
+        let shelf = json!({ "name": "Shelf 2", "material": "oak", "size": [20, 11.25, 0.75], "at": [0.75, 0, 24] });
+        assert_eq!(call_tool(&mut session, 2, "add_part", json!({ "part": shelf }))["isError"], false);
+        let joint = call_tool(&mut session, 3, "add_joint", json!({ "joint": { "kind": "dado", "part": "Shelf 2", "into": "Side" } }));
+        assert!(said(&joint).contains("Joints: 1 dado"), "{joint}");
+        assert_eq!(call_tool(&mut session, 4, "change_part", json!({ "name": "Shelf", "changes": { "at": [0.75, 0, 6] } }))["isError"], false);
+        let profile = call_tool(&mut session, 5, "add_profile", json!({ "profile": { "part": "Shelf", "profile": "chamfer", "size": 0.125, "around": "top" } }));
+        assert_eq!(profile["isError"], false, "{profile}");
+        let now = call_tool(&mut session, 6, "recipe", json!({}));
+        assert!(said(&now).contains("\"Shelf 2\"") && said(&now).contains("chamfer"));
+        // An edit that doesn't build changes nothing.
+        let broken = call_tool(&mut session, 7, "add_joint", json!({ "joint": { "kind": "dado", "part": "Shelf", "into": "Nothing" } }));
+        assert_eq!(broken["isError"], true);
+        assert!(said(&broken).contains("nothing changed"));
+        assert_eq!(session.recipe.as_ref().unwrap().joints.len(), 1);
+        assert_eq!(call_tool(&mut session, 8, "remove", json!({ "name": "Shelf 2" }))["isError"], false);
+        assert!(session.recipe.as_ref().unwrap().joints.is_empty(), "its joint went with it");
+    }
+
+    #[test]
+    fn resources_prompts_and_progress() {
+        let mut session = Session::default();
+        let list = ask(&mut session, json!({ "jsonrpc": "2.0", "id": 1, "method": "resources/list" }));
+        assert_eq!(list["result"]["resources"].as_array().unwrap().len(), 3);
+        let schema = ask(&mut session, json!({ "jsonrpc": "2.0", "id": 2, "method": "resources/read", "params": { "uri": "woodsketch://recipe-schema" } }));
+        assert!(schema["result"]["contents"][0]["text"].as_str().unwrap().contains("PartSpec"));
+        let guide = ask(&mut session, json!({ "jsonrpc": "2.0", "id": 3, "method": "resources/read", "params": { "uri": "woodsketch://guide" } }));
+        assert!(guide["result"]["contents"][0]["text"].as_str().unwrap().contains("recipe"));
+        let prompt = ask(&mut session, json!({ "jsonrpc": "2.0", "id": 4, "method": "prompts/get", "params": { "name": "design", "arguments": { "project": "a walnut side table" } } }));
+        assert!(prompt["result"]["messages"][0]["content"]["text"].as_str().unwrap().contains("a walnut side table"));
+        // Progress, for a client that asks for it, before the answer.
+        let out = handle(&json!({ "jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": { "name": "guide", "arguments": {}, "_meta": { "progressToken": "p1" } } }).to_string(), &mut session);
+        assert_eq!(out.len(), 3);
+        assert_eq!(out[0]["method"], "notifications/progress");
+        assert_eq!(out[2]["id"], 5);
     }
 
     #[test]

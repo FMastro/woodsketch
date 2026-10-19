@@ -8,11 +8,17 @@ check. The person can then open the drawing in the WoodSketch app and keep worki
 Two ways in:
 
 - **MCP** (Claude and other agents): `woodsketch-cli mcp` serves tools over stdin/stdout. Call
-  `guide` (this text), `build` with a recipe, check with `summary`, `movement` and `render`, fix and
-  rebuild, then `save` (a `.woodsketch` file) and `cut_sheet` / `build_sheets` (HTML).
+  `guide` (this text), `build` with a recipe, check with `summary`, `movement` and `render`, then
+  change it a piece at a time (`add_part`, `change_part`, `remove`, `add_joint`, `remove_joint`,
+  `add_profile`; `recipe` shows the whole recipe now), and `save` (a `.woodsketch` file) and
+  `cut_sheet` / `build_sheets` (HTML). `open` reads a drawing (`.woodsketch`, or a SketchUp `.skp`)
+  back as a recipe, so a design made by hand can be changed the same way. The guide and the
+  recipe's JSON Schema are resources (`woodsketch://guide`, `woodsketch://recipe-schema`), and the
+  prompt `design` starts a project.
 - **Command line**: `woodsketch-cli build recipe.json -o piece.woodsketch`, then `summary`,
   `cutlist`, `movement`, `render -o view.png --view iso`, `cutsheet -o cut.html`,
-  `buildsheets -o build.html`, `export -o piece.obj`. Run `woodsketch-cli help` for all of them.
+  `buildsheets -o build.html`, `export -o piece.obj`; `recipe piece.woodsketch` writes a drawing
+  as a recipe, `schema` the recipe's JSON Schema. Run `woodsketch-cli help` for all of them.
 
 ## Coordinates and sizes
 
@@ -68,9 +74,27 @@ Lumber, Cedar Lumber, Pressure-Treated Lumber (dimensional lumber: 2x4s and such
 
 ### parts
 
-`name` (unique), `material`, `size`, `at`, `length`, `width`; optional `tag` (made if new) and
-`free_to_move` (true for a solid top held by tabletop buttons or slotted screws, so the wood
-movement check knows it can move).
+`name` (unique), `material`, `size`, `at`, `length`, `width`; optional:
+
+- `tag` (made if new); `called` (the name shown, when two parts share one: names `Stile` and
+  `Stile 2`, both `called` "Stile").
+- `free_to_move`: true for a solid top held by tabletop buttons or slotted screws, so the wood
+  movement check knows it can move.
+- `grain`: `length` (the default) or `width`; `cut`: `flat_sawn` or `quartersawn`.
+- `turn`: `{ "axis": "y", "degrees": -45 }` turns it about that axis through `at` (its lowest
+  corner before turning): a brace, a splayed leg. Positive is counter-clockwise looking down the axis.
+- `reference`: `{ "face": "front", "edge": "bottom", "end": "left" }`, which way its reference
+  face, edge and end face once placed (`top`, `bottom`, `front`, `back`, `left`, `right`); the
+  build sheets measure from them.
+- `copies`: `[{ "name": "Leg 2", "at": [20, 0, 0], "turn": 90 }]` places more of the same part
+  (a component: a joint or profile made on one is on all), each turned about z, then put at
+  its lowest corner. Joints name each copy.
+
+### profiles
+
+`{ "part": "Top", "profile": "roundover", "size": 0.25, "around": "top" }` rounds over every edge
+of the face that faces up; `"along": "length"` instead profiles the four edges running the length
+(a chamfered leg). Profiles are `roundover`, `chamfer`, `cove` and `ogee`, made before the joints.
 
 ### joints
 
@@ -89,6 +113,8 @@ the parts, as the app's Joinery panel does.
 | `dovetails` | the tails board (a drawer side) / the pins board (the front) | `tails`, `half_blind` |
 | `box_joint` | either / either (ends meeting at a corner) | `finger` |
 | `half_lap` | the top board / the bottom board (crossing) | |
+| `angled_mortise_and_tenon` | the turned part (a brace) / the part it meets | `thickness`, `shoulder` |
+| `housing` | the turned part / the part it's let into | |
 
 Butt the parts as they'd sit without the joint: a shelf ends at the side's face, a rail at the
 leg's face; WoodSketch grows the shelf into the dado and the rail's tenon into the leg.
@@ -122,7 +148,8 @@ are made between parts side by side first). A group's parts can be templates' na
 - `movement`: solid wood moves across its grain with the seasons (a 16" cherry top about 3/16").
   A warning means a part is held where it needs to move: let a panel float in grooves (`let_in`
   into a frame's grooves), mark a top `free_to_move` (fastened with buttons), or turn a part.
-- `render` shows a picture (`iso`, `top`, `front`, `right`) to see that it looks right.
+- `render` shows a picture (`iso`, `top`, `front`, `right`, or any `angle`: `[around, up]` in
+  degrees), light or `dark`, with parts picked out by name (`highlight`), to see that it looks right.
 - `save` the drawing for the person to open in WoodSketch; `cut_sheet` and `build_sheets` write
   what they take to the shop.
 
@@ -131,6 +158,9 @@ are made between parts side by side first). A group's parts can be templates' na
 - WoodSketch installs `woodsketch-cli` beside the app: on Windows
   `%LocalAppData%\WoodSketch\current\woodsketch-cli.exe`; on a Mac inside `WoodSketch.app/Contents/MacOS/`;
   on Linux next to the AppImage's app (or build it: `cargo build --release -p woodsketch-cli`).
+- Without the app (a server, CI): each release also has `woodsketch-cli-<version>-<platform>.zip`
+  (`win-x64`, `osx-arm64`, `osx-x64`, `linux-x64`) with just the command line, on GitHub
+  (github.com/FMastro/woodsketch/releases). Rendering pictures needs a graphics adapter.
 - Claude Code: `claude mcp add woodsketch -- "<path to woodsketch-cli>" mcp`.
 - Claude Desktop and other MCP clients: a stdio server with the command `<path to woodsketch-cli>`
   and the argument `mcp`.

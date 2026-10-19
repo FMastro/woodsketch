@@ -381,6 +381,13 @@ impl Document {
     /// Let `part`'s end (butted against `into`) into it by `depth`: the part grows by `depth`
     /// and `into` gets a dado, or a rabbet at its edge, to take it.
     pub fn let_in(&mut self, part: InstanceId, into: InstanceId, depth: f64) -> Result<JointKind, JoineryError> {
+        let before = self.scene().joints.len();
+        let made = self.let_in_made(part, into, depth)?;
+        self.note_sizes_if_new(before, vec![depth]);
+        Ok(made)
+    }
+
+    fn let_in_made(&mut self, part: InstanceId, into: InstanceId, depth: f64) -> Result<JointKind, JoineryError> {
         self.joint_edit(|scene, path| {
             let p = Parts { scene, path };
             let Some(butt) = p.butt(part, into)? else {
@@ -423,6 +430,13 @@ impl Document {
     /// A mortise and tenon: `rail`'s end (butted against `stile`) grows a tenon, and `stile`
     /// gets a mortise to take it.
     pub fn mortise_and_tenon(&mut self, rail: InstanceId, stile: InstanceId, tenon: Tenon) -> Result<(), JoineryError> {
+        let before = self.scene().joints.len();
+        self.mortise_and_tenon_made(rail, stile, tenon)?;
+        self.note_sizes_if_new(before, vec![tenon.length, tenon.thickness, tenon.shoulder, tenon.fit, 0.0, f64::from(u8::from(tenon.haunch > 0.0))]);
+        Ok(())
+    }
+
+    fn mortise_and_tenon_made(&mut self, rail: InstanceId, stile: InstanceId, tenon: Tenon) -> Result<(), JoineryError> {
         if tenon.length <= EPS || tenon.thickness <= EPS || tenon.shoulder < 0.0 {
             return Err(JoineryError::Size("The tenon needs a length and a thickness."));
         }
@@ -499,6 +513,14 @@ impl Document {
     /// Dowels across a butt joint: matching holes in `part`'s end and `into`'s face, spread
     /// evenly across the part's width.
     pub fn dowels(&mut self, part: InstanceId, into: InstanceId, dowels: Dowels) -> Result<(), JoineryError> {
+        let before = self.scene().joints.len();
+        let sizes = vec![f64::from(dowels.count), dowels.diameter, dowels.depth, dowels.fit];
+        self.dowels_made(part, into, dowels)?;
+        self.note_sizes_if_new(before, sizes);
+        Ok(())
+    }
+
+    fn dowels_made(&mut self, part: InstanceId, into: InstanceId, dowels: Dowels) -> Result<(), JoineryError> {
         if dowels.count == 0 || dowels.diameter <= EPS || dowels.depth <= EPS {
             return Err(JoineryError::Size("Dowels need a count, a diameter and a depth."));
         }
@@ -543,6 +565,13 @@ impl Document {
     /// through the other's thickness): an odd number of alternating fingers about `finger`
     /// wide across the width.
     pub fn box_joint(&mut self, a: InstanceId, b: InstanceId, finger: f64) -> Result<(), JoineryError> {
+        let before = self.scene().joints.len();
+        self.box_joint_made(a, b, finger)?;
+        self.note_sizes_if_new(before, vec![finger]);
+        Ok(())
+    }
+
+    fn box_joint_made(&mut self, a: InstanceId, b: InstanceId, finger: f64) -> Result<(), JoineryError> {
         if finger <= EPS {
             return Err(JoineryError::Size("The fingers need a width."));
         }
@@ -1499,6 +1528,13 @@ impl Document {
     /// Pocket screws across a butt joint, driven from the hidden face of `part` into `into`.
     /// Recorded for the build sheet and shopping list; the holes aren't drawn.
     pub fn pocket_screws(&mut self, part: InstanceId, into: InstanceId, count: u32, screw: f64) -> Result<(), JoineryError> {
+        let before = self.scene().joints.len();
+        self.pocket_screws_made(part, into, count, screw)?;
+        self.note_sizes_if_new(before, vec![f64::from(count), screw]);
+        Ok(())
+    }
+
+    fn pocket_screws_made(&mut self, part: InstanceId, into: InstanceId, count: u32, screw: f64) -> Result<(), JoineryError> {
         if count == 0 || screw <= EPS {
             return Err(JoineryError::Size("Pocket screws need a count and a length."));
         }
@@ -1734,6 +1770,13 @@ impl Document {
     /// its end. The tails board grows into the pins board (all the way through, or short of its
     /// face for half-blind) and both are cut: sockets in the pins board, waste between the tails.
     pub fn dovetails(&mut self, tails: InstanceId, pins: InstanceId, style: Dovetails) -> Result<(), JoineryError> {
+        let before = self.scene().joints.len();
+        self.dovetails_made(tails, pins, style)?;
+        self.note_sizes_if_new(before, vec![f64::from(style.tails), f64::from(u8::from(style.half_blind))]);
+        Ok(())
+    }
+
+    fn dovetails_made(&mut self, tails: InstanceId, pins: InstanceId, style: Dovetails) -> Result<(), JoineryError> {
         if style.tails == 0 {
             return Err(JoineryError::Size("Dovetails need at least one tail."));
         }

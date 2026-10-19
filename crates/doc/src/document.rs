@@ -411,6 +411,17 @@ impl Document {
         }
     }
 
+    /// Keep `sizes` on the joint just made, if one was (there were `before` joints): joints made
+    /// from anywhere (a recipe, a template) know their sizes, as the Joinery panel's do.
+    pub(crate) fn note_sizes_if_new(&mut self, before: usize, sizes: Vec<f64>) {
+        if self.state.scene.joints.len() > before
+            && let Some(joint) = self.state.scene.joints.last_mut()
+            && joint.sizes.is_empty()
+        {
+            joint.sizes = sizes;
+        }
+    }
+
     /// Run `change`, however many edits it makes, as one undo step; on an error the drawing is
     /// left as it was.
     pub fn as_one_step<R, E>(&mut self, change: impl FnOnce(&mut Self) -> Result<R, E>) -> Result<R, E> {
