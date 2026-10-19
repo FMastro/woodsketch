@@ -72,7 +72,7 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut woodsketch_tools:
 
         // The face and edge it's measured from, named by where they face in the drawing; stacked,
         // so the tray keeps its width.
-        ui.label("Reference").on_hover_text("The face and edge the build sheet measures from (a woodworker's face and edge marks)");
+        ui.label("Reference").on_hover_text("The face, edge and end the build sheet measures from (a woodworker's face and edge marks)");
         let axes = doc.container().instance(instance).map(|i| doc.context_transform().matrix3 * i.transform.matrix3);
         let named = |side: Option<woodsketch_doc::part::Side>| match (side, axes) {
             (Some(side), Some(axes)) => crate::profile::facing(axes * side.normal()).to_owned(),
@@ -80,11 +80,12 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut woodsketch_tools:
         };
         ui.vertical(|ui| {
             ui.label(format!("Face {}, edge {}", named(info.reference_face), named(info.reference_edge)));
+            ui.label(format!("End {}", named(info.reference_end).replace("not set", "left as drawn")));
             ui.horizontal(|ui| {
                 let picking = tools.picking_reference();
                 let pick = ui
                     .selectable_label(picking, format!("{} Pick", ph::CURSOR_CLICK))
-                    .on_hover_text("Then click the part: a wide face sets the reference face, a long edge the reference edge");
+                    .on_hover_text("Then click the part: a wide face sets the reference face, a long edge the reference edge, an end the reference end");
                 if pick.clicked() {
                     if picking {
                         tools.cancel();
@@ -92,10 +93,11 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut woodsketch_tools:
                         tools.pick_reference_on(instance);
                     }
                 }
-                if (info.reference_face.is_some() || info.reference_edge.is_some()) && ui.small_button("Clear").clicked() {
+                if (info.reference_face.is_some() || info.reference_edge.is_some() || info.reference_end.is_some()) && ui.small_button("Clear").clicked() {
                     doc.edit_part(instance, |p| {
                         p.reference_face = None;
                         p.reference_edge = None;
+                        p.reference_end = None;
                     });
                 }
             });

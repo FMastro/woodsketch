@@ -3,6 +3,17 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.36
+
+- Build sheets: each cut's place along the part, its length and its depth are dimensioned on the
+  views; edge profiles are drawn in orange and named; cuts at the same spot share a row.
+- Reference end: Entity Info > Pick, then click an end, and lengths are measured from it.
+- The traditional face mark (a loop running to the reference edge) and edge mark (a caret pointing
+  to the reference face) on the build sheet and on the model.
+- Assembly pages: labels the right size again, leaders that keep clear of other parts, slides
+  mounted "on both" box sides, and which copies of a part take which joint ("Side apron on 2").
+- Parts alike but drawn a little differently (an extra seam) share one build sheet.
+
 ## 0.1.35
 
 - SketchUp files: dimensions and text come in on the geometry they're attached to, construction

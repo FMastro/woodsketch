@@ -2013,12 +2013,15 @@ fn pick_a_boards_reference_face_and_edge_on_the_model() {
     assert!(harness.query_by_label_contains("Face Top, edge Front").is_some());
     snapshot(&mut harness, "reference_marks");
 
-    // An end can't be either.
+    // An end: the reference end.
     harness.get_by_label_contains("Pick").click();
     harness.run();
     let end = harness.state().to_window(DVec3::new(0.0, 3.0, 0.375)).unwrap();
     click(&mut harness, end);
-    assert!(harness.state().tools().status().starts_with("That's an end"), "{}", harness.state().tools().status());
+    assert_eq!(info(&harness).reference_end, Some(Side { axis: PartAxis::X, positive: false }));
+    assert!(harness.query_by_label_contains("End Left").is_some());
+    let state = harness.state();
+    assert_eq!(state.tools().overlay(state.document()).reference_symbols.len(), 3, "face mark, edge mark and end line");
 }
 
 #[test]

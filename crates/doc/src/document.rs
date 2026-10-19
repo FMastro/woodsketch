@@ -97,6 +97,15 @@ impl Default for Document {
     }
 }
 
+/// A part's reference marks to draw over it ([`Document::reference_marks`]).
+#[derive(Clone, Debug, Default)]
+pub struct ReferenceMarks {
+    pub face: Option<[DVec3; 4]>,
+    pub edge: Option<[DVec3; 2]>,
+    /// The face mark, the edge mark and the end's line, as polylines.
+    pub symbols: Vec<Vec<DVec3>>,
+}
+
 impl Document {
     /// A document for a drawing just opened: top level, nothing selected, no undo history.
     pub fn from_scene(scene: Scene) -> Self {
@@ -268,17 +277,21 @@ impl Document {
             self.edit_part(id, |p| p.reference_edge = Some(side));
             Ok("Reference edge set: it's measured from this edge.")
         } else {
-            Err("That's an end: click one of the wide faces for the reference face, or a long edge for the reference edge.")
+            self.edit_part(id, |p| p.reference_end = Some(side));
+            Ok("Reference end set: lengths are measured from this end.")
         }
     }
 
-    /// Where a part's reference face and edge are, in the edited container's coordinates: an
-    /// outline just inside the face, and a line along the middle of the edge.
-    pub fn reference_marks(&self, id: InstanceId) -> (Option<[DVec3; 4]>, Option<[DVec3; 2]>) {
+    /// Where a part's reference face, edge and end are, in the edited container's coordinates: an
+    /// outline just inside the face, a line along the middle of the edge, and the woodworker's
+    /// marks: the face mark's loop running to the edge, the edge mark's caret pointing to the face,
+    /// and a line across the reference end.
+    pub fn reference_marks(&self, id: InstanceId) -> ReferenceMarks {
+        let none = ReferenceMarks::default();
         let (Some(instance), Some(extents), Some(info)) = (self.container().instance(id).copied(), self.part_extents(id), self.part_info(id)) else {
-            return (None, None);
+            return none;
         };
-        let Some((lo, hi)) = self.state.scene.definition(instance.definition).and_then(|d| d.container.model.bounds()) else { return (None, None) };
+        let Some((lo, hi)) = self.state.scene.definition(instance.definition).and_then(|d| d.container.model.bounds()) else { return none };
         let [l, w, t] = crate::part::axes(extents, &info);
         let at = |side: crate::part::Side| if side.positive { hi[side.axis.index()] } else { lo[side.axis.index()] };
         let place = |p: DVec3| instance.transform.transform_point3(p);
@@ -298,7 +311,25 @@ impl Document {
             let y = at(side);
             [0.12, 0.88].map(|a| place(point([(l, inset(l, a)), (w, y), (t, inset(t, 0.5))])))
         });
-        (face, edge)
+        let middle = (lo + hi) * 0.5;
+        let mut symbols = Vec::new();
+        if let Some(face) = info.reference_face.filter(|s| s.axis.index() == t) {
+            let r = (hi[l] - lo[l]).min(hi[w] - lo[w]) * 0.12;
+            let tail = info.reference_edge.filter(|s| s.axis.index() == w).map_or(-(hi[w] - lo[w]) * 0.35, |e| (at(e) - middle[w]) * 0.9);
+            let z = at(face);
+            symbols.push(crate::part::face_mark(r, tail).into_iter().map(|p| place(point([(l, middle[l] + p.x), (w, middle[w] + p.y), (t, z)]))).collect());
+        }
+        if let Some(edge) = info.reference_edge.filter(|s| s.axis.index() == w) {
+            let r = (hi[t] - lo[t]) * 0.35;
+            let toward = info.reference_face.filter(|s| s.axis.index() == t).map_or(-1.0, |f| if f.positive { 1.0 } else { -1.0 });
+            let y = at(edge);
+            symbols.push(crate::part::edge_mark(r, toward).into_iter().map(|p| place(point([(l, middle[l] + p.x), (w, y), (t, middle[t] + p.y)]))).collect());
+        }
+        if let Some(end) = info.reference_end.filter(|s| s.axis.index() == l) {
+            let x = at(end);
+            symbols.push([0.15, 0.85].iter().map(|&k| place(point([(l, x), (w, inset(w, k)), (t, middle[t])]))).collect());
+        }
+        ReferenceMarks { face, edge, symbols }
     }
 
     /// How long a part is along each of its own axes (red, green, blue), or `None` for an

@@ -11,7 +11,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 ## Summary (recommended order)
 | # | Category | Points | Why here |
 |---|---|---|---|
-| 1 | Build sheets and assembly | 53 | Finishes what just shipped; shop output is what woodworkers keep |
+| 1 | Build sheets and assembly | 29 | Finishes what just shipped; shop output is what woodworkers keep |
 | 2 | Joinery | 95 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
@@ -28,33 +28,24 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1456** | |
+| | **All** | **1432** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
 (exploded drawing with leader lines and glue-up order per assembly, sub-assemblies first, hardware
 at the step it's used); hidden lines dashed in the part views; each cut once with how many; alike
 and mirrored parts on one page; glue-up boards drawn; reference face and edge picked on the model
-(Entity Info > Pick) and each cut placed from them on the sheet; File > Print Build Sheets.
-1. [5] Where each profile sits on the build sheet: its edges drawn and named on the views (joints
-   are placed; profiles are only listed as steps).
-2. [5] Dimension lines for a cut's length position and depth on the views (only its distance from
-   the reference edge is drawn; the rest is in the "Where the cuts are" list).
-3. [3] A reference end: lengths are measured from the left end as the views draw it.
-4. [3] The traditional face and edge mark symbols (the loop and the caret) on the views and
-   the model, not only blue lines.
-5. [8] A glue-up order for parts with no joints made (now they're only "fastened").
-6. [8] An exploded drawing for each step instead of one per assembly.
-7. [8] Assembly order for parts at an angle (touching is judged on boxes square to the axes).
-8. [5] Leader lines can cross other parts on their way to the label column; route them around,
-   or put the label on the part where there's room.
-9. [3] Hardware lying on two parts (a pair of slides on both box sides) is said to go on one
-   ("on J (Drawer box side)"); name both.
-10. [3] Parts alike but drawn a little differently (an extra seam line, a leftover point on an
-    edge) aren't recognized as the same part, so they keep a page each; compare their shapes, not
-    their points.
-11. [2] A cut used by different parts on different copies reads "Cut the mortise for Front and
-    back apron or Side apron"; say which corner takes which.
+(Entity Info > Pick) and each cut placed from them on the sheet; File > Print Build Sheets. Profiles
+drawn and named on the views; each cut's place, length and depth dimensioned; a reference end;
+the face mark's loop and the edge mark's caret on the views and the model; leaders that keep clear
+of other parts; hardware on two parts names both; parts alike but drawn differently share a
+sheet; which copies take which part.
+1. [8] A glue-up order for parts with no joints made (now they're only "fastened").
+2. [8] An exploded drawing for each step instead of one per assembly.
+3. [8] Assembly order for parts at an angle (touching is judged on boxes square to the axes).
+4. [2] A leader with no spot clear of other parts still crosses one: route it around it (bends).
+5. [3] Dimension rows and depth lines on a part with many cuts crowd the views; group them, or
+   a table of positions instead past a few.
 
 ## 2. Joinery
 Done: dado, groove, rabbet, mortise and tenon (through, haunched), dovetails (through,

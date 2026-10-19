@@ -136,34 +136,35 @@ svg text {{ font: 11px system-ui, sans-serif; fill: #333; }}
 /// images (a left and a right); `None` different. Compared along each one's length, width and
 /// thickness from its corner, every way it can be turned end for end or flipped.
 fn same_shape(scene: &Scene, a: &Sheet, b: &Sheet) -> Option<bool> {
-    let points = |sheet: &Sheet| -> Option<(Vec<DVec3>, DVec3, usize)> {
+    // Each part's faces as triangles in its own axes (length, width, thickness) from its corner,
+    // and its size.
+    let triangles = |sheet: &Sheet| -> Option<(Vec<[DVec3; 3]>, DVec3)> {
         let def = scene.definition(sheet.definition)?;
         let model = &def.container.model;
         let extents = crate::part::extents(def, DMat3::from_diagonal(sheet.scale))?;
         let axes = crate::part::axes(extents, &def.part);
         let (lo, _) = model.bounds()?;
-        let points = model.vertices().map(|(_, p)| {
+        let local = |p: DVec3| {
             let p = (p - lo) * sheet.scale;
             DVec3::new(p[axes[0]], p[axes[1]], p[axes[2]])
-        });
-        Some((points.collect(), DVec3::new(extents[axes[0]], extents[axes[1]], extents[axes[2]]), model.faces().count()))
+        };
+        let triangles = model.faces().flat_map(|(_, f)| model.triangulate(f)).map(|t| t.map(local)).collect();
+        Some((triangles, DVec3::new(extents[axes[0]], extents[axes[1]], extents[axes[2]])))
     };
-    let (pa, size, faces_a) = points(a)?;
-    let (pb, size_b, faces_b) = points(b)?;
-    if faces_a != faces_b || pa.len() != pb.len() || (size - size_b).abs().max_element() > 1e-3 {
+    let (ta, size) = triangles(a)?;
+    let (tb, size_b) = triangles(b)?;
+    if (size - size_b).abs().max_element() > 1e-3 {
         return None;
     }
-    let key = |p: DVec3| (p * 1000.0).round().to_array().map(|v| v as i64);
-    let mut want: Vec<[i64; 3]> = pa.iter().map(|p| key(*p)).collect();
-    want.sort_unstable();
+    let want = surface(&ta);
     // Flip any of the three directions (end for end, edge for edge, face for face): an even number
     // of flips is the part turned over, an odd number its mirror image.
     let mut found = None;
     for flips in 0..8u32 {
         let flip = |p: DVec3| DVec3::from_array([0, 1, 2].map(|i| if flips & (1 << i) != 0 { size[i] - p[i] } else { p[i] }));
-        let mut have: Vec<[i64; 3]> = pb.iter().map(|p| key(flip(*p))).collect();
-        have.sort_unstable();
-        if have == want {
+        let have = surface(&tb.iter().map(|t| t.map(flip)).collect::<Vec<_>>());
+        let alike = have.len() == want.len() && have.iter().all(|(k, area)| want.get(k).is_some_and(|w| (w - area).abs() < 1e-3 * w.max(1.0)));
+        if alike {
             let mirrored = flips.count_ones() % 2 == 1;
             if !mirrored {
                 return Some(false);
@@ -172,6 +173,25 @@ fn same_shape(scene: &Scene, a: &Sheet, b: &Sheet) -> Option<bool> {
         }
     }
     found
+}
+
+/// How much surface lies on each plane (its normal either way, and where it is): the same for
+/// two parts of one shape however their faces are split up (an extra seam, a leftover point on an
+/// edge).
+fn surface(triangles: &[[DVec3; 3]]) -> BTreeMap<[i64; 4], f64> {
+    let mut planes = BTreeMap::new();
+    for [a, b, c] in triangles {
+        let cross = (*b - *a).cross(*c - *a);
+        let area = cross.length() / 2.0;
+        let Some(mut n) = cross.try_normalize().filter(|_| area > 1e-9) else { continue };
+        // One key per plane, whichever way it faces (a mirror image reverses the winding).
+        if n.x < -1e-9 || (n.x.abs() <= 1e-9 && (n.y < -1e-9 || (n.y.abs() <= 1e-9 && n.z < 0.0))) {
+            n = -n;
+        }
+        let key = [n.x, n.y, n.z, n.dot(*a)].map(|v| (v * 1000.0).round() as i64);
+        *planes.entry(key).or_insert(0.0) += area;
+    }
+    planes
 }
 
 /// The cut-list row a part falls in (same material and size).
@@ -252,16 +272,23 @@ fn write_sheet(html: &mut String, scene: &Scene, sheet: &Sheet, label: &str, row
         .into_iter()
         .filter_map(|cut| Some((cut.what, cut_box(model, sheet.scale, &cut.ops)?)))
         .collect();
-    let marks = Marks { face: def.part.reference_face, edge: def.part.reference_edge, cuts: placed.iter().map(|(_, b)| *b).collect() };
+    let profiles = scene
+        .profiles
+        .iter()
+        .filter(|p| p.part == sheet.definition)
+        .map(|p| (format!("{} {}", format_length(p.size), p.profile.name().to_lowercase()), profile_edges(model, &p.edges)))
+        .collect();
+    let marks = Marks { face: def.part.reference_face, edge: def.part.reference_edge, end: def.part.reference_end, cuts: placed.iter().map(|(_, b)| *b).collect(), profiles };
     html.push_str(&views(model, sheet.scale, axes, [length, width, thickness], glue.as_ref().map(|(n, _, _)| (*n as usize, label)), &marks));
     if !placed.is_empty() {
-        let from = match (marks.face, marks.edge) {
-            (Some(_), Some(_)) => "from the reference face and edge (marked in blue) and the left end as drawn",
+        let from = match (marks.face, marks.edge, marks.end) {
+            (Some(_), Some(_), Some(_)) => "from the reference face, edge and end (marked in blue)",
+            (Some(_), Some(_), None) => "from the reference face and edge (marked in blue) and the left end as drawn",
             _ => "from the bottom face and edge and the left end as drawn (pick the reference face and edge in Entity Info to measure from them)",
         };
         let _ = writeln!(html, "<b>Where the cuts are</b> <span class=\"meta\">{}</span><ol>", esc(from));
         for (what, b) in &placed {
-            let _ = writeln!(html, "<li>{}: {}.</li>", esc(what), esc(&where_is(*b, axes, [length, width, thickness], marks.face, marks.edge)));
+            let _ = writeln!(html, "<li>{}: {}.</li>", esc(what), esc(&where_is(*b, axes, [length, width, thickness], &marks)));
         }
         html.push_str("</ol>\n");
     }
@@ -318,19 +345,25 @@ fn cut_box(model: &Model, scale: DVec3, ops: &[crate::joinery::JointOp]) -> Opti
 
 /// Where a cut is, said from the reference face and edge (or, before they're picked, the bottom
 /// face and edge as the views draw them) and the left end as drawn.
-fn where_is((lo, hi): (DVec3, DVec3), [l, w, t]: [usize; 3], [length, width, thickness]: [f64; 3], face: Option<crate::part::Side>, edge: Option<crate::part::Side>) -> String {
+fn where_is((lo, hi): (DVec3, DVec3), [l, w, t]: [usize; 3], [length, width, thickness]: [f64; 3], marks: &Marks) -> String {
     const CLOSE: f64 = 1.0 / 64.0;
     let near = |a: f64, b: f64| (a - b).abs() < CLOSE;
+    let (face, edge) = (marks.face, marks.edge);
     let mut said = Vec::new();
-    // Along the length, from the left end.
-    if near(lo[l], 0.0) && near(hi[l], length) {
+    // Along the length, from the reference end (or the left end as drawn).
+    let (end_far, end_name, other_end) = match marks.end.filter(|s| s.axis.index() == l) {
+        Some(side) => (side.positive, "the reference end", "the other end"),
+        None => (false, "the left end", "the right end"),
+    };
+    let (from, to) = if end_far { (length - hi[l], length - lo[l]) } else { (lo[l], hi[l]) };
+    if near(from, 0.0) && near(to, length) {
         said.push("the full length".to_owned());
-    } else if near(lo[l], 0.0) {
-        said.push(format!("at the left end, {} long", format_length(hi[l] - lo[l])));
-    } else if near(hi[l], length) {
-        said.push(format!("at the right end, {} long", format_length(hi[l] - lo[l])));
+    } else if near(from, 0.0) {
+        said.push(format!("at {end_name}, {} long", format_length(to - from)));
+    } else if near(to, length) {
+        said.push(format!("at {other_end}, {} long", format_length(to - from)));
     } else {
-        said.push(format!("{} from the left end, {} long", format_length(lo[l]), format_length(hi[l] - lo[l])));
+        said.push(format!("{} from {end_name}, {} long", format_length(from), format_length(to - from)));
     }
     // Across the width, from the reference edge.
     let (edge_far, edge_name) = match edge.filter(|s| s.axis.index() == w) {
@@ -369,7 +402,42 @@ fn where_is((lo, hi): (DVec3, DVec3), [l, w, t]: [usize; 3], [length, width, thi
 struct Marks {
     face: Option<crate::part::Side>,
     edge: Option<crate::part::Side>,
+    end: Option<crate::part::Side>,
     cuts: Vec<(DVec3, DVec3)>,
+    /// Edge profiles: what each is, and the box edges it runs along (the part's own coordinates).
+    profiles: Vec<(String, Vec<[DVec3; 2]>)>,
+}
+
+/// The box edges a profile runs along, in the part's own coordinates (see [`crate::profile::Edges`]).
+fn profile_edges(model: &Model, edges: &crate::profile::Edges) -> Vec<[DVec3; 2]> {
+    let Some((lo, hi)) = model.bounds() else { return Vec::new() };
+    let corner = |coords: [(usize, f64); 3]| {
+        let mut p = DVec3::ZERO;
+        for (axis, v) in coords {
+            p[axis] = v;
+        }
+        p
+    };
+    match *edges {
+        crate::profile::Edges::AroundFace { axis, positive, sides } => {
+            let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
+            let z = if positive { hi[axis] } else { lo[axis] };
+            // `[u-, u+, v-, v+]`: the edges along v at each end of u, then along u at each end of v.
+            let along_v = |at: f64| [corner([(axis, z), (u, at), (v, lo[v])]), corner([(axis, z), (u, at), (v, hi[v])])];
+            let along_u = |at: f64| [corner([(axis, z), (v, at), (u, lo[u])]), corner([(axis, z), (v, at), (u, hi[u])])];
+            let all = [along_v(lo[u]), along_v(hi[u]), along_u(lo[v]), along_u(hi[v])];
+            all.into_iter().zip(sides).filter(|(_, on)| *on).map(|(e, _)| e).collect()
+        }
+        crate::profile::Edges::Along { axis, corners } => {
+            let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
+            let at = [(lo[u], lo[v]), (hi[u], lo[v]), (hi[u], hi[v]), (lo[u], hi[v])];
+            at.into_iter()
+                .zip(corners)
+                .filter(|(_, on)| *on)
+                .map(|((cu, cv), _)| [corner([(u, cu), (v, cv), (axis, lo[axis])]), corner([(u, cu), (v, cv), (axis, hi[axis])])])
+                .collect()
+        }
+    }
 }
 
 /// One cut (or addition, like a tenon) a joint made on a part's design.
@@ -410,14 +478,22 @@ fn cuts(scene: &Scene, def: DefinitionId) -> Vec<Cut> {
     let mut out = Vec::new();
     for (ops, joints) in cuts {
         let joint = joints[0];
-        let mut others: Vec<String> = Vec::new();
+        // Which parts it takes, and on how many of the copies (one leg's mortise holds a front
+        // apron on two legs and a side apron on the other two).
+        let mut others: Vec<(String, usize)> = Vec::new();
         for j in joints.iter().filter(|j| j.kind == joint.kind && (j.into == def) == (joint.into == def) && j.detail == joint.detail) {
             let other = name(if j.cut == def { j.into } else { j.cut });
-            if !others.contains(&other) {
-                others.push(other);
+            match others.iter_mut().find(|(o, _)| *o == other) {
+                Some((_, n)) => *n += 1,
+                None => others.push((other, 1)),
             }
         }
-        let other = others.join(" or ");
+        let other = others.iter().map(|(o, _)| o.as_str()).collect::<Vec<_>>().join(" or ");
+        // The list of where the cuts are says which copies take which.
+        let counted = match others.as_slice() {
+            [(one, _)] => one.clone(),
+            many => many.iter().map(|(o, n)| format!("{o} on {n}")).collect::<Vec<_>>().join(", "),
+        };
         let kind = joint.kind.name().to_lowercase();
         let step = match (joint.kind, joint.into == def) {
             (JointKind::MortiseAndTenon, true) => format!("Cut the mortise for {other} ({}).", joint.detail),
@@ -435,7 +511,7 @@ fn cuts(scene: &Scene, def: DefinitionId) -> Vec<Cut> {
             // The part that fits into another's dado or rabbet: already sized for it.
             (_, false) => format!("Fits into the {kind} in {other} ({}); its size includes that.", joint.detail),
         };
-        let what = format!("{}, {other}", joint.kind.name());
+        let what = format!("{}, {counted}", joint.kind.name());
         // A part let into another (a shelf in a dado) has no cut of its own: its size includes it.
         let ops = if step.starts_with("Fits into") { Vec::new() } else { ops };
         out.push(Cut { step, what, ops, at_end: joint.cut == def && matches!(joint.kind, JointKind::MortiseAndTenon | JointKind::Dovetails) });
@@ -450,6 +526,7 @@ fn cuts(scene: &Scene, def: DefinitionId) -> Vec<Cut> {
 fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thickness]: [f64; 3], boards: Option<(usize, &str)>, marks: &Marks) -> String {
     const ROOM: f64 = 640.0;
     const GAP: f64 = 60.0; // between views, and room for dimensions
+    const ROW: f64 = 16.0; // between rows of a cut's dimensions
     let lo = model.bounds().map_or(DVec3::ZERO, |b| b.0);
     // Points in the part's own scaled axes, from its corner.
     let at = |p: DVec3| (p - lo) * scale;
@@ -458,7 +535,20 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
 
     let face_h = width * s;
     let edge_h = thickness * s;
-    let (x0, y_face) = (GAP, GAP);
+    // Above the face view, a row of dimensions for each cut that isn't the full length.
+    let near = |a: f64, b: f64| (a - b).abs() < 1.0 / 64.0;
+    // Cuts at the same place along it share a row (a leg's two mortises at one corner).
+    let mut rows: Vec<Vec<usize>> = Vec::new();
+    for (n, (lo, hi)) in marks.cuts.iter().enumerate() {
+        if near(lo[l], 0.0) && near(hi[l], length) {
+            continue;
+        }
+        match rows.iter_mut().find(|r| near(marks.cuts[r[0]].0[l], lo[l]) && near(marks.cuts[r[0]].1[l], hi[l])) {
+            Some(row) => row.push(n),
+            None => rows.push(vec![n]),
+        }
+    }
+    let (x0, y_face) = (GAP, GAP + ROW * rows.len() as f64);
     let y_edge = y_face + face_h + GAP;
     let x_end = x0 + length * s + GAP;
     let total_w = x_end + width * s + GAP;
@@ -539,6 +629,7 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
         let _ = write!(svg, r##"<line class="reference" x1="{x0:.1}" y1="{face_y:.1}" x2="{:.1}" y2="{face_y:.1}" stroke="{blue}" stroke-width="3"/>"##, x0 + length * s);
         let _ = write!(svg, r##"<text x="{:.1}" y="{:.1}" fill="{blue}">ref. face</text>"##, x0 + length * s + 4.0, face_y + 4.0);
     }
+    let mut across_used: Vec<f64> = Vec::new();
     for (n, (lo, hi)) in marks.cuts.iter().enumerate() {
         let (cx, cy) = (x0 + (lo[l] + hi[l]) / 2.0 * s, y_face + face_h - (lo[w] + hi[w]) / 2.0 * s);
         let _ = write!(
@@ -550,9 +641,93 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
         // From the reference edge (or the bottom edge) to the cut's near side, just left of it.
         let near = if edge_far { y_face + face_h - hi[w] * s } else { y_face + face_h - lo[w] * s };
         if (near - edge_y).abs() > 2.0 {
-            let x = (x0 + lo[l] * s - 8.0).max(x0 + 4.0);
+            // Stepped aside from another cut's at the same place.
+            let mut x = (x0 + lo[l] * s - 8.0).max(x0 + 4.0);
+            while across_used.iter().any(|u: &f64| (u - x).abs() < 1.0) {
+                x -= 26.0;
+            }
+            across_used.push(x);
             dimension(&mut svg, DVec2::new(x, edge_y), DVec2::new(x, near), &format_length((near - edge_y).abs() / s));
         }
+    }
+    // The woodworker's marks: the face mark's loop on the face view, its tail to the reference
+    // edge; the edge mark's caret on the edge view, pointing to the reference face.
+    let polyline = |svg: &mut String, points: Vec<DVec2>, class: &str| {
+        let d: Vec<String> = points.iter().map(|p| format!("{:.1},{:.1}", p.x, p.y)).collect();
+        let _ = write!(svg, r##"<polyline class="{class}" points="{}" fill="none" stroke="{blue}" stroke-width="1.5"/>"##, d.join(" "));
+    };
+    if marks.face.is_some() {
+        let tail = if edge_far { width * 0.45 } else { -width * 0.45 };
+        let mark = crate::part::face_mark(length.min(width) * 0.12, tail);
+        polyline(&mut svg, mark.iter().map(|p| DVec2::new(x0 + (length / 2.0 + p.x) * s, y_face + face_h - (width / 2.0 + p.y) * s)).collect(), "face-mark");
+    }
+    if marks.edge.is_some() {
+        let mark = crate::part::edge_mark(thickness * 0.35, if face_far { 1.0 } else { -1.0 });
+        polyline(&mut svg, mark.iter().map(|p| DVec2::new(x0 + (length / 2.0 + p.x) * s, y_edge + edge_h - (thickness / 2.0 + p.y) * s)).collect(), "edge-mark");
+    }
+    // Edge profiles: their edges in orange, where a view sees them from the front, each named
+    // once beside its first edge.
+    let orange = "#c8641e";
+    let extent = |axis: usize| if axis == l { length } else if axis == w { width } else { thickness };
+    let views_on: [(usize, usize, usize, f64, f64, f64, f64); 3] =
+        [(l, w, t, 1.0, x0, y_face, face_h), (l, t, w, -1.0, x0, y_edge, edge_h), (w, t, l, 1.0, x_end, y_edge, edge_h)];
+    for (label, edges) in &marks.profiles {
+        let mut named = false;
+        for &(across, up, depth, toward, ox, oy, height) in &views_on {
+            let flat = |p: DVec3| DVec2::new(ox + p[across] * s, oy + height - p[up] * s);
+            let front = if toward > 0.0 { extent(depth) } else { 0.0 };
+            for [a, b] in edges {
+                let (pa, pb) = (at(*a), at(*b));
+                let (fa, fb) = (flat(pa), flat(pb));
+                if fa.distance(fb) < 2.0 || !(near(pa[depth], front) && near(pb[depth], front)) {
+                    continue;
+                }
+                let _ = write!(svg, r##"<line class="profile" x1="{:.1}" y1="{:.1}" x2="{:.1}" y2="{:.1}" stroke="{orange}" stroke-width="3" opacity="0.8"/>"##, fa.x, fa.y, fb.x, fb.y);
+                if !named {
+                    named = true;
+                    let mid = (fa + fb) / 2.0;
+                    let _ = write!(svg, r##"<text x="{:.1}" y="{:.1}" fill="{orange}" text-anchor="middle">{}</text>"##, mid.x, mid.y + 14.0, esc(label));
+                }
+            }
+        }
+    }
+    // The reference end (or the left end as drawn), on the face view.
+    let end_far = marks.end.filter(|e| e.axis.index() == l).is_some_and(|e| e.positive);
+    let end_x = if end_far { x0 + length * s } else { x0 };
+    if marks.end.is_some() {
+        let _ = write!(svg, r##"<line class="reference" x1="{end_x:.1}" y1="{y_face:.1}" x2="{end_x:.1}" y2="{:.1}" stroke="{blue}" stroke-width="3"/>"##, y_face + face_h);
+        let _ = write!(svg, r##"<text x="{end_x:.1}" y="{:.1}" text-anchor="middle" fill="{blue}">ref. end</text>"##, y_face + face_h + 26.0);
+    }
+    // Each cut's place along the length, a row apiece above the face (numbered as on the face):
+    // from the end to its near side, then how long it is; and on the edge view, how deep it goes
+    // from the reference face (unless it goes through).
+    for (row, cuts) in rows.iter().enumerate() {
+        let (lo, hi) = marks.cuts[cuts[0]];
+        let y = y_face - 16.0 - ROW * (row + 1) as f64;
+        let (from, to) = (x0 + lo[l] * s, x0 + hi[l] * s);
+        let close_side = if end_far { to } else { from };
+        let _ = write!(svg, r##"<text x="{:.1}" y="{:.1}" text-anchor="end" fill="{blue}">{}</text>"##, x0 - 22.0, y + 4.0, cuts.iter().map(|n| (n + 1).to_string()).collect::<Vec<_>>().join(", "));
+        if (close_side - end_x).abs() > 2.0 {
+            dimension(&mut svg, DVec2::new(end_x.min(close_side), y), DVec2::new(end_x.max(close_side), y), &format_length((close_side - end_x).abs() / s));
+        }
+        dimension(&mut svg, DVec2::new(from, y), DVec2::new(to, y), &format_length(hi[l] - lo[l]));
+    }
+    // Depths, from the face each cut opens on (a cut through, or inside, like a mortise in an
+    // edge, has none here), beside the cut; each depth once per place.
+    let mut drawn: Vec<(f64, f64, f64)> = Vec::new();
+    for (lo, hi) in &marks.cuts {
+        let y = |v: f64| y_edge + edge_h - v * s;
+        let (open, far) = match (near(lo[t], 0.0), near(hi[t], thickness)) {
+            (true, false) => (y(0.0), y(hi[t])),
+            (false, true) => (y(thickness), y(lo[t])),
+            _ => continue,
+        };
+        let x = if x0 + lo[l] * s - 8.0 > x0 + 4.0 { x0 + lo[l] * s - 6.0 } else { x0 + hi[l] * s + 6.0 };
+        if (far - open).abs() <= 2.0 || drawn.iter().any(|&(dx, a, b)| (dx - x).abs() < 1.0 && (a - open).abs() < 0.5 && (b - far).abs() < 0.5) {
+            continue;
+        }
+        drawn.push((x, open, far));
+        dimension(&mut svg, DVec2::new(x, open.max(far)), DVec2::new(x, open.min(far)), &format_length((far - open).abs() / s));
     }
     // Overall dimensions.
     dimension(&mut svg, DVec2::new(x0, y_face - 16.0), DVec2::new(x0 + length * s, y_face - 16.0), &format_length(length));
@@ -618,6 +793,9 @@ fn dimension(svg: &mut String, a: DVec2, b: DVec2, text: &str) {
     let mid = (a + b) / 2.0;
     if dir.x.abs() >= dir.y.abs() {
         let _ = write!(svg, r#"<text x="{:.1}" y="{:.1}" text-anchor="middle">{}</text>"#, mid.x, mid.y - 4.0, esc(text));
+    } else if a.distance(b) < 32.0 {
+        // Too short to write along: level, beside it.
+        let _ = write!(svg, r#"<text x="{:.1}" y="{:.1}" text-anchor="end">{}</text>"#, mid.x - 6.0, mid.y + 4.0, esc(text));
     } else {
         let _ = write!(
             svg,
@@ -723,6 +901,8 @@ mod tests {
         assert_eq!(html.matches("<section class=\"sheet\">").count(), 1);
         assert!(html.contains("Make 4, all the same"));
         assert!(html.contains("Rout the edges: 1/8\" Chamfer, 4 edges."));
+        // The chamfered edges drawn on the views, and named.
+        assert!(html.contains("class=\"profile\"") && html.contains(">1/8\" chamfer<"), "{html}");
     }
 
     #[test]
@@ -757,10 +937,37 @@ mod tests {
         let after = html(&doc);
         assert!(after.contains("Dado, Shelf: 12\" from the left end, 3/4\" long; across the full width; 1/4\" deep from the reference face."), "{after}");
         assert_eq!(after.matches("class=\"reference\"").count(), 2, "the face and edge marked");
+        assert!(after.contains("class=\"face-mark\"") && after.contains("class=\"edge-mark\""), "the woodworker's marks");
         assert!(after.contains("class=\"cut-number\""));
+        // The dado's place along the side and its depth, dimensioned on the views.
+        let svg = &after[after.find("Side</h2>").unwrap_or(0)..];
+        let svg = &svg[..svg.find("</svg>").unwrap()];
+        assert!(svg.contains(">12\"<") && svg.contains(">3/4\"<") && svg.contains(">1/4\"<"), "12\" to the dado, 3/4\" wide, 1/4\" deep: {svg}");
+        // Measured from the other end once it's the reference end.
+        doc.edit_part(side, |p| p.reference_end = Some(Side { axis: PartAxis::X, positive: true }));
+        let from_end = html(&doc);
+        assert!(from_end.contains("Dado, Shelf: 17 1/4\" from the reference end, 3/4\" long"), "{from_end}");
+        assert_eq!(from_end.matches("class=\"reference\"").count(), 3, "face, edge and end marked");
         // The shelf, let in, has no cut of its own to place.
         let shelf_sheet = &after[after.find("Shelf</h2>").unwrap()..];
         assert!(!shelf_sheet[..shelf_sheet.find("</section>").unwrap()].contains("Where the cuts are"));
+    }
+
+    #[test]
+    fn parts_alike_but_drawn_a_little_differently_share_a_sheet() {
+        let mut doc = Document::default();
+        let a = board(&mut doc, DVec3::ZERO, DVec3::X, DVec3::Y, [20.0, 5.0, 0.75]);
+        let b = board(&mut doc, DVec3::new(0.0, 10.0, 0.0), DVec3::X, DVec3::Y, [20.0, 5.0, 0.75]);
+        doc.rename_instance(a, "Slat");
+        doc.rename_instance(b, "Slat");
+        // A seam drawn across one's top: its top is two faces now, same shape.
+        doc.enter(b);
+        doc.edit(|m| m.add_line(DVec3::new(8.0, 0.0, 0.75), DVec3::new(8.0, 5.0, 0.75)));
+        assert_eq!(doc.model().faces().count(), 7, "the seam split its top");
+        doc.exit();
+        let html = to_html(doc.scene(), &crate::cutlist::cut_list(doc.scene()), "Rack");
+        assert_eq!(html.matches("Slat</h2>").count(), 1, "one sheet: {html}");
+        assert!(html.contains("Make 2, all the same"));
     }
 
     #[test]
@@ -798,6 +1005,7 @@ mod tests {
         let leg = &leg[..leg.find("</section>").unwrap()];
         assert_eq!(leg.matches("Cut the mortise").count(), 1, "one step for the leg's two mortises, not eight: {leg}");
         assert!(leg.contains("In 2 places."), "{leg}");
+        assert!(leg.contains("Side apron on ") && leg.contains("Front and back apron on "), "which legs take which: {leg}");
         assert!(html.contains("Cut the tenon that goes into Leg") && html.contains("At both ends."));
     }
 }

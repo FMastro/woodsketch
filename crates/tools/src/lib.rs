@@ -235,6 +235,8 @@ pub struct Overlay {
     /// The selected part's reference face (an outline just inside it) and edge (a line along it).
     pub reference_face: Option<[DVec3; 4]>,
     pub reference_edge: Option<[DVec3; 2]>,
+    /// The face mark, edge mark and end line on it.
+    pub reference_symbols: Vec<Vec<DVec3>>,
     /// Dashed lines: the box around the group being edited, a circle's line to the point it goes through.
     pub dashed: Vec<[DVec3; 2]>,
     /// Guides to preview or highlight (the drawing's own guides are drawn by the renderer), and
@@ -1116,7 +1118,7 @@ impl Tools {
 
     pub fn status(&self) -> String {
         if self.picking_reference.is_some() && self.message.is_none() {
-            return "Click the part's reference face (a wide face) or edge (a long edge). Esc stops.".into();
+            return "Click the part's reference face (a wide face), edge (a long edge) or end. Esc stops.".into();
         }
         if let Some(message) = &self.message {
             return message.clone();
@@ -1213,7 +1215,8 @@ impl Tools {
         let selected: Vec<woodsketch_doc::Entity> = doc.selection().iter().collect();
         if let [woodsketch_doc::Entity::Instance(part)] = selected[..] {
             overlay.grain = doc.grain_line(part);
-            (overlay.reference_face, overlay.reference_edge) = doc.reference_marks(part);
+            let marks = doc.reference_marks(part);
+            (overlay.reference_face, overlay.reference_edge, overlay.reference_symbols) = (marks.face, marks.edge, marks.symbols);
         }
         if let Some((lo, hi)) = doc.editing_box() {
             // Just outside the geometry, so the box doesn't hide behind the group's own edges.

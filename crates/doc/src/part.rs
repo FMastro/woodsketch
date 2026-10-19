@@ -4,7 +4,7 @@
 //!
 //! Stored on the definition, so every copy of a component shares it.
 
-use glam::{DMat3, DVec3};
+use glam::{DMat3, DVec2, DVec3};
 use serde::{Deserialize, Serialize};
 
 use crate::{Definition, Scene};
@@ -38,6 +38,31 @@ impl PartAxis {
 pub struct Side {
     pub axis: PartAxis,
     pub positive: bool,
+}
+
+/// The woodworker's face mark, drawn on the reference face: a loop of radius `r` with its tail
+/// running to the reference edge, `tail` from the face's middle across the width (its sign says
+/// which edge). Points are (along the length, across the width) from the middle.
+pub fn face_mark(r: f64, tail: f64) -> Vec<DVec2> {
+    let d = if tail < 0.0 { -1.0 } else { 1.0 };
+    let center = DVec2::new(0.0, -d * r * 0.5);
+    // Round from the side nearest the edge, then down to it.
+    let mut points: Vec<DVec2> = (0..=24)
+        .map(|i| {
+            let a = std::f64::consts::FRAC_PI_2 * d + std::f64::consts::TAU * f64::from(i) / 24.0;
+            center + DVec2::new(a.cos(), a.sin()) * r
+        })
+        .collect();
+    points.push(DVec2::new(0.0, tail));
+    points
+}
+
+/// The edge mark, drawn on the reference edge: a caret `r` across whose point is toward the
+/// reference face (`toward`: +1 or -1 across the thickness). Points are (along the length, across
+/// the thickness) from the edge's middle.
+pub fn edge_mark(r: f64, toward: f64) -> Vec<DVec2> {
+    let d = if toward < 0.0 { -1.0 } else { 1.0 };
+    vec![DVec2::new(-r, -d * r), DVec2::new(0.0, d * r), DVec2::new(r, -d * r)]
 }
 
 impl Side {
@@ -177,6 +202,10 @@ pub struct PartInfo {
     /// The edge measured from (the edge mark): one of its two long edges.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reference_edge: Option<Side>,
+    /// The end lengths are measured from: one of its two ends. `None`: the left end as the build
+    /// sheet draws it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reference_end: Option<Side>,
     /// Fastened so it can move across its grain (tabletop buttons, figure-8s, screws in slotted
     /// holes) rather than glued or screwed solid: the movement check lets it move.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -226,6 +255,15 @@ impl Scene {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn the_face_mark_runs_to_the_edge_and_the_edge_mark_points_to_the_face() {
+        let loop_ = face_mark(1.0, -5.0);
+        assert_eq!(*loop_.last().unwrap(), DVec2::new(0.0, -5.0), "its tail reaches the edge");
+        assert!(loop_.first().unwrap().distance(loop_[loop_.len() - 2]) < 1e-9, "a closed loop first");
+        let caret = edge_mark(1.0, 1.0);
+        assert!(caret[1].y > caret[0].y && caret[1].y > caret[2].y, "point toward the face");
+    }
+
     use super::*;
 
     #[test]

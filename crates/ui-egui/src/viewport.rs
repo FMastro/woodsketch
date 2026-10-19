@@ -635,6 +635,11 @@ fn draw_overlay(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera,
         painter.line_segment([a, b], egui::Stroke::new(3.0, mark));
         tag(painter, a + (b - a) * 0.8 + egui::vec2(0.0, 14.0), "Reference edge");
     }
+    for symbol in &overlay.reference_symbols {
+        if let Some(points) = symbol.iter().map(|p| screen(*p)).collect::<Option<Vec<_>>>() {
+            painter.add(egui::Shape::line(points, egui::Stroke::new(2.0, mark)));
+        }
+    }
 
     // The box around the group being edited, dashed as in SketchUp.
     let dashed = egui::Stroke::new(1.0, gray(painter, 70));

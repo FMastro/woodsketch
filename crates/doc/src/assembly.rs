@@ -52,6 +52,9 @@ struct Member {
     /// Hardware mounted on it: what touches it in the assembly, and, for a sub-assembly without
     /// a page of its own (a slab door), what's in it.
     hardware: BTreeMap<String, u32>,
+    /// Hardware mounted on it and on other members too (a pair of slides on both box sides): the
+    /// others' names, by piece.
+    also_on: BTreeMap<String, Vec<String>>,
 }
 
 impl Member {
@@ -67,6 +70,7 @@ impl Member {
             faces: Vec::new(),
             label: None,
             hardware: BTreeMap::new(),
+            also_on: BTreeMap::new(),
         }
     }
 }
@@ -115,18 +119,19 @@ fn walk(scene: &Scene, list: &CutList, container: &Container, name: &str, world:
         let Some(piece) = scene.definition(instance.definition).and_then(|d| d.hardware.clone()) else { continue };
         let mut placed = Member::new(String::new(), false);
         gather(scene, instance.definition, world * instance.transform, None, &mut placed, 0);
-        let on = members
-            .iter()
-            .enumerate()
-            .map(|(i, m)| (i, m.moves, against(m, &placed)))
-            .filter(|(_, _, area)| *area > 0.0)
-            .max_by(|a, b| a.1.cmp(&b.1).then(a.2.total_cmp(&b.2)))
-            .map(|(i, _, _)| i);
-        let to = match on {
-            Some(i) => &mut members[i].hardware,
-            None => &mut loose,
+        let touching: Vec<(usize, bool, f64)> =
+            members.iter().enumerate().map(|(i, m)| (i, m.moves, against(m, &placed))).filter(|(_, _, area)| *area > 0.0).collect();
+        let on = touching.iter().copied().max_by(|a, b| a.1.cmp(&b.1).then(a.2.total_cmp(&b.2)));
+        let Some((i, moves, area)) = on else {
+            *loose.entry(piece).or_default() += 1;
+            continue;
         };
-        *to.entry(piece).or_default() += 1;
+        // Mounted against others about as much (each slide of a pair on its own box side).
+        let others: Vec<String> = touching.iter().filter(|&&(j, m, a)| j != i && m == moves && a >= area * 0.5).map(|&(j, _, _)| members[j].name.clone()).collect();
+        if !others.is_empty() {
+            members[i].also_on.insert(piece.clone(), others);
+        }
+        *members[i].hardware.entry(piece).or_default() += 1;
     }
     out.push(Assembly { name: name.to_owned(), steps: steps(scene, &members, &loose), svg: exploded(&members) });
     true
@@ -426,9 +431,22 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
     steps
 }
 
-/// `Mount 2 × Bar pull, 5" on E (Drawer front).`
+/// `Mount 2 × Bar pull, 5" on E (Drawer front).`; hardware on several parts names them all: `Mount
+/// 1 × 18" side-mount drawer slides (pair) on both J (Drawer box side).`
 fn mount(m: &Member) -> String {
-    format!("Mount {} on {}.", pieces(&m.hardware), m.name)
+    let mut by_place: Vec<(String, BTreeMap<String, u32>)> = Vec::new();
+    for (piece, count) in &m.hardware {
+        let mut on = vec![m.name.clone()];
+        on.extend(m.also_on.get(piece).cloned().unwrap_or_default());
+        let on = if on.len() == 2 { both(&on) } else { list(&counted(&on)) };
+        match by_place.iter_mut().find(|(o, _)| *o == on) {
+            Some((_, pieces)) => {
+                pieces.insert(piece.clone(), *count);
+            }
+            None => by_place.push((on, BTreeMap::from([(piece.clone(), *count)]))),
+        }
+    }
+    by_place.iter().map(|(on, hardware)| format!("Mount {} on {on}.", pieces(hardware))).collect::<Vec<_>>().join(" ")
 }
 
 /// `2 × Concealed hinge (35 mm cup) and 1 × Knob`.
@@ -510,8 +528,10 @@ fn exploded(members: &[Member]) -> String {
     let middle = (lo + hi) / 2.0;
     let mut polygons: Vec<Polygon> = Vec::new();
     // Each member's label and where its leader points: the middle of its biggest face toward you.
-    let mut labels: Vec<((f64, f64), String)> = Vec::new();
+    let mut labels: Vec<((f64, f64), String, bool)> = Vec::new();
     let mut candidates = Vec::new();
+    // Every face drawn, by the member it's on, for leaders to keep clear of.
+    let mut outlines: Vec<(usize, Vec<(f64, f64)>)> = Vec::new();
     let project = |p: DVec3| (p.dot(right), -p.dot(up));
     for m in members {
         let center = (m.lo + m.hi) / 2.0;
@@ -532,6 +552,7 @@ fn exploded(members: &[Member]) -> String {
             let depth = moved.iter().map(|p| p.dot(toward_eye)).sum::<f64>() / moved.len() as f64;
             let flat: Vec<(f64, f64)> = moved.iter().map(|p| project(*p)).collect();
             faces.push((area(&flat), depth, flat.clone()));
+            outlines.push((candidates.len(), flat.clone()));
             polygons.push((depth, flat, *color, facing));
         }
         faces.sort_by(|a, b| b.0.total_cmp(&a.0));
@@ -540,18 +561,6 @@ fn exploded(members: &[Member]) -> String {
         candidates.push((faces, tag, project(center + shift)));
     }
     polygons.sort_by(|a, b| a.0.total_cmp(&b.0));
-    // Each leader points at a spot you can see: on the member's biggest face that isn't covered
-    // there by something nearer (its middle, or partway toward a corner).
-    for (faces, tag, fallback) in candidates {
-        let spot = faces.iter().find_map(|(_, depth, outline)| {
-            let n = outline.len() as f64;
-            let middle = (outline.iter().map(|p| p.0).sum::<f64>() / n, outline.iter().map(|p| p.1).sum::<f64>() / n);
-            std::iter::once(middle)
-                .chain(outline.iter().map(|c| (middle.0 + (c.0 - middle.0) * 0.6, middle.1 + (c.1 - middle.1) * 0.6)))
-                .find(|&p| inside(outline, p) && !polygons.iter().any(|(d, other, _, _)| *d > depth + 1e-6 && inside(other, p)))
-        });
-        labels.push((spot.unwrap_or(fallback), tag));
-    }
     let (mut x0, mut y0, mut x1, mut y1) = (f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
     for (_, points, _, _) in &polygons {
         for &(x, y) in points {
@@ -572,13 +581,53 @@ fn exploded(members: &[Member]) -> String {
     let gap = 2.0 * size;
     let middle_x = (x0 + x1) / 2.0;
     let width = |tag: &str| if tag.chars().count() <= 2 { 1.8 * size } else { 0.6 * size * tag.chars().count() as f64 + size };
+    // Each leader points at a spot you can see on its member (the middle of a face, or partway
+    // toward a corner, not covered there by something nearer), from the column on one side; the
+    // spot and side whose leader crosses the fewest other members, the biggest face first.
+    let crossings = |owner: usize, from: (f64, f64), to: (f64, f64)| -> usize {
+        let mut hit: Vec<usize> = Vec::new();
+        for k in 1..24 {
+            let t = f64::from(k) / 24.0;
+            let p = (from.0 + (to.0 - from.0) * t, from.1 + (to.1 - from.1) * t);
+            for (o, outline) in &outlines {
+                if *o != owner && !hit.contains(o) && inside(outline, p) {
+                    hit.push(*o);
+                }
+            }
+        }
+        hit.len()
+    };
+    for (owner, (faces, tag, fallback)) in candidates.into_iter().enumerate() {
+        let spots: Vec<(f64, f64)> = faces
+            .iter()
+            .flat_map(|(_, depth, outline)| {
+                let n = outline.len() as f64;
+                let middle = (outline.iter().map(|p| p.0).sum::<f64>() / n, outline.iter().map(|p| p.1).sum::<f64>() / n);
+                std::iter::once(middle)
+                    .chain(outline.iter().map(move |c| (middle.0 + (c.0 - middle.0) * 0.6, middle.1 + (c.1 - middle.1) * 0.6)))
+                    .filter(|&p| inside(outline, p) && !polygons.iter().any(|(d, other, _, _)| *d > depth + 1e-6 && inside(other, p)))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        let best = spots
+            .iter()
+            .enumerate()
+            .flat_map(|(rank, &spot)| [true, false].map(|left| (rank, spot, left)))
+            .min_by_key(|&(rank, spot, left)| {
+                let edge = if left { x0 } else { x1 };
+                // Fewest crossings; then the nearer side; then the biggest face.
+                (crossings(owner, (edge, spot.1), spot), (spot.0 < middle_x) != left, rank)
+            });
+        let (spot, left) = best.map_or((fallback, fallback.0 < middle_x), |(_, spot, left)| (spot, left));
+        labels.push((spot, tag, left));
+    }
     let mut placed: Vec<Label> = Vec::new();
     let (mut bx0, mut by0, mut bx1, mut by1) = (x0, y0, x1, y1);
     for left in [true, false] {
-        let mut side: Vec<&((f64, f64), String)> = labels.iter().filter(|(a, _)| (a.0 < middle_x) == left).collect();
+        let mut side: Vec<&((f64, f64), String, bool)> = labels.iter().filter(|(_, _, l)| *l == left).collect();
         side.sort_by(|a, b| a.0.1.total_cmp(&b.0.1));
         let mut next = f64::NEG_INFINITY;
-        for (anchor, tag) in side {
+        for (anchor, tag, _) in side {
             let y = anchor.1.max(next);
             next = y + 2.2 * size;
             let w = width(tag);
@@ -627,7 +676,7 @@ fn exploded(members: &[Member]) -> String {
         }
         let _ = write!(
             svg,
-            r#"<text x="{x:.3}" y="{:.3}" font-size="{size:.3}" text-anchor="middle" font-family="sans-serif" font-weight="bold">{}</text>"#,
+            r#"<text x="{x:.3}" y="{:.3}" style="font: bold {size:.3}px sans-serif" text-anchor="middle">{}</text>"#,
             y + size * 0.35,
             crate::buildsheet::esc(tag)
         );
@@ -722,7 +771,7 @@ mod tests {
         // Hardware at the step it's used: hinges as a door is hung, slides on the box's sides.
         assert!(text.contains("Hang Door on its hinges: ") && text.contains("Concealed hinge"), "{text}");
         let drawer = all.iter().find(|a| a.name == "Drawer").unwrap().steps.join("\n");
-        assert!(drawer.contains("slides (pair) on ") && drawer.lines().any(|l| l.contains("slides") && l.ends_with("(Drawer box side).")), "on the box, not its front: {drawer}");
+        assert!(drawer.contains("slides (pair) on both ") && drawer.lines().any(|l| l.contains("slides") && l.ends_with("(Drawer box side).")), "on both box sides, not its front: {drawer}");
         assert!(drawer.lines().any(|l| l.contains("Bar pull") && l.ends_with("(Drawer front).")), "{drawer}");
         assert!(!text.contains("Install the hardware") && !drawer.contains("Install the hardware"), "nothing left over");
         // Each part or sub-assembly labeled, with a leader line to it.
