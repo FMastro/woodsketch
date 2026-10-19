@@ -73,6 +73,8 @@ h2 {{ font-size: 18px; margin: 0 0 2px; }}
 .sheet {{ margin-bottom: 36px; }}
 .facts td {{ padding: 1px 12px 1px 0; vertical-align: top; }}
 .facts td:first-child {{ color: #666; }}
+.cuts {{ border-collapse: collapse; margin: 4px 0 8px; }}
+.cuts th, .cuts td {{ border: 1px solid #ccc; padding: 2px 8px; text-align: left; vertical-align: top; }}
 ol {{ margin: 6px 0 0 20px; padding: 0; }}
 li {{ margin: 2px 0; }}
 svg {{ display: block; margin: 10px 0; }}
@@ -290,11 +292,23 @@ fn write_sheet(html: &mut String, scene: &Scene, sheet: &Sheet, label: &str, row
             (Some(_), Some(_), None) => "from the reference face and edge (marked in blue) and the left end as drawn",
             _ => "from the bottom face and edge and the left end as drawn (pick the reference face and edge in Entity Info to measure from them)",
         };
-        let _ = writeln!(html, "<b>Where the cuts are</b> <span class=\"meta\">{}</span><ol>", esc(from));
-        for (what, b) in &placed {
-            let _ = writeln!(html, "<li>{}: {}.</li>", esc(what), esc(&where_is(*b, axes, [length, width, thickness], &marks)));
+        let _ = writeln!(html, "<b>Where the cuts are</b> <span class=\"meta\">{}</span>", esc(from));
+        if cut_rows(&marks.cuts, axes[0], length).len() > MAX_ROWS {
+            // Too many to dimension on the views: a table, by the numbers on the face view.
+            html.push_str("<table class=\"cuts\"><tr><th>#</th><th>Cut</th><th>Along the length</th><th>Across the width</th><th>Into the thickness</th></tr>\n");
+            for (n, (what, b)) in placed.iter().enumerate() {
+                let place = where_is(*b, axes, [length, width, thickness], &marks);
+                let cells: String = place.split("; ").map(|c| format!("<td>{}</td>", esc(c))).collect();
+                let _ = writeln!(html, "<tr><td>{}</td><td>{}</td>{cells}</tr>", n + 1, esc(what));
+            }
+            html.push_str("</table>\n");
+        } else {
+            html.push_str("<ol>");
+            for (what, b) in &placed {
+                let _ = writeln!(html, "<li>{}: {}.</li>", esc(what), esc(&where_is(*b, axes, [length, width, thickness], &marks)));
+            }
+            html.push_str("</ol>\n");
         }
-        html.push_str("</ol>\n");
     }
 
     html.push_str("<b>Steps</b><ol>\n");
@@ -539,18 +553,13 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
 
     let face_h = width * s;
     let edge_h = thickness * s;
-    // Above the face view, a row of dimensions for each cut that isn't the full length.
     let near = |a: f64, b: f64| (a - b).abs() < 1.0 / 64.0;
-    // Cuts at the same place along it share a row (a leg's two mortises at one corner).
-    let mut rows: Vec<Vec<usize>> = Vec::new();
-    for (n, (lo, hi)) in marks.cuts.iter().enumerate() {
-        if near(lo[l], 0.0) && near(hi[l], length) {
-            continue;
-        }
-        match rows.iter_mut().find(|r| near(marks.cuts[r[0]].0[l], lo[l]) && near(marks.cuts[r[0]].1[l], hi[l])) {
-            Some(row) => row.push(n),
-            None => rows.push(vec![n]),
-        }
+    // Above the face view, a row of dimensions for each place a cut is along it; too many to read
+    // (crowded), they're left to the table under the views, and the cuts only numbered.
+    let mut rows = cut_rows(&marks.cuts, l, length);
+    let crowded = rows.len() > MAX_ROWS;
+    if crowded {
+        rows.clear();
     }
     let (x0, y_face) = (GAP, GAP + ROW * rows.len() as f64);
     let y_edge = y_face + face_h + GAP;
@@ -644,7 +653,7 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
         );
         // From the reference edge (or the bottom edge) to the cut's near side, just left of it.
         let near = if edge_far { y_face + face_h - hi[w] * s } else { y_face + face_h - lo[w] * s };
-        if (near - edge_y).abs() > 2.0 {
+        if !crowded && (near - edge_y).abs() > 2.0 {
             // Stepped aside from another cut's at the same place.
             let mut x = (x0 + lo[l] * s - 8.0).max(x0 + 4.0);
             while across_used.iter().any(|u: &f64| (u - x).abs() < 1.0) {
@@ -719,7 +728,7 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
     // Depths, from the face each cut opens on (a cut through, or inside, like a mortise in an
     // edge, has none here), beside the cut; each depth once per place.
     let mut drawn: Vec<(f64, f64, f64)> = Vec::new();
-    for (lo, hi) in &marks.cuts {
+    for (lo, hi) in marks.cuts.iter().filter(|_| !crowded) {
         let y = |v: f64| y_edge + edge_h - v * s;
         let (open, far) = match (near(lo[t], 0.0), near(hi[t], thickness)) {
             (true, false) => (y(0.0), y(hi[t])),
@@ -743,6 +752,26 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
     }
     svg.push_str("</svg>\n");
     svg
+}
+
+/// Past this many rows of cut dimensions, the sheet gives a table of where the cuts are instead.
+const MAX_ROWS: usize = 4;
+
+/// Each place along the length (`l`) a cut is, with the cuts there (a leg's two mortises at one
+/// corner share one), leaving out cuts the full length.
+fn cut_rows(cuts: &[(DVec3, DVec3)], l: usize, length: f64) -> Vec<Vec<usize>> {
+    let near = |a: f64, b: f64| (a - b).abs() < 1.0 / 64.0;
+    let mut rows: Vec<Vec<usize>> = Vec::new();
+    for (n, (lo, hi)) in cuts.iter().enumerate() {
+        if near(lo[l], 0.0) && near(hi[l], length) {
+            continue;
+        }
+        match rows.iter_mut().find(|r| near(cuts[r[0]].0[l], lo[l]) && near(cuts[r[0]].1[l], hi[l])) {
+            Some(row) => row.push(n),
+            None => rows.push(vec![n]),
+        }
+    }
+    rows
 }
 
 /// A segment split where it goes in and out of sight: `(from, to, hidden)` as fractions along it,
@@ -973,6 +1002,29 @@ mod tests {
         let html = to_html(doc.scene(), &crate::cutlist::cut_list(doc.scene()), "Rack");
         assert_eq!(html.matches("Slat</h2>").count(), 1, "one sheet: {html}");
         assert!(html.contains("Make 2, all the same"));
+    }
+
+    #[test]
+    fn many_cuts_go_in_a_table_instead_of_crowding_the_views() {
+        let mut doc = Document::default();
+        let side = board(&mut doc, DVec3::ZERO, DVec3::Z, DVec3::Y, [60.0, 11.25, 0.75]);
+        // Six shelves let into one side: six places along it.
+        for k in 0..6 {
+            let shelf = board(&mut doc, DVec3::new(0.0, 0.0, 4.0 + 9.0 * f64::from(k)), DVec3::X, DVec3::Y, [20.0, 11.25, 0.75]);
+            doc.rename_instance(shelf, "Shelf");
+            doc.let_in(shelf, side, 0.25).unwrap();
+        }
+        doc.rename_instance(side, "Side");
+        let html = to_html(doc.scene(), &crate::cutlist::cut_list(doc.scene()), "Shelves");
+        let sheet = &html[html.find("Side</h2>").unwrap()..];
+        let sheet = &sheet[..sheet.find("</section>").unwrap()];
+        assert!(sheet.contains("<table class=\"cuts\">"), "{sheet}");
+        let table = &sheet[sheet.find("<table class=\"cuts\">").unwrap()..];
+        assert_eq!(table[..table.find("</table>").unwrap()].matches("<tr><td>").count(), 6, "a row per dado");
+        assert!(sheet.contains("<td>4\" from the left end, 3/4\" long</td>"), "{sheet}");
+        let svg = &sheet[..sheet.find("</svg>").unwrap()];
+        assert!(!svg.contains(">4\"<"), "not dimensioned on the views");
+        assert_eq!(svg.matches("class=\"cut-number\"").count(), 6, "but numbered");
     }
 
     #[test]

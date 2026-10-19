@@ -268,6 +268,29 @@ fn touching(a: &Member, b: &Member) -> bool {
     boxes && (square(a) && square(b) || face_contact(a, b) > 1e-6)
 }
 
+/// The red, green and blue directions `m` can slide out along without running into any of `others`:
+/// none of them overlaps it across that direction and reaches past it along it.
+fn slide_out<'a>(m: &Member, others: impl Iterator<Item = &'a Member> + Clone) -> Vec<DVec3> {
+    const TOL: f64 = 1e-3;
+    let mut free = Vec::new();
+    for axis in 0..3 {
+        let across = [(axis + 1) % 3, (axis + 2) % 3];
+        for sign in [1.0, -1.0] {
+            let blocked = others.clone().any(|o| {
+                let overlaps = across.iter().all(|&k| o.hi[k].min(m.hi[k]) - o.lo[k].max(m.lo[k]) > TOL);
+                let past = if sign > 0.0 { o.hi[axis] > m.hi[axis] + TOL && o.hi[axis] > m.lo[axis] + TOL } else { o.lo[axis] < m.lo[axis] - TOL && o.lo[axis] < m.hi[axis] - TOL };
+                overlaps && past
+            });
+            if !blocked {
+                let mut d = DVec3::ZERO;
+                d[axis] = sign;
+                free.push(d);
+            }
+        }
+    }
+    free
+}
+
 /// Whether every face of a member is square to the red, green and blue axes.
 fn square(m: &Member) -> bool {
     m.faces.iter().all(|(_, n, _)| n.abs().max_element() > 1.0 - 1e-6)
@@ -380,7 +403,7 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
                 (0..n)
                     .filter(|&j| j != i && !members[i].moves && !members[j].moves && touching(&members[i], &members[j]))
                     .filter(|&j| contact(&members[i], &members[j]) > 1e-6 && !rests(&members[i], &members[j]) && !rests(&members[j], &members[i]))
-                    .map(|j| (j, vec!["butt joint, glued and screwed"]))
+                    .map(|j| (j, vec!["butt joint"]))
                     .collect()
             })
             .collect()
@@ -456,7 +479,14 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
             }
             done[i] = true;
             let to: Vec<String> = joined[i].iter().filter(|(j, _)| done[*j] && *j != i).map(|(j, kinds)| format!("{} ({})", members[*j].name, kinds.join(", ").to_lowercase())).collect();
-            steps.push((format!("Glue {} to {}.", members[i].name, both(&to)), vec![i]));
+            // Butt joints: where the screws go.
+            let screws: Vec<String> = joined[i]
+                .iter()
+                .filter(|(j, kinds)| done[*j] && kinds.contains(&"butt joint"))
+                .map(|(j, _)| butt(&members[i], &members[*j]))
+                .collect();
+            let screws = if screws.is_empty() { String::new() } else { format!(" {}", screws.join(" ")) };
+            steps.push((format!("Glue {} to {}.{screws}", members[i].name, both(&to)), vec![i]));
         }
         if !(0..n).any(|i| !done[i] && !joined[i].is_empty()) {
             break;
@@ -516,6 +546,25 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
         steps.push((format!("Install the hardware: {}.", pieces(loose)), Vec::new()));
     }
     steps
+}
+
+/// How a butt joint between `a` and `b` is fastened, from which faces meet: screwed through the
+/// one whose face lies against the other's end or edge, clamped when they meet face to face, pocket
+/// screws when an end or edge meets an edge.
+fn butt(a: &Member, b: &Member) -> String {
+    let overlap = a.hi.min(b.hi) - a.lo.max(b.lo);
+    // The axis they meet across: where their boxes overlap least.
+    let axis = (0..3).min_by(|&x, &y| overlap[x].total_cmp(&overlap[y])).unwrap_or(2);
+    let size = |m: &Member| m.hi - m.lo;
+    let thinnest = |m: &Member| (0..3).min_by(|&x, &y| size(m)[x].total_cmp(&size(m)[y])).unwrap_or(2);
+    let longest = |m: &Member| (0..3).max_by(|&x, &y| size(m)[x].total_cmp(&size(m)[y])).unwrap_or(0);
+    let grain = |m: &Member| if longest(m) == axis { "end" } else { "edge" };
+    match (thinnest(a) == axis, thinnest(b) == axis) {
+        (true, true) => "Clamp them face to face while the glue sets.".to_owned(),
+        (true, false) => format!("Screw through {} into {}'s {} (or nail it).", a.name, b.name, grain(b)),
+        (false, true) => format!("Screw through {} into {}'s {} (or nail it).", b.name, a.name, grain(a)),
+        (false, false) => format!("Pocket-screw {} to {} from the hidden side.", a.name, b.name),
+    }
 }
 
 /// The same step twice in a row (both side aprons): once, said twice, putting in both.
@@ -615,7 +664,7 @@ fn list(items: &[String]) -> String {
 type Seen = (f64, f64, Vec<(f64, f64)>);
 
 /// A label placed beside the drawing: its center, where its leader points, and its text.
-type Label<'a> = ((f64, f64), (f64, f64), &'a str);
+type Label<'a> = ((f64, f64), (f64, f64), &'a str, usize);
 
 /// A face to draw: its depth (toward the eye), its points on the page, color and how squarely it faces you.
 type Polygon = (f64, Vec<(f64, f64)>, [u8; 3], f64);
@@ -641,7 +690,7 @@ fn drawing(members: &[Member], step: Option<(&[bool], &[usize])>) -> String {
     let middle = (lo + hi) / 2.0;
     let mut polygons: Vec<Polygon> = Vec::new();
     // Each member's label and where its leader points: the middle of its biggest face toward you.
-    let mut labels: Vec<((f64, f64), String, bool)> = Vec::new();
+    let mut labels: Vec<((f64, f64), String, bool, usize)> = Vec::new();
     let mut candidates = Vec::new();
     // Every face drawn, by the member it's on, for leaders to keep clear of.
     let mut outlines: Vec<(usize, Vec<(f64, f64)>)> = Vec::new();
@@ -669,9 +718,16 @@ fn drawing(members: &[Member], step: Option<(&[bool], &[usize])>) -> String {
         } else if old {
             shift = DVec3::ZERO;
         } else if let Some((tlo, thi)) = together.filter(|(l, h)| l.x <= h.x) {
-            // Out from what it goes onto, a third of the whole piece's size.
+            // Out the way it goes in (a shelf out along its dados, an apron out of its mortises):
+            // the red, green or blue way nothing together is in its path, nearest to away from them,
+            // leaning toward the eye; else just away. A fifth of the whole piece's size.
             let away = (center - (tlo + thi) / 2.0).try_normalize().unwrap_or(DVec3::Z);
-            shift = away * (hi - lo).length() * 0.2;
+            let done = step.map_or(&[][..], |(done, _)| done);
+            let way = slide_out(m, members.iter().enumerate().filter(|(j, _)| done.get(*j).copied().unwrap_or(false)).map(|(_, o)| o))
+                .into_iter()
+                .max_by(|a, b| (a.dot(away) + 0.1 * a.dot(toward_eye)).total_cmp(&(b.dot(away) + 0.1 * b.dot(toward_eye))))
+                .unwrap_or(away);
+            shift = way * (hi - lo).length() * 0.2;
         } else {
             shift = DVec3::ZERO;
         }
@@ -758,15 +814,15 @@ fn drawing(members: &[Member], step: Option<(&[bool], &[usize])>) -> String {
                 (crossings(owner, (edge, spot.1), spot), (spot.0 < middle_x) != left, rank)
             });
         let (spot, left) = best.map_or((fallback, fallback.0 < middle_x), |(_, spot, left)| (spot, left));
-        labels.push((spot, tag, left));
+        labels.push((spot, tag, left, owner));
     }
     let mut placed: Vec<Label> = Vec::new();
     let (mut bx0, mut by0, mut bx1, mut by1) = (x0, y0, x1, y1);
     for left in [true, false] {
-        let mut side: Vec<&((f64, f64), String, bool)> = labels.iter().filter(|(_, _, l)| *l == left).collect();
+        let mut side: Vec<&((f64, f64), String, bool, usize)> = labels.iter().filter(|(_, _, l, _)| *l == left).collect();
         side.sort_by(|a, b| a.0.1.total_cmp(&b.0.1));
         let mut next = f64::NEG_INFINITY;
-        for (anchor, tag, _) in side {
+        for (anchor, tag, _, owner) in side {
             let y = anchor.1.max(next);
             next = y + 2.2 * size;
             let w = width(tag);
@@ -775,7 +831,7 @@ fn drawing(members: &[Member], step: Option<(&[bool], &[usize])>) -> String {
             bx1 = bx1.max(x + w / 2.0);
             by0 = by0.min(y - size);
             by1 = by1.max(y + size);
-            placed.push(((x, y), *anchor, tag));
+            placed.push(((x, y), *anchor, tag, *owner));
         }
     }
     let pad = 0.03 * span;
@@ -793,12 +849,30 @@ fn drawing(members: &[Member], step: Option<(&[bool], &[usize])>) -> String {
         let path: Vec<String> = points.iter().map(|(x, y)| format!("{x:.3},{y:.3}")).collect();
         let _ = write!(svg, r##"<polygon points="{}" fill="rgb({},{},{})" stroke="#333" stroke-width="{stroke:.4}" stroke-linejoin="round"/>"##, path.join(" "), c(*r), c(*g), c(*b));
     }
-    for ((x, y), (ax, ay), tag) in placed {
+    for ((x, y), (ax, ay), tag, owner) in placed {
         let w = width(tag);
         let from = if x < middle_x { x + w / 2.0 } else { x - w / 2.0 };
+        // Straight to its spot, unless a bend crosses fewer parts: across then down to it, down the
+        // side first (clear of the drawing) then across, or over the top or under the bottom.
+        let route = |points: &[(f64, f64)]| -> usize { points.windows(2).map(|w| crossings(owner, w[0], w[1])).sum() };
+        let straight = vec![(from, y), (ax, ay)];
+        let (above, below) = (y0 - 1.5 * size, y1 + 1.5 * size);
+        let path = [
+            vec![(from, y), (ax, y), (ax, ay)],
+            vec![(from, y), (from, ay), (ax, ay)],
+            vec![(from, y), (from, above), (ax, above), (ax, ay)],
+            vec![(from, y), (from, below), (ax, below), (ax, ay)],
+        ]
+            .into_iter()
+            .map(|p| (route(&p), p))
+            .filter(|(n, _)| *n < route(&straight))
+            .min_by_key(|(n, _)| *n)
+            .map_or(straight, |(_, p)| p);
+        let points: Vec<String> = path.iter().map(|(px, py)| format!("{px:.3},{py:.3}")).collect();
         let _ = write!(
             svg,
-            r##"<g class="leader"><line x1="{from:.3}" y1="{y:.3}" x2="{ax:.3}" y2="{ay:.3}" stroke="#222" stroke-width="{:.4}"/><circle cx="{ax:.3}" cy="{ay:.3}" r="{:.3}" fill="#222"/></g>"##,
+            r##"<g class="leader"><polyline points="{}" fill="none" stroke="#222" stroke-width="{:.4}"/><circle cx="{ax:.3}" cy="{ay:.3}" r="{:.3}" fill="#222"/></g>"##,
+            points.join(" "),
             stroke * 1.2,
             size * 0.18
         );
@@ -878,6 +952,49 @@ mod tests {
     }
 
     #[test]
+    fn a_shelf_slides_out_along_its_dados() {
+        let part = |lo: DVec3, hi: DVec3| {
+            let mut m = Member::new("Part".into(), false);
+            (m.lo, m.hi) = (lo, hi);
+            m
+        };
+        // Two sides 3/4" thick, 11 1/4" deep, 30" tall; a shelf let 1/4" into each.
+        let left = part(DVec3::ZERO, DVec3::new(0.75, 11.25, 30.0));
+        let right = part(DVec3::new(20.25, 0.0, 0.0), DVec3::new(21.0, 11.25, 30.0));
+        let shelf = part(DVec3::new(0.5, 0.0, 12.0), DVec3::new(20.5, 11.25, 12.75));
+        let both = slide_out(&shelf, [&left, &right].into_iter());
+        assert_eq!(both, vec![DVec3::Y, -DVec3::Y], "front or back, not up, down or sideways");
+        // With only the right side on, it also comes off to the left.
+        let one = slide_out(&shelf, [&right].into_iter());
+        assert!(one.contains(&-DVec3::X) && !one.contains(&DVec3::X), "{one:?}");
+    }
+
+    #[test]
+    fn a_leader_bends_around_parts_in_its_way() {
+        // A short block between two tall walls, all facing the eye: from either side, a straight
+        // leader to the block crosses a wall.
+        let toward_eye = DVec3::new(-0.433, -0.75, 0.5).normalize();
+        let slab = |x0: f64, x1: f64, z0: f64, z1: f64| {
+            let r = DVec3::Z.cross(toward_eye).normalize();
+            let u = toward_eye.cross(r);
+            let points: Vec<DVec3> = [(x0, z0), (x1, z0), (x1, z1), (x0, z1)].iter().map(|&(a, b)| r * a + u * b).collect();
+            let mut m = Member::new("Part".into(), false);
+            m.faces.push((points.clone(), toward_eye, [200, 150, 100]));
+            (m.lo, m.hi) = points.iter().fold((DVec3::splat(f64::INFINITY), DVec3::splat(f64::NEG_INFINITY)), |(lo, hi), p| (lo.min(*p), hi.max(*p)));
+            m
+        };
+        let mut members = vec![slab(-10.0, -6.0, -20.0, 20.0), slab(-1.0, 1.0, -1.0, 1.0), slab(6.0, 10.0, -20.0, 20.0)];
+        for (k, m) in members.iter_mut().enumerate() {
+            m.label = Some(["A", "B", "C"][k].to_owned());
+        }
+        let svg = drawing(&members, None);
+        // B's leader: the one ending at its middle (x = 0).
+        let leaders: Vec<&str> = svg.split("<polyline points=\"").skip(1).map(|l| &l[..l.find('"').unwrap()]).collect();
+        let b = leaders.iter().find(|l| l.rsplit(' ').next().is_some_and(|p| p.starts_with("0.000,") || p.starts_with("-0.000,"))).expect("B's leader");
+        assert!(b.split(' ').count() > 2, "bent, not straight through a wall: {b}");
+    }
+
+    #[test]
     fn parts_with_no_joints_made_go_together_as_butt_joints() {
         use crate::board::Board;
         let mut doc = Document::default();
@@ -895,7 +1012,8 @@ mod tests {
         let text = all.last().unwrap().steps.join("
 ");
         assert!(text.contains("butt-joined"), "says what it assumes: {text}");
-        assert!(text.contains("(butt joint, glued and screwed)") && text.contains("Start with"), "an order: {text}");
+        assert!(text.contains("(butt joint).") && text.contains("Start with"), "an order: {text}");
+        assert!(text.contains("Screw through A (Bottom) into B (Side)'s end"), "up through the bottom into the sides' end grain: {text}");
         assert!(!text.contains("Nothing here is joined yet") && !text.contains("Fasten"), "both sides glued: {text}");
     }
 

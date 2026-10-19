@@ -3,6 +3,16 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.38
+
+- Assembly step pictures pull each part out the way it goes in: a shelf slides off its dados, a
+  back pulls away behind.
+- Butt joints say where the screws go ("Screw through the bottom into the side's end"), or to
+  clamp or pocket-screw when that fits.
+- Leaders bend around parts that would be in their way.
+- A part with more than four places cut gets a table of where the cuts are, instead of crowding
+  its views with dimensions.
+
 ## 0.1.37
 
 - Assembly pages: a picture for each step, with what's together already in gray and the parts
