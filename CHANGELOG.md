@@ -3,6 +3,15 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.35
+
+- SketchUp files: dimensions and text come in on the geometry they're attached to, construction
+  lines come in as short dashed guides, and softened or hidden edges stay out of sight (curves look
+  smooth again).
+- SketchUp files: wood parts sized like lumber (2x4s, 2x10s, 5/4 decking) come in as lumber, so
+  they're bought as lumber in the cut list. When a material has both (a 2x4 frame and 3/4" slats),
+  the lumber parts get a lumber copy of it.
+
 ## 0.1.34
 
 - SketchUp files open with everything in them: groups were being left out, so walls, rooms and

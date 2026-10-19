@@ -218,7 +218,7 @@ impl Scene {
         let soft = soft_edges(model, model.faces().map(|(_, f)| f));
         let black = srgb(0, 0, 0);
         for (id, e) in model.edges() {
-            if !soft.contains(&id) {
+            if !soft.contains(&id) && !e.hidden {
                 let [a, b] = model.edge_points(e);
                 self.mesh_lines.extend([line_vertex(a.as_vec3(), black), line_vertex(b.as_vec3(), black)]);
             }
@@ -252,7 +252,7 @@ impl Scene {
         let blue = srgb(0, 64, 255);
         for (id, e) in model.edges() {
             let in_selected_group = matches!(view.owner(Entity::Edge(id)), Owner::Instance(_));
-            if is_selected(Entity::Edge(id)) && !(in_selected_group && soft.contains(&id)) {
+            if is_selected(Entity::Edge(id)) && !(in_selected_group && (soft.contains(&id) || e.hidden)) {
                 let [a, b] = model.edge_points(e);
                 self.selected_lines.extend([line_vertex(world(a), blue), line_vertex(world(b), blue)]);
             }
@@ -308,9 +308,15 @@ pub fn guide_vertices(guides: &[SceneGuide], view_proj: Mat4, eye: Vec3) -> Vec<
     let mut out = Vec::new();
     for g in guides {
         match g.guide {
-            Guide::Line { point, dir } => {
-                let middle = point + dir * (eye - point).dot(dir);
-                let (mut a, mut b) = (middle - dir * GUIDE_REACH, middle + dir * GUIDE_REACH);
+            Guide::Line { .. } | Guide::Segment { .. } => {
+                let (mut a, mut b) = match g.guide {
+                    Guide::Line { point, dir } => {
+                        let middle = point + dir * (eye - point).dot(dir);
+                        (middle - dir * GUIDE_REACH, middle + dir * GUIDE_REACH)
+                    }
+                    Guide::Segment { a, b } => (a, b),
+                    _ => unreachable!("matched above"),
+                };
                 let (wa, wb) = (w(a), w(b));
                 if wa < min_w && wb < min_w {
                     continue;

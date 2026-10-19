@@ -52,6 +52,8 @@ pub enum Guide {
     /// An endless line through `point` along unit `dir`.
     Line { point: DVec3, dir: DVec3 },
     Point(DVec3),
+    /// A construction line from `a` to `b` (SketchUp's, between two points).
+    Segment { a: DVec3, b: DVec3 },
     /// A dimension (the Dimensions tool): the distance from `a` to `b`, shown on a line `offset`
     /// away from them (a vector, so it turns and scales with them). The length is always measured,
     /// never stored, so it stays right when the drawing changes.
@@ -70,6 +72,7 @@ impl Guide {
                 dir: transform.transform_vector3(*dir).normalize(),
             },
             Guide::Point(p) => Guide::Point(transform.transform_point3(*p)),
+            Guide::Segment { a, b } => Guide::Segment { a: transform.transform_point3(*a), b: transform.transform_point3(*b) },
             Guide::Dimension { a, b, offset } => Guide::Dimension {
                 a: transform.transform_point3(*a),
                 b: transform.transform_point3(*b),
@@ -93,6 +96,10 @@ impl Guide {
 pub struct Edge {
     pub a: VertexId,
     pub b: VertexId,
+    /// Not drawn: hidden or softened in SketchUp (a curved surface's facets). Edges between faces
+    /// meeting under 30° aren't drawn either way.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
 }
 
 impl Edge {
@@ -264,7 +271,7 @@ impl Model {
         let to_new = |v: VertexId| vertex_map[v.0 as usize];
         let map = |ids: &[VertexId]| -> Vec<VertexId> { ids.iter().map(|&v| to_new(v)).collect() };
         for (_, edge) in other.edges() {
-            self.edges.insert(Edge { a: to_new(edge.a), b: to_new(edge.b) });
+            self.edges.insert(Edge { a: to_new(edge.a), b: to_new(edge.b), hidden: edge.hidden });
         }
         for (_, face) in other.faces() {
             self.faces.insert(Face {
@@ -288,7 +295,14 @@ impl Model {
 
     /// Add an edge as it is, without looking for one already there.
     pub(crate) fn push_edge(&mut self, a: VertexId, b: VertexId) -> EdgeId {
-        EdgeId(self.edges.insert(Edge { a, b }))
+        EdgeId(self.edges.insert(Edge { a, b, hidden: false }))
+    }
+
+    /// Hide an edge (or show it again): it's still there, just not drawn.
+    pub(crate) fn set_edge_hidden(&mut self, id: EdgeId, hidden: bool) {
+        if let Some(edge) = self.edges.get_mut(id.0) {
+            edge.hidden = hidden;
+        }
     }
 
     /// Add a face as it is (its edges already added): no merging and no looking for faces it sits
@@ -318,7 +332,7 @@ impl Model {
         if a == b {
             return None;
         }
-        Some(self.find_edge(a, b).unwrap_or_else(|| EdgeId(self.edges.insert(Edge { a, b }))))
+        Some(self.find_edge(a, b).unwrap_or_else(|| EdgeId(self.edges.insert(Edge { a, b, hidden: false }))))
     }
 
     /// Add a face bounded by `points`, a simple planar polygon, with its edges. The front side
@@ -429,9 +443,10 @@ impl Model {
                 hole.retain(|&x| x != v);
             }
         }
+        let hidden = [e1, e2].iter().all(|e| self.edges.get(e.0).is_some_and(|e| e.hidden));
         self.edges.remove(e1.0);
         self.edges.remove(e2.0);
-        self.edges.insert(Edge { a, b });
+        self.edges.insert(Edge { a, b, hidden });
         self.vertices.remove(v.0);
         true
     }

@@ -165,6 +165,17 @@ impl Model {
                 }
             }
         }
+        // Hidden (softened) edges stay hidden on the copy.
+        let selected_edges = entities.iter().filter_map(|e| if let Entity::Edge(id) = e { Some(*id) } else { None });
+        for id in face_edges.iter().copied().chain(selected_edges) {
+            if let Some(edge) = source.edge(id).filter(|e| e.hidden) {
+                let [a, b] = source.edge_points(edge);
+                let (a, b) = (self.add_vertex(transform(a)), self.add_vertex(transform(b)));
+                if let Some(copy) = self.find_edge(a, b) {
+                    self.set_edge_hidden(copy, true);
+                }
+            }
+        }
         // Include the copied faces' edges, so the copy is selected like the original.
         // Each edge borders two faces of a solid; list it once.
         let copied_face_edges: BTreeSet<Entity> = copies

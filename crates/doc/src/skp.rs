@@ -9,9 +9,10 @@
 //! What's read: component definitions (name, geometry, nested instances), the top-level
 //! geometry, vertices, edges, faces with holes and their material, instances (definition,
 //! placement, material, layer), groups (listed apart from component instances), objects hidden
-//! in SketchUp (onto a hidden "Hidden in SketchUp" tag), endless guide lines, materials (name and
-//! color) and layers (as tags). Not yet: construction lines, dimensions, text, images, textures,
-//! hidden and soft edges, scenes, and files from SketchUp 2020 and older (a different format).
+//! in SketchUp (onto a hidden "Hidden in SketchUp" tag), guide lines and construction lines,
+//! hidden and softened edges (not drawn), materials (name and color) and layers (as tags). Not
+//! yet: dimensions, text, images, textures, scenes, and files from SketchUp 2020 and older (a
+//! different format).
 
 use std::collections::HashMap;
 use std::fmt;
@@ -74,13 +75,15 @@ pub fn read(bytes: &[u8]) -> Result<Imported, SkpError> {
     };
     let model = entry("model.dat").ok_or_else(|| SkpError::Damaged("no model.dat".into()))?;
     let top = records(&model).next().ok_or_else(|| SkpError::Damaged("empty model.dat".into()))?;
-    let mut reader = Reader { scene: Scene::default(), materials: HashMap::new(), tags: HashMap::new(), definitions: HashMap::new(), skipped_faces: 0, hidden_tag: None };
+    let mut reader = Reader { scene: Scene::default(), materials: HashMap::new(), tags: HashMap::new(), definitions: HashMap::new(), skipped_faces: 0, hidden_tag: None, places: Places::default() };
+    reader.places = Places::of(top);
     reader.materials(top, &mut entry);
     reader.layers(top);
     reader.definitions(top);
     if let Some(entities) = top.child(0x01f6).and_then(|r| r.child(0x1388)) {
         reader.scene.root = reader.container(entities);
     }
+    lumber_by_size(&mut reader.scene);
     Ok(Imported { scene: reader.scene, version, skipped_faces: reader.skipped_faces })
 }
 
@@ -161,6 +164,8 @@ struct Reader {
     definitions: HashMap<u64, DefinitionId>,
     /// The tag hidden objects go on ("Hidden in SketchUp", itself hidden), made when one turns up.
     hidden_tag: Option<TagId>,
+    /// Every vertex and instance by id, for the points dimensions and text hang on.
+    places: Places,
     skipped_faces: usize,
 }
 
@@ -275,6 +280,14 @@ impl Reader {
             .flat_map(|r| r.all(0x0bb8))
             .filter_map(|e| Some((e.id()?, (e.child(0x0bb9)?.int()?, e.child(0x0bba)?.int()?))))
             .collect();
+        // Edges not drawn: hidden (flag bit 0) or softened (bit 3), as a curved surface's facets are.
+        let hidden_edges: std::collections::HashSet<u64> = entities
+            .child(0x138a)
+            .into_iter()
+            .flat_map(|r| r.all(0x0bb8))
+            .filter(|e| e.common(0x07d3).is_some_and(|f| f & 0b1001 != 0))
+            .filter_map(Record::id)
+            .collect();
 
         // SketchUp's topology is taken as it is: each vertex and edge added once, faces made from
         // them, nothing merged or searched for (that's slow on big models, and already done).
@@ -289,11 +302,14 @@ impl Reader {
             ids.insert(v, id);
             Some(id)
         };
-        for &(a, b) in edges.values() {
+        for (id, &(a, b)) in &edges {
             if let (Some(a), Some(b)) = (vertex(model, a), vertex(model, b))
                 && a != b
             {
-                model.push_edge(a, b);
+                let edge = model.push_edge(a, b);
+                if hidden_edges.contains(id) {
+                    model.set_edge_hidden(edge, true);
+                }
             }
         }
         for face in entities.child(0x138b).into_iter().flat_map(|r| r.all(0x0dac)) {
@@ -332,14 +348,44 @@ impl Reader {
             model.push_face(outer, corners, normal, material);
         }
         // Guide lines (`1391` > `4269` > `426a`: a point, a direction, and how far each way, 1e30
-        // for endless ones). Construction lines between two points (`1392` > `426c`, ends `426d` and
-        // `426e`) are left out: endless here, they'd cross the whole view.
+        // for endless ones), and construction lines between two points (`1392` > `426c`, ends `426d`
+        // and `426e`).
         for guide in entities.child(0x1391).into_iter().flat_map(|r| r.all(0x4269)) {
             let v = guide.child(0x426a).map(Record::floats).unwrap_or_default();
             if v.len() >= 6
                 && let Some(dir) = DVec3::new(v[3], v[4], v[5]).try_normalize()
             {
                 container.model.add_guide(crate::Guide::Line { point: DVec3::new(v[0], v[1], v[2]), dir });
+            }
+        }
+        for guide in entities.child(0x1392).into_iter().flat_map(|r| r.all(0x426c)) {
+            let point = |tag: u16| guide.child(tag).map(Record::floats).filter(|v| v.len() >= 3).map(|v| DVec3::new(v[0], v[1], v[2]));
+            if let (Some(a), Some(b)) = (point(0x426d), point(0x426e))
+                && a.distance(b) > crate::EPS
+            {
+                container.model.add_guide(crate::Guide::Segment { a, b });
+            }
+        }
+        // Dimensions (`1399` > `5bcc`): the two points measured (`5bcd`, `5bce`), the plane it's
+        // drawn in (normal `5bcf`) and how far out the dimension line sits (`5bd2`).
+        for dimension in entities.child(0x1399).into_iter().flat_map(|r| r.all(0x5bcc)) {
+            let ends = (dimension.child(0x5bcd).and_then(|r| self.places.resolve(r)), dimension.child(0x5bce).and_then(|r| self.places.resolve(r)));
+            let (Some(a), Some(b)) = ends else { continue };
+            let normal = dimension.child(0x5bcf).map(Record::floats).filter(|v| v.len() >= 3).map_or(DVec3::Z, |v| DVec3::new(v[0], v[1], v[2]));
+            let out = dimension.child(0x5bd2).map(Record::floats).and_then(|v| v.first().copied()).unwrap_or(0.0);
+            let offset = normal.cross(b - a).try_normalize().map_or(DVec3::ZERO, |d| d * out);
+            if a.distance(b) > crate::EPS {
+                container.model.add_guide(crate::Guide::Dimension { a, b, offset });
+            }
+        }
+        // Text (`1398` > `55f0`): its words (`55f1`), the point it points at (`55f4`) and where the
+        // words sit from there (`55f5`). Screen text, pinned to the view and not the model, is left out.
+        for text in entities.child(0x1398).into_iter().flat_map(|r| r.all(0x55f0)) {
+            let words = text.child(0x55f1).map(Record::text).unwrap_or_default();
+            let Some(at) = text.child(0x55f4).and_then(|r| self.places.resolve(r)) else { continue };
+            let offset = text.child(0x55f5).map(Record::floats).filter(|v| v.len() >= 3).map_or(DVec3::ZERO, |v| DVec3::new(v[0], v[1], v[2]));
+            if !words.trim().is_empty() {
+                container.model.add_guide(crate::Guide::Text { at, offset, text: words });
             }
         }
         // Component instances (`138c` > `1964`), then groups (`138d` > `1d4c` > `1964`): the same
@@ -380,6 +426,62 @@ impl Reader {
         }
         self.hidden_tag = Some(tag);
         tag
+    }
+}
+
+/// Where things are, by their ids: every vertex (in its own entity list's coordinates) and every
+/// instance (its definition and placement), for resolving what dimensions and text are attached to.
+#[derive(Default)]
+struct Places {
+    vertices: HashMap<u64, DVec3>,
+    instances: HashMap<u64, (u64, DAffine3)>,
+}
+
+impl Places {
+    fn of(top: Record<'_>) -> Self {
+        let mut places = Places::default();
+        let definitions = top.child(0x01f9).and_then(|r| r.child(0x1770)).and_then(|r| r.child(0x1771));
+        let lists = definitions.into_iter().flat_map(|l| l.all(0x157c)).filter_map(|d| d.child(0x1388));
+        for entities in lists.chain(top.child(0x01f6).and_then(|r| r.child(0x1388))) {
+            for v in entities.child(0x1389).into_iter().flat_map(|r| r.all(0x09c4)) {
+                if let (Some(id), Some(p)) = (v.id(), v.child(0x09c5).map(Record::floats).filter(|p| p.len() >= 3)) {
+                    places.vertices.insert(id, DVec3::new(p[0], p[1], p[2]));
+                }
+            }
+            let components = entities.child(0x138c).into_iter().flat_map(|r| r.all(0x1964));
+            let groups = entities.child(0x138d).into_iter().flat_map(|r| r.all(0x1d4c)).filter_map(|g| g.child(0x1964));
+            for instance in components.chain(groups) {
+                let transform = instance.child(0x1966).map(Record::floats).and_then(|m| placement(&m)).unwrap_or(DAffine3::IDENTITY);
+                if let (Some(id), Some(definition)) = (instance.id(), instance.child(0x1967).and_then(Record::int)) {
+                    places.instances.insert(id, (definition, transform));
+                }
+            }
+        }
+        places
+    }
+
+    /// The point a reference (`5208`) names, in the coordinates of the entity list holding it: a
+    /// vertex by id (type 2) or a point (`520a`) in the coordinates of the thing it's on, carried
+    /// out through the instances on its path (`520b` > `53fc` > `53fe`, outermost first); type 12
+    /// gives its point in the holding list's coordinates already.
+    fn resolve(&self, reference: Record<'_>) -> Option<DVec3> {
+        let reference = reference.child(0x5208)?;
+        let target = reference.child(0x520b)?.child(0x53fc)?;
+        let point = || -> Option<DVec3> {
+            let p = reference.child(0x520a)?.floats();
+            Some(DVec3::new(*p.first()?, *p.get(1)?, *p.get(2)?))
+        };
+        let local = match reference.child(0x5209).and_then(Record::int) {
+            Some(2) => *self.vertices.get(&target.child(0x53fd)?.int()?)?,
+            Some(12) => return point().filter(|p| p.is_finite()),
+            _ => point()?,
+        };
+        let path = ids(target.child(0x53fe).map_or(&[][..], |r| r.body));
+        let mut transform = DAffine3::IDENTITY;
+        for instance in path {
+            transform *= self.instances.get(&instance)?.1;
+        }
+        Some(transform.transform_point3(local)).filter(|p| p.is_finite())
     }
 }
 
@@ -443,6 +545,75 @@ fn placement(m: &[f64]) -> Option<DAffine3> {
     let rotation = glam::DMat3::from_cols(v(0), v(3), v(6)).transpose();
     let affine = DAffine3 { matrix3: rotation, translation: v(9) };
     affine.is_finite().then_some(affine)
+}
+
+/// Wood named for a species (`cedar`) reads as that species' boards; parts made of it that are
+/// lumber-sized (a 2x10's 1 1/2" x 9 1/4", 5/4 decking) are lumber instead, so they're matched to
+/// lumber sections. When most of its parts are, the material becomes lumber; when only some are
+/// (a rack's 2x4 frame and 3/4" slats), those are painted with a lumber copy of it. Only 5/4 and
+/// thicker sections count: 3/4" boards are usually hardwood, not 1x lumber.
+fn lumber_by_size(scene: &mut Scene) {
+    let lumber = crate::cutplan::Standard::for_kind(MaterialKind::DimensionalLumber);
+    let sections: Vec<(f64, f64)> = lumber.sections.iter().copied().filter(|&(t, _)| t >= 1.0 - 1e-9).collect();
+    let near = |a: f64, b: f64| (a - b).abs() <= 1.0 / 32.0;
+    let is_lumber = |size: DVec3| {
+        let mut s = [size.x, size.y, size.z];
+        s.sort_by(f64::total_cmp);
+        sections.iter().any(|&(t, w)| near(s[0], t) && near(s[1], w))
+    };
+    // Each part painted with a material: where it's placed (`None`: the top level, else the
+    // definition holding it), whether its paint is on the instance, and whether it's lumber-sized.
+    struct Part {
+        holder: Option<DefinitionId>,
+        instance: crate::InstanceId,
+        painted: bool,
+        lumber: bool,
+    }
+    let mut parts: HashMap<MaterialId, Vec<Part>> = HashMap::new();
+    let containers = std::iter::once((None, &scene.root)).chain(scene.definitions().map(|(id, d)| (Some(id), &d.container)));
+    for (holder, container) in containers {
+        for (instance, placed) in container.instances() {
+            let Some(definition) = scene.definition(placed.definition) else { continue };
+            let model = &definition.container.model;
+            let paint = placed.material.or_else(|| model.faces().next().and_then(|(_, f)| f.material));
+            if let (Some(paint), Some((lo, hi))) = (paint, model.bounds()) {
+                parts.entry(paint).or_default().push(Part { holder, instance, painted: placed.material.is_some(), lumber: is_lumber(hi - lo) });
+            }
+        }
+    }
+    for (id, parts) in parts {
+        let Some(material) = scene.material(id).filter(|m| m.kind == MaterialKind::SolidWood) else { continue };
+        let lumbered = parts.iter().filter(|p| p.lumber).count();
+        if lumbered < 2 {
+            continue;
+        }
+        let name = material.name.to_lowercase();
+        let preset = crate::library::LIBRARY
+            .iter()
+            .filter(|p| p.kind == MaterialKind::DimensionalLumber)
+            .find(|p| p.name.strip_suffix(" Lumber").is_some_and(|species| name.contains(&species.to_lowercase())));
+        let mut as_lumber = material.clone();
+        as_lumber.kind = MaterialKind::DimensionalLumber;
+        as_lumber.standard = preset.map_or(lumber.clone(), |p| p.standard());
+        if lumbered * 5 >= parts.len() * 3 {
+            if let Some(m) = scene.material_mut(id) {
+                *m = as_lumber;
+            }
+            continue;
+        }
+        // Some of each: a lumber copy for the lumber-sized parts painted as a whole.
+        as_lumber.name = format!("{} (lumber)", as_lumber.name);
+        let copy = scene.add_material(as_lumber);
+        for part in parts.iter().filter(|p| p.lumber && p.painted) {
+            let container = match part.holder {
+                None => Some(&mut scene.root),
+                Some(d) => scene.definition_mut(d).map(|d| &mut d.container),
+            };
+            if let Some(instance) = container.and_then(|c| c.instance_mut(part.instance)) {
+                instance.material = Some(copy);
+            }
+        }
+    }
 }
 
 /// `colorRed="15" colorGreen="15" colorBlue="15"` in a `material.xml`.
@@ -512,13 +683,21 @@ mod tests {
 
     /// A 2x1 rectangle on the ground, as a definition's entities.
     fn rectangle_entities(entity: u16) -> Vec<u8> {
+        rectangle_entities_with(entity, &[])
+    }
+
+    /// The same, with `flagged` edges carrying flags (`07d3`).
+    fn rectangle_entities_with(entity: u16, flagged: &[(u16, u8)]) -> Vec<u8> {
         let corners = [(10, [0.0, 0.0, 0.0]), (11, [2.0, 0.0, 0.0]), (12, [2.0, 1.0, 0.0]), (13, [0.0, 1.0, 0.0])];
         let vertices: Vec<u8> = corners.iter().flat_map(|(n, p)| rec(0x09c4, &[id(*n), rec(0x09c5, &floats(p))].concat())).collect();
         // Edges listed in a jumbled direction, as in real files.
         let edge_ends = [(20, 10, 11), (21, 12, 11), (22, 12, 13), (23, 10, 13)];
         let edges: Vec<u8> = edge_ends
             .iter()
-            .flat_map(|(e, a, b)| rec(0x0bb8, &[rec(0x07d0, &id(*e)), rec(0x0bb9, &(*a as u16).to_le_bytes()), rec(0x0bba, &(*b as u16).to_le_bytes())].concat()))
+            .flat_map(|(e, a, b)| {
+                let flags = flagged.iter().find(|(f, _)| f == e).map(|(_, f)| rec(0x07d3, &[*f])).unwrap_or_default();
+                rec(0x0bb8, &[rec(0x07d0, &[id(*e), flags].concat()), rec(0x0bb9, &(*a as u16).to_le_bytes()), rec(0x0bba, &(*b as u16).to_le_bytes())].concat())
+            })
             .collect();
         let coedges: Vec<u8> = [20u16, 21, 22, 23].iter().flat_map(|e| rec(0x0fa0, &[rec(0x0fa1, &e.to_le_bytes()), rec(0x0fa2, &[0])].concat())).collect();
         let face = rec(
@@ -616,13 +795,106 @@ mod tests {
     }
 
     #[test]
-    fn reads_guide_lines_but_not_construction_lines() {
+    fn reads_guide_lines_and_construction_lines() {
         let endless = rec(0x4269, &rec(0x426a, &floats(&[5.0, 6.0, 7.0, 1.0, 0.0, 0.0, -1e30, 1e30])));
         let segment = rec(0x426c, &[rec(0x426d, &floats(&[1.0, 1.0, 10.0])), rec(0x426e, &floats(&[1.0, 1.0, 2.0]))].concat());
         let root = rec(0x01f6, &rec(0x1388, &[rec(0x07d0, &id(1)), rec(0x1391, &endless), rec(0x1392, &segment)].concat()));
         let scene = read(&file(&rec(0x01f4, &root), "")).unwrap().scene;
         let guides: Vec<Guide> = scene.root.model.guides().map(|(_, g)| g.clone()).collect();
-        assert_eq!(guides, vec![Guide::Line { point: DVec3::new(5.0, 6.0, 7.0), dir: DVec3::X }], "construction lines left out");
+        assert_eq!(guides, vec![
+            Guide::Line { point: DVec3::new(5.0, 6.0, 7.0), dir: DVec3::X },
+            Guide::Segment { a: DVec3::new(1.0, 1.0, 10.0), b: DVec3::new(1.0, 1.0, 2.0) },
+        ]);
+    }
+
+    #[test]
+    fn softened_and_hidden_edges_arent_drawn() {
+        // Edge 20 softened (0e), 21 hidden (07), the others plain (06).
+        let entities = rectangle_entities_with(1, &[(20, 0x0e), (21, 0x07), (22, 0x06)]);
+        let scene = read(&file(&rec(0x01f4, &rec(0x01f6, &entities)), "")).unwrap().scene;
+        let model = &scene.root.model;
+        assert_eq!(model.edges().filter(|(_, e)| e.hidden).count(), 2);
+        assert_eq!(model.edges().count(), 4);
+    }
+
+    /// A reference (`5208`) to vertex `vertex` through `path` (instance ids), or with `point` a point
+    /// of `kind` given directly.
+    fn reference(kind: u8, point: [f64; 3], vertex: u16, path: &[u16]) -> Vec<u8> {
+        let path: Vec<u8> = path.iter().flat_map(|i| [&[2u8][..], &i.to_le_bytes()].concat()).collect();
+        rec(
+            0x5208,
+            &[rec(0x5209, &[kind, 0, 0, 0]), rec(0x520a, &floats(&point)), rec(0x520b, &rec(0x53fc, &[rec(0x53fd, &vertex.to_le_bytes()), rec(0x53fe, &path)].concat()))].concat(),
+        )
+    }
+
+    #[test]
+    fn reads_dimensions_and_text_on_geometry_inside_a_component() {
+        // The 2x1 rectangle component placed 10" up; a dimension across its long side, from
+        // corner 10 to corner 11 through that placement, 3" out; a note on corner 12.
+        let definitions = rec(0x01f9, &rec(0x1770, &rec(0x1771, &rec(0x157c, &[rectangle_entities(50), rec(0x157e, b"Shelf")].concat()))));
+        let m = floats(&[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 10.0, 1.0]);
+        let instance = rec(0x1964, &[rec(0x07d0, &id(60)), rec(0x1966, &m), rec(0x1967, &50u16.to_le_bytes())].concat());
+        let dimension = rec(
+            0x5bcc,
+            &[
+                rec(0x5bcd, &reference(2, [0.0; 3], 10, &[60])),
+                rec(0x5bce, &reference(2, [0.0; 3], 11, &[60])),
+                rec(0x5bcf, &floats(&[0.0, 0.0, 1.0])),
+                rec(0x5bd2, &floats(&[3.0])),
+            ]
+            .concat(),
+        );
+        // A point given in the top level's coordinates (type 12): no placement applied.
+        let free = rec(0x5bcc, &[rec(0x5bcd, &reference(12, [5.0, 5.0, 0.0], 0, &[60])), rec(0x5bce, &reference(2, [0.0; 3], 13, &[60]))].concat());
+        let text = rec(0x55f0, &[rec(0x55f1, b"Glue here"), rec(0x55f4, &reference(2, [0.0; 3], 12, &[60])), rec(0x55f5, &floats(&[1.0, 2.0, 3.0]))].concat());
+        let root = rec(
+            0x01f6,
+            &rec(0x1388, &[rec(0x07d0, &id(1)), rec(0x138c, &instance), rec(0x1398, &text), rec(0x1399, &[dimension, free].concat())].concat()),
+        );
+        let scene = read(&file(&rec(0x01f4, &[definitions, root].concat()), "")).unwrap().scene;
+        let notes: Vec<Guide> = scene.root.model.guides().map(|(_, g)| g.clone()).collect();
+        let up = DVec3::Z * 10.0;
+        assert_eq!(notes.len(), 3, "{notes:?}");
+        assert!(notes.contains(&Guide::Text { at: DVec3::new(2.0, 1.0, 0.0) + up, offset: DVec3::new(1.0, 2.0, 3.0), text: "Glue here".into() }));
+        let Some(Guide::Dimension { a, b, offset }) = notes.iter().find(|g| matches!(g, Guide::Dimension { a, .. } if a.z == 10.0 && a.x == 0.0 && a.y == 0.0)) else { panic!("{notes:?}") };
+        assert_eq!((*a, *b), (up, DVec3::X * 2.0 + up), "through the placement");
+        assert!((offset.length() - 3.0).abs() < 1e-9 && offset.dot(DVec3::X).abs() < 1e-9, "3\" out, square to it: {offset}");
+        assert!(notes.iter().any(|g| matches!(g, Guide::Dimension { a, .. } if *a == DVec3::new(5.0, 5.0, 0.0))), "type 12 taken as it is");
+    }
+
+    /// A part's entities spanning `size` (one edge, corner to corner: enough for its box).
+    fn sized_entities(entity: u16, size: [f64; 3]) -> Vec<u8> {
+        let vertices = [rec(0x09c4, &[id(entity + 1), rec(0x09c5, &floats(&[0.0; 3]))].concat()), rec(0x09c4, &[id(entity + 2), rec(0x09c5, &floats(&size))].concat())].concat();
+        let edge = rec(0x0bb8, &[rec(0x07d0, &id(entity + 3)), rec(0x0bb9, &(entity + 1).to_le_bytes()), rec(0x0bba, &(entity + 2).to_le_bytes())].concat());
+        rec(0x1388, &[rec(0x07d0, &id(entity)), rec(0x1389, &vertices), rec(0x138a, &edge)].concat())
+    }
+
+    #[test]
+    fn wood_whose_parts_are_lumber_sized_reads_as_lumber() {
+        let material = |id_: u16, name: &[u8]| rec(0x32c8, &[id(id_), rec(0x32cc, name)].concat());
+        let materials = rec(0x01f7, &rec(0x30d4, &rec(0x30d5, &[material(77, b"cedar"), material(78, b"cedar boards"), material(79, b"pine")].concat())));
+        let definition = |entity: u16, size: [f64; 3]| rec(0x157c, &[sized_entities(entity, size), rec(0x157e, b"Part")].concat());
+        let definitions = rec(
+            0x01f9,
+            &rec(0x1770, &rec(0x1771, &[definition(100, [1.5, 9.25, 144.0]), definition(110, [9.25, 1.5, 120.0]), definition(120, [0.75, 5.5, 30.0])].concat())),
+        );
+        let m = floats(&[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
+        let instance = |definition: u16, paint: u16| {
+            rec(0x1964, &[rec(0x07d0, &[id(60), rec(0x07d1, &paint.to_le_bytes())].concat()), rec(0x1966, &m), rec(0x1967, &definition.to_le_bytes())].concat())
+        };
+        // Pine: a 2x4 frame (two lumber-sized parts) and three 3/4" slats.
+        let placed = [instance(100, 77), instance(110, 77), instance(120, 78), instance(120, 78), instance(100, 79), instance(110, 79), instance(120, 79), instance(120, 79), instance(120, 79)].concat();
+        let root = rec(0x01f6, &rec(0x1388, &[rec(0x07d0, &id(1)), rec(0x138c, &placed)].concat()));
+        let scene = read(&file(&rec(0x01f4, &[materials, definitions, root].concat()), "")).unwrap().scene;
+        let kind = |name: &str| scene.materials().find(|(_, m)| m.name == name).map(|(_, m)| m.kind).unwrap();
+        assert_eq!(kind("cedar"), MaterialKind::DimensionalLumber, "2x10s");
+        assert_eq!(kind("cedar boards"), MaterialKind::SolidWood, "3/4\" boards stay boards");
+        let cedar = scene.materials().find(|(_, m)| m.name == "cedar").unwrap().1;
+        assert!(cedar.standard.sections.iter().any(|&(t, w)| t == 1.5 && w == 9.25));
+        assert_eq!(kind("pine"), MaterialKind::SolidWood, "the slats");
+        assert_eq!(kind("pine (lumber)"), MaterialKind::DimensionalLumber, "the frame");
+        let lumber = scene.materials().find(|(_, m)| m.name == "pine (lumber)").unwrap().0;
+        assert_eq!(scene.root.instances().filter(|(_, i)| i.material == Some(lumber)).count(), 2);
     }
 
     #[test]
@@ -668,8 +940,14 @@ mod tests {
         println!("{path}: SketchUp {}, {} skipped faces", imported.version, imported.skipped_faces);
         for (_, d) in scene.definitions() {
             println!("  {}: {} faces, {} instances", d.name, d.container.model.faces().count(), d.container.instances().count());
+            for (_, g) in d.container.model.guides().filter(|(_, g)| g.is_note()) {
+                println!("    note {g:?}");
+            }
         }
         println!("  top level: {} faces, {} instances", scene.root.model.faces().count(), scene.root.instances().count());
+        for (_, g) in scene.root.model.guides().filter(|(_, g)| g.is_note()) {
+            println!("  note {g:?}");
+        }
         println!("  materials: {:?}", scene.materials().map(|(_, m)| m.name.clone()).collect::<Vec<_>>());
         for (id, t) in scene.tags() {
             println!("  tag {}{}{}", scene.tag_path(id), if t.folder { " /" } else { "" }, if t.visible { "" } else { " (hidden)" });

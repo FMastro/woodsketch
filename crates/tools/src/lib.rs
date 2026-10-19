@@ -374,6 +374,7 @@ impl Overlay {
             *guide = match guide.clone() {
                 woodsketch_doc::Guide::Line { point, dir } => woodsketch_doc::Guide::Line { point: p(point), dir: n(dir) },
                 woodsketch_doc::Guide::Point(point) => woodsketch_doc::Guide::Point(p(point)),
+                woodsketch_doc::Guide::Segment { a, b } => woodsketch_doc::Guide::Segment { a: p(a), b: p(b) },
                 woodsketch_doc::Guide::Dimension { a, b, offset } => woodsketch_doc::Guide::Dimension { a: p(a), b: p(b), offset: n(offset) * offset.length() },
                 woodsketch_doc::Guide::Text { at, offset, text } => woodsketch_doc::Guide::Text { at: p(at), offset: n(offset) * offset.length(), text },
             };

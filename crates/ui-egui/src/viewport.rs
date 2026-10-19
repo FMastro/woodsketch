@@ -361,6 +361,11 @@ fn draw_guides(
                     painter.extend(egui::Shape::dashed_line(&[a, b], stroke, 6.0, 4.0));
                 }
             }
+            woodsketch_doc::Guide::Segment { a, b } => {
+                if let (Some(a), Some(b)) = (screen(a), screen(b)) {
+                    painter.extend(egui::Shape::dashed_line(&[a, b], stroke, 6.0, 4.0));
+                }
+            }
             woodsketch_doc::Guide::Point(p) => {
                 if let Some(p) = screen(p) {
                     let r = 4.0;

@@ -265,10 +265,12 @@ pub fn snap_feature(
             let hidden = occluded(model, eye, point, |f| model.face(f).is_some_and(|face| face.uses_vertex(id)));
             (!hidden).then_some((distance, point, SnapKind::Endpoint, None))
         })
-        .chain(model.guides().filter_map(|(_, g)| match *g {
-            Guide::Point(p) => near(p, SNAP_RADIUS).map(|d| (d, p, SnapKind::GuidePoint, None)),
-            _ => None,
-        }))
+        .chain(model.guides().flat_map(|(_, g)| match *g {
+            Guide::Point(p) => vec![p],
+            // A construction line's ends.
+            Guide::Segment { a, b } => vec![a, b],
+            _ => Vec::new(),
+        }).filter_map(|p| near(p, SNAP_RADIUS).map(|d| (d, p, SnapKind::GuidePoint, None))))
         .chain(near(DVec3::ZERO, SNAP_RADIUS).map(|d| (d, DVec3::ZERO, SnapKind::Origin, None)))
         .collect();
     if let Some(snap) = nearest(endpoints) {
@@ -354,6 +356,14 @@ pub fn snap_feature(
             let distance = near(point, EDGE_RADIUS)?;
             Some((distance, point, SnapKind::OnGuide, Some(d)))
         }))
+        .chain(model.guides().filter_map(|(_, g)| {
+            let Guide::Segment { a, b } = *g else { return None };
+            let length = a.distance(b);
+            let d = (b - a).try_normalize()?;
+            let point = a + d * closest_on_line(a, d, &ray)?.clamp(0.0, length);
+            let distance = near(point, EDGE_RADIUS)?;
+            Some((distance, point, SnapKind::OnGuide, Some(d)))
+        }))
         .collect();
     nearest(on_edge)
 }
@@ -383,14 +393,9 @@ pub fn hit_guide(model: &Model, screen: Screen<'_>, cursor: Vec2) -> Option<Guid
             let (point, radius) = match *g {
                 Guide::Point(p) => (p, SNAP_RADIUS),
                 Guide::Line { point, dir } => (point + dir * closest_on_line(point, dir, &ray)?, EDGE_RADIUS),
-                // A dimension: anywhere along its line.
-                Guide::Dimension { a, b, offset } => {
-                    let (pa, pb) = (screen.project(a + offset)?, screen.project(b + offset)?);
-                    let along = pb - pa;
-                    let t = ((cursor - pa).dot(along) / along.length_squared().max(1e-6)).clamp(0.0, 1.0);
-                    let distance = (pa + along * t).distance(cursor);
-                    return (distance <= EDGE_RADIUS).then_some((id, distance));
-                }
+                // A construction line, or a dimension's line: anywhere along it.
+                Guide::Segment { a, b } => return along_segment(screen, cursor, a, b).map(|d| (id, d)),
+                Guide::Dimension { a, b, offset } => return along_segment(screen, cursor, a + offset, b + offset).map(|d| (id, d)),
                 // A note: around its words.
                 Guide::Text { at, offset, .. } => (at + offset, TEXT_RADIUS),
             };
@@ -399,6 +404,15 @@ pub fn hit_guide(model: &Model, screen: Screen<'_>, cursor: Vec2) -> Option<Guid
         })
         .min_by(|a, b| a.1.total_cmp(&b.1))
         .map(|(id, _)| id)
+}
+
+/// How far, in points, `cursor` is from the segment `a`..`b` on screen, if within [`EDGE_RADIUS`].
+fn along_segment(screen: Screen<'_>, cursor: Vec2, a: DVec3, b: DVec3) -> Option<f32> {
+    let (pa, pb) = (screen.project(a)?, screen.project(b)?);
+    let along = pb - pa;
+    let t = ((cursor - pa).dot(along) / along.length_squared().max(1e-6)).clamp(0.0, 1.0);
+    let distance = (pa + along * t).distance(cursor);
+    (distance <= EDGE_RADIUS).then_some(distance)
 }
 
 /// The parameter `t` of the point on the line `anchor + t * dir` (unit `dir`) closest to `ray`,
@@ -472,6 +486,22 @@ mod tests {
         let snap = snap_feature(&model, screen, cursor, |_| false).expect("a snap");
         assert_eq!(snap.kind, SnapKind::Intersection);
         assert!(snap.point.distance(DVec3::new(3.0, 4.0, 0.0)) < 1e-9, "{}", snap.point);
+    }
+
+    #[test]
+    fn construction_lines_snap_at_their_ends_and_along_them() {
+        let mut model = Model::default();
+        model.add_guide(Guide::Segment { a: DVec3::new(2.0, 2.0, 0.0), b: DVec3::new(8.0, 2.0, 0.0) });
+        let camera = top_camera();
+        let screen = Screen::new(&camera, SIZE);
+        let at = |x: f64, y: f64| screen.project(DVec3::new(x, y, 0.0)).unwrap();
+        let end = snap_feature(&model, screen, at(8.02, 2.02), |_| false).unwrap();
+        assert_eq!((end.kind, end.point), (SnapKind::GuidePoint, DVec3::new(8.0, 2.0, 0.0)));
+        let along = snap_feature(&model, screen, at(5.0, 2.05), |_| false).unwrap();
+        assert_eq!(along.kind, SnapKind::OnGuide);
+        assert!(along.point.y == 2.0 && (along.point.x - 5.0).abs() < 0.1);
+        assert!(snap_feature(&model, screen, at(11.0, 2.0), |_| false).is_none(), "not past its end");
+        assert!(hit_guide(&model, screen, at(5.0, 2.03)).is_some());
     }
 
     #[test]

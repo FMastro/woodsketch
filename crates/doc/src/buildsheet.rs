@@ -631,11 +631,13 @@ fn dimension(svg: &mut String, a: DVec2, b: DVec2, text: &str) {
     }
 }
 
-/// The model's edges worth drawing: not the soft ones inside a curve (faces meeting under 30°).
+/// The model's edges worth drawing: not the soft ones inside a curve (faces meeting under 30°,
+/// or softened in SketchUp) or hidden ones.
 fn drawn_edges(model: &Model) -> Vec<[DVec3; 2]> {
     let soft = 30f64.to_radians().cos();
     model
         .edges()
+        .filter(|(_, e)| !e.hidden)
         .filter(|(id, _)| {
             let faces = model.edge_faces(*id);
             match faces[..] {
