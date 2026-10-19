@@ -3,6 +3,12 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.39
+
+- Center Arc and Pie: turning all the way round now closes a full circle (it snaps shut within a few
+  degrees) instead of starting over, so it makes a face ready to push into a hole. Backing off opens
+  it again; typing 360 works too.
+
 ## 0.1.38
 
 - Assembly step pictures pull each part out the way it goes in: a shelf slides off its dados, a

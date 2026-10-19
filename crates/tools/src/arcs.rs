@@ -3,6 +3,8 @@
 //! with two straight sides, so it makes a face. 3-Point Arc: click the start, a point the arc
 //! passes through, then the end. `24s` sets the number of sides (12 by default).
 
+use std::f64::consts::TAU;
+
 use glam::{DVec3, Vec2};
 use woodsketch_doc::curves::{ARC_SEGMENTS, angle_about, circle_through, sweep_points};
 use woodsketch_doc::units::{format_length, parse_length};
@@ -11,6 +13,18 @@ use woodsketch_doc::{Document, EPS};
 use crate::circle::parse_segments;
 use crate::pick::{Screen, Snap, snap};
 use crate::{Axis, Overlay};
+
+/// Within this many degrees of a full turn, the sweep closes into a full circle.
+const CLOSE_DEGREES: f64 = 6.0;
+
+/// The sweep after the cursor turns to `turned` (0..TAU from the start): it keeps going the way it
+/// was (past half a turn too), stops at a full turn either way instead of starting over, and closes
+/// when it's nearly there.
+fn sweep_to(current: f64, turned: f64) -> f64 {
+    let nearest = [turned - TAU, turned, turned + TAU].into_iter().min_by(|a, b| (a - current).abs().total_cmp(&(b - current).abs())).unwrap_or(turned);
+    let angle = nearest.clamp(-TAU, TAU);
+    if angle.abs() > TAU - CLOSE_DEGREES.to_radians() { TAU.copysign(angle) } else { angle }
+}
 
 /// Center Arc, or Pie with `pie`.
 pub struct CenterArcTool {
@@ -65,10 +79,7 @@ impl CenterArcTool {
             CenterStage::Center => {}
             CenterStage::Start { start, .. } => *start = point,
             CenterStage::Sweep { center, normal, start, angle } => {
-                let turned = angle_about(*start - *center, point - *center, *normal);
-                // Keep turning the way it was going (past half a turn too).
-                let other = turned - std::f64::consts::TAU;
-                *angle = if (other - *angle).abs() < (turned - *angle).abs() { other } else { turned };
+                *angle = sweep_to(*angle, angle_about(*start - *center, point - *center, *normal));
             }
         }
     }
@@ -113,7 +124,7 @@ impl CenterArcTool {
             CenterStage::Sweep { center, normal, start, angle } => {
                 let degrees: f64 = typed.trim().trim_end_matches('°').parse().map_err(|_| format!("\"{}\" isn't an angle", typed.trim()))?;
                 let sign = if angle < 0.0 { -1.0 } else { 1.0 };
-                self.draw(doc, center, normal, start, sign * degrees.abs().to_radians())
+                self.draw(doc, center, normal, start, sign * degrees.abs().to_radians().min(TAU))
             }
         }
     }
@@ -131,6 +142,10 @@ impl CenterArcTool {
     /// The arc, and for a pie its sides back to the center.
     fn points(&self, center: DVec3, normal: DVec3, start: DVec3, angle: f64) -> Vec<DVec3> {
         let mut points = sweep_points(center, start, normal, angle, self.segments);
+        // A full turn closes exactly on its start (a circle, ready to push into a hole).
+        if angle.abs() >= TAU - 1e-9 {
+            *points.last_mut().expect("at least two") = start;
+        }
         if self.pie {
             points.insert(0, center);
             points.push(center);
@@ -309,6 +324,42 @@ mod tests {
         assert_eq!(model.faces().count(), 1, "closed by its sides");
         assert!(model.vertices().any(|(_, p)| p.abs_diff_eq(DVec3::Y * 10.0, 1e-9)), "a quarter turn round to +y");
         assert!(model.vertices().all(|(_, p)| p.length() < 10.0 + 1e-9));
+    }
+
+    #[test]
+    fn turning_past_a_full_circle_closes_it_instead_of_starting_over() {
+        // Turning steadily round: 300 degrees, 355 (close enough: a full circle), then past it.
+        let mut angle = 0.0;
+        for degrees in [60.0, 120.0, 180.0, 240.0, 300.0] {
+            angle = sweep_to(angle, f64::to_radians(degrees));
+        }
+        assert!((angle - 300f64.to_radians()).abs() < 1e-9);
+        angle = sweep_to(angle, 355f64.to_radians());
+        assert_eq!(angle, TAU, "closed");
+        angle = sweep_to(angle, 10f64.to_radians());
+        assert_eq!(angle, TAU, "past it stays closed, not back to 10 degrees");
+        angle = sweep_to(angle, 300f64.to_radians());
+        assert!((angle - 300f64.to_radians()).abs() < 1e-9, "backing off opens it again");
+        // The other way round too.
+        assert_eq!(sweep_to(-300f64.to_radians(), 2f64.to_radians()), -TAU);
+    }
+
+    #[test]
+    fn a_full_center_arc_is_a_circle_with_its_face() {
+        let mut doc = Document::default();
+        let mut tool = CenterArcTool::new(false);
+        tool.stage = CenterStage::Start { center: DVec3::ZERO, normal: DVec3::Z, start: DVec3::X };
+        tool.enter(&mut doc, "1").unwrap();
+        tool.enter(&mut doc, "360").unwrap();
+        assert_eq!(doc.model().faces().count(), 1, "a disk, ready to push into a hole");
+        assert_eq!(doc.model().vertices().count(), 12);
+        // A full pie too: the circle, with its line from the center.
+        let mut doc = Document::default();
+        let mut tool = CenterArcTool::new(true);
+        tool.stage = CenterStage::Start { center: DVec3::ZERO, normal: DVec3::Z, start: DVec3::X };
+        tool.enter(&mut doc, "1").unwrap();
+        tool.enter(&mut doc, "360").unwrap();
+        assert_eq!(doc.model().faces().count(), 1);
     }
 
     #[test]
