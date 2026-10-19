@@ -12,7 +12,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | # | Category | Points | Why here |
 |---|---|---|---|
 | 1 | Build sheets and assembly | 3 | Finishes what just shipped; shop output is what woodworkers keep |
-| 2 | Joinery | 95 | Closes gaps in the core woodworking feature |
+| 2 | Joinery | 92 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 11 | Shapes beyond boxes, the last read-back gaps |
@@ -28,7 +28,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1386** | |
+| | **All** | **1383** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -53,19 +53,17 @@ where parts overlap; angled mortise and tenon and housings; Change and Remove; f
 mortises and dowel holes.
 1. [3] Fit allowance on slots, haunched tenons and angled joints (angled tenons go as deep as
    the overlap drawn).
-2. [3] Joints made before sizes were kept: Change starts from suggestions; fill in their sizes
-   (from the joint's description; drawings before 0.1.40 also read back as recipes with suggested sizes).
-3. [5] Variable dovetail spacing.
-4. [5] An angled joint on one copy of a shared component makes it its own component (the
+2. [5] Variable dovetail spacing.
+3. [5] An angled joint on one copy of a shared component makes it its own component (the
    others stay); square joints change every copy. Offer to change all of them.
-5. [8] Removing a joint after a part was changed by hand (refused now; use Undo).
-6. [8] Pocket screws: draw the angled bore, not only the pocket on the hidden face.
-7. [13] Sliding and lapped dovetails.
-8. [13] Joining parts in different groups (both must be side by side now).
-9. [13] Angled dowels, half-laps and dovetails.
-10. [21] Compound angles, and a second angled joint on a part already cut at an angle in
+4. [8] Removing a joint after a part was changed by hand (refused now; use Undo).
+5. [8] Pocket screws: draw the angled bore, not only the pocket on the hidden face.
+6. [13] Sliding and lapped dovetails.
+7. [13] Joining parts in different groups (both must be side by side now).
+8. [13] Angled dowels, half-laps and dovetails.
+9. [21] Compound angles, and a second angled joint on a part already cut at an angle in
     another plane.
-11. [3] Entity Info lists a part's joints once per copy's meeting ("Dovetails with Side" twice on
+10. [3] Entity Info lists a part's joints once per copy's meeting ("Dovetails with Side" twice on
     a drawer front made as copies); list each cut once, as the build sheets do
     (`buildsheet::cuts`), and say which corners it's at.
 
