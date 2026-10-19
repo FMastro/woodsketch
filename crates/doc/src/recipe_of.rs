@@ -15,7 +15,7 @@ use glam::{DAffine3, DMat3, DVec3};
 use crate::joinery::JointKind;
 use crate::part::Cut;
 use crate::profile::{Edges, Profile};
-use crate::recipe::{CopySpec, GroupSpec, JointSpec, Length, MaterialSpec, PartSpec, ProfileSpec, Recipe, Reference, TemplateSpec, Turn};
+use crate::recipe::{CopySpec, GroupSpec, JointSpec, Length, MaterialSpec, PartSpec, ProfileSpec, Recipe, Reference, Shape, ShapeFace, TemplateSpec, Turn};
 use crate::{DefinitionId, DefinitionKind, Document, InstanceId, MaterialId, MaterialKind, Scene};
 
 /// The drawing as a recipe, and notes on what it leaves out.
@@ -24,6 +24,10 @@ pub fn from_document(doc: &Document) -> (Recipe, Vec<String>) {
     let mut out = Reader { scene, recipe: Recipe::default(), notes: Vec::new(), materials: HashMap::new(), names: HashSet::new(), parts: Vec::new() };
     out.materials();
     let root: Vec<(InstanceId, DAffine3)> = scene.root.instances().filter(|(_, i)| scene.is_visible(i)).map(|(id, i)| (id, i.transform)).collect();
+    let hidden = scene.root.instances().filter(|(_, i)| !scene.is_visible(i)).count();
+    if hidden > 0 {
+        out.notes.push(format!("{hidden} thing(s) on hidden tags at the top of the drawing are left out."));
+    }
     out.container(&scene.root, DAffine3::IDENTITY, &root);
     out.profiles();
     out.joints();
@@ -78,7 +82,7 @@ impl Reader<'_> {
                 key = format!("{first}_{n}");
                 n += 1;
             }
-            let library = crate::library::LIBRARY.iter().find(|p| p.name.eq_ignore_ascii_case(&m.name) && p.kind == m.kind).map(|p| p.name.to_owned());
+            let library = crate::library::LIBRARY.iter().find(|p| p.name == m.name && p.kind == m.kind).map(|p| p.name.to_owned());
             let kind = match m.kind {
                 MaterialKind::SolidWood => "solid wood",
                 MaterialKind::DimensionalLumber => "lumber",
@@ -131,13 +135,30 @@ impl Reader<'_> {
                 let members = self.container(&def.container, placed, &inner);
                 if !members.is_empty() {
                     let name = self.unique(&def.name);
-                    self.recipe.groups.push(GroupSpec { name: name.clone(), parts: members, component: def.kind == DefinitionKind::Component });
+                    let called = (name != def.name).then(|| def.name.clone());
+                    self.recipe.groups.push(GroupSpec { name: name.clone(), parts: members, component: def.kind == DefinitionKind::Component, called });
                     names.push(name);
                 }
                 continue;
             }
+            // Faces of its own and groups inside: its faces as a part, in a group with what's inside.
             if def.container.instances().next().is_some() {
-                self.notes.push(format!("{}: groups inside a part are left out.", def.name));
+                let inner: Vec<(InstanceId, DAffine3)> = def.container.instances().filter(|(_, i)| scene.is_visible(i)).map(|(id, i)| (id, i.transform)).collect();
+                let paint = instance.material.or_else(|| def.container.model.faces().next().and_then(|(_, f)| f.material));
+                let mut members = Vec::new();
+                if let Some(part) = self.part(instance.definition, placed, paint, None) {
+                    members.push(part.name.clone());
+                    self.parts.push(Placed { definition: instance.definition, world: placed, name: part.name.clone() });
+                    self.recipe.parts.push(part);
+                }
+                members.extend(self.container(&def.container, placed, &inner));
+                if !members.is_empty() {
+                    let name = self.unique(&def.name);
+                    let called = (name != def.name).then(|| def.name.clone());
+                    self.recipe.groups.push(GroupSpec { name: name.clone(), parts: members, component: def.kind == DefinitionKind::Component, called });
+                    names.push(name);
+                }
+                continue;
             }
             // A copy of a part already written, turned about z: written as its copy.
             if let Some(&(index, original)) = first.get(&instance.definition)
@@ -166,7 +187,9 @@ impl Reader<'_> {
         let scene = self.scene;
         let def = scene.definition(definition)?;
         // Before its joints changed it.
-        let model = scene.joint_bases.iter().find(|(d, _)| *d == definition).map_or(&def.container.model, |(_, m)| m);
+        // (Joints at an angle keep the shapes from before them on the joint.)
+        let angled = scene.joints.iter().find_map(|j| j.before.iter().find(|(d, _)| *d == definition).map(|(_, m)| m));
+        let model = angled.or_else(|| scene.joint_bases.iter().find(|(d, _)| *d == definition).map(|(_, m)| m)).unwrap_or(&def.container.model);
         let (lo, hi) = model.bounds()?;
         let scale = DVec3::new(world.matrix3.x_axis.length(), world.matrix3.y_axis.length(), world.matrix3.z_axis.length());
         let extents = (hi - lo) * scale;
@@ -175,20 +198,19 @@ impl Reader<'_> {
             self.notes.push(format!("{}: flat (a picture or cut-out figure), left out.", def.name));
             return None;
         }
-        // A recipe part is a box: one shaped otherwise (angled ends, curves) comes back as its box.
+        // A recipe part is a box; one shaped otherwise (angled ends, curves, cuts made by hand)
+        // keeps its own faces as its shape. (A profile the recipe makes again doesn't count.)
         let boxy = model.faces().count() == 6 && model.faces().all(|(_, f)| f.normal.abs().max_element() > 1.0 - 1e-6);
-        // (A profile the recipe makes again doesn't count.)
-        if !boxy && !scene.profiles.iter().any(|p| p.part == definition) {
-            self.notes.push(format!("{}: not a plain box (angled or shaped); the recipe makes it as its box, {} x {} x {}.", def.name, crate::units::format_length(extents[l]), crate::units::format_length(extents[w]), crate::units::format_length(extents[t])));
-        }
+        let shaped = !boxy && !scene.profiles.iter().any(|p| p.part == definition);
         let rotation = DMat3::from_cols(world.matrix3.x_axis / scale.x, world.matrix3.y_axis / scale.y, world.matrix3.z_axis / scale.z);
         let (along, across) = (rotation * DVec3::AXES[l], rotation * DVec3::AXES[w]);
         let name = self.unique(&def.name);
-        // As the recipe builds it: along two axes, then turned about one.
-        let Some((length_axis, width_axis, turn)) = lay(along, across) else {
-            self.notes.push(format!("{name}: turned about more than one axis; written square to the axes."));
-            return None;
-        };
+        // As the recipe builds it: along two axes, then turned about one. Turned about two, it's
+        // kept as a shape in a box square to the axes (x, y, z) that holds it.
+        let laid = lay(along, across);
+        let free = laid.is_none();
+        let (length_axis, width_axis, turn) = laid.unwrap_or((0, 1, None));
+        let shaped = shaped || free;
         let spin = turn.as_ref().map_or(DMat3::IDENTITY, |t| DMat3::from_axis_angle(DVec3::AXES[axis_index(&t.axis)], t.degrees.to_radians()));
         // Its lowest corner before the turn, turned (the turn is about that corner).
         let box_corners: Vec<DVec3> = (0..8)
@@ -199,6 +221,32 @@ impl Reader<'_> {
             .collect();
         let before = box_corners.iter().map(|c| spin.transpose() * *c).reduce(DVec3::min).unwrap_or(DVec3::ZERO);
         let at = spin * before;
+        // Length, width and thickness as built: along its own axes, or the box square to the axes.
+        let size = if free {
+            let top = box_corners.iter().copied().reduce(DVec3::max).unwrap_or(DVec3::ZERO);
+            (top - at).to_array()
+        } else {
+            [extents[l], extents[w], extents[t]]
+        };
+        // The shape, in the frame the board will be built in: the box along its axes from `at`, turned.
+        let shape = shaped.then(|| {
+            let (ld, wd) = (DVec3::AXES[length_axis], DVec3::AXES[width_axis]);
+            let td = ld.cross(wd);
+            let origin = if td.min_element() < 0.0 { at - td * size[2] } else { at };
+            let board = crate::board::Board { origin, length_dir: ld, width_dir: wd, length: size[0], width: size[1], thickness: size[2] };
+            let turned = DAffine3::from_translation(at) * DAffine3::from_mat3(spin) * DAffine3::from_translation(-at);
+            let to_local = (turned * board.transform()).inverse() * world;
+            // A mirrored placement turns faces inside out: wind them back.
+            let flip = to_local.matrix3.determinant() < 0.0;
+            let ring = |ids: &[crate::VertexId]| -> Vec<[f64; 3]> {
+                let mut points: Vec<[f64; 3]> = ids.iter().map(|&v| to_local.transform_point3(model.vertex(v)).to_array().map(|c| (c * 100_000.0).round() / 100_000.0)).collect();
+                if flip {
+                    points.reverse();
+                }
+                points
+            };
+            Shape { faces: model.faces().map(|(_, f)| ShapeFace { outer: ring(&f.outer), holes: f.holes.iter().map(|h| ring(h)).collect() }).collect() }
+        });
         let info = &def.part;
         let side_name = |side: Option<crate::part::Side>| side.and_then(|s| direction_name(rotation * s.normal()));
         let reference = Reference { face: side_name(info.reference_face), edge: side_name(info.reference_edge), end: side_name(info.reference_end) };
@@ -207,13 +255,13 @@ impl Reader<'_> {
             called: (name != def.name).then(|| def.name.clone()),
             name,
             material: paint.and_then(|m| self.materials.get(&m).cloned()),
-            size: [extents[l], extents[w], extents[t]].map(|v| Length::Number(round(v))),
+            size: size.map(|v| Length::Number(round(v))),
             at: length3(at),
             length: ["x", "y", "z"][length_axis].into(),
             width: ["x", "y", "z"][width_axis].into(),
             tag: tag.and_then(|t| scene.tag(t)).map(|t| t.name.clone()),
             free_to_move: info.free_to_move,
-            grain: info.grain.filter(|g| g.index() == w).map(|_| "width".to_owned()),
+            grain: info.grain.filter(|g| !free && g.index() == w).map(|_| "width".to_owned()),
             cut: match info.cut {
                 Cut::FlatSawn => Some("flat_sawn".into()),
                 Cut::QuarterSawn => Some("quartersawn".into()),
@@ -222,6 +270,7 @@ impl Reader<'_> {
             turn,
             reference,
             copies: Vec::new(),
+            shape,
         })
     }
 
@@ -350,7 +399,8 @@ impl Reader<'_> {
 
 /// The world corners of a part's box before its joints changed it, placed by `world`.
 fn base_corners(scene: &Scene, definition: DefinitionId, world: DAffine3) -> Vec<DVec3> {
-    let base = scene.joint_bases.iter().find(|(d, _)| *d == definition).and_then(|(_, m)| m.bounds());
+    let angled = scene.joints.iter().find_map(|j| j.before.iter().find(|(d, _)| *d == definition).map(|(_, m)| m));
+    let base = angled.or_else(|| scene.joint_bases.iter().find(|(d, _)| *d == definition).map(|(_, m)| m)).and_then(|m| m.bounds());
     let Some((lo, hi)) = base.or_else(|| scene.definition_bounds(definition)) else { return Vec::new() };
     (0..8)
         .map(|i| world.transform_point3(DVec3::new(if i & 1 == 0 { lo.x } else { hi.x }, if i & 2 == 0 { lo.y } else { hi.y }, if i & 4 == 0 { lo.z } else { hi.z })))
@@ -505,6 +555,96 @@ mod tests {
         assert_eq!(recipe.templates.len(), 1);
         assert_eq!(recipe.templates[0].sizes.get("width"), Some(&serde_json::json!(30.0)));
         assert_eq!(recipe.joints[0].kind, "angled_mortise_and_tenon");
+    }
+
+    /// A 10" x 2" x 1" board with one end cut at an angle (the top edge 8" long), as a shape.
+    fn angled_end() -> serde_json::Value {
+        let p = |x: f64, y: f64, z: f64| serde_json::json!([x, y, z]);
+        let (a, b, c, d) = (|z| p(0.0, 0.0, z), |z| p(10.0, 0.0, z), |z| p(8.0, 2.0, z), |z| p(0.0, 2.0, z));
+        serde_json::json!({ "faces": [
+            { "outer": [a(0.0), d(0.0), c(0.0), b(0.0)] },
+            { "outer": [a(1.0), b(1.0), c(1.0), d(1.0)] },
+            { "outer": [a(0.0), b(0.0), b(1.0), a(1.0)] },
+            { "outer": [b(0.0), c(0.0), c(1.0), b(1.0)] },
+            { "outer": [c(0.0), d(0.0), d(1.0), c(1.0)] },
+            { "outer": [d(0.0), a(0.0), a(1.0), d(1.0)] }
+        ] })
+    }
+
+    /// Every corner of every part, in the world, sorted: two drawings the same shape and place.
+    fn corners_of(doc: &Document) -> Vec<[i64; 3]> {
+        let scene = doc.scene();
+        let mut out: Vec<[i64; 3]> = scene
+            .root
+            .instances()
+            .flat_map(|(_, i)| {
+                let model = &scene.definition(i.definition).unwrap().container.model;
+                model.vertices().map(|(_, p)| i.transform.transform_point3(p).to_array().map(|c| (c * 1000.0).round() as i64)).collect::<Vec<_>>()
+            })
+            .collect();
+        out.sort_unstable();
+        out
+    }
+
+    #[test]
+    fn shaped_parts_keep_their_shape_through_a_read_back() {
+        let shape = angled_end();
+        let recipe = serde_json::json!({
+            "materials": [{ "id": "oak", "library": "Red Oak" }],
+            "parts": [
+                { "name": "Bracket", "material": "oak", "size": [10, 2, 1], "at": [5, 5, 0], "shape": shape },
+                { "name": "Brace", "material": "oak", "size": [10, 2, 1], "at": [20, 0, 0], "length": "x", "width": "z",
+                  "turn": { "axis": "y", "degrees": -30 }, "shape": shape }
+            ]
+        });
+        let doc = build(&parse(&recipe.to_string()).unwrap()).unwrap_or_else(|e| panic!("{e:?}"));
+        let (read, notes) = from_document(&doc);
+        assert!(notes.is_empty(), "{notes:?}");
+        assert!(read.parts.iter().all(|p| p.shape.is_some()), "both kept as shapes");
+        let again = build(&read).unwrap_or_else(|e| panic!("{e:?}"));
+        assert_eq!(corners_of(&again), corners_of(&doc), "the same shapes in the same places");
+        // And after moving one, the other is untouched.
+        let mut moved = read.clone();
+        moved.change_part("Bracket", &serde_json::json!({ "at": [5, 5, 3] })).unwrap();
+        let after = build(&moved).unwrap();
+        let brace = |d: &Document| corners_of(d).into_iter().filter(|c| c[0] >= 18_000).collect::<Vec<_>>();
+        assert_eq!(brace(&after), brace(&doc));
+    }
+
+    #[test]
+    fn a_part_turned_about_two_axes_is_kept_where_it_is() {
+        let mut doc = Document::default();
+        let oak = doc.add_preset(crate::library::LIBRARY.iter().find(|p| p.name == "Red Oak").unwrap());
+        let length_dir = DVec3::new(1.0, 1.0, 1.0).normalize();
+        let width_dir = DVec3::new(-1.0, 1.0, 0.0).normalize();
+        doc.add_board(&crate::board::Board { origin: DVec3::new(3.0, 4.0, 5.0), length_dir, width_dir, length: 20.0, width: 4.0, thickness: 1.0 }, Some(oak)).unwrap();
+        let (read, notes) = from_document(&doc);
+        assert!(notes.is_empty(), "{notes:?}");
+        assert!(read.parts[0].shape.is_some(), "kept as its shape");
+        let again = build(&read).unwrap_or_else(|e| panic!("{e:?}"));
+        let (a, b) = (corners_of(&again), corners_of(&doc));
+        assert!(a.len() == b.len() && a.iter().zip(&b).all(|(p, q)| (0..3).all(|k| (p[k] - q[k]).abs() <= 1)), "in the same place: {a:?} {b:?}");
+    }
+
+    #[test]
+    fn a_group_with_faces_of_its_own_keeps_what_is_inside() {
+        // A bed: a frame drawn right in its group, with a mattress group inside.
+        let mut doc = build(&parse(r#"{ "parts": [{ "name": "Mattress", "size": [75, 39, 8], "at": [0, 0, 10] }] }"#).unwrap()).unwrap();
+        let mattress = doc.scene().root.instances().next().unwrap().0;
+        doc.selection_mut().extend([crate::Entity::Instance(mattress)]);
+        let bed = doc.group_selection(DefinitionKind::Group).unwrap();
+        doc.rename_instance(bed, "Bed");
+        doc.enter(bed);
+        doc.edit(|m| {
+            let face = m.add_rectangle(DVec3::ZERO, DVec3::X * 76.0, DVec3::Y * 40.0, DVec3::Z).unwrap();
+            m.push_pull(face, 2.0).unwrap();
+        });
+        doc.exit();
+        let (read, _) = from_document(&doc);
+        assert_eq!(read.groups.len(), 1);
+        assert_eq!(read.groups[0].parts.len(), 2, "its own faces and the mattress: {:?}", read.groups[0]);
+        let again = build(&read).unwrap_or_else(|e| panic!("{e:?}"));
+        assert!(crate::recipe::summary(&again).contains("Mattress"), "the mattress is still there");
     }
 
     #[test]

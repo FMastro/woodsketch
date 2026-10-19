@@ -89,7 +89,11 @@ Lumber, Cedar Lumber, Pressure-Treated Lumber (dimensional lumber: 2x4s and such
 - `copies`: `[{ "name": "Leg 2", "at": [20, 0, 0], "turn": 90 }]` places more of the same part
   (a component: a joint or profile made on one is on all), each turned about z, then put at
   its lowest corner. Joints name each copy.
-
+- `shape`: a part that isn't a plain box (angled ends, a taper, a curve, cuts made by hand) keeps
+  its faces here: `{ "faces": [{ "outer": [[x, y, z], ...], "holes": [...] }] }`, in its own frame
+  (x along its length, y its width, z its thickness, from its box's corner; each outline wound
+  around the face's front). Reading a drawing back writes it, so changing other parts (or moving
+  this one) keeps the shape; `size` is then just its box.
 ### profiles
 
 `{ "part": "Top", "profile": "roundover", "size": 0.25, "around": "top" }` rounds over every edge

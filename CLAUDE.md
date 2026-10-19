@@ -295,4 +295,6 @@ points); keep general modeling working alongside it.
    can't say). Every joint function records its sizes (`note_sizes_if_new`), which recipes read
    back. MCP keeps the drawing and its recipe (`Session`): edits rebuild or change nothing; resources
    (guide, schema, recipe), a `design` prompt, progress notices. Renders: `picture::Options` (dark,
-   angle, highlight). `release.yml` zips the CLI alone per platform.
+   angle, highlight). `release.yml` zips the CLI alone per platform. Parts that aren't plain boxes, or are turned
+   about two axes, read back with `PartSpec::shape` (their faces in the board's own frame, built
+   raw by `recipe::shape_model`), so edits keep them.

@@ -3,6 +3,12 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.41
+
+- For AI assistants: parts that aren't plain boxes (angled ends, tapers, curves, cuts made by
+  hand, parts turned at compound angles) now keep their exact shape when a drawing is read back as
+  a recipe, so an assistant changing one part of a SketchUp model leaves the rest as drawn.
+
 ## 0.1.40
 
 For AI assistants and scripts (`woodsketch-cli`, its MCP server):

@@ -120,6 +120,26 @@ pub struct PartSpec {
     /// More of the same part (it becomes a component; a joint or profile on one is on all).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub copies: Vec<CopySpec>,
+    /// Its shape, when it isn't a plain box (angled ends, a taper, a curve, cuts made by hand):
+    /// its faces, in its own frame (x along its length, y its width, z its thickness, from its
+    /// box's corner). Written when a drawing is read back, so changing the rest keeps it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shape: Option<Shape>,
+}
+
+/// A part's faces (see [`PartSpec::shape`]): each an outline, with any holes.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct Shape {
+    pub faces: Vec<ShapeFace>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ShapeFace {
+    pub outer: Vec<[f64; 3]>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub holes: Vec<Vec<[f64; 3]>>,
 }
 
 /// A turn about an axis: `{"axis": "z", "degrees": 90}` (counter-clockwise looking down the axis).
@@ -223,6 +243,9 @@ pub struct GroupSpec {
     pub parts: Vec<String>,
     #[serde(default)]
     pub component: bool,
+    /// The name it shows, when that isn't `name` (as for parts).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub called: Option<String>,
 }
 
 /// Piece-by-piece edits, for agents changing a drawing without rewriting its whole recipe. Each
@@ -450,6 +473,17 @@ fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
             errors.push(format!("{what}: couldn't make the board."));
             continue;
         };
+        // A shape of its own instead of the box, in the board's frame.
+        if let Some(shape) = &p.shape {
+            let model = shape_model(shape);
+            if let Some(def) = doc.scene().root.instance(id).map(|i| i.definition) {
+                doc.edit_scene(|scene, _| {
+                    if let Some(d) = scene.definition_mut(def) {
+                        d.container.model = model;
+                    }
+                });
+            }
+        }
         doc.rename_instance(id, p.called.as_deref().unwrap_or(&p.name));
         if p.free_to_move {
             doc.edit_part(id, |info| info.free_to_move = true);
@@ -647,7 +681,7 @@ fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
         doc.selection_mut().extend(members);
         match doc.group_selection(if g.component { DefinitionKind::Component } else { DefinitionKind::Group }) {
             Some(id) => {
-                doc.rename_instance(id, &g.name);
+                doc.rename_instance(id, g.called.as_deref().unwrap_or(&g.name));
                 for name in &g.parts {
                     named.remove(name);
                 }
@@ -658,6 +692,44 @@ fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
     }
     doc.selection_mut().clear();
     if errors.is_empty() { Ok(doc) } else { Err(errors) }
+}
+
+/// A part's own faces as a model, taken as they are (they were faces in the drawing they came
+/// from): corners at one place shared, each loop's edges added once, a face's front by its
+/// winding. Faces too small to have a side are left out.
+fn shape_model(shape: &Shape) -> crate::Model {
+    let mut model = crate::Model::default();
+    let mut corners: HashMap<[i64; 3], crate::VertexId> = HashMap::new();
+    let mut edges: std::collections::HashSet<(crate::VertexId, crate::VertexId)> = std::collections::HashSet::new();
+    let mut vertex = |model: &mut crate::Model, p: &[f64; 3]| -> crate::VertexId {
+        let key = p.map(|c| (c * 100_000.0).round() as i64);
+        *corners.entry(key).or_insert_with(|| model.push_vertex(DVec3::from_array(*p)))
+    };
+    for face in &shape.faces {
+        let mut ring = |model: &mut crate::Model, points: &[[f64; 3]]| -> Vec<crate::VertexId> {
+            let mut ids: Vec<crate::VertexId> = points.iter().map(|p| vertex(model, p)).collect();
+            ids.dedup();
+            if ids.len() > 1 && ids.first() == ids.last() {
+                ids.pop();
+            }
+            ids
+        };
+        let outer = ring(&mut model, &face.outer);
+        let holes: Vec<Vec<crate::VertexId>> = face.holes.iter().map(|h| ring(&mut model, h)).filter(|h| h.len() >= 3).collect();
+        let points: Vec<DVec3> = outer.iter().map(|&v| model.vertex(v)).collect();
+        let newell = (0..points.len()).fold(DVec3::ZERO, |n, i| n + points[i].cross(points[(i + 1) % points.len()]));
+        let Some(normal) = newell.try_normalize().filter(|_| outer.len() >= 3) else { continue };
+        for ids in std::iter::once(&outer).chain(&holes) {
+            for i in 0..ids.len() {
+                let (a, b) = (ids[i], ids[(i + 1) % ids.len()]);
+                if a != b && edges.insert((a.min(b), a.max(b))) {
+                    model.push_edge(a, b);
+                }
+            }
+        }
+        model.push_face(outer, holes, normal, None);
+    }
+    model
 }
 
 /// A direction by name, as a part is placed: `top` is up (+z), `front` toward you (-y), `right` +x.
