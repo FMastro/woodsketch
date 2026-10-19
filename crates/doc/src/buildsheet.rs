@@ -122,8 +122,12 @@ svg text {{ font: 11px system-ui, sans-serif; fill: #333; }}
         let _ = write!(html, "<section class=\"sheet assembly\"><h2>Assemble: {}</h2>", esc(&assembly.name));
         html.push_str(&assembly.svg);
         html.push_str("<ol>");
-        for step in &assembly.steps {
-            let _ = write!(html, "<li>{}</li>", esc(step));
+        for (step, picture) in assembly.steps.iter().zip(&assembly.pictures) {
+            let _ = write!(html, "<li>{}", esc(step));
+            if let Some(svg) = picture {
+                let _ = write!(html, "<div class=\"step-picture\">{svg}</div>");
+            }
+            html.push_str("</li>");
         }
         html.push_str("</ol></section>
 ");
@@ -866,7 +870,8 @@ mod tests {
         assert!(!plain.contains(dashed), "a plain board hides nothing");
         assert!(html.contains("Cut the dado for Shelf (1/4\" deep)."), "the side's step");
         assert!(html.contains("Fits into the dado in Side"), "the shelf's note");
-        assert_eq!(html.matches("<svg").count(), 3, "drawings for each part, and the exploded assembly");
+        assert_eq!(html.matches("<svg").count(), 5, "drawings for each part, the exploded assembly, and one for each of its 2 steps");
+        assert_eq!(html.matches("class=\"step-picture\"").count(), 2);
         assert!(html.contains("Assemble: The whole piece") && html.contains("Glue"), "how it goes together");
         let mill = html.find("Mill to").unwrap();
         let dado = html.find("Cut the dado").unwrap();

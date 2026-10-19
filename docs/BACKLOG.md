@@ -11,7 +11,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 ## Summary (recommended order)
 | # | Category | Points | Why here |
 |---|---|---|---|
-| 1 | Build sheets and assembly | 29 | Finishes what just shipped; shop output is what woodworkers keep |
+| 1 | Build sheets and assembly | 11 | Finishes what just shipped; shop output is what woodworkers keep |
 | 2 | Joinery | 95 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
@@ -28,7 +28,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1432** | |
+| | **All** | **1414** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -39,12 +39,15 @@ and mirrored parts on one page; glue-up boards drawn; reference face and edge pi
 drawn and named on the views; each cut's place, length and depth dimensioned; a reference end;
 the face mark's loop and the edge mark's caret on the views and the model; leaders that keep clear
 of other parts; hardware on two parts names both; parts alike but drawn differently share a
-sheet; which copies take which part.
-1. [8] A glue-up order for parts with no joints made (now they're only "fastened").
-2. [8] An exploded drawing for each step instead of one per assembly.
-3. [8] Assembly order for parts at an angle (touching is judged on boxes square to the axes).
-4. [2] A leader with no spot clear of other parts still crosses one: route it around it (bends).
-5. [3] Dimension rows and depth lines on a part with many cuts crowd the views; group them, or
+sheet; which copies take which part. A glue-up order for parts with no joints
+made (taken as butt joints); a picture for each step; parts at an angle touch only where their faces
+meet.
+1. [3] Step pictures pull a new part straight out from what's together; along the way it goes in
+   (a shelf out of its dados, a tenon out of its mortise) would read better.
+2. [3] Parts with no joints made are taken as butt-joined, glued and screwed; say where the screws
+   go (and pocket screws or nails when that fits better).
+3. [2] A leader with no spot clear of other parts still crosses one: route it around it (bends).
+4. [3] Dimension rows and depth lines on a part with many cuts crowd the views; group them, or
    a table of positions instead past a few.
 
 ## 2. Joinery

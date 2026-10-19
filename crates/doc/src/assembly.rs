@@ -28,6 +28,8 @@ use crate::{Container, DefinitionId, MaterialId, Scene};
 pub struct Assembly {
     pub name: String,
     pub steps: Vec<String>,
+    /// For each step that puts something in: a picture of it going on to what's together.
+    pub pictures: Vec<Option<String>>,
     pub svg: String,
 }
 
@@ -133,7 +135,16 @@ fn walk(scene: &Scene, list: &CutList, container: &Container, name: &str, world:
         }
         *members[i].hardware.entry(piece).or_default() += 1;
     }
-    out.push(Assembly { name: name.to_owned(), steps: steps(scene, &members, &loose), svg: exploded(&members) });
+    let (mut texts, mut pictures) = (Vec::new(), Vec::new());
+    let mut done = vec![false; members.len()];
+    for (text, put) in steps(scene, &members, &loose) {
+        pictures.push((!put.is_empty()).then(|| step_picture(&members, &done, &put)));
+        for i in put {
+            done[i] = true;
+        }
+        texts.push(text);
+    }
+    out.push(Assembly { name: name.to_owned(), steps: texts, pictures, svg: exploded(&members) });
     true
 }
 
@@ -220,6 +231,9 @@ fn hardware_in(scene: &Scene, container: &Container) -> BTreeMap<String, u32> {
 /// How much two touching boxes share: the area of their meeting (the two largest sides of their
 /// overlap).
 fn contact(a: &Member, b: &Member) -> f64 {
+    if !square(a) || !square(b) {
+        return face_contact(a, b);
+    }
     let overlap = (a.hi.min(b.hi) - a.lo.max(b.lo)).max(DVec3::ZERO);
     let mut sides = [overlap.x, overlap.y, overlap.z];
     sides.sort_by(f64::total_cmp);
@@ -249,7 +263,65 @@ fn against(m: &Member, piece: &Member) -> f64 {
 /// Whether two boxes touch or overlap.
 fn touching(a: &Member, b: &Member) -> bool {
     const TOL: f64 = 1e-3;
-    (a.lo - b.hi).max_element() <= TOL && (b.lo - a.hi).max_element() <= TOL
+    let boxes = (a.lo - b.hi).max_element() <= TOL && (b.lo - a.hi).max_element() <= TOL;
+    // At an angle, the boxes say little (a brace's box takes in the corner it braces): faces must meet.
+    boxes && (square(a) && square(b) || face_contact(a, b) > 1e-6)
+}
+
+/// Whether every face of a member is square to the red, green and blue axes.
+fn square(m: &Member) -> bool {
+    m.faces.iter().all(|(_, n, _)| n.abs().max_element() > 1.0 - 1e-6)
+}
+
+/// How much of the two members' faces lie against each other: faces facing each other on one
+/// plane, the area where they overlap.
+fn face_contact(a: &Member, b: &Member) -> f64 {
+    const TOL: f64 = 1e-3;
+    let mut total = 0.0;
+    for (pa, na, _) in &a.faces {
+        for (pb, nb, _) in &b.faces {
+            if na.dot(*nb) > -1.0 + 1e-6 || pa.is_empty() || pb.is_empty() || (pb[0] - pa[0]).dot(*na).abs() > TOL {
+                continue;
+            }
+            // On the plane, in its own axes.
+            let u = na.any_orthonormal_vector();
+            let v = na.cross(u);
+            let flat = |ps: &[DVec3]| -> Vec<(f64, f64)> { ps.iter().map(|p| (p.dot(u), p.dot(v))).collect() };
+            total += area(&clip(&flat(pa), &flat(pb)));
+        }
+    }
+    total
+}
+
+/// The part of polygon `subject` inside polygon `window` (Sutherland-Hodgman; the window taken as
+/// convex, as boards' faces are).
+fn clip(subject: &[(f64, f64)], window: &[(f64, f64)]) -> Vec<(f64, f64)> {
+    let signed: f64 = (0..window.len()).map(|i| {
+        let (a, b) = (window[i], window[(i + 1) % window.len()]);
+        a.0 * b.1 - b.0 * a.1
+    }).sum();
+    let turn = if signed < 0.0 { -1.0 } else { 1.0 };
+    let mut out = subject.to_vec();
+    for i in 0..window.len() {
+        if out.is_empty() {
+            break;
+        }
+        let (a, b) = (window[i], window[(i + 1) % window.len()]);
+        let side = |p: (f64, f64)| turn * ((b.0 - a.0) * (p.1 - a.1) - (b.1 - a.1) * (p.0 - a.0));
+        let input = std::mem::take(&mut out);
+        for k in 0..input.len() {
+            let (p, q) = (input[k], input[(k + 1) % input.len()]);
+            let (sp, sq) = (side(p), side(q));
+            if sp >= 0.0 {
+                out.push(p);
+            }
+            if (sp >= 0.0) != (sq >= 0.0) {
+                let t = sp / (sp - sq);
+                out.push((p.0 + (q.0 - p.0) * t, p.1 + (q.1 - p.1) * t));
+            }
+        }
+    }
+    out
 }
 
 /// The joints between two members, by name (from the drawing's joints).
@@ -279,7 +351,8 @@ fn joints_between(scene: &Scene, a: &Member, b: &Member) -> Vec<&'static str> {
     kinds
 }
 
-fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Vec<String> {
+/// The steps, each with the members it puts in (none for a note or for hardware).
+fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Vec<(String, Vec<usize>)> {
     let n = members.len();
     let joined: Vec<Vec<(usize, Vec<&'static str>)>> = (0..n)
         .map(|i| {
@@ -292,6 +365,28 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
                 .collect()
         })
         .collect();
+    // No joints made at all: parts that touch are taken as butt-joined, glued and screwed, so there's
+    // still an order to put them together in (a wide solid top resting on them is still fastened
+    // so it can move, below).
+    let unjoined = joined.iter().all(|j| j.is_empty());
+    let joined: Vec<Vec<(usize, Vec<&'static str>)>> = if unjoined {
+        // A top: wide, lying flat (thin up and down), on the other.
+        let rests = |a: &Member, b: &Member| {
+            let size = a.hi - a.lo;
+            a.wide_solid && size.z < size.x.min(size.y) && a.lo.z >= b.hi.z - 1e-3
+        };
+        (0..n)
+            .map(|i| {
+                (0..n)
+                    .filter(|&j| j != i && !members[i].moves && !members[j].moves && touching(&members[i], &members[j]))
+                    .filter(|&j| contact(&members[i], &members[j]) > 1e-6 && !rests(&members[i], &members[j]) && !rests(&members[j], &members[i]))
+                    .map(|j| (j, vec!["butt joint, glued and screwed"]))
+                    .collect()
+            })
+            .collect()
+    } else {
+        joined
+    };
     // Panels held in grooves (a drawer bottom, a door panel): slid in without glue as the last part
     // around them goes on, not glued up.
     let panel = |i: usize| joined[i].len() >= 2 && joined[i].iter().all(|(_, kinds)| kinds.iter().all(|k| *k == "Groove"));
@@ -301,6 +396,9 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
         .collect();
     let mut steps = Vec::new();
     let mut done = vec![false; n];
+    if unjoined && joined.iter().any(|j| !j.is_empty()) {
+        steps.push(("No joints are made here yet, so this takes the parts as butt-joined: make joints in the Joinery panel for a better order.".to_owned(), Vec::new()));
+    }
     // Frames first, as a table is glued up: rails that each join two posts (not joined to each
     // other), every post once; the longest such rails, each glued up with its two posts.
     if let Some(rails) = frames(members, &joined) {
@@ -313,7 +411,10 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
             }
             let posts: Vec<String> = joined[r].iter().map(|(p, kinds)| format!("{} ({})", members[*p].name, kinds.join(", ").to_lowercase())).collect();
             let make = if same && rails.len() > 1 { format!(" Make {}.", rails.len()) } else { String::new() };
-            steps.push(format!("Glue up a frame: {} between {}.{make}", members[r].name, both(&posts)));
+            // "Make 2": every frame goes in at this step.
+            let frames: Vec<usize> = if same { rails.clone() } else { vec![r] };
+            let put: Vec<usize> = frames.iter().flat_map(|&r| std::iter::once(r).chain(joined[r].iter().map(|(p, _)| *p))).collect();
+            steps.push((format!("Glue up a frame: {} between {}.{make}", members[r].name, both(&posts)), put));
         }
         for &r in &rails {
             done[r] = true;
@@ -322,7 +423,7 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
             }
         }
         if (0..n).any(|i| !done[i] && joined[i].iter().any(|(j, _)| done[*j])) {
-            steps.push("Join the frames:".to_owned());
+            steps.push(("Join the frames:".to_owned(), Vec::new()));
         }
     }
     // Then grow from the most-joined part, adding the part joined most to what's together.
@@ -330,8 +431,8 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
         if !done.iter().any(|d| *d) || !(0..n).any(|i| !done[i] && joined[i].iter().any(|(j, _)| done[*j])) {
             let Some(start) = (0..n).filter(|&i| !done[i] && !joined[i].is_empty()).max_by_key(|&i| joined[i].len()) else { break };
             done[start] = true;
-            let word = if steps.is_empty() { "Start with" } else { "Separately, start with" };
-            steps.push(format!("{word} {}.", members[start].name));
+            let word = if done.iter().filter(|d| **d).count() == 1 { "Start with" } else { "Separately, start with" };
+            steps.push((format!("{word} {}.", members[start].name), vec![start]));
         }
         loop {
             // Next, a part joined to what's together: the simplest first (fewest joins in all: shelves
@@ -350,33 +451,26 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
             for (p, around) in &panels {
                 if !done[*p] && around.contains(&i) && around.iter().filter(|j| !done[**j]).count() == 1 {
                     done[*p] = true;
-                    steps.push(format!("Slide {} into its grooves, without glue (it floats).", members[*p].name));
+                    steps.push((format!("Slide {} into its grooves, without glue (it floats).", members[*p].name), vec![*p]));
                 }
             }
             done[i] = true;
             let to: Vec<String> = joined[i].iter().filter(|(j, _)| done[*j] && *j != i).map(|(j, kinds)| format!("{} ({})", members[*j].name, kinds.join(", ").to_lowercase())).collect();
-            steps.push(format!("Glue {} to {}.", members[i].name, both(&to)));
+            steps.push((format!("Glue {} to {}.", members[i].name, both(&to)), vec![i]));
         }
         if !(0..n).any(|i| !done[i] && !joined[i].is_empty()) {
             break;
         }
     }
     // The same step twice in a row (both side aprons): once, said twice.
-    let mut merged: Vec<(String, usize)> = Vec::new();
-    for step in steps.drain(..) {
-        match merged.last_mut() {
-            Some((last, count)) if *last == step && !step.ends_with(':') => *count += 1,
-            _ => merged.push((step, 1)),
-        }
-    }
-    steps = merged.into_iter().map(|(step, count)| if count > 1 { format!("{step} Do this {count} times.") } else { step }).collect();
+    steps = merge(std::mem::take(&mut steps));
     if steps.is_empty() && n > 0 {
-        steps.push("Nothing here is joined yet: make its joints in the Joinery panel to get a glue-up order.".to_owned());
+        steps.push(("Nothing here is joined yet: make its joints in the Joinery panel to get a glue-up order.".to_owned(), Vec::new()));
     }
     // Once the glue's dry: hardware on the glued-up parts (slides on a drawer box's sides).
     for (i, m) in members.iter().enumerate() {
         if done[i] && !m.moves && !m.hardware.is_empty() {
-            steps.push(mount(m));
+            steps.push((mount(m), Vec::new()));
         }
     }
     // Parts that only touch: fastened (a solid top so it can move), then drawers and doors.
@@ -396,39 +490,47 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
         }
         done[i] = true;
         let how = if m.wide_solid && on_top { " with fasteners that let it move across its grain (tabletop buttons or figure-8s, or screws in slotted holes)" } else { "" };
-        steps.push(format!("Fasten {} to {}{how}.", m.name, list(&against)));
+        steps.push((format!("Fasten {} to {}{how}.", m.name, list(&against)), vec![i]));
         if !m.hardware.is_empty() {
-            steps.push(mount(m));
+            steps.push((mount(m), Vec::new()));
         }
     }
-    for m in members.iter().filter(|m| m.moves) {
+    for (i, m) in members.iter().enumerate().filter(|(_, m)| m.moves) {
         let verb = if m.name.to_lowercase().contains("door") { "Hang" } else { "Fit" };
         let on = if verb == "Hang" { "its hinges" } else { "its slides" };
         let with = if m.hardware.is_empty() { String::new() } else { format!(": {}", pieces(&m.hardware)) };
-        steps.push(format!("{verb} {} on {on}{with}.", m.name));
+        steps.push((format!("{verb} {} on {on}{with}.", m.name), vec![i]));
     }
     // The same step twice in a row (both doors hung): once, said twice.
-    let mut merged: Vec<(String, usize)> = Vec::new();
-    for step in steps.drain(..) {
-        match merged.last_mut() {
-            Some((last, count)) if *last == step => *count += 1,
-            _ => merged.push((step, 1)),
-        }
-    }
-    steps = merged.into_iter().map(|(step, count)| if count > 1 { format!("{step} Do this {count} times.") } else { step }).collect();
+    steps = merge(std::mem::take(&mut steps));
     for (i, m) in members.iter().enumerate() {
         if !done[i] && !m.moves {
-            steps.push(format!("Place {} (it doesn't touch the rest).", m.name));
+            steps.push((format!("Place {} (it doesn't touch the rest).", m.name), vec![i]));
             if !m.hardware.is_empty() {
-                steps.push(mount(m));
+                steps.push((mount(m), Vec::new()));
             }
         }
     }
     // Hardware that touches nothing here.
     if !loose.is_empty() {
-        steps.push(format!("Install the hardware: {}.", pieces(loose)));
+        steps.push((format!("Install the hardware: {}.", pieces(loose)), Vec::new()));
     }
     steps
+}
+
+/// The same step twice in a row (both side aprons): once, said twice, putting in both.
+fn merge(steps: Vec<(String, Vec<usize>)>) -> Vec<(String, Vec<usize>)> {
+    let mut merged: Vec<(String, usize, Vec<usize>)> = Vec::new();
+    for (step, put) in steps {
+        match merged.last_mut() {
+            Some((last, count, all)) if *last == step && !step.ends_with(':') => {
+                *count += 1;
+                all.extend(put);
+            }
+            _ => merged.push((step, 1, put)),
+        }
+    }
+    merged.into_iter().map(|(step, count, put)| (if count > 1 { format!("{step} Do this {count} times.") } else { step }, put)).collect()
 }
 
 /// `Mount 2 × Bar pull, 5" on E (Drawer front).`; hardware on several parts names them all: `Mount
@@ -520,6 +622,17 @@ type Polygon = (f64, Vec<(f64, f64)>, [u8; 3], f64);
 
 /// The assembly drawn from the front-left, above, each member pulled away from the middle.
 fn exploded(members: &[Member]) -> String {
+    drawing(members, None)
+}
+
+/// One step's picture: what's together already (`done`) in gray, in place, and what the step puts
+/// in (`put`) in its colors, pulled out from it and labeled.
+fn step_picture(members: &[Member], done: &[bool], put: &[usize]) -> String {
+    drawing(members, Some((done, put)))
+}
+
+/// The exploded drawing ([`exploded`]), or one step of it ([`step_picture`]).
+fn drawing(members: &[Member], step: Option<(&[bool], &[usize])>) -> String {
     // Looking from front-left, above (the Iso view's direction).
     let toward_eye = DVec3::new(-0.433, -0.75, 0.5).normalize();
     let right = DVec3::Z.cross(toward_eye).normalize();
@@ -533,15 +646,38 @@ fn exploded(members: &[Member]) -> String {
     // Every face drawn, by the member it's on, for leaders to keep clear of.
     let mut outlines: Vec<(usize, Vec<(f64, f64)>)> = Vec::new();
     let project = |p: DVec3| (p.dot(right), -p.dot(up));
-    for m in members {
+    // A step: what's together already, and where it is.
+    let together = step.map(|(done, _)| {
+        let shown: Vec<&Member> = members.iter().enumerate().filter(|(i, _)| done[*i]).map(|(_, m)| m).collect();
+        shown.iter().fold((DVec3::splat(f64::INFINITY), DVec3::splat(f64::NEG_INFINITY)), |(lo, hi), m| (lo.min(m.lo), hi.max(m.hi)))
+    });
+    for (index, m) in members.iter().enumerate() {
+        let new = step.is_some_and(|(_, put)| put.contains(&index));
+        let old = step.is_some_and(|(done, _)| done[index]);
+        if step.is_some() && !new && !old {
+            continue;
+        }
         let center = (m.lo + m.hi) / 2.0;
         let mut shift = (center - middle) * 0.6;
-        // Something resting on top with nothing above it (a table top) lifts well clear.
-        let resting = members.iter().any(|o| !std::ptr::eq(o, m) && touching(o, m) && m.lo.z >= o.hi.z - 1e-3);
-        let covered = members.iter().any(|o| !std::ptr::eq(o, m) && o.lo.z >= m.hi.z - 1e-3 && touching(o, m));
-        if resting && !covered && m.lo.z > middle.z {
-            shift.z += 0.4 * (hi.z - lo.z);
+        if step.is_none() {
+            // Something resting on top with nothing above it (a table top) lifts well clear.
+            let resting = members.iter().any(|o| !std::ptr::eq(o, m) && touching(o, m) && m.lo.z >= o.hi.z - 1e-3);
+            let covered = members.iter().any(|o| !std::ptr::eq(o, m) && o.lo.z >= m.hi.z - 1e-3 && touching(o, m));
+            if resting && !covered && m.lo.z > middle.z {
+                shift.z += 0.4 * (hi.z - lo.z);
+            }
+        } else if old {
+            shift = DVec3::ZERO;
+        } else if let Some((tlo, thi)) = together.filter(|(l, h)| l.x <= h.x) {
+            // Out from what it goes onto, a third of the whole piece's size.
+            let away = (center - (tlo + thi) / 2.0).try_normalize().unwrap_or(DVec3::Z);
+            shift = away * (hi - lo).length() * 0.2;
+        } else {
+            shift = DVec3::ZERO;
         }
+        // What's labeled, and how it's colored: a step's parts already together are gray.
+        let labeled = step.is_none() || new;
+        let owner = if labeled { candidates.len() } else { usize::MAX };
         let mut faces: Vec<Seen> = Vec::new();
         for (points, normal, color) in &m.faces {
             let facing = normal.dot(toward_eye);
@@ -552,13 +688,15 @@ fn exploded(members: &[Member]) -> String {
             let depth = moved.iter().map(|p| p.dot(toward_eye)).sum::<f64>() / moved.len() as f64;
             let flat: Vec<(f64, f64)> = moved.iter().map(|p| project(*p)).collect();
             faces.push((area(&flat), depth, flat.clone()));
-            outlines.push((candidates.len(), flat.clone()));
-            polygons.push((depth, flat, *color, facing));
+            outlines.push((owner, flat.clone()));
+            polygons.push((depth, flat, if old { [210, 210, 210] } else { *color }, facing));
         }
         faces.sort_by(|a, b| b.0.total_cmp(&a.0));
         // A part by its cut-list letter; a drawer or door by its name.
         let tag = m.label.clone().unwrap_or_else(|| m.name.clone());
-        candidates.push((faces, tag, project(center + shift)));
+        if labeled {
+            candidates.push((faces, tag, project(center + shift)));
+        }
     }
     polygons.sort_by(|a, b| a.0.total_cmp(&b.0));
     let (mut x0, mut y0, mut x1, mut y1) = (f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY);
@@ -575,7 +713,8 @@ fn exploded(members: &[Member]) -> String {
     }
     let span = (x1 - x0).max(y1 - y0);
     let stroke = span / 600.0;
-    let size = span / 40.0;
+    // Labels the same size on the page in a step's smaller picture.
+    let size = span / if step.is_some() { 18.0 } else { 40.0 };
     // Labels in a column either side of the drawing, in the order of what they point at, with a
     // leader line to it.
     let gap = 2.0 * size;
@@ -642,9 +781,10 @@ fn exploded(members: &[Member]) -> String {
     let pad = 0.03 * span;
     let (w, h) = (bx1 - bx0 + 2.0 * pad, by1 - by0 + 2.0 * pad);
     let mut svg = format!(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="{:.3} {:.3} {w:.3} {h:.3}" width="640" style="max-height:640px">"#,
+        r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="{:.3} {:.3} {w:.3} {h:.3}" width="{size}" style="max-height:{size}px">"#,
         bx0 - pad,
-        by0 - pad
+        by0 - pad,
+        size = if step.is_some() { 280 } else { 640 }
     );
     for (_, points, [r, g, b], facing) in &polygons {
         // Lit from the eye: faces turned away are darker.
@@ -709,6 +849,55 @@ mod tests {
     use super::*;
     use crate::Document;
     use crate::template::{Cabinet, Fill, Table, Template};
+
+    /// A member made of one face (its loop and front) and the box given.
+    fn member(points: &[DVec3], normal: DVec3, lo: DVec3, hi: DVec3) -> Member {
+        let mut m = Member::new("Part".into(), false);
+        m.faces.push((points.to_vec(), normal, [0, 0, 0]));
+        (m.lo, m.hi) = (lo, hi);
+        m
+    }
+
+    #[test]
+    fn at_an_angle_parts_touch_only_where_their_faces_meet() {
+        // A 4x4 square facing up at z = 1 and, below it, a 2x2 square facing down, half under it.
+        let up = member(&[DVec3::new(0.0, 0.0, 1.0), DVec3::new(4.0, 0.0, 1.0), DVec3::new(4.0, 4.0, 1.0), DVec3::new(0.0, 4.0, 1.0)], DVec3::Z, DVec3::ZERO, DVec3::new(4.0, 4.0, 1.0));
+        let down = member(&[DVec3::new(3.0, 1.0, 1.0), DVec3::new(3.0, 3.0, 1.0), DVec3::new(5.0, 3.0, 1.0), DVec3::new(5.0, 1.0, 1.0)], -DVec3::Z, DVec3::new(3.0, 1.0, 1.0), DVec3::new(5.0, 3.0, 2.0));
+        assert!((face_contact(&up, &down) - 2.0).abs() < 1e-9, "1 x 2 of them meet");
+        // A brace at 45 degrees: its box takes in the corner, but its face is clear of the first.
+        let d = std::f64::consts::FRAC_1_SQRT_2;
+        let brace = member(
+            &[DVec3::new(1.0, 0.0, 3.0), DVec3::new(1.0, 4.0, 3.0), DVec3::new(3.0, 4.0, 1.5), DVec3::new(3.0, 0.0, 1.5)],
+            DVec3::new(-d, 0.0, -d),
+            DVec3::new(1.0, 0.0, 0.5),
+            DVec3::new(3.0, 4.0, 3.0),
+        );
+        assert!(!square(&brace));
+        assert!(!touching(&up, &brace), "boxes overlap, faces don't meet");
+        assert!(touching(&up, &down));
+    }
+
+    #[test]
+    fn parts_with_no_joints_made_go_together_as_butt_joints() {
+        use crate::board::Board;
+        let mut doc = Document::default();
+        let pine = doc.add_preset(crate::library::LIBRARY.iter().find(|p| p.name == "Pine").unwrap());
+        let mut part = |name: &str, origin: DVec3, length_dir: DVec3, width_dir: DVec3, size: [f64; 3]| {
+            let id = doc.add_board(&Board { origin, length_dir, width_dir, length: size[0], width: size[1], thickness: size[2] }, Some(pine)).unwrap();
+            doc.rename_instance(id, name);
+        };
+        // A box: a bottom with a side standing on each end, butted, nothing joined.
+        part("Bottom", DVec3::ZERO, DVec3::X, DVec3::Y, [12.0, 6.0, 0.75]);
+        part("Side", DVec3::new(0.75, 0.0, 0.75), DVec3::Z, DVec3::Y, [8.0, 6.0, 0.75]);
+        part("Side", DVec3::new(12.0, 0.0, 0.75), DVec3::Z, DVec3::Y, [8.0, 6.0, 0.75]);
+        let list = crate::cutlist::cut_list(doc.scene());
+        let all = assemblies(doc.scene(), &list);
+        let text = all.last().unwrap().steps.join("
+");
+        assert!(text.contains("butt-joined"), "says what it assumes: {text}");
+        assert!(text.contains("(butt joint, glued and screwed)") && text.contains("Start with"), "an order: {text}");
+        assert!(!text.contains("Nothing here is joined yet") && !text.contains("Fasten"), "both sides glued: {text}");
+    }
 
     #[test]
     fn a_table_glues_up_legs_and_aprons_then_fastens_its_top() {

@@ -3,6 +3,14 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.37
+
+- Assembly pages: a picture for each step, with what's together already in gray and the parts
+  going on in color, labeled.
+- Parts with no joints made get a glue-up order too, taken as butt joints (glued and screwed), and
+  the page says so.
+- Parts at an angle (braces, splayed legs) count as touching only where their faces actually meet.
+
 ## 0.1.36
 
 - Build sheets: each cut's place along the part, its length and its depth are dimensioned on the
