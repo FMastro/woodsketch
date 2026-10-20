@@ -4,8 +4,8 @@
 //!
 //! Parts come back at their size before any joints (a shelf let into a dado is its own length;
 //! the joint lengthens it again), placed by their lowest corner, with a turn about one axis when
-//! they're at an angle; copies of one component as copies; templates with their sizes; groups by
-//! their members. What a recipe can't say (a part turned about two axes at once, a profile on some
+//! they're at an angle (or several, at a compound angle); shaped parts as an outline, or their faces; copies of one component as copies; templates with their sizes; groups by
+//! their members. What a recipe can't say (a profile on some
 //! of a face's edges, hardware placed by hand) is listed in the notes.
 
 use std::collections::{HashMap, HashSet};
@@ -15,7 +15,7 @@ use glam::{DAffine3, DMat3, DVec3};
 use crate::joinery::JointKind;
 use crate::part::Cut;
 use crate::profile::{Edges, Profile};
-use crate::recipe::{CopySpec, GroupSpec, JointSpec, Length, MaterialSpec, PartSpec, ProfileSpec, Recipe, Reference, Shape, ShapeFace, TemplateSpec, Turn};
+use crate::recipe::{CopySpec, GroupSpec, JointSpec, Length, MaterialSpec, OutlinePoint, PartSpec, ProfileSpec, Recipe, Reference, Shape, ShapeFace, TemplateSpec, Turn, Turns};
 use crate::{DefinitionId, DefinitionKind, Document, InstanceId, MaterialId, MaterialKind, Scene};
 
 /// The drawing as a recipe, and notes on what it leaves out.
@@ -205,13 +205,25 @@ impl Reader<'_> {
         let rotation = DMat3::from_cols(world.matrix3.x_axis / scale.x, world.matrix3.y_axis / scale.y, world.matrix3.z_axis / scale.z);
         let (along, across) = (rotation * DVec3::AXES[l], rotation * DVec3::AXES[w]);
         let name = self.unique(&def.name);
-        // As the recipe builds it: along two axes, then turned about one. Turned about two, it's
-        // kept as a shape in a box square to the axes (x, y, z) that holds it.
-        let laid = lay(along, across);
-        let free = laid.is_none();
-        let (length_axis, width_axis, turn) = laid.unwrap_or((0, 1, None));
-        let shaped = shaped || free;
-        let spin = turn.as_ref().map_or(DMat3::IDENTITY, |t| DMat3::from_axis_angle(DVec3::AXES[axis_index(&t.axis)], t.degrees.to_radians()));
+        // As the recipe builds it: along two axes, then turned about one; or, at a compound
+        // angle, laid along x and y and turned about x, then y, then z.
+        let (length_axis, width_axis, turn, spin) = match lay(along, across) {
+            Some((a, b, turn)) => {
+                let spin = turn.as_ref().map_or(DMat3::IDENTITY, |t| DMat3::from_axis_angle(DVec3::AXES[axis_index(&t.axis)], t.degrees.to_radians()));
+                (a, b, turn.map(Turns::One), spin)
+            }
+            None => {
+                let laid = DMat3::from_cols(along, across, along.cross(across));
+                let (z, y, x) = glam::DQuat::from_mat3(&laid).to_euler(glam::EulerRot::ZYX);
+                let turns: Vec<Turn> = [("x", x), ("y", y), ("z", z)]
+                    .into_iter()
+                    .map(|(axis, angle)| Turn { axis: axis.into(), degrees: (angle.to_degrees() * 1e6).round() / 1e6 })
+                    .filter(|t| t.degrees != 0.0)
+                    .collect();
+                let spin = turns.iter().fold(DMat3::IDENTITY, |m, t| DMat3::from_axis_angle(DVec3::AXES[axis_index(&t.axis)], t.degrees.to_radians()) * m);
+                (0, 1, Some(Turns::Several(turns)), spin)
+            }
+        };
         // Its lowest corner before the turn, turned (the turn is about that corner).
         let box_corners: Vec<DVec3> = (0..8)
             .map(|i| {
@@ -221,15 +233,11 @@ impl Reader<'_> {
             .collect();
         let before = box_corners.iter().map(|c| spin.transpose() * *c).reduce(DVec3::min).unwrap_or(DVec3::ZERO);
         let at = spin * before;
-        // Length, width and thickness as built: along its own axes, or the box square to the axes.
-        let size = if free {
-            let top = box_corners.iter().copied().reduce(DVec3::max).unwrap_or(DVec3::ZERO);
-            (top - at).to_array()
-        } else {
-            [extents[l], extents[w], extents[t]]
-        };
-        // The shape, in the frame the board will be built in: the box along its axes from `at`, turned.
-        let shape = shaped.then(|| {
+        let size = [extents[l], extents[w], extents[t]];
+        // The shape, in the frame the board will be built in: the box along its axes from `at`,
+        // turned. An outline cut through its thickness when that's all it is, else its faces.
+        let (mut shape, mut outline, mut cutouts) = (None, Vec::new(), Vec::new());
+        if shaped {
             let (ld, wd) = (DVec3::AXES[length_axis], DVec3::AXES[width_axis]);
             let td = ld.cross(wd);
             let origin = if td.min_element() < 0.0 { at - td * size[2] } else { at };
@@ -245,8 +253,12 @@ impl Reader<'_> {
                 }
                 points
             };
-            Shape { faces: model.faces().map(|(_, f)| ShapeFace { outer: ring(&f.outer), holes: f.holes.iter().map(|h| ring(h)).collect() }).collect() }
-        });
+            let faces: Vec<ShapeFace> = model.faces().map(|(_, f)| ShapeFace { outer: ring(&f.outer), holes: f.holes.iter().map(|h| ring(h)).collect() }).collect();
+            match extruded(&faces, size[2]) {
+                Some((o, c)) => (outline, cutouts) = (o, c),
+                None => shape = Some(Shape { faces }),
+            }
+        }
         let info = &def.part;
         let side_name = |side: Option<crate::part::Side>| side.and_then(|s| direction_name(rotation * s.normal()));
         let reference = Reference { face: side_name(info.reference_face), edge: side_name(info.reference_edge), end: side_name(info.reference_end) };
@@ -261,7 +273,7 @@ impl Reader<'_> {
             width: ["x", "y", "z"][width_axis].into(),
             tag: tag.and_then(|t| scene.tag(t)).map(|t| t.name.clone()),
             free_to_move: info.free_to_move,
-            grain: info.grain.filter(|g| !free && g.index() == w).map(|_| "width".to_owned()),
+            grain: info.grain.filter(|g| g.index() == w).map(|_| "width".to_owned()),
             cut: match info.cut {
                 Cut::FlatSawn => Some("flat_sawn".into()),
                 Cut::QuarterSawn => Some("quartersawn".into()),
@@ -271,6 +283,8 @@ impl Reader<'_> {
             reference,
             copies: Vec::new(),
             shape,
+            outline,
+            cutouts,
         })
     }
 
@@ -418,6 +432,29 @@ fn corners(scene: &Scene, definition: DefinitionId, world: DAffine3) -> Vec<DVec
 /// How a box whose length runs `along` and width `across` (unit) is laid out in a recipe: the axes
 /// its length and width take, and a turn about one axis (none when square to them). A box is the
 /// same either way along each axis, so either sign does.
+/// A shape (in its board's frame) that's an outline cut straight through its thickness: one face
+/// at z = 0, one the same at z = `thickness`, and only sides between. Its outline and holes.
+fn extruded(faces: &[ShapeFace], thickness: f64) -> Option<(Vec<OutlinePoint>, Vec<Vec<OutlinePoint>>)> {
+    const EPS: f64 = 1e-4;
+    let at = |z: f64, face: &ShapeFace| face.outer.iter().chain(face.holes.iter().flatten()).all(|p| (p[2] - z).abs() < EPS);
+    if faces.iter().flat_map(|f| f.outer.iter().chain(f.holes.iter().flatten())).any(|p| p[2].abs() > EPS && (p[2] - thickness).abs() > EPS) {
+        return None;
+    }
+    let bottoms: Vec<&ShapeFace> = faces.iter().filter(|f| at(0.0, f)).collect();
+    let tops: Vec<&ShapeFace> = faces.iter().filter(|f| at(thickness, f)).collect();
+    let ([bottom], [top]) = (bottoms.as_slice(), tops.as_slice()) else { return None };
+    let plan = |face: &ShapeFace| {
+        let mut points: Vec<[i64; 2]> = face.outer.iter().chain(face.holes.iter().flatten()).map(|p| [p[0], p[1]].map(|c| (c * 10_000.0).round() as i64)).collect();
+        points.sort_unstable();
+        points
+    };
+    if plan(bottom) != plan(top) {
+        return None;
+    }
+    let flat = |ring: &[[f64; 3]]| ring.iter().map(|p| OutlinePoint::Point([p[0], p[1]])).collect::<Vec<_>>();
+    Some((flat(&bottom.outer), bottom.holes.iter().map(|h| flat(h)).collect()))
+}
+
 fn lay(along: DVec3, across: DVec3) -> Option<(usize, usize, Option<Turn>)> {
     const EPS: f64 = 1e-6;
     let mut best: Option<(f64, usize, usize, Option<Turn>)> = None;
@@ -549,7 +586,7 @@ mod tests {
         }"#,
         );
         let brace = recipe.parts.iter().find(|p| p.name == "Brace").unwrap();
-        assert_eq!(brace.turn.as_ref().map(|t| (t.axis.as_str(), t.degrees.abs())), Some(("y", 45.0)), "{:?}", brace.turn);
+        assert_eq!(brace.turn.as_ref().map(|t| (t.list()[0].axis.as_str(), t.list()[0].degrees.abs())), Some(("y", 45.0)), "{:?}", brace.turn);
         let leg = recipe.parts.iter().find(|p| p.name == "Leg").unwrap();
         assert_eq!(leg.copies.len(), 1, "the second leg is its copy");
         assert_eq!(recipe.templates.len(), 1);
@@ -600,7 +637,7 @@ mod tests {
         let doc = build(&parse(&recipe.to_string()).unwrap()).unwrap_or_else(|e| panic!("{e:?}"));
         let (read, notes) = from_document(&doc);
         assert!(notes.is_empty(), "{notes:?}");
-        assert!(read.parts.iter().all(|p| p.shape.is_some()), "both kept as shapes");
+        assert!(read.parts.iter().all(|p| p.shape.is_none() && p.outline.len() == 4), "both read back as outlines: {:?}", read.parts[0]);
         let again = build(&read).unwrap_or_else(|e| panic!("{e:?}"));
         assert_eq!(corners_of(&again), corners_of(&doc), "the same shapes in the same places");
         // And after moving one, the other is untouched.
@@ -620,7 +657,9 @@ mod tests {
         doc.add_board(&crate::board::Board { origin: DVec3::new(3.0, 4.0, 5.0), length_dir, width_dir, length: 20.0, width: 4.0, thickness: 1.0 }, Some(oak)).unwrap();
         let (read, notes) = from_document(&doc);
         assert!(notes.is_empty(), "{notes:?}");
-        assert!(read.parts[0].shape.is_some(), "kept as its shape");
+        let part = &read.parts[0];
+        assert!(part.shape.is_none() && part.turn.as_ref().is_some_and(|t| t.list().len() > 1), "a box at a compound angle: {part:?}");
+        assert_eq!(part.size.clone().map(|l| match l { Length::Number(n) => n, Length::Text(_) => 0.0 }), [20.0, 4.0, 1.0], "its own size");
         let again = build(&read).unwrap_or_else(|e| panic!("{e:?}"));
         let (a, b) = (corners_of(&again), corners_of(&doc));
         assert!(a.len() == b.len() && a.iter().zip(&b).all(|(p, q)| (0..3).all(|k| (p[k] - q[k]).abs() <= 1)), "in the same place: {a:?} {b:?}");

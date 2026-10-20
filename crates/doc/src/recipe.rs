@@ -111,8 +111,9 @@ pub struct PartSpec {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cut: Option<String>,
     /// Turned about an axis through `at` (its lowest corner before turning): a brace, a splayed leg.
+    /// A list turns it about each in order (a compound angle).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub turn: Option<Turn>,
+    pub turn: Option<Turns>,
     /// Its reference face, edge and end, by where they face once placed: `top`, `bottom`,
     /// `front`, `back`, `left` or `right`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -125,6 +126,47 @@ pub struct PartSpec {
     /// box's corner). Written when a drawing is read back, so changing the rest keeps it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shape: Option<Shape>,
+    /// Its outline seen on its face, cut through its thickness: points `[x, y]` along its length
+    /// and width from its box's corner, or `{"arc_to": [x, y], "through": [x, y]}` for a curve
+    /// from the point before (angled ends, tapers, curved aprons, a bracket).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub outline: Vec<OutlinePoint>,
+    /// Holes cut through it, each an outline like `outline` (a hand hold, a cut-out).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cutouts: Vec<Vec<OutlinePoint>>,
+}
+
+/// A point of an outline (see [`PartSpec::outline`]).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[serde(untagged)]
+pub enum OutlinePoint {
+    Point([f64; 2]),
+    Arc(ArcTo),
+}
+
+/// A curve from the point before to `arc_to`, through `through`.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArcTo {
+    pub arc_to: [f64; 2],
+    pub through: [f64; 2],
+}
+
+/// One turn, or several made in order.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[serde(untagged)]
+pub enum Turns {
+    One(Turn),
+    Several(Vec<Turn>),
+}
+
+impl Turns {
+    pub fn list(&self) -> &[Turn] {
+        match self {
+            Turns::One(t) => std::slice::from_ref(t),
+            Turns::Several(v) => v,
+        }
+    }
 }
 
 /// A part's faces (see [`PartSpec::shape`]): each an outline, with any holes.
@@ -473,29 +515,50 @@ fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
             errors.push(format!("{what}: couldn't make the board."));
             continue;
         };
-        // A shape of its own instead of the box, in the board's frame.
-        if let Some(shape) = &p.shape {
-            let model = shape_model(shape);
-            if let Some(def) = doc.scene().root.instance(id).map(|i| i.definition) {
-                doc.edit_scene(|scene, _| {
-                    if let Some(d) = scene.definition_mut(def) {
-                        d.container.model = model;
-                    }
-                });
+        // A shape of its own instead of the box, in the board's frame: its faces, or an outline.
+        let model = match (&p.shape, p.outline.is_empty()) {
+            (Some(_), false) => {
+                errors.push(format!("{what}: give a shape or an outline, not both."));
+                None
             }
+            (Some(shape), true) => Some(shape_model(shape)),
+            (None, false) => match outline_model(&p.outline, &p.cutouts, if mm { 25.4 } else { 1.0 }, [l, w, t]) {
+                Ok(model) => Some(model),
+                Err(e) => {
+                    errors.push(format!("{what}: {e}"));
+                    None
+                }
+            },
+            (None, true) => {
+                if !p.cutouts.is_empty() {
+                    errors.push(format!("{what}: cutouts need an outline too."));
+                }
+                None
+            }
+        };
+        if let Some(model) = model
+            && let Some(def) = doc.scene().root.instance(id).map(|i| i.definition)
+        {
+            doc.edit_scene(|scene, _| {
+                if let Some(d) = scene.definition_mut(def) {
+                    d.container.model = model;
+                }
+            });
         }
         doc.rename_instance(id, p.called.as_deref().unwrap_or(&p.name));
         if p.free_to_move {
             doc.edit_part(id, |info| info.free_to_move = true);
         }
-        if let Some(turn) = &p.turn {
-            match axis(&turn.axis) {
-                Some(a) => {
-                    let spin = DAffine3::from_translation(at) * DAffine3::from_axis_angle(DVec3::AXES[a], turn.degrees.to_radians()) * DAffine3::from_translation(-at);
-                    place(&mut doc, id, |t| spin * t);
+        if let Some(turns) = &p.turn {
+            let mut spin = DAffine3::IDENTITY;
+            for turn in turns.list() {
+                match axis(&turn.axis) {
+                    Some(a) => spin = DAffine3::from_axis_angle(DVec3::AXES[a], turn.degrees.to_radians()) * spin,
+                    None => errors.push(format!("{what}: turn axis \"{}\" isn't x, y or z.", turn.axis)),
                 }
-                None => errors.push(format!("{what}: turn axis \"{}\" isn't x, y or z.", turn.axis)),
             }
+            let spin = DAffine3::from_translation(at) * spin * DAffine3::from_translation(-at);
+            place(&mut doc, id, |t| spin * t);
         }
         match p.grain.as_deref().map(str::to_ascii_lowercase).as_deref() {
             None => {}
@@ -692,6 +755,57 @@ fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
     }
     doc.selection_mut().clear();
     if errors.is_empty() { Ok(doc) } else { Err(errors) }
+}
+
+/// An outline (and holes) in a board's length x width, cut through its thickness `size[2]`.
+fn outline_model(outline: &[OutlinePoint], cutouts: &[Vec<OutlinePoint>], unit: f64, size: [f64; 3]) -> Result<crate::Model, String> {
+    let ring = |points: &[OutlinePoint]| -> Result<Vec<DVec3>, String> {
+        let at = |p: [f64; 2]| DVec3::new(p[0] / unit, p[1] / unit, 0.0);
+        let mut out: Vec<DVec3> = Vec::new();
+        for point in points {
+            match point {
+                OutlinePoint::Point(p) => out.push(at(*p)),
+                OutlinePoint::Arc(arc) => {
+                    let Some(&from) = out.last() else { return Err("an outline can't start with an arc (give the point it starts from first).".into()) };
+                    let (through, to) = (at(arc.through), at(arc.arc_to));
+                    let Some((center, normal)) = crate::curves::circle_through(from, through, to) else {
+                        return Err(format!("the arc to [{}, {}] is straight (its three points are in a line).", arc.arc_to[0], arc.arc_to[1]));
+                    };
+                    let angle = crate::curves::angle_about(from - center, to - center, normal);
+                    // As the Arc tool draws them: 12 sides, more past half a circle.
+                    let segments = ((angle / (std::f64::consts::TAU / 24.0)).ceil() as u32).max(12);
+                    let mut swept = crate::curves::sweep_points(center, from, normal, angle, segments);
+                    if let Some(end) = swept.last_mut() {
+                        *end = to;
+                    }
+                    out.extend(swept.into_iter().skip(1));
+                }
+            }
+        }
+        out.dedup_by(|a, b| a.distance(*b) < crate::EPS);
+        if out.len() > 1 && out[0].distance(out[out.len() - 1]) < crate::EPS {
+            out.pop();
+        }
+        if out.len() < 3 {
+            return Err("an outline needs at least three points.".into());
+        }
+        let (l, w) = (size[0], size[1]);
+        if out.iter().any(|p| p.x < -1e-3 || p.y < -1e-3 || p.x > l + 1e-3 || p.y > w + 1e-3) {
+            return Err(format!("its outline goes outside its size ({} x {}): points run from [0, 0] to [length, width].", format_length(l), format_length(w)));
+        }
+        // Wound counter-clockwise, so the face looks up its thickness.
+        let area: f64 = (0..out.len()).map(|i| out[i].x * out[(i + 1) % out.len()].y - out[(i + 1) % out.len()].x * out[i].y).sum();
+        if area < 0.0 {
+            out.reverse();
+        }
+        Ok(out)
+    };
+    let outer = ring(outline)?;
+    let holes = cutouts.iter().map(|c| ring(c).map_err(|e| format!("a cutout: {e}"))).collect::<Result<Vec<_>, _>>()?;
+    let mut model = crate::Model::default();
+    let face = model.add_face_with_holes(&outer, &holes).ok_or("its outline crosses itself or folds back.")?;
+    model.push_pull(face, size[2]).map_err(|e| format!("couldn't cut its outline through its thickness ({e:?})."))?;
+    Ok(model)
 }
 
 /// A part's own faces as a model, taken as they are (they were faces in the drawing they came
@@ -1028,6 +1142,44 @@ mod tests {
         assert!(all.contains("\"glue\" isn't a joint"), "{all}");
         assert!(all.contains("joints[2] (dowels, Shelf into Leg): no part named \"Leg\""), "{all}");
         assert!(parse(r#"{ "partz": [] }"#).unwrap_err().contains("unknown field `partz`"));
+    }
+
+    #[test]
+    fn outlines_with_curves_and_cutouts_and_compound_turns() {
+        // A 600 x 150 x 19 mm apron with a curve along its bottom edge and a hand hold; a leg
+        // splayed both ways.
+        let recipe = parse(
+            r#"{ "units": "mm", "materials": [{ "id": "oak", "library": "Red Oak" }], "parts": [
+                { "name": "Apron", "material": "oak", "size": [600, 150, 19], "at": [0, 0, 0], "length": "x", "width": "z",
+                  "outline": [[0, 0], { "arc_to": [600, 0], "through": [300, 50] }, [600, 150], [0, 150]],
+                  "cutouts": [[[250, 100], [350, 100], [350, 130], [250, 130]]] },
+                { "name": "Leg", "material": "oak", "size": [700, 45, 45], "at": [0, 300, 0], "length": "z", "width": "x",
+                  "turn": [{ "axis": "x", "degrees": 8 }, { "axis": "y", "degrees": -8 }] }
+            ] }"#,
+        )
+        .unwrap();
+        let doc = build(&recipe).unwrap_or_else(|e| panic!("{e:?}"));
+        let scene = doc.scene();
+        let apron = scene.root.instances().find(|(_, i)| scene.definition(i.definition).unwrap().name == "Apron").unwrap().1;
+        let model = &scene.definition(apron.definition).unwrap().container.model;
+        assert!(model.faces().count() > 20, "a curved edge of many faces");
+        assert!(model.faces().any(|(_, f)| f.holes.len() == 1), "the hand hold goes through");
+        // The cut list still knows each part's own size.
+        let parts: Vec<[f64; 3]> = crate::cutlist::cut_list(doc.scene()).materials.iter().flat_map(|m| m.parts.iter().map(|p| [p.length, p.width, p.thickness])).collect();
+        assert!(parts.iter().any(|s| (s[0] - 700.0 / 25.4).abs() < 1e-3 && (s[1] - 45.0 / 25.4).abs() < 1e-3), "{parts:?}");
+        // Reading it back keeps the outline and the turns.
+        let (read, _) = crate::recipe_of::from_document(&doc);
+        let again = build(&read).unwrap_or_else(|e| panic!("{e:?}"));
+        let count = |d: &Document| d.scene().root.instances().map(|(_, i)| d.scene().definition(i.definition).unwrap().container.model.faces().count()).sum::<usize>();
+        assert_eq!(count(&again), count(&doc));
+        let bad = parse(
+            r#"{ "parts": [{ "name": "A", "size": [10, 4, 1], "outline": [{ "arc_to": [10, 0], "through": [5, 1] }, [10, 4], [0, 4]] },
+                { "name": "B", "size": [10, 4, 1], "outline": [[0, 0], [12, 0], [0, 4]] }] }"#,
+        )
+        .unwrap();
+        let Err(errors) = build(&bad) else { panic!("should fail") };
+        let all = errors.join("\n");
+        assert!(all.contains("can't start with an arc") && all.contains("goes outside its size"), "{all}");
     }
 
     #[test]

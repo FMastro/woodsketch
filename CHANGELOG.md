@@ -3,6 +3,13 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.42
+
+- For AI assistants: recipes can draw shaped parts as an outline cut through the board's
+  thickness (angled ends, tapers, curved aprons, brackets), with curves and cut-outs.
+- For AI assistants: parts can be turned at compound angles (a leg splayed two ways), and such
+  parts read back from a drawing keep their own length, width and thickness in the cut list.
+
 ## 0.1.41
 
 - For AI assistants: parts that aren't plain boxes (angled ends, tapers, curves, cuts made by

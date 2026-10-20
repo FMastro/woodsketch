@@ -15,7 +15,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 2 | Joinery | 92 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
-| 5 | Agent-ready | 14 | Shapes from a description, compound angles, the last read-back gaps |
+| 5 | Agent-ready | 6 | The last read-back gaps, render highlights, build progress |
 | 6 | Release polish | 79 | Signing before announcing widely |
 | 7 | Importing | 222 | Gets people's existing models in |
 | 8 | Cut list and materials | 171 | Better buying and cutting |
@@ -28,7 +28,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1386** | |
+| | **All** | **1378** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -117,15 +117,10 @@ resource with the guide); a `design` prompt and progress notices; renders in the
 any angle, with parts highlighted; the CLI alone as a zip per platform on each release. Every
 joint keeps the sizes it was made with, wherever it was made. Parts that aren't plain boxes, or are
 turned about two axes, read back with their own faces (`shape`), so edits keep them.
-1. [5] Recipes that make shaped parts from a description (an outline pushed to a thickness: angled
-   ends, tapers, curves), not only keep the faces read back from a drawing.
-2. [2] Read back too: tag folders and hidden tags, profiles on some of a face's edges, hardware
+1. [2] Read back too: tag folders and hidden tags, profiles on some of a face's edges, hardware
    placed by hand (each named in the notes now).
-3. [3] Parts turned about two axes (a compound-angle leg) read back as a shape in the box square to
-   the axes, so their cut-list size is that box; a recipe placement with two turns (or an
-   orientation) would keep their own length, width and thickness.
-4. [2] Highlight parts inside groups in renders (top-level parts and groups only now).
-5. [2] Progress for long builds that says how far along it is (only started and done now).
+2. [2] Highlight parts inside groups in renders (top-level parts and groups only now).
+3. [2] Progress for long builds that says how far along it is (only started and done now).
 
 ## 6. Release polish
 Done: installers, auto-update, icons, release notes, the site's download links; Help > Report a
