@@ -299,4 +299,7 @@ points); keep general modeling working alongside it.
    arcs in the board's length x width, with `cutouts`, pushed through its thickness: `recipe::outline_model`)
    or `PartSpec::shape` (faces in the board's own frame, built raw by `recipe::shape_model`); read-back
    writes an outline when the part is one (`recipe_of::extruded`), else its faces. `turn` takes a list
-   (compound angles: read back as turns about x, then y, then z).
+   (compound angles: read back as turns about x, then y, then z). Recipes also take `tags` (folders,
+   hidden; on parts, copies, groups, templates), `hardware` parts, `moves` groups and profile `edges`
+   (`recipe::some_edges`); read-back keeps them all, hidden things included. Renders highlight by name
+   at any depth (`picture::named`); `recipe::build_reporting` streams MCP progress (`mcp::respond`).

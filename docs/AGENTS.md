@@ -7,7 +7,8 @@ check. The person can then open the drawing in the WoodSketch app and keep worki
 
 Two ways in:
 
-- **MCP** (Claude and other agents): `woodsketch-cli mcp` serves tools over stdin/stdout. Call
+- **MCP** (Claude and other agents): `woodsketch-cli mcp` serves tools over stdin/stdout. A build sends
+  progress (each part, joint and group) to a client that asks for it. Call
   `guide` (this text), `build` with a recipe, check with `summary`, `movement` and `render`, then
   change it a piece at a time (`add_part`, `change_part`, `remove`, `add_joint`, `remove_joint`,
   `add_profile`; `recipe` shows the whole recipe now), and `save` (a `.woodsketch` file) and
@@ -78,6 +79,8 @@ Lumber, Cedar Lumber, Pressure-Treated Lumber (dimensional lumber: 2x4s and such
 
 - `tag` (made if new); `called` (the name shown, when two parts share one: names `Stile` and
   `Stile 2`, both `called` "Stile").
+- `hardware`: a piece of hardware placed in the design (`"hardware": "Bar pull"`): drawn, left
+  out of the cut list, counted in the shopping list.
 - `free_to_move`: true for a solid top held by tabletop buttons or slotted screws, so the wood
   movement check knows it can move.
 - `grain`: `length` (the default) or `width`; `cut`: `flat_sawn` or `quartersawn`.
@@ -96,7 +99,7 @@ Lumber, Cedar Lumber, Pressure-Treated Lumber (dimensional lumber: 2x4s and such
   build sheets measure from them.
 - `copies`: `[{ "name": "Leg 2", "at": [20, 0, 0], "turn": 90 }]` places more of the same part
   (a component: a joint or profile made on one is on all), each turned about z, then put at
-  its lowest corner. Joints name each copy.
+  its lowest corner. Joints name each copy. A copy takes the part's tag, or its own `tag`.
 - `shape`: a part more shaped than an outline can say (chamfers, a taper in thickness, cuts made
   by hand) keeps its faces here: `{ "faces": [{ "outer": [[x, y, z], ...], "holes": [...] }] }`, in its own frame
   (x along its length, y its width, z its thickness, from its box's corner; each outline wound
@@ -107,6 +110,8 @@ Lumber, Cedar Lumber, Pressure-Treated Lumber (dimensional lumber: 2x4s and such
 `{ "part": "Top", "profile": "roundover", "size": 0.25, "around": "top" }` rounds over every edge
 of the face that faces up; `"along": "length"` instead profiles the four edges running the length
 (a chamfered leg). Profiles are `roundover`, `chamfer`, `cove` and `ogee`, made before the joints.
+`edges` picks only some: around a face, the sides they're on (`["front", "left"]`: a top rounded
+over only where it shows); along a way, the corners, each named by its two sides (`["top front"]`).
 
 ### joints
 
@@ -150,6 +155,15 @@ Ready-made assemblies, with only the sizes you change:
 
 `{ "name": "Case", "parts": ["Left side", "Right side"], "component": false }`, made last (joints
 are made between parts side by side first). A group's parts can be templates' names too.
+Groups and templates take a `tag` too. `"moves": true` marks a group that's a drawer or a door,
+so the wood movement check doesn't hold its parts against the case's.
+
+### tags
+
+A tag named on a part is made if new. To hide one, or file tags in folders, list them:
+`"tags": [{ "name": "Case", "folder": true }, { "name": "Sides", "inside": "Case" }, { "name": "Jigs", "hidden": true }]`.
+What's on a hidden tag is in the drawing but not shown, cut or checked (a jig, a wall for
+reference, another version).
 
 ## Checking your work
 
@@ -161,7 +175,8 @@ are made between parts side by side first). A group's parts can be templates' na
   A warning means a part is held where it needs to move: let a panel float in grooves (`let_in`
   into a frame's grooves), mark a top `free_to_move` (fastened with buttons), or turn a part.
 - `render` shows a picture (`iso`, `top`, `front`, `right`, or any `angle`: `[around, up]` in
-  degrees), light or `dark`, with parts picked out by name (`highlight`), to see that it looks right.
+  degrees), light or `dark`, with parts picked out by name (`highlight`, at any depth: a template's legs too), to see that
+  it looks right.
 - `save` the drawing for the person to open in WoodSketch; `cut_sheet` and `build_sheets` write
   what they take to the shop.
 

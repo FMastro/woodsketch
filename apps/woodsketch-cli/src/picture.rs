@@ -2,8 +2,8 @@
 //! like Zoom Extents from a standard view (or turned to any angle), saved as PNG. For agents
 //! checking their work: in the light or dark theme, with parts picked out in the selection's blue.
 
-use glam::Vec2;
-use woodsketch_doc::{Document, Entity, Selection};
+use glam::{DAffine3, Vec2};
+use woodsketch_doc::{Container, Document, Entity, Instance, MaterialId, Selection};
 use woodsketch_render::{Scene, Sky, ViewportRenderer};
 use woodsketch_view::{OrbitCamera, StandardView};
 
@@ -42,6 +42,21 @@ pub fn angle(text: &str) -> Result<(f32, f32), String> {
     Ok((around.trim().parse().map_err(|_| bad())?, up.trim().parse().map_err(|_| bad())?))
 }
 
+/// Every shown part or group called `name` inside `container` (at `world`, painted `paint` from
+/// around it), as an instance placed in the world.
+fn named(scene: &woodsketch_doc::Scene, container: &Container, world: DAffine3, paint: Option<MaterialId>, name: &str, found: &mut Vec<Instance>) {
+    for (_, instance) in container.instances().filter(|(_, i)| scene.is_visible(i)) {
+        let Some(def) = scene.definition(instance.definition) else { continue };
+        let placed = world * instance.transform;
+        let paint = instance.material.or(paint);
+        if def.name.trim().eq_ignore_ascii_case(name.trim()) {
+            found.push(Instance { definition: instance.definition, transform: placed, tag: None, material: paint });
+        } else {
+            named(scene, &def.container, placed, paint, name, found);
+        }
+    }
+}
+
 /// The drawing drawn as `options` say, as PNG bytes.
 pub fn render(doc: &Document, options: &Options) -> Result<Vec<u8>, String> {
     let [width, height] = options.size;
@@ -53,22 +68,26 @@ pub fn render(doc: &Document, options: &Options) -> Result<Vec<u8>, String> {
 
     let mut scene = Scene::reference(false);
     scene.add_drawing(doc.scene(), doc.path());
-    // The parts to pick out, by name: top-level parts and groups.
-    let mut picked = Selection::default();
-    for name in &options.highlight {
-        let found: Vec<Entity> = doc
-            .scene()
-            .root
-            .instances()
-            .filter(|(_, i)| doc.scene().definition(i.definition).is_some_and(|d| d.name.eq_ignore_ascii_case(name)))
-            .map(|(id, _)| Entity::Instance(id))
-            .collect();
-        if found.is_empty() {
-            return Err(format!("No part or group named \"{name}\" at the top of the drawing to highlight."));
+    // The parts to pick out, by name, at any depth: each lifted to the top of a copy of the
+    // drawing where it is in the world, and highlighted there over the drawing.
+    if !options.highlight.is_empty() {
+        let mut lifted = doc.scene().clone();
+        lifted.root = Default::default();
+        for name in &options.highlight {
+            let mut found = Vec::new();
+            named(doc.scene(), &doc.scene().root, DAffine3::IDENTITY, None, name, &mut found);
+            if found.is_empty() {
+                return Err(format!("No part or group named \"{name}\" in the drawing to highlight."));
+            }
+            for instance in found {
+                lifted.root.add_instance(instance);
+            }
         }
-        picked.extend(found);
+        let lifted = Document::from_scene(lifted);
+        let mut picked = Selection::default();
+        picked.extend(lifted.scene().root.instances().map(|(id, _)| Entity::Instance(id)));
+        scene.add_selection(lifted.view(), &picked, &lifted.context_transform(), lifted.scene());
     }
-    scene.add_selection(doc.view(), &picked, &doc.context_transform(), doc.scene());
     let mut renderer = ViewportRenderer::new(&device, &scene);
     if options.dark {
         renderer.sky = Sky::dark();

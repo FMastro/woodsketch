@@ -15,9 +15,9 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 2 | Joinery | 92 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
-| 5 | Agent-ready | 6 | The last read-back gaps, render highlights, build progress |
+| 5 | Agent-ready | 0 | Done |
 | 6 | Release polish | 79 | Signing before announcing widely |
-| 7 | Importing | 222 | Gets people's existing models in |
+| 7 | Importing | 225 | Gets people's existing models in |
 | 8 | Cut list and materials | 171 | Better buying and cutting |
 | 9 | Wood movement | 23 | Fewer false warnings, clearer results |
 | 10 | Edge profiles | 76 | More bits, profiles on any board |
@@ -28,7 +28,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1378** | |
+| | **All** | **1375** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -115,12 +115,10 @@ piece over MCP (`add_part`, `change_part`, `remove`, `add_joint`, `remove_joint`
 `recipe`), each rebuilt and refused whole if it doesn't build; a JSON Schema (`schema`, and an MCP
 resource with the guide); a `design` prompt and progress notices; renders in the dark theme, from
 any angle, with parts highlighted; the CLI alone as a zip per platform on each release. Every
-joint keeps the sizes it was made with, wherever it was made. Parts that aren't plain boxes, or are
-turned about two axes, read back with their own faces (`shape`), so edits keep them.
-1. [2] Read back too: tag folders and hidden tags, profiles on some of a face's edges, hardware
-   placed by hand (each named in the notes now).
-2. [2] Highlight parts inside groups in renders (top-level parts and groups only now).
-3. [2] Progress for long builds that says how far along it is (only started and done now).
+joint keeps the sizes it was made with, wherever it was made. Shaped parts as outlines (with arcs and cut-outs) or their faces;
+compound-angle turns; tags with folders and hidden ones (hidden things come back hidden), on
+groups, templates and copies too; hardware parts; drawer and door groups; profiles on some edges;
+render highlights at any depth; build progress step by step over MCP. Nothing left.
 
 ## 6. Release polish
 Done: installers, auto-update, icons, release notes, the site's download links; Help > Report a
@@ -187,6 +185,9 @@ sizes); checked against 34 real files.
 15. [2] A hidden SketchUp object loses its own tag: it goes on "Hidden in SketchUp" instead (no
     per-object hiding here).
 16. [1] A hidden (softened) edge split by a new line comes back as two drawn edges.
+17. [3] A group with faces of its own and groups inside (a SketchUp bed or bench drawn that way) reads
+   back as a recipe part plus a group around it and its contents, so the cut list measures its
+   faces alone instead of the whole group; recipe parts that hold other parts would keep it.
 
 ## 8. Cut list and materials
 1. [2] Warn when a part is thinner than the thinnest stock (it comes from it, silently, now).

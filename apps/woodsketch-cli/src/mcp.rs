@@ -31,22 +31,29 @@ pub fn serve() {
         if line.trim().is_empty() {
             continue;
         }
-        for message in handle(&line, &mut session) {
+        respond(&line, &mut session, &mut |message| {
             let _ = writeln!(stdout, "{message}");
             let _ = stdout.flush();
-        }
+        });
     }
 }
 
 /// One message in; out, any progress notifications, then the answer (none for a notification).
-pub fn handle(line: &str, session: &mut Session) -> Vec<Value> {
+#[cfg(test)]
+fn handle(line: &str, session: &mut Session) -> Vec<Value> {
+    let mut out = Vec::new();
+    respond(line, session, &mut |message| out.push(message));
+    out
+}
+
+/// [`handle`], sending each message as it's ready (progress while a build runs).
+pub fn respond(line: &str, session: &mut Session, send: &mut dyn FnMut(Value)) {
     let Ok(message) = serde_json::from_str::<Value>(line) else {
-        return vec![json!({ "jsonrpc": "2.0", "id": null, "error": { "code": -32700, "message": "Not JSON" } })];
+        return send(json!({ "jsonrpc": "2.0", "id": null, "error": { "code": -32700, "message": "Not JSON" } }));
     };
-    let Some(id) = message.get("id").cloned() else { return Vec::new() };
+    let Some(id) = message.get("id").cloned() else { return };
     let method = message["method"].as_str().unwrap_or("");
     let params = &message["params"];
-    let mut out = Vec::new();
     let result = match method {
         "initialize" => Ok(json!({
             "protocolVersion": params["protocolVersion"].as_str().unwrap_or(PROTOCOL),
@@ -57,16 +64,20 @@ pub fn handle(line: &str, session: &mut Session) -> Vec<Value> {
         "ping" => Ok(json!({})),
         "tools/list" => Ok(json!({ "tools": tools() })),
         "tools/call" => {
-            // Progress for a client that asked (a build is quick, but says when it starts and ends).
+            // Progress for a client that asked: started, each step of a build, done.
             let token = params["_meta"]["progressToken"].clone();
-            let progress = |out: &mut Vec<Value>, done: u32, what: &str| {
+            let mut progress = |done: usize, total: usize, what: &str| {
                 if !token.is_null() {
-                    out.push(json!({ "jsonrpc": "2.0", "method": "notifications/progress", "params": { "progressToken": token, "progress": done, "total": 2, "message": what } }));
+                    send(json!({ "jsonrpc": "2.0", "method": "notifications/progress", "params": { "progressToken": token, "progress": done, "total": total, "message": what } }));
                 }
             };
-            progress(&mut out, 0, "Working");
-            let result = call(params["name"].as_str().unwrap_or(""), &params["arguments"], session);
-            progress(&mut out, 2, "Done");
+            progress(0, 1, "Working");
+            let mut last = 1;
+            let result = call(params["name"].as_str().unwrap_or(""), &params["arguments"], session, &mut |done, total, what| {
+                last = total.max(1);
+                progress(done, last, &format!("Building: {what}"));
+            });
+            progress(last, last, "Done");
             Ok(result)
         }
         "resources/list" => Ok(json!({ "resources": [
@@ -101,11 +112,10 @@ pub fn handle(line: &str, session: &mut Session) -> Vec<Value> {
         }
         other => Err(json!({ "code": -32601, "message": format!("No method {other}") })),
     };
-    out.push(match result {
+    send(match result {
         Ok(result) => json!({ "jsonrpc": "2.0", "id": id, "result": result }),
         Err(error) => json!({ "jsonrpc": "2.0", "id": id, "error": error }),
     });
-    out
 }
 
 fn tool(name: &str, description: &str, properties: Value, required: &[&str]) -> Value {
@@ -159,7 +169,7 @@ fn tools() -> Vec<Value> {
                 "view": { "type": "string", "enum": ["iso", "top", "front", "right"] },
                 "angle": { "type": "array", "items": { "type": "number" }, "description": "[around, up] in degrees: around from the front toward the right, up from level" },
                 "dark": { "type": "boolean" },
-                "highlight": { "type": "array", "items": { "type": "string" }, "description": "Parts or groups (top level) to pick out" },
+                "highlight": { "type": "array", "items": { "type": "string" }, "description": "Parts or groups to pick out, by name (inside groups too)" },
                 "width": { "type": "integer" },
                 "height": { "type": "integer" }
             }),
@@ -186,14 +196,14 @@ fn item<T: serde::de::DeserializeOwned>(value: &Value, what: &str) -> Result<T, 
     serde_json::from_value(value).map_err(|e| format!("The {what} doesn't fit the recipe format: {e}"))
 }
 
-fn call(name: &str, args: &Value, session: &mut Session) -> Value {
+fn call(name: &str, args: &Value, session: &mut Session, progress: &mut dyn FnMut(usize, usize, &str)) -> Value {
     let path = || args["path"].as_str().map(Path::new).ok_or("Give a \"path\".".to_owned());
     let result: Result<Value, String> = (|| {
         // Edits: change the recipe and rebuild, or leave both as they were.
         let mut edit = |change: &dyn Fn(&mut Recipe) -> Result<String, String>| -> Result<Value, String> {
             let mut recipe = session.recipe.clone().ok_or("No drawing yet: build one from a recipe, or open a file.")?;
             let said = change(&mut recipe)?;
-            let doc = recipe::build(&recipe).map_err(|errors| format!("That doesn't build, so nothing changed:\n- {}", errors.join("\n- ")))?;
+            let doc = recipe::build_reporting(&recipe, &mut *progress).map_err(|errors| format!("That doesn't build, so nothing changed:\n- {}", errors.join("\n- ")))?;
             let summary = recipe::summary(&doc);
             (session.drawing, session.recipe) = (Some(doc), Some(recipe));
             Ok(text(format!("{said}\n{summary}"), false))
@@ -243,7 +253,9 @@ fn call(name: &str, args: &Value, session: &mut Session) -> Value {
                     other => other.to_string(),
                 };
                 let parsed = recipe::parse(&json)?;
-                let doc = crate::build(&json)?;
+                let doc = recipe::build_reporting(&parsed, &mut *progress).map_err(|errors| format!("The recipe has {} problem(s):
+- {}", errors.len(), errors.join("
+- ")))?;
                 let summary = recipe::summary(&doc);
                 (session.drawing, session.recipe) = (Some(doc), Some(parsed));
                 Ok(text(format!("Built.\n{summary}"), false))
@@ -425,6 +437,17 @@ mod tests {
         assert_eq!(out.len(), 3);
         assert_eq!(out[0]["method"], "notifications/progress");
         assert_eq!(out[2]["id"], 5);
+        // A build says each step: two parts and a joint.
+        let recipe = json!({ "parts": [
+            { "name": "Side", "size": [30, 12, 0.75], "length": "z", "width": "y" },
+            { "name": "Shelf", "size": [20, 12, 0.75], "at": [0.75, 0, 10] }
+        ], "joints": [{ "kind": "let_in", "part": "Shelf", "into": "Side" }] });
+        let out = handle(&json!({ "jsonrpc": "2.0", "id": 6, "method": "tools/call", "params": { "name": "build", "arguments": { "recipe": recipe }, "_meta": { "progressToken": "p2" } } }).to_string(), &mut session);
+        let steps: Vec<(u64, u64, &str)> = out[..out.len() - 1].iter().map(|m| (m["params"]["progress"].as_u64().unwrap(), m["params"]["total"].as_u64().unwrap(), m["params"]["message"].as_str().unwrap())).collect();
+        assert_eq!(steps.len(), 5, "{steps:?}");
+        assert_eq!(steps[3], (2, 3, "Building: joints[0] (let_in, Shelf into Side)"));
+        assert_eq!(steps[4], (3, 3, "Done"));
+        assert_eq!(out[5]["result"]["isError"], false, "{}", out[5]);
     }
 
     #[test]

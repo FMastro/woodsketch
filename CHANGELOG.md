@@ -3,6 +3,14 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.43
+
+- For AI assistants: recipes take tags (folders, hidden ones) on parts, copies, groups and
+  templates, hardware parts, drawer and door groups, and profiles on only some edges; drawings
+  read back with all of them, hidden things included (they come back hidden).
+- For AI assistants: renders pick out parts inside groups and templates by name, and builds
+  report their progress step by step.
+
 ## 0.1.42
 
 - For AI assistants: recipes can draw shaped parts as an outline cut through the board's

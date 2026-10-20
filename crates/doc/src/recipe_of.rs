@@ -5,8 +5,8 @@
 //! Parts come back at their size before any joints (a shelf let into a dado is its own length;
 //! the joint lengthens it again), placed by their lowest corner, with a turn about one axis when
 //! they're at an angle (or several, at a compound angle); shaped parts as an outline, or their faces; copies of one component as copies; templates with their sizes; groups by
-//! their members. What a recipe can't say (a profile on some
-//! of a face's edges, hardware placed by hand) is listed in the notes.
+//! their members. Tags come with their folders and whether
+//! they're hidden, so hidden things come back hidden. What a recipe can't say is listed in the notes.
 
 use std::collections::{HashMap, HashSet};
 
@@ -15,19 +15,17 @@ use glam::{DAffine3, DMat3, DVec3};
 use crate::joinery::JointKind;
 use crate::part::Cut;
 use crate::profile::{Edges, Profile};
-use crate::recipe::{CopySpec, GroupSpec, JointSpec, Length, MaterialSpec, OutlinePoint, PartSpec, ProfileSpec, Recipe, Reference, Shape, ShapeFace, TemplateSpec, Turn, Turns};
+use crate::recipe::{CopySpec, GroupSpec, JointSpec, Length, MaterialSpec, OutlinePoint, PartSpec, ProfileSpec, Recipe, Reference, Shape, ShapeFace, TagSpec, TemplateSpec, Turn, Turns};
 use crate::{DefinitionId, DefinitionKind, Document, InstanceId, MaterialId, MaterialKind, Scene};
 
 /// The drawing as a recipe, and notes on what it leaves out.
 pub fn from_document(doc: &Document) -> (Recipe, Vec<String>) {
     let scene = doc.scene();
-    let mut out = Reader { scene, recipe: Recipe::default(), notes: Vec::new(), materials: HashMap::new(), names: HashSet::new(), parts: Vec::new() };
+    let mut out = Reader { scene, recipe: Recipe::default(), notes: Vec::new(), materials: HashMap::new(), names: HashSet::new(), parts: Vec::new(), tags: HashMap::new() };
     out.materials();
-    let root: Vec<(InstanceId, DAffine3)> = scene.root.instances().filter(|(_, i)| scene.is_visible(i)).map(|(id, i)| (id, i.transform)).collect();
-    let hidden = scene.root.instances().filter(|(_, i)| !scene.is_visible(i)).count();
-    if hidden > 0 {
-        out.notes.push(format!("{hidden} thing(s) on hidden tags at the top of the drawing are left out."));
-    }
+    out.tags();
+    // Everything, hidden or not (its tags say so).
+    let root: Vec<(InstanceId, DAffine3)> = scene.root.instances().map(|(id, i)| (id, i.transform)).collect();
     out.container(&scene.root, DAffine3::IDENTITY, &root);
     out.profiles();
     out.joints();
@@ -51,6 +49,8 @@ struct Reader<'a> {
     materials: HashMap<MaterialId, String>,
     names: HashSet<String>,
     parts: Vec<Placed>,
+    /// Each tag's name in the recipe (made unique: SketchUp allows the same name in two folders).
+    tags: HashMap<crate::TagId, String>,
 }
 
 impl Reader<'_> {
@@ -110,10 +110,6 @@ impl Reader<'_> {
             let Some(instance) = container.instance(id) else { continue };
             let Some(def) = scene.definition(instance.definition) else { continue };
             let placed = world * transform;
-            if def.hardware.is_some() {
-                self.notes.push(format!("{} (hardware placed by hand) is left out.", def.name));
-                continue;
-            }
             if let Some(made) = &def.template {
                 let name = self.unique(&def.name);
                 let json = serde_json::to_value(made.template).unwrap_or_default();
@@ -125,25 +121,26 @@ impl Reader<'_> {
                     at: length3(lo),
                     wood: made.wood.and_then(|w| self.materials.get(&w).cloned()),
                     sizes,
+                    tag: self.tag_name(instance.tag),
                 });
                 names.push(name);
                 continue;
             }
             if def.container.model.faces().next().is_none() {
                 // A group of parts: its members, then the group.
-                let inner: Vec<(InstanceId, DAffine3)> = def.container.instances().filter(|(_, i)| scene.is_visible(i)).map(|(id, i)| (id, i.transform)).collect();
+                let inner: Vec<(InstanceId, DAffine3)> = def.container.instances().map(|(id, i)| (id, i.transform)).collect();
                 let members = self.container(&def.container, placed, &inner);
                 if !members.is_empty() {
                     let name = self.unique(&def.name);
                     let called = (name != def.name).then(|| def.name.clone());
-                    self.recipe.groups.push(GroupSpec { name: name.clone(), parts: members, component: def.kind == DefinitionKind::Component, called });
+                    self.recipe.groups.push(GroupSpec { name: name.clone(), parts: members, component: def.kind == DefinitionKind::Component, called, tag: self.tag_name(instance.tag), moves: def.moves });
                     names.push(name);
                 }
                 continue;
             }
             // Faces of its own and groups inside: its faces as a part, in a group with what's inside.
             if def.container.instances().next().is_some() {
-                let inner: Vec<(InstanceId, DAffine3)> = def.container.instances().filter(|(_, i)| scene.is_visible(i)).map(|(id, i)| (id, i.transform)).collect();
+                let inner: Vec<(InstanceId, DAffine3)> = def.container.instances().map(|(id, i)| (id, i.transform)).collect();
                 let paint = instance.material.or_else(|| def.container.model.faces().next().and_then(|(_, f)| f.material));
                 let mut members = Vec::new();
                 if let Some(part) = self.part(instance.definition, placed, paint, None) {
@@ -155,7 +152,7 @@ impl Reader<'_> {
                 if !members.is_empty() {
                     let name = self.unique(&def.name);
                     let called = (name != def.name).then(|| def.name.clone());
-                    self.recipe.groups.push(GroupSpec { name: name.clone(), parts: members, component: def.kind == DefinitionKind::Component, called });
+                    self.recipe.groups.push(GroupSpec { name: name.clone(), parts: members, component: def.kind == DefinitionKind::Component, called, tag: self.tag_name(instance.tag), moves: def.moves });
                     names.push(name);
                 }
                 continue;
@@ -166,7 +163,10 @@ impl Reader<'_> {
             {
                 let name = self.unique(&def.name);
                 let lo = base_corners(scene, instance.definition, placed).into_iter().reduce(DVec3::min).unwrap_or(DVec3::ZERO);
-                self.recipe.parts[index].copies.push(CopySpec { name: name.clone(), at: length3(lo), turn });
+                // Its own tag, if not the part's (`""`: none, where the part has one).
+                let own = self.tag_name(instance.tag);
+                let tag = (own != self.recipe.parts[index].tag).then(|| own.unwrap_or_default());
+                self.recipe.parts[index].copies.push(CopySpec { name: name.clone(), at: length3(lo), turn, tag });
                 self.parts.push(Placed { definition: instance.definition, world: placed, name: name.clone() });
                 names.push(name);
                 continue;
@@ -254,7 +254,8 @@ impl Reader<'_> {
                 points
             };
             let faces: Vec<ShapeFace> = model.faces().map(|(_, f)| ShapeFace { outer: ring(&f.outer), holes: f.holes.iter().map(|h| ring(h)).collect() }).collect();
-            match extruded(&faces, size[2]) {
+            // (An outline only if it builds back: a loop that touches itself doesn't.)
+            match extruded(&faces, size[2]).filter(|(o, c)| crate::recipe::outline_model(o, c, 1.0, size).is_ok()) {
                 Some((o, c)) => (outline, cutouts) = (o, c),
                 None => shape = Some(Shape { faces }),
             }
@@ -282,10 +283,35 @@ impl Reader<'_> {
             turn,
             reference,
             copies: Vec::new(),
+            hardware: def.hardware.clone(),
             shape,
             outline,
             cutouts,
         })
+    }
+
+    /// Every tag and folder, hidden or not.
+    fn tags(&mut self) {
+        let scene = self.scene;
+        let mut used = HashSet::new();
+        for (id, tag) in scene.tags() {
+            let base = if tag.name.trim().is_empty() { "Tag" } else { tag.name.as_str() };
+            let mut name = base.to_owned();
+            let mut n = 2;
+            while !used.insert(name.clone()) {
+                name = format!("{base} {n}");
+                n += 1;
+            }
+            self.tags.insert(id, name);
+        }
+        for (id, tag) in scene.tags() {
+            let inside = tag.parent.and_then(|p| self.tags.get(&p)).cloned();
+            self.recipe.tags.push(TagSpec { name: self.tags[&id].clone(), hidden: !tag.visible, folder: tag.folder, inside });
+        }
+    }
+
+    fn tag_name(&self, tag: Option<crate::TagId>) -> Option<String> {
+        tag.and_then(|t| self.tags.get(&t)).cloned()
     }
 
     /// Profiles on the parts written, by the face they go around or the way their edges run.
@@ -299,28 +325,36 @@ impl Reader<'_> {
                 Profile::Cove => "cove",
                 Profile::Ogee => "ogee",
             };
-            let (around, along) = match record.edges {
-                Edges::AroundFace { axis, positive, sides } if sides.iter().all(|s| *s) => {
-                    let mut normal = DVec3::ZERO;
-                    normal[axis] = if positive { 1.0 } else { -1.0 };
-                    (direction_name((placed.world.matrix3 * normal).normalize()), None)
+            // Its own directions by where they face once placed (the nearest, as the recipe reads them).
+            let facing = |axis: usize, positive: bool| {
+                let mut normal = DVec3::ZERO;
+                normal[axis] = if positive { 1.0 } else { -1.0 };
+                nearest_name(placed.world.matrix3 * normal)
+            };
+            let (around, along, edges) = match record.edges {
+                Edges::AroundFace { axis, positive, sides } => {
+                    let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
+                    // Sides: u-, u+, v-, v+.
+                    let named = [(u, false), (u, true), (v, false), (v, true)].into_iter().zip(sides).filter(|(_, on)| *on).map(|((a, p), _)| facing(a, p).to_owned());
+                    let edges = if sides.iter().all(|s| *s) { Vec::new() } else { named.collect() };
+                    (Some(facing(axis, positive).to_owned()), None, edges)
                 }
-                Edges::Along { axis, corners } if corners.iter().all(|c| *c) => {
+                Edges::Along { axis, corners } => {
                     // Along its length, width or thickness: the part's own axes.
                     let extents = def.and_then(|d| crate::part::extents(d, placed.world.matrix3));
                     let axes = match (def, extents) {
                         (Some(d), Some(e)) => crate::part::axes(e, &d.part),
                         _ => [0, 1, 2],
                     };
-                    (None, axes.iter().position(|a| *a == axis).map(|k| ["length", "width", "thickness"][k].to_owned()))
+                    let way = axes.iter().position(|a| *a == axis).map(|k| ["length", "width", "thickness"][k].to_owned());
+                    let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
+                    // Corners: (u-, v-), (u+, v-), (u+, v+), (u-, v+).
+                    let named = [(false, false), (true, false), (true, true), (false, true)].into_iter().zip(corners).filter(|(_, on)| *on).map(|((pu, pv), _)| format!("{} {}", facing(u, pu), facing(v, pv)));
+                    let edges = if corners.iter().all(|c| *c) { Vec::new() } else { named.collect() };
+                    (None, way, edges)
                 }
-                _ => (None, None),
             };
-            if around.is_none() && along.is_none() {
-                self.notes.push(format!("{}: a {profile} on some of its edges is left out (recipes profile a face all round, or all four edges one way).", placed.name));
-                continue;
-            }
-            self.recipe.profiles.push(ProfileSpec { part: placed.name.clone(), profile: profile.into(), size: Length::Number(round(record.size)), around, along });
+            self.recipe.profiles.push(ProfileSpec { part: placed.name.clone(), profile: profile.into(), size: Length::Number(round(record.size)), around, along, edges });
         }
     }
 
@@ -505,6 +539,12 @@ fn axis_index(name: &str) -> usize {
 }
 
 /// `top`, `front`... for a direction square to the axes.
+/// The side a direction faces most: `top`, `front`...
+fn nearest_name(d: DVec3) -> &'static str {
+    let named = [(DVec3::Z, "top"), (-DVec3::Z, "bottom"), (-DVec3::Y, "front"), (DVec3::Y, "back"), (-DVec3::X, "left"), (DVec3::X, "right")];
+    named.iter().max_by(|a, b| a.0.dot(d).total_cmp(&b.0.dot(d))).map_or("top", |(_, name)| name)
+}
+
 fn direction_name(d: DVec3) -> Option<String> {
     let named = [(DVec3::Z, "top"), (-DVec3::Z, "bottom"), (-DVec3::Y, "front"), (DVec3::Y, "back"), (-DVec3::X, "left"), (DVec3::X, "right")];
     named.iter().find(|(n, _)| n.dot(d) > 1.0 - 1e-6).map(|(_, name)| (*name).to_owned())
@@ -663,6 +703,48 @@ mod tests {
         let again = build(&read).unwrap_or_else(|e| panic!("{e:?}"));
         let (a, b) = (corners_of(&again), corners_of(&doc));
         assert!(a.len() == b.len() && a.iter().zip(&b).all(|(p, q)| (0..3).all(|k| (p[k] - q[k]).abs() <= 1)), "in the same place: {a:?} {b:?}");
+    }
+
+    #[test]
+    fn tags_hardware_and_profiles_on_some_edges_read_back() {
+        let recipe = serde_json::json!({
+            "materials": [{ "id": "oak", "library": "Red Oak" }],
+            "tags": [
+                { "name": "Case", "folder": true },
+                { "name": "Sides", "inside": "Case" },
+                { "name": "Jigs", "hidden": true }
+            ],
+            "parts": [
+                { "name": "Side", "material": "oak", "size": [30, 12, 0.75], "length": "z", "width": "y", "tag": "Sides",
+                  "copies": [{ "name": "Spare side", "at": [60, 0, 0], "tag": "Jigs" }] },
+                { "name": "Top", "material": "oak", "size": [20, 12, 0.75], "at": [0, 0, 30] },
+                { "name": "Stand", "material": "oak", "size": [10, 4, 0.75], "at": [40, 0, 0] },
+                { "name": "Pull", "size": [4, 0.5, 0.5], "at": [5, -1, 31], "hardware": "Bar pull" }
+            ],
+            "profiles": [
+                { "part": "Top", "profile": "roundover", "size": 0.25, "around": "top", "edges": ["front", "left"] },
+                { "part": "Side", "profile": "chamfer", "size": 0.125, "along": "length", "edges": ["front right"] }
+            ],
+            "groups": [{ "name": "Jig", "parts": ["Stand"], "tag": "Jigs", "moves": true }]
+        });
+        let doc = build(&parse(&recipe.to_string()).unwrap()).unwrap_or_else(|e| panic!("{e:?}"));
+        let (read, notes) = from_document(&doc);
+        assert!(notes.is_empty(), "{notes:?}");
+        assert_eq!(read.tags.len(), 3, "{:?}", read.tags);
+        assert!(read.tags.iter().any(|t| t.name == "Sides" && t.inside.as_deref() == Some("Case")));
+        assert!(read.tags.iter().any(|t| t.name == "Jigs" && t.hidden));
+        assert!(read.groups.iter().any(|g| g.name == "Jig" && g.tag.as_deref() == Some("Jigs") && g.moves), "the hidden jig comes back");
+        assert!(read.parts.iter().any(|p| p.hardware.as_deref() == Some("Bar pull")));
+        let side = read.parts.iter().find(|p| p.name == "Side").unwrap();
+        assert_eq!(side.copies[0].tag.as_deref(), Some("Jigs"), "the copy keeps its own tag");
+        let mut edges: Vec<Vec<String>> = read.profiles.iter().map(|p| p.edges.clone()).collect();
+        edges.sort();
+        assert_eq!(edges, [vec!["front right".to_owned()], vec!["left".to_owned(), "front".to_owned()]]);
+        let again = build(&read).unwrap_or_else(|e| panic!("{e:?}"));
+        assert_eq!(again.scene().profiles.iter().map(|p| p.edges).collect::<Vec<_>>(), doc.scene().profiles.iter().map(|p| p.edges).collect::<Vec<_>>());
+        assert_eq!(crate::recipe::summary(&again), crate::recipe::summary(&doc));
+        let (twice, _) = from_document(&again);
+        assert_eq!(serde_json::to_value(&twice).unwrap(), serde_json::to_value(&read).unwrap(), "reads back the same again");
     }
 
     #[test]

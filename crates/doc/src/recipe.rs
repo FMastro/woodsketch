@@ -47,6 +47,23 @@ pub struct Recipe {
     /// Edge profiles, made after the parts and before the joints.
     #[serde(default)]
     pub profiles: Vec<ProfileSpec>,
+    /// Tags to make, hidden or in folders (a tag only named on a part is made shown, at the top).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<TagSpec>,
+}
+
+/// A tag, or a folder of tags (`"folder": true`), `inside` a folder, `hidden` or shown.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TagSpec {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hidden: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub folder: bool,
+    /// The folder it's in.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inside: Option<String>,
 }
 
 /// A material, by an `id` the parts use: one from the library (`"library": "Cherry"`), or your
@@ -101,6 +118,10 @@ pub struct PartSpec {
     /// A tag (made if it's new).
     #[serde(default)]
     pub tag: Option<String>,
+    /// A piece of hardware, not wood (a drawer slide, a pull): named here, left out of the cut
+    /// list and counted in the shopping list.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hardware: Option<String>,
     /// Fastened so it can move across its grain (tabletop buttons, slotted screws).
     #[serde(default)]
     pub free_to_move: bool,
@@ -213,6 +234,9 @@ pub struct CopySpec {
     /// Degrees about z (up), counter-clockwise from above: a leg turned to each corner.
     #[serde(default)]
     pub turn: f64,
+    /// Its own tag, when it isn't the part's (`""` for none).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag: Option<String>,
 }
 
 /// An edge profile on a part: `around` a face (its edges all round: `top`, `front`...), or `along`
@@ -228,6 +252,10 @@ pub struct ProfileSpec {
     pub around: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub along: Option<String>,
+    /// Only some of those edges, by where they face: around a face, the sides they're on
+    /// (`["front", "left"]`); along a way, the corners, each two sides (`["top front"]`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub edges: Vec<String>,
 }
 
 fn origin() -> [Length; 3] {
@@ -257,6 +285,8 @@ pub struct TemplateSpec {
     pub wood: Option<String>,
     #[serde(default)]
     pub sizes: serde_json::Map<String, serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag: Option<String>,
 }
 
 /// A joint between two parts that touch or overlap.
@@ -288,6 +318,12 @@ pub struct GroupSpec {
     /// The name it shows, when that isn't `name` (as for parts).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub called: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag: Option<String>,
+    /// A drawer or door: it moves in its case, so the wood movement check doesn't hold its parts
+    /// against the case's.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub moves: bool,
 }
 
 /// Piece-by-piece edits, for agents changing a drawing without rewriting its whole recipe. Each
@@ -412,6 +448,12 @@ pub fn parse(json: &str) -> Result<Recipe, String> {
 
 /// Build the drawing. Every problem found is listed, each naming its item.
 pub fn build(recipe: &Recipe) -> Result<Document, Vec<String>> {
+    build_reporting(recipe, &mut |_, _, _| {})
+}
+
+/// [`build`], saying how far along it is: `progress(done, total, item)` as each part, profile,
+/// template, joint and group is started (joints take the longest).
+pub fn build_reporting(recipe: &Recipe, progress: &mut dyn FnMut(usize, usize, &str)) -> Result<Document, Vec<String>> {
     let before = units();
     let mm = match recipe.units.as_deref().map(str::to_ascii_lowercase).as_deref() {
         None | Some("in" | "inch" | "inches") => false,
@@ -419,13 +461,19 @@ pub fn build(recipe: &Recipe) -> Result<Document, Vec<String>> {
         Some(other) => return Err(vec![format!("units: \"{other}\" isn't one of \"in\" or \"mm\".")]),
     };
     set_units(if mm { Units::Millimeters } else { Units::Inches });
-    let result = build_in(recipe, mm);
+    let result = build_in(recipe, mm, progress);
     set_units(before);
     result
 }
 
-fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
+fn build_in(recipe: &Recipe, mm: bool, progress: &mut dyn FnMut(usize, usize, &str)) -> Result<Document, Vec<String>> {
     let mut doc = Document::default();
+    let total = recipe.parts.len() + recipe.profiles.len() + recipe.templates.len() + recipe.joints.len() + recipe.groups.len();
+    let mut step = 0;
+    let mut report = |what: &str| {
+        progress(step, total, what);
+        step += 1;
+    };
     let mut errors = Vec::new();
     let length = |l: &Length, what: &str, errors: &mut Vec<String>| -> f64 {
         match l {
@@ -491,6 +539,7 @@ fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
     let mut named: HashMap<String, InstanceId> = HashMap::new();
     for (i, p) in recipe.parts.iter().enumerate() {
         let what = format!("parts[{i}] ({})", p.name);
+        report(&what);
         let [l, w, t] = [0, 1, 2].map(|k| length(&p.size[k], &what, &mut errors));
         let at = DVec3::from_array([0, 1, 2].map(|k| length(&p.at[k], &what, &mut errors)));
         let (Some(la), Some(wa)) = (axis(&p.length), axis(&p.width)) else {
@@ -548,6 +597,15 @@ fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
         doc.rename_instance(id, p.called.as_deref().unwrap_or(&p.name));
         if p.free_to_move {
             doc.edit_part(id, |info| info.free_to_move = true);
+        }
+        if let Some(piece) = &p.hardware
+            && let Some(def) = doc.scene().root.instance(id).map(|i| i.definition)
+        {
+            doc.edit_scene(|scene, _| {
+                if let Some(d) = scene.definition_mut(def) {
+                    d.hardware = Some(piece.clone());
+                }
+            });
         }
         if let Some(turns) = &p.turn {
             let mut spin = DAffine3::IDENTITY;
@@ -619,6 +677,7 @@ fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
     // Profiles, on the parts as they are (before joints change their shape).
     for (i, pr) in recipe.profiles.iter().enumerate() {
         let what = format!("profiles[{i}] ({}, {})", pr.profile, pr.part);
+        report(&what);
         let Some(&id) = named.get(&pr.part) else {
             errors.push(format!("{what}: no part named \"{}\".", pr.part));
             continue;
@@ -661,6 +720,18 @@ fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
                 continue;
             }
         };
+        // Only some of them: each edge by the sides it's on.
+        let edges = if pr.edges.is_empty() {
+            edges
+        } else {
+            match some_edges(edges, &pr.edges, transform.matrix3) {
+                Ok(edges) => edges,
+                Err(e) => {
+                    errors.push(format!("{what}: {e}"));
+                    continue;
+                }
+            }
+        };
         if let Err(e) = doc.profile_edges(id, profile, size, edges) {
             errors.push(format!("{what}: {e}"));
         }
@@ -670,6 +741,7 @@ fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
     for (i, t) in recipe.templates.iter().enumerate() {
         let name = t.name.clone().unwrap_or_else(|| t.kind.clone());
         let what = format!("templates[{i}] ({name})");
+        report(&what);
         let template = match template(&t.kind, &t.sizes, mm) {
             Ok(template) => template,
             Err(e) => {
@@ -701,6 +773,7 @@ fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
     // Joints, in order.
     for (i, j) in recipe.joints.iter().enumerate() {
         let what = format!("joints[{i}] ({}, {} into {})", j.kind, j.part, j.into);
+        report(&what);
         let (Some(&part), Some(&into)) = (named.get(&j.part), named.get(&j.into)) else {
             let missing: Vec<&str> = [&j.part, &j.into].into_iter().filter(|n| !named.contains_key(*n)).map(String::as_str).collect();
             errors.push(format!("{what}: no part named {}.", missing.iter().map(|n| format!("\"{n}\"")).collect::<Vec<_>>().join(" or ")));
@@ -715,21 +788,45 @@ fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
         }
     }
 
-    // Tags.
+    // Tags: the folders and tags listed, then on the parts and templates.
+    for (i, t) in recipe.tags.iter().enumerate() {
+        if doc.scene().tags().any(|(_, have)| have.name == t.name) {
+            errors.push(format!("tags[{i}] ({}): another tag has that name.", t.name));
+            continue;
+        }
+        doc.edit_scene(|scene, _| if t.folder { scene.add_tag_folder(t.name.clone(), None) } else { scene.add_tag(t.name.clone()) });
+    }
+    for (i, t) in recipe.tags.iter().enumerate() {
+        let Some(folder) = &t.inside else { continue };
+        let find = |name: &str| doc.scene().tags().find(|(_, have)| have.name == name).map(|(id, _)| id);
+        let (Some(tag), Some(into)) = (find(&t.name), find(folder)) else {
+            errors.push(format!("tags[{i}] ({}): no folder named \"{folder}\" in the tags.", t.name));
+            continue;
+        };
+        if !doc.edit_scene(|scene, _| scene.move_tag(tag, Some(into))) {
+            errors.push(format!("tags[{i}] ({}): \"{folder}\" isn't a folder (give it \"folder\": true), or it's inside this one.", t.name));
+        }
+    }
+    // (Copies take the part's tag unless they have their own.)
+    let mut tagged: Vec<(String, &String, Option<&String>)> = Vec::new();
     for (i, p) in recipe.parts.iter().enumerate() {
-        let (Some(tag), Some(&id)) = (&p.tag, named.get(&p.name)) else { continue };
-        let existing = doc.scene().tags().find(|(_, t)| t.name == *tag).map(|(id, _)| id);
-        let tag_id = existing.unwrap_or_else(|| doc.edit_scene(|scene, _| scene.add_tag(tag.clone())));
-        doc.selection_mut().clear();
-        doc.selection_mut().extend([Entity::Instance(id)]);
-        if doc.tag_selection(Some(tag_id)) == 0 {
-            errors.push(format!("parts[{i}] ({}): couldn't tag it \"{tag}\".", p.name));
+        tagged.push((format!("parts[{i}] ({})", p.name), &p.name, p.tag.as_ref()));
+        for (k, c) in p.copies.iter().enumerate() {
+            tagged.push((format!("parts[{i}] ({}) copies[{k}] ({})", p.name, c.name), &c.name, c.tag.as_ref().or(p.tag.as_ref()).filter(|t| !t.is_empty())));
+        }
+    }
+    tagged.extend(recipe.templates.iter().enumerate().filter_map(|(i, t)| Some((format!("templates[{i}]"), t.name.as_ref()?, t.tag.as_ref()))));
+    for (what, name, tag) in tagged {
+        let (Some(tag), Some(&id)) = (tag, named.get(name)) else { continue };
+        if !tag_instance(&mut doc, id, tag) {
+            errors.push(format!("{what}: couldn't tag it \"{tag}\"."));
         }
     }
 
     // Groups, last (joints are made between parts side by side).
     for (i, g) in recipe.groups.iter().enumerate() {
         let what = format!("groups[{i}] ({})", g.name);
+        report(&what);
         let mut members = Vec::new();
         for name in &g.parts {
             match named.get(name) {
@@ -745,6 +842,20 @@ fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
         match doc.group_selection(if g.component { DefinitionKind::Component } else { DefinitionKind::Group }) {
             Some(id) => {
                 doc.rename_instance(id, g.called.as_deref().unwrap_or(&g.name));
+                if g.moves
+                    && let Some(def) = doc.scene().root.instance(id).map(|i| i.definition)
+                {
+                    doc.edit_scene(|scene, _| {
+                        if let Some(d) = scene.definition_mut(def) {
+                            d.moves = true;
+                        }
+                    });
+                }
+                if let Some(tag) = &g.tag
+                    && !tag_instance(&mut doc, id, tag)
+                {
+                    errors.push(format!("{what}: couldn't tag it \"{tag}\"."));
+                }
                 for name in &g.parts {
                     named.remove(name);
                 }
@@ -754,11 +865,81 @@ fn build_in(recipe: &Recipe, mm: bool) -> Result<Document, Vec<String>> {
         }
     }
     doc.selection_mut().clear();
+    // Hidden last, so what's on them could be tagged and grouped.
+    for t in recipe.tags.iter().filter(|t| t.hidden) {
+        doc.edit_scene(|scene, _| {
+            let id = scene.tags().find(|(_, have)| have.name == t.name).map(|(id, _)| id);
+            if let Some(tag) = id.and_then(|id| scene.tag_mut(id)) {
+                tag.visible = false;
+            }
+        });
+    }
     if errors.is_empty() { Ok(doc) } else { Err(errors) }
 }
 
+/// `edges` (all of a face's, or all four one way) cut down to those named by where they face
+/// once placed (`placed`: the part's own axes in the world): a face's sides (`front`), or the
+/// corners running one way (`top front`).
+fn some_edges(edges: Edges, names: &[String], placed: glam::DMat3) -> Result<Edges, String> {
+    // A side of the part by where it faces: its own axis and which end.
+    let side = |name: &str| -> Result<Side, String> {
+        let normal = direction(name).ok_or_else(|| format!("\"{name}\" isn't top, bottom, front, back, left or right."))?;
+        Ok(Side::facing(placed.inverse() * normal))
+    };
+    match edges {
+        Edges::AroundFace { axis, positive, .. } => {
+            let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
+            let mut sides = [false; 4];
+            for name in names {
+                let s = side(name.trim())?;
+                let k = s.axis.index();
+                if k != u && k != v {
+                    return Err(format!("\"{name}\" isn't a side of that face (it's the face, or the one opposite)."));
+                }
+                sides[if k == u { 0 } else { 2 } + usize::from(s.positive)] = true;
+            }
+            Ok(Edges::AroundFace { axis, positive, sides })
+        }
+        Edges::Along { axis, .. } => {
+            let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
+            let mut corners = [false; 4];
+            for name in names {
+                let words: Vec<&str> = name.split(|c: char| c.is_whitespace() || c == '-' || c == ',' || c == '/').filter(|w| !w.is_empty()).collect();
+                let [a, b] = words.as_slice() else {
+                    return Err(format!("\"{name}\": name a corner by the two sides it's between (\"top front\")."));
+                };
+                let (a, b) = (side(a)?, side(b)?);
+                let (on_u, on_v) = match (a.axis.index(), b.axis.index()) {
+                    (x, y) if x == u && y == v => (a.positive, b.positive),
+                    (x, y) if x == v && y == u => (b.positive, a.positive),
+                    _ => return Err(format!("\"{name}\" isn't a corner running that way.")),
+                };
+                // Corners: (u-, v-), (u+, v-), (u+, v+), (u-, v+).
+                corners[match (on_u, on_v) {
+                    (false, false) => 0,
+                    (true, false) => 1,
+                    (true, true) => 2,
+                    (false, true) => 3,
+                }] = true;
+            }
+            Ok(Edges::Along { axis, corners })
+        }
+    }
+}
+
+/// Put the tag named `name` (made if it's new) on a placed part, template or group.
+fn tag_instance(doc: &mut Document, id: InstanceId, name: &str) -> bool {
+    let existing = doc.scene().tags().find(|(_, t)| t.name == name && !t.folder).map(|(id, _)| id);
+    let tag = existing.unwrap_or_else(|| doc.edit_scene(|scene, _| scene.add_tag(name.to_owned())));
+    doc.selection_mut().clear();
+    doc.selection_mut().extend([Entity::Instance(id)]);
+    let done = doc.tag_selection(Some(tag)) > 0;
+    doc.selection_mut().clear();
+    done
+}
+
 /// An outline (and holes) in a board's length x width, cut through its thickness `size[2]`.
-fn outline_model(outline: &[OutlinePoint], cutouts: &[Vec<OutlinePoint>], unit: f64, size: [f64; 3]) -> Result<crate::Model, String> {
+pub(crate) fn outline_model(outline: &[OutlinePoint], cutouts: &[Vec<OutlinePoint>], unit: f64, size: [f64; 3]) -> Result<crate::Model, String> {
     let ring = |points: &[OutlinePoint]| -> Result<Vec<DVec3>, String> {
         let at = |p: [f64; 2]| DVec3::new(p[0] / unit, p[1] / unit, 0.0);
         let mut out: Vec<DVec3> = Vec::new();
