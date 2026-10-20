@@ -3,6 +3,17 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.45
+
+- Angled joints on copies of a shared component: cut every copy alike (Joinery panel's Cut every
+  copy, `every_copy` in recipes), or only the one picked, which becomes a component of its own.
+- Remove (and Change) now work on a joint whose part was changed by hand elsewhere since (a board
+  lengthened after its dado was cut); a change right where the joint is still asks for Undo. An
+  angled joint whose parts were changed by hand since is no longer taken out (that lost the change).
+- Push/Pull: pushing a pocket's or dado's floor back up flush closes it, as in SketchUp (it was
+  refused).
+- For AI assistants: angled housings read back from a drawing as housings.
+
 ## 0.1.44
 
 - Fit allowances for biscuit and loose tenon slots, haunched tenons and angled tenons (Joinery

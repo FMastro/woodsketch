@@ -185,6 +185,10 @@ add it there; when you finish an item, remove it.
    (refused if a part was changed by hand since); the panel's Change removes and re-picks it.
    Fit allowances (`Tenon::fit`, `Dowels::fit`, `Slots::fit`, `AngledJoint::MortiseAndTenon::fit`);
    dovetail `pin` / `half_pin` widths; `Document::joint_rows` lists each cut once with where it is.
+   Remove after a hand change elsewhere undoes the joint's own push/pulls on the part as it is
+   (`joinery::unmade`, checked against the rebuild); `Model::push_pull` closes a pocket or notch
+   pushed back flush (`close_up`). Angled joints keep `Joint::after` (Remove refuses after a hand
+   change) and can cut every copy (`Document::angled_joint_on`).
 24. Edge profiles: `doc::profile` (`Profile` roundover / chamfer / cove / ogee as a corner curve;
    `Edges::AroundFace` (stacked inset rings, mitered corners) or `Edges::Along` (a profiled
    cross-section extruded); `Document::profile_edges` rebuilds a plain board's geometry, one undo

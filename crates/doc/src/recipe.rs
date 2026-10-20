@@ -296,13 +296,15 @@ pub struct JointSpec {
     /// `let_in` (a dado, groove or rabbet: `part` is let into `into`), `cut_overlap`,
     /// `mortise_and_tenon` (`part` is the rail with the tenon), `dowels`, `biscuits`,
     /// `loose_tenons`, `splines`, `pocket_screws`, `dovetails` (`part` gets the tails),
-    /// `box_joint` or `half_lap`.
+    /// `box_joint` or `half_lap`; at an angle, `angled_mortise_and_tenon` or `housing`.
     pub kind: String,
     pub part: String,
     pub into: String,
     /// Sizes; anything left out is suggested from the parts: `depth` (let_in), `length`,
     /// `thickness`, `shoulder` (tenon), `count`, `diameter` (dowels, pocket screws, biscuits),
-    /// `tails`, `half_blind` (dovetails), `finger` (box joint), `screw` (pocket screw length).
+    /// `tails`, `half_blind`, `pin`, `half_pin` (dovetails), `finger` (box joint), `screw`
+    /// (pocket screw length), `fit`; `every_copy` (angled joints: cut every copy of a shared
+    /// component, not only the one named).
     #[serde(default)]
     pub options: serde_json::Map<String, serde_json::Value>,
 }
@@ -1099,6 +1101,12 @@ fn template(kind: &str, sizes: &serde_json::Map<String, serde_json::Value>, mm: 
     serde_json::from_value(json).map_err(|e| format!("{variant}: {e}"))
 }
 
+/// Whether an angled joint cuts every copy of a shared component (`"every_copy": true`), not
+/// only the one named (which then gets a component of its own).
+fn every_copy(j: &JointSpec) -> bool {
+    j.options.get("every_copy").and_then(serde_json::Value::as_bool).unwrap_or(false)
+}
+
 /// Make one joint, with sizes given or suggested.
 fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, mm: bool) -> Result<(), JoineryError> {
     let number = |key: &str| j.options.get(key).and_then(serde_json::Value::as_f64);
@@ -1114,9 +1122,14 @@ fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, 
             let thickness = len("thickness", (fit.thickness.0 / 3.0).max(0.25));
             let shoulder = len("shoulder", 0.25);
             let fit = len("fit", 0.0);
-            (doc.angled_joint(part, into, AngledJoint::MortiseAndTenon { thickness, shoulder, fit }), vec![thickness, shoulder, 0.0, fit])
+            let every = every_copy(j);
+            let made = doc.angled_joint_on(part, into, AngledJoint::MortiseAndTenon { thickness, shoulder, fit }, every);
+            (made, vec![thickness, shoulder, 0.0, fit, f64::from(u8::from(every))])
         }
-        "housing" | "angled_housing" => (doc.angled_joint(part, into, AngledJoint::Housing), vec![0.0, 0.0, 1.0]),
+        "housing" | "angled_housing" => {
+            let every = every_copy(j);
+            (doc.angled_joint_on(part, into, AngledJoint::Housing, every), vec![0.0, 0.0, 1.0, 0.0, f64::from(u8::from(every))])
+        }
         _ => {
             let fit = doc.joint_fit(part, into)?;
             let count = |default: u32| number("count").map_or(default, |v| v.max(1.0) as u32);

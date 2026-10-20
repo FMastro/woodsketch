@@ -130,11 +130,13 @@ the parts, as the app's Joinery panel does.
 | `dovetails` | the tails board (a drawer side) / the pins board (the front) | `tails`, `half_blind`, `pin`, `half_pin` (widths where they show: 1/8" pins for a hand-cut look) |
 | `box_joint` | either / either (ends meeting at a corner) | `finger` |
 | `half_lap` | the top board / the bottom board (crossing) | |
-| `angled_mortise_and_tenon` | the turned part (a brace) / the part it meets | `thickness`, `shoulder`, `fit` |
-| `housing` | the turned part / the part it's let into | |
+| `angled_mortise_and_tenon` | the turned part (a brace) / the part it meets | `thickness`, `shoulder`, `fit`, `every_copy` |
+| `housing` | the turned part / the part it's let into | `every_copy` |
 
 `fit` is a fit allowance: how much roomier the mortise, holes or slots are than what goes in
 (1/32" to 1/16"; 0, the default, for a tight fit).
+An angled joint on a part with copies gives that copy a component of its own (the others,
+perhaps mirrored, stay as they are); `"every_copy": true` cuts every copy of it instead.
 
 Butt the parts as they'd sit without the joint: a shelf ends at the side's face, a rail at the
 leg's face; WoodSketch grows the shelf into the dado and the rail's tenon into the leg.

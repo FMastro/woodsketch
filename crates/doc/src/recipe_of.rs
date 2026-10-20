@@ -383,14 +383,18 @@ impl Reader<'_> {
             let s = &joint.sizes;
             let size = |k: usize| s.get(k).copied();
             let mut options = serde_json::Map::new();
+            let angled = !joint.before.is_empty();
+            // Cut into every copy of a shared component, not only the one named.
+            if angled && size(4).is_some_and(|v| v > 0.5) {
+                options.insert("every_copy".into(), serde_json::json!(true));
+            }
             let mut put = |key: &str, value: Option<f64>| {
                 if let Some(v) = value {
                     options.insert(key.into(), serde_json::json!(round(v)));
                 }
             };
-            let angled = !joint.before.is_empty();
             let kind = match joint.kind {
-                JointKind::MortiseAndTenon if angled && size(2).is_some_and(|h| h > 0.5) => "housing",
+                JointKind::MortiseAndTenon | JointKind::Notch if angled && size(2).is_some_and(|h| h > 0.5) => "housing",
                 JointKind::MortiseAndTenon if angled => {
                     put("thickness", size(0));
                     put("shoulder", size(1));
@@ -639,6 +643,30 @@ mod tests {
         assert_eq!(recipe.templates.len(), 1);
         assert_eq!(recipe.templates[0].sizes.get("width"), Some(&serde_json::json!(30.0)));
         assert_eq!(recipe.joints[0].kind, "angled_mortise_and_tenon");
+    }
+
+    #[test]
+    fn an_angled_joint_on_every_copy_reads_back() {
+        let json = r#"{
+            "materials": [{ "id": "oak", "library": "Red Oak" }],
+            "parts": [
+                { "name": "Post", "material": "oak", "size": [48, 3.5, 1.5], "length": "z", "width": "x",
+                  "copies": [{ "name": "Post 2", "at": [40, 0, 0] }] },
+                { "name": "Brace", "material": "oak", "size": [20, 3.5, 1.5], "at": [2.5, 0, 20], "length": "x", "width": "z",
+                  "turn": { "axis": "y", "degrees": -45 } }
+            ],
+            "joints": [{ "kind": "housing", "part": "Brace", "into": "Post", "options": { "every_copy": true } }]
+        }"#;
+        let (recipe, _) = round_trip(json);
+        let doc = build(&parse(json).unwrap()).unwrap();
+        let scene = doc.scene();
+        let posts: Vec<_> = scene.root.instances().map(|(_, i)| i.definition).filter(|d| scene.definition(*d).is_some_and(|d| d.name == "Post")).collect();
+        assert_eq!(posts.len(), 2);
+        assert_eq!(posts[0], posts[1], "both posts are still one component");
+        let post = recipe.parts.iter().find(|p| p.name == "Post").unwrap();
+        assert_eq!(post.copies.len(), 1, "read back as a copy");
+        assert_eq!(recipe.joints[0].kind, "housing");
+        assert_eq!(recipe.joints[0].options.get("every_copy"), Some(&serde_json::json!(true)));
     }
 
     /// A 10" x 2" x 1" board with one end cut at an angle (the top edge 8" long), as a shape.

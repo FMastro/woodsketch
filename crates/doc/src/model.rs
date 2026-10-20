@@ -419,6 +419,12 @@ impl Model {
         }
     }
 
+    /// Remove a vertex no edge or face uses.
+    pub(crate) fn remove_vertex(&mut self, id: VertexId) {
+        self.face_index.take();
+        self.vertices.remove(id.0);
+    }
+
     /// Remove just the edge, leaving faces and vertices alone.
     pub(crate) fn remove_edge(&mut self, id: EdgeId) -> Option<Edge> {
         self.edges.remove(id.0)

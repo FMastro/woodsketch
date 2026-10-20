@@ -93,8 +93,15 @@ impl Document {
     }
 
     /// Make `joint` between `part` (tenoned, or let in) and `into`, which meet at an angle and
-    /// overlap. One undo step.
+    /// overlap. One undo step. A copy of a shared component gets a component of its own; see
+    /// [`Self::angled_joint_on`] to cut every copy instead.
     pub fn angled_joint(&mut self, part: InstanceId, into: InstanceId, joint: AngledJoint) -> Result<(), JoineryError> {
+        self.angled_joint_on(part, into, joint, false)
+    }
+
+    /// [`Self::angled_joint`], cutting every copy of a shared component when `every_copy` (as
+    /// square joints do), else only the ones picked (made unique).
+    pub fn angled_joint_on(&mut self, part: InstanceId, into: InstanceId, joint: AngledJoint, every_copy: bool) -> Result<(), JoineryError> {
         let (frame, p, q) = self.flatten(part, into)?;
         // The tenon: a slice through the middle of the part's thickness, set in from its edges.
         let across = DVec2::new(-p.along.y, p.along.x);
@@ -218,17 +225,18 @@ impl Document {
         };
         self.edit_scene(|scene, path| {
             // A copy of a shared component gets its own: the others (perhaps mirrored, like the
-            // other side of an arch) don't take this joint.
-            let dp = scene.make_unique(path, part).unwrap_or(dp);
-            let dq = scene.make_unique(path, into).unwrap_or(dq);
+            // other side of an arch) don't take this joint. Unless every copy is to be cut; two
+            // copies of one component joined to each other still need two.
+            let dp = if every_copy { dp } else { scene.make_unique(path, part).unwrap_or(dp) };
+            let dq = if every_copy && dq != dp { dq } else { scene.make_unique(path, into).unwrap_or(dq) };
             let before: Vec<(DefinitionId, Model)> = before.into_iter().zip([dp, dq]).map(|((_, model), new)| (new, model)).collect();
-            if let Some(d) = scene.definition_mut(dp) {
-                d.container.model = model_p;
+            let after = vec![(dp, model_p), (dq, model_q)];
+            for (def, model) in &after {
+                if let Some(d) = scene.definition_mut(*def) {
+                    d.container.model = model.clone();
+                }
             }
-            if let Some(d) = scene.definition_mut(dq) {
-                d.container.model = model_q;
-            }
-            scene.joints.push(Joint { kind, cut: dp, into: dq, detail, hardware: None, ops: Vec::new(), before, sizes: Vec::new() });
+            scene.joints.push(Joint { kind, cut: dp, into: dq, detail, hardware: None, ops: Vec::new(), before, after, sizes: Vec::new() });
         });
         Ok(())
     }
@@ -691,6 +699,38 @@ mod tests {
         doc.angled_joint(brace, post, AngledJoint::MortiseAndTenon { thickness: 0.5, shoulder: 0.25, fit: 0.0 }).unwrap();
         assert!(volume(&doc, post) < untouched, "this post has its mortise");
         assert!((volume(&doc, other) - untouched).abs() < 1e-9, "the other copy doesn't");
+    }
+
+    #[test]
+    fn every_copy_of_a_shared_post_can_take_the_mortise() {
+        let mut doc = Document::default();
+        let (post, brace) = post_and_brace(&mut doc);
+        doc.selection_mut().extend([Entity::Instance(post)]);
+        let post = doc.group_selection(crate::DefinitionKind::Component).unwrap();
+        let other = doc.transform_entities(&[Entity::Instance(post)], &[DAffine3::from_translation(DVec3::X * 40.0)], true).unwrap();
+        let Entity::Instance(other) = other[0] else { panic!() };
+        let untouched = volume(&doc, other);
+        let definition = |doc: &Document, id: InstanceId| doc.container().instance(id).unwrap().definition;
+        doc.angled_joint_on(brace, post, AngledJoint::MortiseAndTenon { thickness: 0.5, shoulder: 0.25, fit: 0.0 }, true).unwrap();
+        assert_eq!(definition(&doc, post), definition(&doc, other), "still one component");
+        assert!(volume(&doc, other) < untouched - 0.1, "the other copy has the mortise too");
+        doc.remove_joint(0).unwrap();
+        assert!((volume(&doc, other) - untouched).abs() < 1e-9, "and loses it with the joint");
+    }
+
+    #[test]
+    fn a_part_changed_by_hand_since_keeps_its_joint() {
+        let mut doc = Document::default();
+        let (post, brace) = post_and_brace(&mut doc);
+        doc.angled_joint(brace, post, AngledJoint::Housing).unwrap();
+        // Lengthen the post by hand: its top end (its own +x).
+        doc.enter(post);
+        let top = doc.model().faces().find(|(_, f)| f.normal.x > 0.999).map(|(id, _)| id).unwrap();
+        doc.push_pull(top, 2.0, false).unwrap();
+        doc.exit();
+        let changed = volume(&doc, post);
+        assert!(matches!(doc.remove_joint(0), Err(JoineryError::Size(m)) if m.contains("Undo")));
+        assert!((volume(&doc, post) - changed).abs() < 1e-9, "nothing lost");
     }
 
     #[test]

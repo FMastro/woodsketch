@@ -12,7 +12,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | # | Category | Points | Why here |
 |---|---|---|---|
 | 1 | Build sheets and assembly | 0 | Done |
-| 2 | Joinery | 81 | Closes gaps in the core woodworking feature |
+| 2 | Joinery | 76 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 0 | Done |
@@ -28,7 +28,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1361** | |
+| | **All** | **1356** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -50,18 +50,19 @@ Done: dado, groove, rabbet, mortise and tenon (through, haunched), dovetails (th
 half-blind), dowels, biscuits, loose tenons, splines, pocket screws, box joint, half-lap, cut
 where parts overlap; angled mortise and tenon and housings; Change and Remove; fit allowances on
 mortises (haunched and angled too), dowel holes and slots; dovetail pin widths (hand-cut spacing);
-Entity Info lists each cut once, saying where it is when two read alike.
-1. [5] An angled joint on one copy of a shared component makes it its own component (the
-   others stay); square joints change every copy. Offer to change all of them.
-2. [8] Removing a joint after a part was changed by hand (refused now; use Undo).
-3. [8] Pocket screws: draw the angled bore, not only the pocket on the hidden face. Needs solid
+Entity Info lists each cut once, saying where it is when two read alike; angled joints on every
+copy of a shared component (or only the one picked); removing a joint from a part changed by
+hand elsewhere (an angled one refuses, keeping the change).
+1. [8] Removing a joint from a part changed by hand right where the joint is, or an angled joint
+   after any hand change (refused: use Undo).
+2. [8] Pocket screws: draw the angled bore, not only the pocket on the hidden face. Needs solid
    subtraction (joints cut with straight push/pulls and boxes, or rebuild plain boards in a plane):
    an angled round hole in a part that may have other joinery can't be made yet.
-4. [13] Sliding and lapped dovetails.
-5. [13] Joining parts in different groups (both must be side by side now).
-6. [13] Angled dowels, half-laps and dovetails.
-7. [21] Compound angles, and a second angled joint on a part already cut at an angle in
-    another plane.
+3. [13] Sliding and lapped dovetails.
+4. [13] Joining parts in different groups (both must be side by side now).
+5. [13] Angled dowels, half-laps and dovetails.
+6. [21] Compound angles, and a second angled joint on a part already cut at an angle in
+   another plane.
 
 ## 3. Templates
 Done: cabinet (drawers and doors in its openings, adjustable shelves, hinge side), drawer, face

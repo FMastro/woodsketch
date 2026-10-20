@@ -489,6 +489,7 @@ fn angled(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
                     ui.data_mut(|d| {
                         d.insert_temp(egui::Id::new(("angled_tenon", a, b)), housing > 0.5);
                         d.insert_temp(egui::Id::new(("angled", a, b)), vec![format_length(thickness), format_length(shoulder), format_length(fit)]);
+                        d.insert_temp(egui::Id::new(("angled_every", a, b)), sizes.get(4).is_some_and(|v| *v > 0.5));
                     });
                 }
                 "Set it up again, then make it.".to_owned()
@@ -508,12 +509,23 @@ fn angled(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
                 ui.selectable_value(&mut housing, true, "Housing").on_hover_text("The whole end let into the other part");
             });
             ui.data_mut(|d| d.insert_temp(tenon_id, housing));
+            // Copies of a shared component: cut them all alike, or only this one (made its own).
+            let shared = [a, b].iter().any(|&id| doc.container().instance(id).is_some_and(|i| doc.scene().instance_count(i.definition) > 1));
+            let every_id = egui::Id::new(("angled_every", a, b));
+            let mut every = ui.data(|d| d.get_temp::<bool>(every_id)).unwrap_or(false);
+            if shared {
+                ui.checkbox(&mut every, "Cut every copy")
+                    .on_hover_text("These are copies of a shared component: cut every copy alike, or only this one (it becomes a component of its own)");
+                ui.data_mut(|d| d.insert_temp(every_id, every));
+            }
+            let every = shared && every;
+            let flag = f64::from(u8::from(every));
             let mut message = None;
             if housing {
                 for (part, into) in [(a, b), (b, a)] {
                     let (pn, inn) = (name(doc, part), name(doc, into));
                     if ui.button(format!("Let {pn} into {inn}")).clicked() {
-                        message = Some(result(sized(doc, |doc| doc.angled_joint(part, into, AngledJoint::Housing), vec![0.0, 0.0, 1.0]).map(|()| format!("{pn} let into {inn}."))));
+                        message = Some(result(sized(doc, |doc| doc.angled_joint_on(part, into, AngledJoint::Housing, every), vec![0.0, 0.0, 1.0, 0.0, flag]).map(|()| format!("{pn} let into {inn}."))));
                     }
                 }
             } else {
@@ -533,7 +545,7 @@ fn angled(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
                     let ready = thickness.is_some() && shoulder.is_some() && room.is_some();
                     if let (true, Some(thickness), Some(shoulder), Some(fit)) = (button(ui, ready, &format!("Tenon on {pn}, mortise in {inn}")), thickness, shoulder, room) {
                         let joint = AngledJoint::MortiseAndTenon { thickness, shoulder, fit };
-                        message = Some(result(sized(doc, |doc| doc.angled_joint(part, into, joint), vec![thickness, shoulder, 0.0, fit]).map(|()| format!("Angled mortise and tenon made: {pn}'s end is trimmed to {inn}'s face, with its tenon in."))));
+                        message = Some(result(sized(doc, |doc| doc.angled_joint_on(part, into, joint, every), vec![thickness, shoulder, 0.0, fit, flag]).map(|()| format!("Angled mortise and tenon made: {pn}'s end is trimmed to {inn}'s face, with its tenon in."))));
                     }
                 }
             }

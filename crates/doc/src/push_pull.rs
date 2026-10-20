@@ -14,7 +14,7 @@ use std::fmt;
 use glam::DVec3;
 
 use crate::model::newell_normal;
-use crate::{EPS, FaceId, Model, VertexId};
+use crate::{EPS, Edge, EdgeId, Face, FaceId, Model, VertexId};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PushPullError {
@@ -114,19 +114,117 @@ impl Model {
         let cap = self.face(face).expect("checked by caller").clone();
         let moving: BTreeSet<VertexId> = cap.loops().flatten().copied().collect();
         let origin = self.vertex(cap.outer[0]);
-        // The cap may not reach or pass any fixed vertex of its side faces.
-        let blocked = sides.iter().filter_map(|&f| self.face(f)).flat_map(|f| f.loops().flatten().copied()).any(|v| {
-            let height = (self.vertex(v) - origin).dot(cap.normal);
-            !moving.contains(&v)
-                && height.abs() > EPS
-                && height.signum() == distance.signum()
-                && height.abs() <= distance.abs() + EPS
+        // The cap may not pass any fixed vertex of its side faces. Reaching them exactly closes
+        // a pocket or notch up (pushing its floor back flush, as SketchUp does).
+        let reached: Vec<f64> = sides
+            .iter()
+            .filter_map(|&f| self.face(f))
+            .flat_map(|f| f.loops().flatten().copied())
+            .filter(|v| !moving.contains(v))
+            .map(|v| (self.vertex(v) - origin).dot(cap.normal))
+            .filter(|height| height.abs() > EPS && height.signum() == distance.signum() && height.abs() <= distance.abs() + EPS)
+            .collect();
+        // Closing up needs a surface facing the cap's way where it lands (the top around a
+        // pocket); landing on the far side's back (a board's end pushed to its other end) is
+        // through.
+        let flush = self.faces().any(|(id, f)| {
+            id != face && f.normal.dot(cap.normal) > 1.0 - 1e-9 && ((self.vertex(f.outer[0]) - origin).dot(cap.normal) - distance).abs() <= EPS
         });
-        if blocked {
+        if reached.iter().any(|height| height.abs() < distance.abs() - EPS) || (!reached.is_empty() && !flush) {
             return Err(PushPullError::ThroughGeometry);
         }
-        self.translate_vertices(moving, cap.normal * distance);
+        self.translate_vertices(moving.iter().copied(), cap.normal * distance);
+        if !reached.is_empty() {
+            self.close_up(&moving, face);
+        }
         Ok(())
+    }
+
+    /// After a cap was moved onto fixed vertices: weld each moved vertex to the one it landed
+    /// on, fold away the walls that went flat, and merge the cap into the faces around it.
+    fn close_up(&mut self, moved: &BTreeSet<VertexId>, cap: FaceId) {
+        let onto: Vec<(VertexId, VertexId)> = moved
+            .iter()
+            .filter_map(|&v| {
+                let p = self.vertex(v);
+                self.vertices().find(|(u, q)| *u != v && !moved.contains(u) && q.distance_squared(p) <= EPS * EPS).map(|(u, _)| (v, u))
+            })
+            .collect();
+        if onto.is_empty() {
+            return;
+        }
+        let weld = |v: VertexId| onto.iter().find(|(from, _)| *from == v).map_or(v, |(_, to)| *to);
+        // Edges: renamed, gone when they shrank to a point, one of each pair.
+        let edges: Vec<(EdgeId, Edge)> = self.edges().map(|(id, e)| (id, *e)).collect();
+        for (id, edge) in edges {
+            self.remove_edge(id);
+            let (a, b) = (weld(edge.a), weld(edge.b));
+            if a != b && self.find_edge(a, b).is_none() {
+                let new = self.push_edge(a, b);
+                self.set_edge_hidden(new, edge.hidden);
+            }
+        }
+        // Faces: renamed, with the spikes left by flattened walls taken out; flat walls go.
+        let faces: Vec<(FaceId, Face)> = self.faces().map(|(id, f)| (id, f.clone())).collect();
+        for (id, mut face) in faces {
+            let clean = |l: &[VertexId]| {
+                let mut l: Vec<VertexId> = l.iter().map(|&v| weld(v)).collect();
+                loop {
+                    let n = l.len();
+                    let at = (0..n).find(|&i| n > 1 && (l[i] == l[(i + 1) % n] || (n > 2 && l[i] == l[(i + 2) % n])));
+                    let Some(i) = at else { break };
+                    if l[i] == l[(i + 1) % n] {
+                        l.remove((i + 1) % n);
+                    } else {
+                        // x, y, x: a spike out to y and back.
+                        let (j, k) = ((i + 1) % n, (i + 2) % n);
+                        let mut drop = [j, k];
+                        drop.sort_unstable();
+                        l.remove(drop[1]);
+                        l.remove(drop[0]);
+                    }
+                }
+                l
+            };
+            face.outer = clean(&face.outer);
+            face.holes = face.holes.iter().map(|h| clean(h)).filter(|h| h.len() >= 3).collect();
+            if face.outer.len() < 3 || newell_normal(&self.loop_points(&face.outer)).length() < EPS {
+                self.remove_face(id);
+            } else {
+                self.replace_face(id, face);
+            }
+        }
+        // A pocket's floor now fills its opening: the hole goes, and the floor with it.
+        if let Some(floor) = self.face(cap).cloned() {
+            let host = self.faces().find(|(id, f)| *id != cap && f.normal.dot(floor.normal) > 1.0 - 1e-9 && f.holes.iter().any(|h| crate::model::same_loop(h, &floor.outer))).map(|(id, _)| id);
+            if let Some(host) = host
+                && let Some(mut f) = self.face(host).cloned()
+            {
+                f.holes.retain(|h| !crate::model::same_loop(h, &floor.outer));
+                self.replace_face(host, f);
+                self.remove_face(cap);
+            }
+        }
+        // A notch's floor joins the faces either side of it.
+        for edge in self.face_edges(cap) {
+            self.merge_across(edge);
+        }
+        // Edges no face uses any more, between corners the walls had; the moved vertices.
+        let welded: BTreeSet<VertexId> = onto.iter().map(|(_, to)| *to).collect();
+        let unused: Vec<EdgeId> =
+            self.edges().filter(|(id, e)| (welded.contains(&e.a) || welded.contains(&e.b)) && self.edge_faces(*id).is_empty()).map(|(id, _)| id).collect();
+        for id in unused {
+            self.remove_edge(id);
+        }
+        for (from, _) in &onto {
+            self.remove_vertex(*from);
+        }
+        // Corners left on straight edges, and those left with no edges at all.
+        for v in welded {
+            if !self.dissolve_vertex(v) && !self.edges().any(|(_, e)| e.a == v || e.b == v) {
+                self.remove_vertex(v);
+            }
+        }
     }
 
     fn extrude(&mut self, face: FaceId, distance: f64, attached: bool) {
@@ -463,6 +561,49 @@ mod tests {
             .map(|(_, f)| f.normal)
             .unwrap();
         assert!(floor.abs_diff_eq(DVec3::Z, 1e-12));
+    }
+
+    fn floor_at(model: &Model, z: f64) -> FaceId {
+        model.faces().find(|(_, f)| f.normal.z > 0.5 && (model.vertex(f.outer[0]).z - z).abs() < 1e-9).map(|(id, _)| id).unwrap()
+    }
+
+    /// Back to the plain 10 x 10 x 2 box: six faces, twelve edges, eight corners.
+    fn plain_box(model: &Model) {
+        assert!((volume(model) - 200.0).abs() < 1e-6, "{}", volume(model));
+        assert_eq!((model.faces().count(), model.edges().count(), model.vertices().count()), (6, 12, 8));
+        assert!(model.faces().all(|(_, f)| f.holes.is_empty() && f.outer.len() == 4));
+        assert!(model.edges().all(|(id, _)| model.edge_faces(id).len() == 2));
+    }
+
+    #[test]
+    fn a_pocket_pulled_back_flush_closes_up() {
+        let mut model = Model::default();
+        let base = model.add_rectangle(DVec3::ZERO, DVec3::X * 10.0, DVec3::Y * 10.0, DVec3::Z).unwrap();
+        model.push_pull(base, 2.0).unwrap();
+        let inner = model.add_rectangle(DVec3::new(3.0, 3.0, 2.0), DVec3::X * 4.0, DVec3::Y * 4.0, DVec3::Z).unwrap();
+        model.push_pull(inner, -1.0).unwrap();
+        model.push_pull(floor_at(&model, 1.0), 1.0).unwrap();
+        plain_box(&model);
+    }
+
+    #[test]
+    fn a_dado_pulled_back_flush_closes_up() {
+        let mut model = Model::default();
+        let base = model.add_rectangle(DVec3::ZERO, DVec3::X * 10.0, DVec3::Y * 10.0, DVec3::Z).unwrap();
+        model.push_pull(base, 2.0).unwrap();
+        // Right across the top, edge to edge.
+        let strip = model.draw_polygon(&[DVec3::new(4.0, 0.0, 2.0), DVec3::new(5.0, 0.0, 2.0), DVec3::new(5.0, 10.0, 2.0), DVec3::new(4.0, 10.0, 2.0)], DVec3::Z).unwrap();
+        model.push_pull(strip, -0.5).unwrap();
+        assert!((volume(&model) - 195.0).abs() < 1e-6);
+        model.push_pull(floor_at(&model, 1.5), 0.5).unwrap();
+        plain_box(&model);
+        // Past flush is still refused.
+        let mut model = Model::default();
+        let base = model.add_rectangle(DVec3::ZERO, DVec3::X * 10.0, DVec3::Y * 10.0, DVec3::Z).unwrap();
+        model.push_pull(base, 2.0).unwrap();
+        let inner = model.add_rectangle(DVec3::new(3.0, 3.0, 2.0), DVec3::X * 4.0, DVec3::Y * 4.0, DVec3::Z).unwrap();
+        model.push_pull(inner, -1.0).unwrap();
+        assert_eq!(model.push_pull(floor_at(&model, 1.0), 1.5), Err(PushPullError::ThroughGeometry));
     }
 
     #[test]

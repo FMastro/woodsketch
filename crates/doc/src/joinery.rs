@@ -81,6 +81,9 @@ pub struct Joint {
     /// [`crate::angled`]).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub before: Vec<(DefinitionId, Model)>,
+    /// And their shapes just after, to tell whether they were changed by hand since.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub after: Vec<(DefinitionId, Model)>,
     /// The numbers it was made with, in the Joinery panel's order (to Change it from them).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sizes: Vec<f64>,
@@ -694,7 +697,7 @@ fn record_with(
     let p = Parts { scene, path };
     let (cut, into) = (p.definition(cut)?, p.definition(into)?);
     let ops = std::mem::take(&mut scene.pending_ops);
-    scene.joints.push(Joint { kind, cut, into, detail, hardware, ops, before: Vec::new(), sizes: Vec::new() });
+    scene.joints.push(Joint { kind, cut, into, detail, hardware, ops, before: Vec::new(), after: Vec::new(), sizes: Vec::new() });
     Ok(())
 }
 
@@ -985,14 +988,62 @@ fn rebuilt_without(scene: &Scene, index: usize) -> Result<Vec<(DefinitionId, Mod
         let (Some((_, base)), Some(current)) = (scene.joint_bases.iter().find(|(d, _)| *d == def), scene.definition(def)) else {
             return Err(JoineryError::Size("That joint can't be taken out on its own. Use Undo, or rebuild the parts."));
         };
-        if !same(&replay(base, def, None)?, &current.container.model) {
-            return Err(JoineryError::Size(
-                "A part in that joint was changed by hand after its joints were made, and taking the joint out would lose that. Use Undo instead.",
-            ));
+        let (clean, without) = (replay(base, def, None)?, replay(base, def, Some(index))?);
+        let current = &current.container.model;
+        if same(&clean, current) {
+            rebuilt.push((def, without));
+            continue;
         }
-        rebuilt.push((def, replay(base, def, Some(index))?));
+        // Changed by hand since: take this joint's cuts back out of the part as it is, when doing
+        // that to the part as its joints left it gives what rebuilding it would, and the volume
+        // changes by the same (the hand's changes were elsewhere).
+        let works = unmade(&clean, joint, def).is_some_and(|m| alike(&m, &without));
+        let change = volume(&without) - volume(&clean);
+        let kept = unmade(current, joint, def)
+            .filter(|m| works && (volume(m) - volume(current) - change).abs() < 1e-6 && (closed(m) || !closed(current)))
+            .ok_or(JoineryError::Size(
+                "A part in that joint was changed by hand where the joint is, and taking the joint out would lose that. Use Undo instead.",
+            ))?;
+        rebuilt.push((def, kept));
     }
     Ok(rebuilt)
+}
+
+/// `model` with `joint`'s pushes and pulls on `def` undone, last first: each face pushed back
+/// from where it ended up.
+fn unmade(model: &Model, joint: &Joint, def: DefinitionId) -> Option<Model> {
+    let mut model = model.clone();
+    for op in joint.ops.iter().rev().filter(|o| o.part == def) {
+        let points: Vec<DVec3> = op.points.iter().map(|p| *p + op.normal * op.distance).collect();
+        draw_and_push(&mut model, &points, op.normal, -op.distance).ok()?;
+    }
+    Some(model)
+}
+
+/// The same solid, near enough: volume and bounds.
+fn alike(a: &Model, b: &Model) -> bool {
+    let bounds = match (a.bounds(), b.bounds()) {
+        (Some((alo, ahi)), Some((blo, bhi))) => alo.abs_diff_eq(blo, 1e-6) && ahi.abs_diff_eq(bhi, 1e-6),
+        (None, None) => true,
+        _ => false,
+    };
+    bounds && (volume(a) - volume(b)).abs() < 1e-6
+}
+
+/// A closed model's volume (divergence theorem over its faces, each turned to its side).
+fn volume(m: &Model) -> f64 {
+    m.faces()
+        .flat_map(|(_, f)| m.triangulate(f).into_iter().map(move |t| (t, f.normal)))
+        .map(|([a, b, c], n)| {
+            let v = a.dot(b.cross(c)) / 6.0;
+            if (b - a).cross(c - a).dot(n) >= 0.0 { v } else { -v }
+        })
+        .sum()
+}
+
+/// Whether every edge has a face each side.
+fn closed(m: &Model) -> bool {
+    m.faces().count() > 0 && m.edges().all(|(id, _)| m.edge_faces(id).len() == 2)
 }
 
 impl Document {
@@ -1008,6 +1059,13 @@ impl Document {
             let later = self.scene().joints[index + 1..].iter().any(|j| parts.contains(&j.cut) || parts.contains(&j.into));
             if later {
                 return Err(JoineryError::Size("Another joint was made on these parts since: take that one out first, or use Undo."));
+            }
+            let same = |a: &Model, b: &Model| serde_json::to_string(a).ok() == serde_json::to_string(b).ok();
+            let changed = joint.after.iter().any(|(d, after)| self.scene().definition(*d).is_some_and(|def| !same(&def.container.model, after)));
+            if changed {
+                return Err(JoineryError::Size(
+                    "A part in that joint was changed by hand after it was made, and taking the joint out would lose that. Use Undo instead.",
+                ));
             }
             let before = joint.before.clone();
             self.edit_scene(|scene, _| {
@@ -1781,17 +1839,46 @@ mod removing {
     }
 
     #[test]
-    fn a_part_changed_by_hand_since_says_to_use_undo() {
+    fn a_part_changed_by_hand_where_the_joint_is_says_to_use_undo() {
         let mut doc = Document::default();
         let side = board(&mut doc, DVec3::ZERO, DVec3::Z, DVec3::Y, [30.0, 11.25, 0.75]);
         let shelf = board(&mut doc, DVec3::new(0.0, 0.0, 12.0), DVec3::X, DVec3::Y, [20.0, 11.25, 0.75]);
         doc.let_in(shelf, side, 0.25).unwrap();
-        // Lengthen the side by hand.
+        // Deepen the dado by hand: its floor is the face square to X and narrowest across Z.
+        doc.enter(side);
+        let floor = {
+            let m = doc.model();
+            let height = |f: &crate::Face| {
+                let zs: Vec<f64> = f.outer.iter().map(|v| m.vertex(*v).z).collect();
+                zs.iter().copied().fold(f64::MIN, f64::max) - zs.iter().copied().fold(f64::MAX, f64::min)
+            };
+            m.faces().filter(|(_, f)| f.normal.x.abs() > 0.999).min_by(|a, b| height(a.1).total_cmp(&height(b.1))).map(|(id, _)| id).unwrap()
+        };
+        doc.push_pull(floor, 0.125, false).unwrap();
+        doc.exit();
+        assert!(matches!(doc.remove_joint(0), Err(JoineryError::Size(m)) if m.contains("Undo")));
+    }
+
+    #[test]
+    fn a_joint_comes_out_of_a_part_changed_by_hand_elsewhere() {
+        let mut doc = Document::default();
+        let side = board(&mut doc, DVec3::ZERO, DVec3::Z, DVec3::Y, [30.0, 11.25, 0.75]);
+        let shelf = board(&mut doc, DVec3::new(0.0, 0.0, 12.0), DVec3::X, DVec3::Y, [20.0, 11.25, 0.75]);
+        let plain = faces(&doc, side);
+        doc.let_in(shelf, side, 0.25).unwrap();
+        // Lengthen the side by hand: pull its top end up 2" (its length runs along its own x).
         doc.enter(side);
         let top = doc.model().faces().find(|(_, f)| f.normal.x > 0.999).map(|(id, _)| id).unwrap();
         doc.push_pull(top, 2.0, false).unwrap();
         doc.exit();
-        assert!(matches!(doc.remove_joint(0), Err(JoineryError::Size(m)) if m.contains("Undo")));
+        doc.remove_joint(0).unwrap();
+        let def = doc.container().instance(side).unwrap().definition;
+        let m = &doc.scene().definition(def).unwrap().container.model;
+        let (lo, hi) = m.bounds().unwrap();
+        assert!((hi.x - lo.x - 32.0).abs() < 1e-9, "the side keeps its new length");
+        assert!((volume(m) - 32.0 * 11.25 * 0.75).abs() < 1e-6, "the dado is filled: {}", volume(m));
+        assert!(closed(m) && faces(&doc, side) <= plain + 4, "{} faces", faces(&doc, side));
+        assert_eq!(doc.part_size(shelf).unwrap()[0], 20.0, "the shelf is back to its length");
     }
 
     #[test]
