@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use eframe::egui;
 use woodsketch_doc::Document;
-use woodsketch_doc::feedback::{Drawing, Kind, RELAY, Sent, System, details, issue_url, reply, request, scrub, valid_email};
+use woodsketch_doc::feedback::{Crash, Drawing, Kind, RELAY, Sent, System, details, issue_url, reply, request, scrub, valid_email};
 
 /// Where issues go.
 pub const REPO: &str = "https://github.com/FMastro/woodsketch";
@@ -55,6 +55,8 @@ pub struct FeedbackWindow {
     skip_drawing: bool,
     /// Focus the title when the form opens.
     focus_title: bool,
+    /// Reporting the crash the last session left: it goes with the details.
+    crash: Option<Crash>,
     sending: Arc<Mutex<Sending>>,
     post: Post,
 }
@@ -69,6 +71,7 @@ impl Default for FeedbackWindow {
             email: String::new(),
             skip_drawing: false,
             focus_title: false,
+            crash: None,
             sending: Arc::default(),
             post: post_to_relay(),
         }
@@ -79,6 +82,15 @@ impl FeedbackWindow {
     pub fn start(&mut self, kind: Kind) {
         let post = self.post.clone();
         *self = Self { open: true, kind, focus_title: true, post, ..Self::default() };
+    }
+
+    /// Report the crash the last session left: the form filled in, the crash in the details.
+    pub fn start_crash(&mut self, crash: Crash) {
+        self.start(Kind::Problem);
+        self.title = crash.title();
+        self.what = "WoodSketch closed unexpectedly. What I was doing: ".to_owned();
+        self.focus_title = false;
+        self.crash = Some(crash);
     }
 
     /// Send reports with `post` instead of to woodsketch.net (tests).
@@ -152,12 +164,12 @@ impl FeedbackWindow {
             });
 
             // Everything that goes with it, as it'll be sent.
-            let home = std::env::var("USERPROFILE").or_else(|_| std::env::var("HOME")).ok();
-            let user = std::env::var("USERNAME").or_else(|_| std::env::var("USER")).ok();
+            let (home, user) = crate::crash::private();
             let system = System::here(crate::updates::VERSION, graphics, woodsketch_doc::units::units().name());
             let drawing = (!self.skip_drawing).then(|| Drawing::of(doc.scene()));
             let error = last_error.filter(|_| self.kind == Kind::Problem).map(|e| scrub(e, home.as_deref(), user.as_deref()));
-            let text = details(&system, drawing.as_ref(), error.as_deref());
+            let crash = self.crash.as_ref().filter(|_| self.kind == Kind::Problem);
+            let text = details(&system, drawing.as_ref(), error.as_deref(), crash);
             ui.add_space(4.0);
             ui.label("Sent with it:");
             egui::Frame::group(ui.style()).show(ui, |ui| {

@@ -10,6 +10,10 @@ fn main() -> eframe::Result {
     // First: the installer and updater run their setup steps through the app, and exit there.
     velopack::VelopackApp::build().run();
     env_logger::init();
+    // A crash is saved to the settings folder, and the next start offers to report it.
+    if let Some(dir) = eframe::storage_dir("WoodSketch") {
+        woodsketch_ui_egui::crash::install(dir);
+    }
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("WoodSketch")

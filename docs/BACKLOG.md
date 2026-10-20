@@ -120,7 +120,8 @@ render highlights at any depth; build progress step by step over MCP. Nothing le
 ## 6. Release polish
 Done: installers, auto-update, icons, release notes, the site's download links; Help > Report a
 Problem / Send Feedback (GitHub issue forms, details with nothing private; fixed issues close
-when their release is published).
+when their release is published); a crash is saved and offered for a report at the next start;
+reports name the OS version.
 1. [5] Windows signing with Azure Artifact Signing (~$9.99/month; individuals in the US/Canada; a
    paid Azure subscription; identity validation takes days; CI signs via OIDC, no stored key).
    Until then SmartScreen warns. Do it before announcing WoodSketch widely.
@@ -132,10 +133,10 @@ when their release is published).
 7. [3] A macOS DMG.
 8. [5] Linux .deb and .rpm.
 9. [5] Windows ARM64 and Linux ARM64 builds.
-10. [5] After a crash, offer to report it at the next start: a panic hook saves the message and
-    where it happened (paths scrubbed), and Report a Problem opens with it filled in.
-11. [3] The OS version in a report's details (only the OS and processor now: Rust's standard library
-    doesn't say which Windows or macOS version).
+10. [3] Crash reports: a short backtrace of WoodSketch's own code (only where the panic happened
+    now).
+11. [5] Crashes that aren't Rust panics (a graphics driver crash, running out of memory, a stack
+    overflow) leave nothing to report.
 12. [2] A scheduled check of new reports (a daily routine that reads `from-app` issues and drafts
     fixes for review); now they're checked at the start of each session (CLAUDE.md).
 13. [21] End-user help for every feature: a User Guide on woodsketch.net (/help), a page per

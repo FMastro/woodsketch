@@ -33,7 +33,7 @@ impl Kind {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct System {
     pub version: String,
-    /// `windows x86_64`.
+    /// `Windows 11 Pro 10.0.26100 (x86_64)`.
     pub os: String,
     /// The graphics card and driver, as wgpu reports them.
     pub graphics: String,
@@ -41,10 +41,72 @@ pub struct System {
 }
 
 impl System {
-    /// This build's OS and processor, with the rest given.
+    /// This computer's OS, its version and the processor, with the rest given.
     pub fn here(version: &str, graphics: &str, units: &str) -> Self {
-        Self { version: version.to_owned(), os: format!("{} {}", std::env::consts::OS, std::env::consts::ARCH), graphics: graphics.to_owned(), units: units.to_owned() }
+        Self { version: version.to_owned(), os: os_name(), graphics: graphics.to_owned(), units: units.to_owned() }
     }
+}
+
+/// The OS with its version, and the processor: `Windows 11 Pro 10.0.26100 (x86_64)`, `Mac OS
+/// 15.1.0 (aarch64)`. Looked up once.
+pub fn os_name() -> String {
+    static NAME: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    NAME.get_or_init(|| {
+        let info = os_info::get();
+        let kind = info.os_type().to_string();
+        // Windows names its edition in full (`Windows 11 Pro`); elsewhere it's an extra word.
+        let name = match info.edition() {
+            Some(edition) if edition.starts_with(&kind) => edition.to_owned(),
+            Some(edition) => format!("{kind} {edition}"),
+            None => kind,
+        };
+        format!("{name} {} ({})", info.version(), std::env::consts::ARCH)
+    })
+    .clone()
+}
+
+/// What a crash left: the message (paths taken out), where in WoodSketch's code it happened, and
+/// the version that crashed. Saved when it happens, offered for a report at the next start.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Crash {
+    pub message: String,
+    pub location: String,
+    pub version: String,
+}
+
+impl Crash {
+    /// As saved: the version, the location, then the message.
+    pub fn to_text(&self) -> String {
+        format!("{}\n{}\n{}", self.version, self.location, self.message)
+    }
+
+    pub fn from_text(text: &str) -> Option<Crash> {
+        let mut lines = text.splitn(3, '\n');
+        let (version, location, message) = (lines.next()?, lines.next()?, lines.next().unwrap_or_default());
+        Some(Crash { version: version.trim().to_owned(), location: location.trim().to_owned(), message: message.trim().to_owned() })
+    }
+
+    /// A title for its report: the message's first line, shortened.
+    pub fn title(&self) -> String {
+        let first = self.message.lines().next().unwrap_or_default();
+        let short: String = first.chars().take(60).collect();
+        format!("Crash: {short}{}", if first.chars().count() > 60 { "..." } else { "" })
+    }
+}
+
+/// Where in the code a crash happened, without the build machine's folders: from `crates/` or
+/// `apps/` for WoodSketch's own code, from the crate's folder for a library's.
+pub fn source_location(file: &str, line: u32, column: u32) -> String {
+    let file = file.replace('\\', "/");
+    let parts: Vec<&str> = file.split('/').collect();
+    let own = parts.iter().position(|p| *p == "crates" || *p == "apps");
+    // A library's: `.../registry/src/<index>/<crate>-<version>/src/lib.rs`, from `<crate>-<version>`.
+    let library = parts.iter().rposition(|p| *p == "src").filter(|&at| at > 0);
+    let short = match own.or(library.map(|at| at - 1)) {
+        Some(from) => parts[from..].join("/"),
+        None => parts.last().copied().unwrap_or_default().to_owned(),
+    };
+    format!("{short}:{line}:{column}")
 }
 
 /// How big and what's in the open drawing, counted, without names.
@@ -137,7 +199,7 @@ pub fn scrub(text: &str, home: Option<&str>, user: Option<&str>) -> String {
 }
 
 /// The details that go with a report, as shown to the user and sent.
-pub fn details(system: &System, drawing: Option<&Drawing>, last_error: Option<&str>) -> String {
+pub fn details(system: &System, drawing: Option<&Drawing>, last_error: Option<&str>, crash: Option<&Crash>) -> String {
     let mut s = String::new();
     let _ = writeln!(s, "WoodSketch {}", system.version);
     let _ = writeln!(s, "System: {}", system.os);
@@ -148,6 +210,10 @@ pub fn details(system: &System, drawing: Option<&Drawing>, last_error: Option<&s
     }
     if let Some(error) = last_error {
         let _ = writeln!(s, "Last error shown: {error}");
+    }
+    if let Some(crash) = crash {
+        let _ = writeln!(s, "Crashed (in {}): {}", crash.version, crash.message);
+        let _ = writeln!(s, "  at {}", crash.location);
     }
     s
 }
@@ -225,6 +291,26 @@ mod tests {
     }
 
     #[test]
+    fn a_crash_says_where_without_the_build_machines_folders() {
+        assert_eq!(source_location(r"D:\a\woodsketch\woodsketch\crates\doc\src\joinery.rs", 120, 9), "crates/doc/src/joinery.rs:120:9");
+        assert_eq!(source_location("apps/woodsketch/src/main.rs", 3, 1), "apps/woodsketch/src/main.rs:3:1");
+        assert_eq!(
+            source_location(r"C:\Users\runneradmin\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wgpu-30.0.0\src\api\device.rs", 50, 5),
+            "wgpu-30.0.0/src/api/device.rs:50:5"
+        );
+        assert_eq!(source_location("lib.rs", 1, 1), "lib.rs:1:1");
+        let crash = Crash { message: "index out of bounds: the len is 3 but the index is 7".into(), location: "crates/doc/src/model.rs:12:5".into(), version: "0.1.47".into() };
+        assert_eq!(Crash::from_text(&crash.to_text()), Some(crash.clone()));
+        assert_eq!(crash.title(), "Crash: index out of bounds: the len is 3 but the index is 7");
+        let text = details(&System::here("0.1.47", "GPU", "Inches"), None, None, Some(&crash));
+        assert!(text.contains("Crashed (in 0.1.47): index out of bounds") && text.contains("  at crates/doc/src/model.rs:12:5"), "{text}");
+        // The OS with a version, and the processor.
+        let os = os_name();
+        assert!(os.contains(std::env::consts::ARCH), "{os}");
+        println!("{os}");
+    }
+
+    #[test]
     fn a_report_for_the_relay_and_its_answer() {
         let json: serde_json::Value = serde_json::from_str(&request(Kind::Idea, "Bed", "A bed template", "WoodSketch 0.1.23", Some("maker@example.com"))).unwrap();
         assert_eq!((json["kind"].as_str(), json["what"].as_str(), json["email"].as_str()), (Some("idea"), Some("A bed template"), Some("maker@example.com")));
@@ -246,7 +332,7 @@ mod tests {
         assert_eq!((drawing.joints, drawing.templates), (8, 1));
         assert_eq!(drawing.materials.get("solid wood"), Some(&1));
         let system = System::here("0.1.21", "NVIDIA RTX 4060 (Vulkan, driver 560)", "Inches");
-        let text = details(&system, Some(&drawing), Some("Something failed"));
+        let text = details(&system, Some(&drawing), Some("Something failed"), None);
         assert!(text.contains("WoodSketch 0.1.21") && text.contains("Graphics: NVIDIA") && text.contains("8 joints") && text.contains("Last error shown: Something failed"), "{text}");
         assert!(!text.contains("Cherry") && !text.contains("Leg"), "no names of materials or parts");
         let url = issue_url("https://github.com/FMastro/woodsketch", Kind::Problem, "Crash & burn", "It closed.", &text);

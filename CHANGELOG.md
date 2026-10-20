@@ -3,6 +3,13 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.47
+
+- If WoodSketch crashes, the next start says so and offers to report it: Report a Problem opens
+  filled in with what went wrong and where in WoodSketch's code (paths and your name taken out),
+  for you to read before sending.
+- Problem reports name the OS version (Windows 11 Pro 10.0.26100, not just "windows").
+
 ## 0.1.46
 
 - Pocket screws drill real pocket holes: a 3/8" bore at 15° from the hidden face, stepping down

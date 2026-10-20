@@ -1364,6 +1364,36 @@ fn a_crash_leaves_unsaved_work_to_recover() {
 }
 
 #[test]
+fn a_crash_is_offered_for_a_report_at_the_next_start() {
+    use egui_kittest::kittest::Queryable;
+    let dir = std::env::temp_dir().join(format!("woodsketch-crash-report-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    // What the panic hook saved.
+    let crash = woodsketch_doc::feedback::Crash {
+        message: "index out of bounds: the len is 3 but the index is 7".into(),
+        location: "crates/doc/src/model.rs:120:9".into(),
+        version: "0.1.47".into(),
+    };
+    std::fs::write(dir.join("crash.txt"), crash.to_text()).unwrap();
+
+    let mut harness = app();
+    harness.state_mut().use_crash_folder(dir.clone());
+    harness.run();
+    assert!(harness.query_by_label("WoodSketch ran into a problem").is_some());
+    snapshot(&mut harness, "crash_offered");
+    harness.get_by_label("Report it...").click();
+    harness.run();
+    assert!(harness.query_by_label("WoodSketch ran into a problem").is_none());
+    assert!(harness.query_by_label("Report a Problem").is_some(), "the report form opens");
+    assert!(harness.query_by_label_contains("Crashed (in 0.1.47): index out of bounds").is_some(), "with the crash in its details");
+    assert!(harness.query_by_label_contains("at crates/doc/src/model.rs:120:9").is_some());
+    assert!(!dir.join("crash.txt").exists(), "offered once");
+    snapshot(&mut harness, "crash_report");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn outliner_shows_the_whole_tree_and_picks_nested_parts() {
     use egui_kittest::kittest::Queryable;
     use glam::DVec3;

@@ -1,6 +1,7 @@
 //! The WoodSketch window: a 3D viewport inside SketchUp-style chrome (`chrome.rs`).
 
 mod chrome;
+pub mod crash;
 pub mod feedback;
 mod cutlist;
 pub mod files;
@@ -61,6 +62,10 @@ pub struct WoodSketchApp {
     autosave: autosave::Autosave,
     /// Drawings autosaved by a session that crashed, offered back at start.
     leftovers: Vec<autosave::Leftover>,
+    /// Where a crash is saved (the settings folder; none in tests), and the one the last session
+    /// left, offered for a report at start.
+    crash_dir: Option<PathBuf>,
+    crash: Option<woodsketch_doc::feedback::Crash>,
     /// Autosave failed once (shown once, not every interval).
     /// The updater the app binary plugs in (none in tests or builds without one).
     updater: Option<updates::Updater>,
@@ -95,6 +100,8 @@ impl WoodSketchApp {
         let dir = cc.storage.is_some().then(|| eframe::storage_dir("WoodSketch")).flatten().map(|d| d.join("autosave"));
         let autosave = autosave::Autosave::new(dir);
         let leftovers = autosave.leftovers();
+        let crash_dir = cc.storage.is_some().then(|| eframe::storage_dir("WoodSketch")).flatten();
+        let crash = crash_dir.as_deref().and_then(crash::left);
         Self {
             doc: Document::default(),
             tools: Tools::default(),
@@ -117,6 +124,8 @@ impl WoodSketchApp {
             recent: cc.storage.and_then(|s| eframe::get_value(s, RECENT_KEY)).unwrap_or_default(),
             autosave,
             leftovers,
+            crash_dir,
+            crash,
             autosave_failed: false,
             updater: None,
             check_updates: cc.storage.and_then(|s| eframe::get_value(s, UPDATES_KEY)).unwrap_or(true),
@@ -205,6 +214,41 @@ impl WoodSketchApp {
     pub fn use_autosave_folder(&mut self, dir: PathBuf) {
         self.autosave = autosave::Autosave::new(Some(dir));
         self.leftovers = self.autosave.leftovers();
+    }
+
+    /// Look for a crash the last session left in `dir` (as the app does in its settings folder);
+    /// for tests.
+    pub fn use_crash_folder(&mut self, dir: PathBuf) {
+        self.crash = crash::left(&dir);
+        self.crash_dir = Some(dir);
+    }
+
+    /// After a crash (and any unsaved work offered back): offer to report it.
+    fn offer_crash_report(&mut self, ctx: &egui::Context) {
+        if !self.leftovers.is_empty() {
+            return;
+        }
+        let Some(crash) = self.crash.clone() else { return };
+        let (mut report, mut skip) = (false, false);
+        egui::Modal::new(egui::Id::new("crash")).show(ctx, |ui| {
+            ui.set_max_width(400.0);
+            ui.heading("WoodSketch ran into a problem");
+            ui.label(format!("It closed unexpectedly last time ({}). A report helps get it fixed: it says what went wrong and where in WoodSketch's code, and you'll see all of it before it's sent.", crash.version));
+            ui.add_space(6.0);
+            ui.horizontal(|ui| {
+                report = ui.button("Report it...").clicked();
+                skip = ui.button("Not now").clicked();
+            });
+        });
+        if report || skip {
+            if report {
+                self.feedback.start_crash(crash);
+            }
+            self.crash = None;
+            if let Some(dir) = &self.crash_dir {
+                crash::clear(dir);
+            }
+        }
     }
 
     /// Write unsaved changes now and then, and offer back drawings a crash left behind.
@@ -481,8 +525,9 @@ impl eframe::App for WoodSketchApp {
         self.theme = ctx.options(|o| o.theme_preference);
         self.handle_files(&ctx);
         self.autosave_and_recover(&ctx);
+        self.offer_crash_report(&ctx);
         self.keep_up_to_date();
-        if !self.files.is_asking() && self.leftovers.is_empty() {
+        if !self.files.is_asking() && self.leftovers.is_empty() && self.crash.is_none() {
             self.keyboard.handle(&ctx, &mut self.doc, &mut self.tools, &mut self.viewport);
         }
 
