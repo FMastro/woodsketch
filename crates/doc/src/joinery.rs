@@ -16,6 +16,7 @@ use std::fmt;
 use glam::{DAffine3, DVec3};
 use serde::{Deserialize, Serialize};
 
+use crate::solid::Rod;
 use crate::curves::circle_points;
 use crate::units::format_length;
 use crate::{DefinitionId, Document, EPS, InstanceId, Model, Scene};
@@ -750,6 +751,10 @@ pub struct JointOp {
     pub points: Vec<DVec3>,
     pub normal: DVec3,
     pub distance: f64,
+    /// Drilled instead (a pocket hole's angled bore): these rods cut out of the part. `points`,
+    /// `normal` and `distance` then only say roughly where it is.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub drill: Vec<crate::solid::Rod>,
 }
 
 /// A planned push or pull, before it's made.
@@ -757,6 +762,7 @@ struct Plan {
     points: Vec<DVec3>,
     normal: DVec3,
     distance: f64,
+    drill: Vec<crate::solid::Rod>,
 }
 
 /// Make a planned cut or addition on `instance`'s geometry (a group shared with copies gets its
@@ -778,8 +784,9 @@ fn apply<R>(
         scene.joint_bases.push((def, base));
     }
     let model = &mut scene.definition_mut(def).ok_or(JoineryError::NotParts)?.container.model;
-    draw_and_push(model, &op.points, op.normal, op.distance)?;
-    scene.pending_ops.push(JointOp { part: def, points: op.points, normal: op.normal, distance: op.distance });
+    let op = JointOp { part: def, points: op.points, normal: op.normal, distance: op.distance, drill: op.drill };
+    perform(model, &op)?;
+    scene.pending_ops.push(op);
     Ok(result)
 }
 
@@ -809,6 +816,7 @@ fn grow_into(scene: &mut Scene, path: &[InstanceId], part: InstanceId, frame: In
             points: face_rect(in_model, axis, at).to_vec(),
             normal: DVec3::AXES[axis] * outward,
             distance: in_model.1[axis] - in_model.0[axis],
+            drill: Vec::new(),
         };
         Ok((plan, ()))
     })
@@ -819,7 +827,26 @@ fn drill_in(scene: &mut Scene, path: &[InstanceId], instance: InstanceId, center
     apply(scene, path, instance, |_, from_part| {
         let normal = from_part.transform_vector3(normal).normalize();
         let points = circle_points(from_part.transform_point3(center), normal, radius, 24);
-        Ok((Plan { points, normal, distance: -depth }, ()))
+        Ok((Plan { points, normal, distance: -depth, drill: Vec::new() }, ()))
+    })
+}
+
+/// Drill `rods` (in another part's coordinates, `to_part` mapping them into `instance`'s) into
+/// `instance`. `region` (same coordinates) is roughly where, opening onto the face toward
+/// `facing`: listed and placed on the build sheet from it.
+fn bore_in(scene: &mut Scene, path: &[InstanceId], instance: InstanceId, to_part: &DAffine3, rods: &[Rod], region: Box3, facing: DVec3) -> Result<(), JoineryError> {
+    let in_part = transform_box(to_part, region);
+    let facing = to_part.transform_vector3(facing);
+    apply(scene, path, instance, |_, from_part| {
+        let t = from_part * *to_part;
+        let drill = rods.iter().map(|r| Rod { from: t.transform_point3(r.from), to: t.transform_point3(r.to), ..*r }).collect();
+        let bx = transform_box(&from_part, in_part);
+        let toward = from_part.transform_vector3(facing);
+        let axis = (0..3).max_by(|&a, &b| toward[a].abs().total_cmp(&toward[b].abs())).unwrap_or(0);
+        let outward = toward[axis].signum();
+        let at = if outward > 0.0 { bx.1[axis] } else { bx.0[axis] };
+        let points = face_rect(bx, axis, at).to_vec();
+        Ok((Plan { points, normal: DVec3::AXES[axis] * outward, distance: -(bx.1[axis] - bx.0[axis]), drill }, ()))
     })
 }
 
@@ -838,7 +865,7 @@ fn push_polygon_in(
     apply(scene, path, instance, |_, from_part| {
         let t = from_part * to_part;
         let points = points.iter().map(|&p| t.transform_point3(p)).collect();
-        Ok((Plan { points, normal: t.transform_vector3(normal).normalize(), distance: -depth }, ()))
+        Ok((Plan { points, normal: t.transform_vector3(normal).normalize(), distance: -depth, drill: Vec::new() }, ()))
     })
 }
 
@@ -878,6 +905,15 @@ fn face_under(model: &Model, point: DVec3, normal: DVec3) -> Option<crate::FaceI
         let on_plane = (point - model.vertex(f.outer[0])).dot(f.normal).abs() < TOUCH;
         (f.normal.dot(normal) > 1.0 - 1e-6 && on_plane && model.face_contains(f, point)).then_some(id)
     })
+}
+
+/// Make `op` on `model`: drill it, or draw and push or pull.
+fn perform(model: &mut Model, op: &JointOp) -> Result<(), JoineryError> {
+    if op.drill.is_empty() {
+        return draw_and_push(model, &op.points, op.normal, op.distance);
+    }
+    *model = crate::solid::drill(model, &op.drill).ok_or(JoineryError::NoSurface)?;
+    Ok(())
 }
 
 /// Draw `points` on the surface facing `normal` and push or pull the face it makes by
@@ -935,7 +971,7 @@ fn plan_cut(model: &Model, bx: Box3, grain: Option<(Option<crate::part::PartAxis
             face_under(model, center, DVec3::AXES[k] * sign).is_some() || already_done(model, center, DVec3::AXES[k] * sign, -size[k])
         })
         .ok_or(JoineryError::NoSurface)?;
-    let plan = Plan { points: face_rect(bx, k, at(k, sign)).to_vec(), normal: DVec3::AXES[k] * sign, distance: -size[k] };
+    let plan = Plan { points: face_rect(bx, k, at(k, sign)).to_vec(), normal: DVec3::AXES[k] * sign, distance: -size[k], drill: Vec::new() };
 
     // What kind of cut: which of the part's other faces the box reaches.
     let (u, v) = ((k + 1) % 3, (k + 2) % 3);
@@ -977,7 +1013,7 @@ fn rebuilt_without(scene: &Scene, index: usize) -> Result<Vec<(DefinitionId, Mod
                 continue;
             }
             for op in j.ops.iter().filter(|o| o.part == def) {
-                draw_and_push(&mut model, &op.points, op.normal, op.distance)?;
+                perform(&mut model, op)?;
             }
         }
         Ok(model)
@@ -1014,6 +1050,10 @@ fn rebuilt_without(scene: &Scene, index: usize) -> Result<Vec<(DefinitionId, Mod
 fn unmade(model: &Model, joint: &Joint, def: DefinitionId) -> Option<Model> {
     let mut model = model.clone();
     for op in joint.ops.iter().rev().filter(|o| o.part == def) {
+        // A drilled hole can't be filled back in this way.
+        if !op.drill.is_empty() {
+            return None;
+        }
         let points: Vec<DVec3> = op.points.iter().map(|p| *p + op.normal * op.distance).collect();
         draw_and_push(&mut model, &points, op.normal, -op.distance).ok()?;
     }
@@ -1655,8 +1695,8 @@ impl Document {
         })
     }
 
-    /// Pocket screws across a butt joint, driven from the hidden face of `part` into `into`.
-    /// Recorded for the build sheet and shopping list; the holes aren't drawn.
+    /// Pocket screws across a butt joint, driven from the hidden face of `part` into `into`: the
+    /// holes drilled in `part` (a stepped bore at 15°), and the screws on the shopping list.
     pub fn pocket_screws(&mut self, part: InstanceId, into: InstanceId, count: u32, screw: f64) -> Result<(), JoineryError> {
         let before = self.scene().joints.len();
         self.pocket_screws_made(part, into, count, screw)?;
@@ -1683,23 +1723,40 @@ impl Document {
             let thick = butt.contact.1[thin] - butt.contact.0[thin];
             let long = r.1[butt.k] - r.0[butt.k];
             let to_part = p.relative(into, part)?;
-            if long > 2.0 {
+            // Each hole: drilled at 15° from the hidden face, coming out of the end at the middle
+            // of the thickness. A 3/8" pocket, stepping down to a pilot for the last stretch.
+            let (sin, cos) = POCKET_ANGLE.to_radians().sin_cos();
+            let to_face = thick / 2.0 / sin;
+            let step = (screw * 0.45).min(to_face * 0.8);
+            if long > to_face * cos + 0.5 {
                 let spacing = (butt.contact.1[wide] - butt.contact.0[wide]) / f64::from(count);
                 let c = butt.contact.0[butt.k];
-                let (k0, k1) = (c - butt.side * 0.25, c - butt.side * 1.5);
+                let mid_thin = (butt.contact.0[thin] + butt.contact.1[thin]) / 2.0;
+                let along = DVec3::AXES[butt.k] * -butt.side * cos + DVec3::AXES[thin] * sign * sin;
                 for i in 0..count {
                     let mid = butt.contact.0[wide] + spacing * (f64::from(i) + 0.5);
+                    let mut exit = DVec3::ZERO;
+                    exit[butt.k] = c;
+                    exit[thin] = mid_thin;
+                    exit[wide] = mid;
+                    let rods = [
+                        Rod { from: exit - along * 0.1, to: exit + along * step, radius: POCKET_PILOT / 2.0, sides: 16 },
+                        Rod { from: exit + along * step, to: exit + along * (to_face + 1.0), radius: POCKET_BORE / 2.0, sides: 16 },
+                    ];
+                    // Roughly where: from the end to the far tip of the slot in the hidden face, half the
+                    // thickness deep.
                     let (mut lo, mut hi) = butt.contact;
+                    let (k0, k1) = (c, c - butt.side * (to_face * cos + POCKET_BORE / sin));
                     lo[butt.k] = k0.min(k1);
                     hi[butt.k] = k0.max(k1);
-                    lo[wide] = mid - 0.1875;
-                    hi[wide] = mid + 0.1875;
+                    lo[wide] = mid - POCKET_BORE / 2.0;
+                    hi[wide] = mid + POCKET_BORE / 2.0;
                     if sign > 0.0 {
                         lo[thin] = hi[thin] - thick / 2.0;
                     } else {
                         hi[thin] = lo[thin] + thick / 2.0;
                     }
-                    cut_box_in(scene, path, part, transform_box(&to_part, (lo, hi)))?;
+                    bore_in(scene, path, part, &to_part, &rods, (lo, hi), DVec3::AXES[thin] * sign)?;
                 }
             }
             let detail = format!("{count} pocket holes in the hidden face, {} screws", format_length(screw));
@@ -1708,6 +1765,12 @@ impl Document {
         })
     }
 }
+
+/// Pocket holes: drilled this many degrees from the face, a bore this wide (3/8") stepping down
+/// to a pilot this wide (9/64").
+pub const POCKET_ANGLE: f64 = 15.0;
+pub const POCKET_BORE: f64 = 0.375;
+pub const POCKET_PILOT: f64 = 9.0 / 64.0;
 
 /// The pocket screw length for stock `thick` thick: 1" for 1/2", 1 1/4" for 3/4", 1 1/2" for
 /// 1", 2 1/2" for 1 1/2".
@@ -1779,13 +1842,36 @@ mod more_joints {
     }
 
     #[test]
-    fn pocket_screws_are_listed_without_cutting() {
+    fn pocket_screws_drill_the_shelf_and_are_listed() {
         let mut doc = Document::default();
         let (side, shelf) = side_and_shelf(&mut doc);
+        let plain = volume(model(&doc, shelf));
         doc.pocket_screws(shelf, side, 3, pocket_screw_for(0.75)).unwrap();
-        assert_eq!(model(&doc, side).faces().count(), 6);
+        assert_eq!(model(&doc, side).faces().count(), 6, "the side isn't drilled");
         let joint = &doc.joints_of(side)[0].0;
         assert_eq!(joint.hardware, Some(Hardware { name: "1 1/4\" pocket screw".into(), count: 3 }));
+        // Three slots in the shelf's hidden face, three pilot holes out of its end.
+        let m = model(&doc, shelf);
+        assert!(closed(&doc, shelf), "still a closed solid");
+        let mut holed: Vec<usize> = m.faces().map(|(_, f)| f.holes.len()).filter(|&n| n > 0).collect();
+        holed.sort_unstable();
+        assert_eq!(holed, [1, 1, 1, 3, 3], "each bore's flat bottom is a ring round its pilot: {holed:?}");
+        let taken = plain - volume(m);
+        assert!(taken > 3.0 * 0.05 && taken < 3.0 * 0.5, "{taken}");
+        // Taken out again: a plain shelf.
+        doc.remove_joint(0).unwrap();
+        assert_eq!(model(&doc, shelf).faces().count(), 6);
+        assert!((volume(model(&doc, shelf)) - plain).abs() < 1e-9);
+    }
+
+    fn volume(m: &Model) -> f64 {
+        m.faces()
+            .flat_map(|(_, f)| m.triangulate(f).into_iter().map(move |t| (t, f.normal)))
+            .map(|([a, b, c], n)| {
+                let v = a.dot(b.cross(c)) / 6.0;
+                if (b - a).cross(c - a).dot(n) >= 0.0 { v } else { -v }
+            })
+            .sum::<f64>()
     }
 
     #[test]

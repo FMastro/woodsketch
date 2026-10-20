@@ -3,6 +3,12 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.46
+
+- Pocket screws drill real pocket holes: a 3/8" bore at 15° from the hidden face, stepping down
+  to a pilot that comes out of the middle of the end, shown in the drawing and on the build sheet
+  (they were listed but not drawn). Remove takes them out again.
+
 ## 0.1.45
 
 - Angled joints on copies of a shared component: cut every copy alike (Joinery panel's Cut every

@@ -12,7 +12,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | # | Category | Points | Why here |
 |---|---|---|---|
 | 1 | Build sheets and assembly | 0 | Done |
-| 2 | Joinery | 76 | Closes gaps in the core woodworking feature |
+| 2 | Joinery | 71 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 0 | Done |
@@ -22,13 +22,13 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 9 | Wood movement | 23 | Fewer false warnings, clearer results |
 | 10 | Edge profiles | 76 | More bits, profiles on any board |
 | 11 | Parts and boards | 11 | Small drawing conveniences |
-| 12 | Modeling tools | 108 | SketchUp parity for general modeling |
+| 12 | Modeling tools | 121 | SketchUp parity for general modeling |
 | 13 | Groups, components and tags | 63 | Organizing bigger projects |
 | 14 | UI | 87 | Comfort and polish |
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1356** | |
+| | **All** | **1364** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -52,15 +52,15 @@ where parts overlap; angled mortise and tenon and housings; Change and Remove; f
 mortises (haunched and angled too), dowel holes and slots; dovetail pin widths (hand-cut spacing);
 Entity Info lists each cut once, saying where it is when two read alike; angled joints on every
 copy of a shared component (or only the one picked); removing a joint from a part changed by
-hand elsewhere (an angled one refuses, keeping the change).
-1. [8] Removing a joint from a part changed by hand right where the joint is, or an angled joint
-   after any hand change (refused: use Undo).
-2. [8] Pocket screws: draw the angled bore, not only the pocket on the hidden face. Needs solid
-   subtraction (joints cut with straight push/pulls and boxes, or rebuild plain boards in a plane):
-   an angled round hole in a part that may have other joinery can't be made yet.
+hand elsewhere (an angled one refuses, keeping the change); pocket holes drilled (a 3/8" bore at
+15° stepping to a pilot out of the end's middle, with `doc::solid`'s subtraction).
+1. [8] Removing a joint from a part changed by hand right where the joint is, or an angled or
+   drilled (pocket hole) joint after any hand change (refused: use Undo).
+2. [3] Pocket holes: set how far in from the edges and how far apart they go (spread evenly
+   now), and the bigger bit for 1 1/2" stock (the same 3/8" bore now).
 3. [13] Sliding and lapped dovetails.
 4. [13] Joining parts in different groups (both must be side by side now).
-5. [13] Angled dowels, half-laps and dovetails.
+5. [13] Angled dowels, half-laps and dovetails (`doc::solid` can drill and cut them now).
 6. [21] Compound angles, and a second angled joint on a part already cut at an angle in
    another plane.
 
@@ -281,6 +281,10 @@ circle or polygon's rim goes through a point passed over.
 15. [8] Move folds a face that would bend (adds a diagonal, as SketchUp does); refused now.
 16. [21] Auto-joining: moved or copied geometry welds to geometry it lands on (also pasted loose
     geometry). Fine while boards should stay separate.
+
+### Solid tools
+17. [13] Solid Tools for groups: subtract, union, intersect, trim (`doc::solid` subtracts rods for
+    joinery now; it would take any closed solid).
 
 ## 13. Groups, components and tags
 1. [1] Opening one copy of a shared group gives it its own definition; make that an undo step by itself.

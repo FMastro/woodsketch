@@ -30,6 +30,7 @@ mod offset;
 mod push_pull;
 mod scene;
 pub mod skp;
+pub mod solid;
 mod transform;
 pub mod units;
 

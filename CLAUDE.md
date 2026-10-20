@@ -176,8 +176,9 @@ add it there; when you finish an item, remove it.
    place the parts); Entity Info lists joints.
    Copies of a shared component: a cut, tenon or hole the design already has is recognized
    (`already_done`, `repeat`), so one leg component turned to each corner gets two mortises.
-   Biscuits and loose tenons (`Slots`: matching slots, shallower in a face), pocket screws (listed,
-   not drawn), through tenons; each joint's pieces (`Joint::hardware`) and glue-up seams
+   Biscuits and loose tenons (`Slots`: matching slots, shallower in a face), pocket screws (a 3/8" bore at
+   15° stepping to a pilot, drilled with `doc::solid::drill`: BSP subtraction of `Rod`s, pieces merged back
+   into faces per plane; `JointOp::drill`), through tenons; each joint's pieces (`Joint::hardware`) and glue-up seams
    (`PartInfo::edge_joint`) add up in `CutList::hardware` (Parts tab, cut sheet).
    Dovetails (`Document::dovetails`: tails grown into the pins board, trapezoid sockets and waste
    at 1:8), splines (`Spline`), haunched tenons, pocket-hole pockets. Each joint keeps its cuts

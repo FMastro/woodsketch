@@ -723,7 +723,7 @@ pub(crate) fn newell_normal(points: &[DVec3]) -> DVec3 {
 }
 
 /// Maps points on a plane with `normal` to 2D by dropping the dominant axis.
-fn projector(normal: DVec3) -> impl Fn(DVec3) -> DVec2 {
+pub(crate) fn projector(normal: DVec3) -> impl Fn(DVec3) -> DVec2 {
     let a = normal.abs();
     move |p: DVec3| {
         if a.z >= a.x && a.z >= a.y {
