@@ -122,16 +122,19 @@ the parts, as the app's Joinery panel does.
 |---|---|---|
 | `let_in` (dado, groove or rabbet) | the part let in / the part cut | `depth` (it grows by this: size it to butt) |
 | `cut_overlap` | the part kept whole / the part cut where they overlap | |
-| `mortise_and_tenon` | the rail (tenon) / the leg or stile (mortise) | `length`, `thickness`, `shoulder` |
-| `dowels` | either / either | `count`, `diameter`, `depth` |
-| `biscuits`, `loose_tenons` | either / either | `count` |
+| `mortise_and_tenon` | the rail (tenon) / the leg or stile (mortise) | `length`, `thickness`, `shoulder`, `fit` |
+| `dowels` | either / either | `count`, `diameter`, `depth`, `fit` |
+| `biscuits`, `loose_tenons` | either / either | `count`, `fit` |
 | `splines` | either / either | |
 | `pocket_screws` | the part drilled / the part screwed into | `count`, `screw` (length) |
-| `dovetails` | the tails board (a drawer side) / the pins board (the front) | `tails`, `half_blind` |
+| `dovetails` | the tails board (a drawer side) / the pins board (the front) | `tails`, `half_blind`, `pin`, `half_pin` (widths where they show: 1/8" pins for a hand-cut look) |
 | `box_joint` | either / either (ends meeting at a corner) | `finger` |
 | `half_lap` | the top board / the bottom board (crossing) | |
-| `angled_mortise_and_tenon` | the turned part (a brace) / the part it meets | `thickness`, `shoulder` |
+| `angled_mortise_and_tenon` | the turned part (a brace) / the part it meets | `thickness`, `shoulder`, `fit` |
 | `housing` | the turned part / the part it's let into | |
+
+`fit` is a fit allowance: how much roomier the mortise, holes or slots are than what goes in
+(1/32" to 1/16"; 0, the default, for a tight fit).
 
 Butt the parts as they'd sit without the joint: a shelf ends at the side's face, a rail at the
 leg's face; WoodSketch grows the shelf into the dado and the rail's tenon into the leg.

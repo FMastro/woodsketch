@@ -1113,7 +1113,8 @@ fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, 
             // A third of the tenoned part's thickness, set in a quarter inch from its edges.
             let thickness = len("thickness", (fit.thickness.0 / 3.0).max(0.25));
             let shoulder = len("shoulder", 0.25);
-            (doc.angled_joint(part, into, AngledJoint::MortiseAndTenon { thickness, shoulder }), vec![thickness, shoulder, 0.0])
+            let fit = len("fit", 0.0);
+            (doc.angled_joint(part, into, AngledJoint::MortiseAndTenon { thickness, shoulder, fit }), vec![thickness, shoulder, 0.0, fit])
         }
         "housing" | "angled_housing" => (doc.angled_joint(part, into, AngledJoint::Housing), vec![0.0, 0.0, 1.0]),
         _ => {
@@ -1131,6 +1132,7 @@ fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, 
                     tenon.length = len("length", tenon.length);
                     tenon.thickness = len("thickness", tenon.thickness);
                     tenon.shoulder = len("shoulder", tenon.shoulder);
+                    tenon.fit = len("fit", tenon.fit);
                     let sizes = vec![tenon.length, tenon.thickness, tenon.shoulder, tenon.fit, 0.0, f64::from(u8::from(tenon.haunch > 0.0))];
                     (doc.mortise_and_tenon(part, into, tenon), sizes)
                 }
@@ -1139,6 +1141,7 @@ fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, 
                     dowels.count = count(dowels.count);
                     dowels.diameter = len("diameter", dowels.diameter);
                     dowels.depth = len("depth", dowels.depth);
+                    dowels.fit = len("fit", dowels.fit);
                     let sizes = vec![f64::from(dowels.count), dowels.diameter, dowels.depth, dowels.fit];
                     (doc.dowels(part, into, dowels), sizes)
                 }
@@ -1146,14 +1149,16 @@ fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, 
                     let size = Slots::suggested_biscuit(thick, wide);
                     let mut slots = Slots::biscuits(size, wide);
                     slots.count = count(slots.count);
-                    let sizes = vec![size as f64, f64::from(slots.count)];
+                    slots.fit = len("fit", 0.0);
+                    let sizes = vec![size as f64, f64::from(slots.count), slots.fit];
                     (doc.slots(part, into, &slots), sizes)
                 }
                 "loose_tenons" => {
                     let size = Slots::suggested_loose_tenon(thick);
                     let mut slots = Slots::loose_tenons(size, wide);
                     slots.count = count(slots.count);
-                    let sizes = vec![size as f64, f64::from(slots.count)];
+                    slots.fit = len("fit", 0.0);
+                    let sizes = vec![size as f64, f64::from(slots.count), slots.fit];
                     (doc.slots(part, into, &slots), sizes)
                 }
                 "splines" | "spline" => (doc.slots(part, into, &Spline::for_stock(thick)), Vec::new()),
@@ -1164,7 +1169,10 @@ fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, 
                 "dovetails" | "dovetail" => {
                     let tails = number("tails").map_or(Dovetails::suggested(wide), |v| v.max(1.0) as u32);
                     let half_blind = j.options.get("half_blind").and_then(serde_json::Value::as_bool).unwrap_or(false);
-                    (doc.dovetails(part, into, Dovetails { tails, half_blind }), vec![f64::from(tails), f64::from(u8::from(half_blind))])
+                    let mut style = Dovetails::new(tails, half_blind);
+                    style.pin = len("pin", style.pin);
+                    style.half_pin = len("half_pin", style.half_pin);
+                    (doc.dovetails(part, into, style), vec![f64::from(tails), f64::from(u8::from(half_blind)), style.pin, style.half_pin])
                 }
                 "box_joint" | "finger_joint" => {
                     let finger = len("finger", fit.finger);

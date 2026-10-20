@@ -11,8 +11,8 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 ## Summary (recommended order)
 | # | Category | Points | Why here |
 |---|---|---|---|
-| 1 | Build sheets and assembly | 3 | Finishes what just shipped; shop output is what woodworkers keep |
-| 2 | Joinery | 92 | Closes gaps in the core woodworking feature |
+| 1 | Build sheets and assembly | 0 | Done |
+| 2 | Joinery | 81 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 0 | Done |
@@ -28,7 +28,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1375** | |
+| | **All** | **1361** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -42,30 +42,26 @@ of other parts; hardware on two parts names both; parts alike but drawn differen
 sheet; which copies take which part. A glue-up order for parts with no joints
 made (taken as butt joints); a picture for each step; parts at an angle touch only where their faces
 meet. Step pictures pull each part out the way it goes in; butt joints say where the
-screws go; leaders bend around parts in their way; past four places, a table of where the cuts are.
-1. [3] Step pictures slide a part out along red, green or blue only (by the parts' boxes); a part
-   at an angle comes straight out from what's together.
+screws go; leaders bend around parts in their way; past four places, a table of where the cuts are. A part
+at an angle slides out along its own axes too. Nothing left.
 
 ## 2. Joinery
 Done: dado, groove, rabbet, mortise and tenon (through, haunched), dovetails (through,
 half-blind), dowels, biscuits, loose tenons, splines, pocket screws, box joint, half-lap, cut
 where parts overlap; angled mortise and tenon and housings; Change and Remove; fit allowances on
-mortises and dowel holes.
-1. [3] Fit allowance on slots, haunched tenons and angled joints (angled tenons go as deep as
-   the overlap drawn).
-2. [5] Variable dovetail spacing.
-3. [5] An angled joint on one copy of a shared component makes it its own component (the
+mortises (haunched and angled too), dowel holes and slots; dovetail pin widths (hand-cut spacing);
+Entity Info lists each cut once, saying where it is when two read alike.
+1. [5] An angled joint on one copy of a shared component makes it its own component (the
    others stay); square joints change every copy. Offer to change all of them.
-4. [8] Removing a joint after a part was changed by hand (refused now; use Undo).
-5. [8] Pocket screws: draw the angled bore, not only the pocket on the hidden face.
-6. [13] Sliding and lapped dovetails.
-7. [13] Joining parts in different groups (both must be side by side now).
-8. [13] Angled dowels, half-laps and dovetails.
-9. [21] Compound angles, and a second angled joint on a part already cut at an angle in
+2. [8] Removing a joint after a part was changed by hand (refused now; use Undo).
+3. [8] Pocket screws: draw the angled bore, not only the pocket on the hidden face. Needs solid
+   subtraction (joints cut with straight push/pulls and boxes, or rebuild plain boards in a plane):
+   an angled round hole in a part that may have other joinery can't be made yet.
+4. [13] Sliding and lapped dovetails.
+5. [13] Joining parts in different groups (both must be side by side now).
+6. [13] Angled dowels, half-laps and dovetails.
+7. [21] Compound angles, and a second angled joint on a part already cut at an angle in
     another plane.
-10. [3] Entity Info lists a part's joints once per copy's meeting ("Dovetails with Side" twice on
-    a drawer front made as copies); list each cut once, as the build sheets do
-    (`buildsheet::cuts`), and say which corners it's at.
 
 ## 3. Templates
 Done: cabinet (drawers and doors in its openings, adjustable shelves, hinge side), drawer, face

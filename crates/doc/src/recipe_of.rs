@@ -394,6 +394,7 @@ impl Reader<'_> {
                 JointKind::MortiseAndTenon if angled => {
                     put("thickness", size(0));
                     put("shoulder", size(1));
+                    put("fit", size(3).filter(|v| *v > 0.0));
                     "angled_mortise_and_tenon"
                 }
                 JointKind::Dado | JointKind::Groove | JointKind::Rabbet => {
@@ -406,12 +407,14 @@ impl Reader<'_> {
                     put("length", size(0));
                     put("thickness", size(1));
                     put("shoulder", size(2));
+                    put("fit", size(3).filter(|v| *v > 0.0));
                     "mortise_and_tenon"
                 }
                 JointKind::Dowels => {
                     put("count", size(0));
                     put("diameter", size(1));
                     put("depth", size(2));
+                    put("fit", size(3).filter(|v| *v > 0.0));
                     "dowels"
                 }
                 JointKind::BoxJoint => {
@@ -420,10 +423,12 @@ impl Reader<'_> {
                 }
                 JointKind::Biscuits => {
                     put("count", size(1));
+                    put("fit", size(2).filter(|v| *v > 0.0));
                     "biscuits"
                 }
                 JointKind::LooseTenons => {
                     put("count", size(1));
+                    put("fit", size(2).filter(|v| *v > 0.0));
                     "loose_tenons"
                 }
                 JointKind::PocketScrews => {
@@ -433,6 +438,8 @@ impl Reader<'_> {
                 }
                 JointKind::Dovetails => {
                     put("tails", size(0));
+                    put("pin", size(2).filter(|v| (v - crate::joinery::DOVETAIL_PIN).abs() > 1e-9));
+                    put("half_pin", size(3).filter(|v| (v - crate::joinery::DOVETAIL_HALF_PIN).abs() > 1e-9));
                     if size(1).is_some_and(|v| v > 0.5) {
                         options.insert("half_blind".into(), serde_json::json!(true));
                     }

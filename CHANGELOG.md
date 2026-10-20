@@ -3,6 +3,16 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.44
+
+- Fit allowances for biscuit and loose tenon slots, haunched tenons and angled tenons (Joinery
+  panel's Fit, `fit` in recipes).
+- Dovetails: set the pin and half-pin widths, for narrow hand-cut pins or a machine-cut look.
+- Entity Info lists each joint cut once, and says which end it's at when two read alike (a
+  drawer front made as copies).
+- Build sheets: a brace or other part at an angle slides out along its own length in the step
+  pictures.
+
 ## 0.1.43
 
 - For AI assistants: recipes take tags (folders, hidden ones) on parts, copies, groups and

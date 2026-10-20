@@ -811,7 +811,7 @@ impl Parts<'_> {
                 match d.joints {
                     DrawerJoints::Dovetails => {
                         let tails = Dovetails::suggested(d.height);
-                        self.doc.dovetails(side, end, Dovetails { tails, half_blind: false })?;
+                        self.doc.dovetails(side, end, Dovetails::new(tails, false))?;
                     }
                     DrawerJoints::BoxJoints => {
                         let finger = self.doc.joint_fit(side, end)?.finger;

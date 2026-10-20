@@ -86,6 +86,16 @@ pub struct Joint {
     pub sizes: Vec<f64>,
 }
 
+/// One of a part's joints as listed ([`Document::joint_rows`]): its index in `Scene::joints`, the
+/// other part's name, and where it is on this part when that tells two apart.
+#[derive(Clone, Debug, PartialEq)]
+pub struct JointRow {
+    pub index: usize,
+    pub joint: Joint,
+    pub other: String,
+    pub at: Option<String>,
+}
+
 impl PartialEq for Joint {
     /// The same joint: everything but the shapes kept from before it (which only says whether there are some).
     fn eq(&self, other: &Self) -> bool {
@@ -476,8 +486,19 @@ impl Document {
                 let toward = DVec3::AXES[k] * butt.side;
                 push_polygon_in(scene, path, rail, stile, &face_rect(both, k, c), toward, -tenon.haunch)?;
                 push_polygon_in(scene, path, rail, stile, &face_rect(region, k, step), toward, -(tenon.length - tenon.haunch))?;
-                push_polygon_in(scene, path, stile, stile, &face_rect(both, k, c), -toward, tenon.haunch)?;
-                push_polygon_in(scene, path, stile, stile, &face_rect(region, k, step), -toward, tenon.length - tenon.haunch)?;
+                // Its mortise, bigger by the fit allowance: wider and thicker by it (within the
+                // stile), and deeper by it past the tenon's end.
+                let room = |(mut lo, mut hi): Box3| {
+                    if tenon.fit > EPS {
+                        for axis in [thin, wide] {
+                            lo[axis] = (lo[axis] - tenon.fit / 2.0).max(o.0[axis]);
+                            hi[axis] = (hi[axis] + tenon.fit / 2.0).min(o.1[axis]);
+                        }
+                    }
+                    (lo, hi)
+                };
+                push_polygon_in(scene, path, stile, stile, &face_rect(room(both), k, c), -toward, tenon.haunch)?;
+                push_polygon_in(scene, path, stile, stile, &face_rect(room(region), k, step), -toward, tenon.length - tenon.haunch + tenon.fit.max(0.0))?;
             } else {
                 grow_into(scene, path, rail, stile, butt, region)?;
                 // The mortise, bigger than the tenon by the fit allowance (deeper too), within the stile.
@@ -504,7 +525,7 @@ impl Document {
                 format_length(tenon.thickness),
                 format_length(size[wide] - 2.0 * tenon.shoulder),
                 if haunched { format!(", {} haunch", format_length(tenon.haunch)) } else { String::new() },
-                if tenon.fit > EPS && !haunched { format!(", mortise {} roomier", format_length(tenon.fit)) } else { String::new() }
+                if tenon.fit > EPS { format!(", mortise {} roomier", format_length(tenon.fit)) } else { String::new() }
             );
             record(scene, path, JointKind::MortiseAndTenon, rail, stile, detail)
         })
@@ -1026,6 +1047,43 @@ impl Document {
             .collect()
     }
 
+    /// The joints a part has, for listing: each cut once (copies of a shared design repeat a
+    /// joint for every meeting; those making the same cuts on this part are one row), with where
+    /// it is on the part (`left`, `top`...) when two rows would otherwise read the same.
+    pub fn joint_rows(&self, instance: InstanceId) -> Vec<JointRow> {
+        let container = self.container();
+        let Some(placed) = container.instance(instance) else { return Vec::new() };
+        let def = placed.definition;
+        let mut rows: Vec<JointRow> = Vec::new();
+        for (index, joint, other) in self.joint_list(instance) {
+            let here: Vec<&JointOp> = joint.ops.iter().filter(|op| op.part == def).collect();
+            let same = |row: &JointRow| {
+                let theirs: Vec<&JointOp> = row.joint.ops.iter().filter(|op| op.part == def).collect();
+                row.joint.kind == joint.kind && row.other == other && row.joint.detail == joint.detail && theirs == here
+            };
+            if rows.iter().any(same) {
+                continue;
+            }
+            rows.push(JointRow { index, joint, other, at: None });
+        }
+        // Where each is: from the part's middle toward its cuts, by the side that faces most.
+        let scene = self.scene();
+        let middle = scene.definition_bounds(def).map(|(lo, hi)| (lo + hi) / 2.0);
+        for k in 0..rows.len() {
+            let alike = rows.iter().filter(|r| r.joint.kind == rows[k].joint.kind && r.other == rows[k].other).count() > 1;
+            let points: Vec<DVec3> = rows[k].joint.ops.iter().filter(|op| op.part == def).flat_map(|op| op.points.iter().copied()).collect();
+            if !alike || points.is_empty() {
+                continue;
+            }
+            let Some(middle) = middle else { continue };
+            let center = points.iter().copied().sum::<DVec3>() / points.len() as f64;
+            let toward = placed.transform.transform_vector3(center - middle);
+            let named = [(DVec3::Z, "top"), (-DVec3::Z, "bottom"), (-DVec3::Y, "front"), (DVec3::Y, "back"), (-DVec3::X, "left"), (DVec3::X, "right")];
+            rows[k].at = toward.try_normalize().and_then(|t| named.iter().max_by(|a, b| a.0.dot(t).total_cmp(&b.0.dot(t))).map(|(_, n)| (*n).to_owned()));
+        }
+        rows
+    }
+
     /// The joints between `a` and `b` that are where these two meet. Joints are kept per design,
     /// so copies of shared components share them; a corner of a drawer whose sides and fronts are
     /// copies, joined at the opposite corner, isn't joined here: none of the joint's cuts are at
@@ -1367,17 +1425,23 @@ mod components {
         let middle = DVec3::new(8.0, -7.75, 0.0);
         let back = place(&mut doc, front, middle, &[(middle, 180.0)])[0];
         let right = place(&mut doc, left, middle, &[(middle, 180.0)])[0];
-        doc.dovetails(left, front, Dovetails { tails: 2, half_blind: false }).unwrap();
+        doc.dovetails(left, front, Dovetails::new(2, false)).unwrap();
         // The copies were joined at the opposite corner, back right; front right isn't yet.
         assert_eq!(doc.joints_here(left, front).len(), 1);
         assert_eq!(doc.joints_here(right, back).len(), 1, "the copies, turned, are joined there");
         assert!(doc.joints_here(right, front).is_empty(), "front right only butts");
         assert!(doc.joints_here(left, back).is_empty());
-        doc.dovetails(right, front, Dovetails { tails: 2, half_blind: false }).unwrap();
+        doc.dovetails(right, front, Dovetails::new(2, false)).unwrap();
         for (side, end) in [(left, front), (right, front), (right, back), (left, back)] {
             assert!(!doc.joints_here(side, end).is_empty(), "all four corners joined");
         }
         assert!(closed(&doc, left) && closed(&doc, front));
+        // Entity Info lists the front's two cuts once each, by the end they're at.
+        let rows = doc.joint_rows(front);
+        let mut at: Vec<Option<String>> = rows.iter().map(|r| r.at.clone()).collect();
+        at.sort();
+        assert_eq!(at, [Some("left".to_owned()), Some("right".to_owned())], "{rows:?}");
+        assert!(doc.joint_list(front).len() >= rows.len());
     }
 }
 
@@ -1394,6 +1458,8 @@ pub struct Slots {
     pub thickness: f64,
     /// Into each part.
     pub depth: f64,
+    /// How much roomier each slot is than its piece (thicker, longer, deeper); 0 for a tight fit.
+    pub fit: f64,
 }
 
 /// Biscuit sizes: the name and its slot (length, thickness, depth into each part).
@@ -1409,7 +1475,7 @@ impl Slots {
     pub fn biscuits(size: usize, wide: f64) -> Self {
         let (name, length, thickness, depth) = BISCUITS[size.min(BISCUITS.len() - 1)];
         let count = ((wide / 6.0).round() as u32).max(1);
-        Slots { kind: JointKind::Biscuits, piece: format!("{name} biscuit"), count, length, thickness, depth }
+        Slots { kind: JointKind::Biscuits, piece: format!("{name} biscuit"), count, length, thickness, depth, fit: 0.0 }
     }
 
     /// Loose tenons of a size (`LOOSE_TENONS` index) across a joint `wide` along.
@@ -1423,6 +1489,7 @@ impl Slots {
             length: f64::from(w) * MM,
             thickness: f64::from(t) * MM,
             depth: f64::from(l) * MM / 2.0,
+            fit: 0.0,
         }
     }
 
@@ -1467,7 +1534,7 @@ impl Document {
     /// `into`'s face, spread evenly across the part's width.
     pub fn slots(&mut self, part: InstanceId, into: InstanceId, slots: &Slots) -> Result<(), JoineryError> {
         let sized = slots.length > EPS || slots.kind == JointKind::Splines;
-        if slots.count == 0 || !sized || slots.thickness <= EPS || slots.depth <= EPS {
+        if slots.count == 0 || !sized || slots.thickness <= EPS || slots.depth <= EPS || slots.fit < 0.0 {
             return Err(JoineryError::Size("The slots need a count and a size."));
         }
         self.joint_edit(|scene, path| {
@@ -1486,7 +1553,7 @@ impl Document {
             // of its length in the butting part's end (a biscuit goes in equally either way).
             let face_depth = slots.depth.min((o.1[butt.k] - o.0[butt.k]) * 2.0 / 3.0);
             let end_depth = if slots.kind == JointKind::LooseTenons { 2.0 * slots.depth - face_depth } else { slots.depth };
-            if end_depth >= r.1[butt.k] - r.0[butt.k] - EPS {
+            if end_depth + slots.fit.max(0.0) / 2.0 >= r.1[butt.k] - r.0[butt.k] - EPS {
                 return Err(JoineryError::Size("The slots would go right through a part."));
             }
             // A spline runs the whole joint; the others are spaced across it.
@@ -1500,21 +1567,26 @@ impl Document {
             let mid = (butt.contact.0[thin] + butt.contact.1[thin]) / 2.0;
             for i in 0..slots.count {
                 let center = butt.contact.0[wide] + spacing * (f64::from(i) + 0.5);
+                // Each slot bigger than its piece by the fit allowance: thicker, longer (a spline's
+                // runs the whole joint already), and half of it deeper each side.
+                let fit = slots.fit;
+                let (thick, long) = (slots.thickness + fit, if spline { length } else { length + fit });
                 let narrow = |(mut lo, mut hi): Box3| {
-                    lo[thin] = mid - slots.thickness / 2.0;
-                    hi[thin] = mid + slots.thickness / 2.0;
-                    lo[wide] = center - length / 2.0;
-                    hi[wide] = center + length / 2.0;
+                    lo[thin] = mid - thick / 2.0;
+                    hi[thin] = mid + thick / 2.0;
+                    lo[wide] = center - long / 2.0;
+                    hi[wide] = center + long / 2.0;
                     (lo, hi)
                 };
-                cut_box_in(scene, path, into, narrow(extrude(butt, face_depth)))?;
-                cut_box_in(scene, path, part, transform_box(&to_part, narrow(extrude_back(butt, end_depth))))?;
+                cut_box_in(scene, path, into, narrow(extrude(butt, face_depth + fit / 2.0)))?;
+                cut_box_in(scene, path, part, transform_box(&to_part, narrow(extrude_back(butt, end_depth + fit / 2.0))))?;
             }
             let detail = if (face_depth - end_depth).abs() < 1e-9 {
                 format!("{} x {}, {} deep each side", slots.count, slots.piece, format_length(face_depth))
             } else {
                 format!("{} x {}, {} deep in the face, {} in the end", slots.count, slots.piece, format_length(face_depth), format_length(end_depth))
             };
+            let detail = if slots.fit > EPS { format!("{detail}, slots {} roomier", format_length(slots.fit)) } else { detail };
             let name = if spline {
                 format!("{} x {} x {} spline", format_length(slots.thickness), format_length(face_depth + end_depth), format_length(length))
             } else {
@@ -1739,15 +1811,24 @@ mod removing {
 pub struct Dovetails {
     pub tails: u32,
     pub half_blind: bool,
+    /// Each pin's width where it shows (narrow, hand-cut: 1/8"; machine-cut look: as wide as the
+    /// tails), and the half pins' at the edges; the tails share what's left.
+    pub pin: f64,
+    pub half_pin: f64,
 }
 
 /// Dovetail slope: 1 in 8, usual for hardwood.
 const DOVETAIL_SLOPE: f64 = 1.0 / 8.0;
-/// Pins are narrow where they show: 1/4" (half pins at the edges 3/8").
-const DOVETAIL_PIN: f64 = 0.25;
-const DOVETAIL_HALF_PIN: f64 = 0.375;
+/// Pins are narrow where they show: 1/4" (half pins at the edges 3/8") unless set.
+pub const DOVETAIL_PIN: f64 = 0.25;
+pub const DOVETAIL_HALF_PIN: f64 = 0.375;
 
 impl Dovetails {
+    /// `tails` of them, with the usual pins.
+    pub fn new(tails: u32, half_blind: bool) -> Self {
+        Self { tails, half_blind, pin: DOVETAIL_PIN, half_pin: DOVETAIL_HALF_PIN }
+    }
+
     /// About one tail per 2 1/2" of width.
     pub fn suggested(wide: f64) -> u32 {
         ((wide / 2.5).round() as u32).max(1)
@@ -1758,7 +1839,7 @@ impl Spline {
     /// A spline for stock `thick` thick: 1/4" thick (1/8" in thin stock), 3/8" into each part.
     pub fn for_stock(thick: f64) -> Slots {
         let t = if thick >= 0.6 { 0.25 } else { 0.125 };
-        Slots { kind: JointKind::Splines, piece: format!("{} spline", format_length(t)), count: 1, length: 0.0, thickness: t, depth: 0.375 }
+        Slots { kind: JointKind::Splines, piece: format!("{} spline", format_length(t)), count: 1, length: 0.0, thickness: t, depth: 0.375, fit: 0.0 }
     }
 }
 
@@ -1772,7 +1853,7 @@ impl Document {
     pub fn dovetails(&mut self, tails: InstanceId, pins: InstanceId, style: Dovetails) -> Result<(), JoineryError> {
         let before = self.scene().joints.len();
         self.dovetails_made(tails, pins, style)?;
-        self.note_sizes_if_new(before, vec![f64::from(style.tails), f64::from(u8::from(style.half_blind))]);
+        self.note_sizes_if_new(before, vec![f64::from(style.tails), f64::from(u8::from(style.half_blind)), style.pin, style.half_pin]);
         Ok(())
     }
 
@@ -1780,6 +1861,10 @@ impl Document {
         if style.tails == 0 {
             return Err(JoineryError::Size("Dovetails need at least one tail."));
         }
+        if style.pin < 1.0 / 16.0 - EPS || style.half_pin < 1.0 / 16.0 - EPS {
+            return Err(JoineryError::Size("Pins need to be at least 1/16\" wide."));
+        }
+        let (pin, half_pin) = (style.pin, style.half_pin);
         self.joint_edit(|scene, path| {
             let p = Parts { scene, path };
             let Some(butt) = p.butt(tails, pins)? else {
@@ -1809,7 +1894,7 @@ impl Document {
             let width = hi_w - lo_w;
             let n = style.tails;
             let off = depth * DOVETAIL_SLOPE;
-            let tail = (width - 2.0 * DOVETAIL_HALF_PIN - f64::from(n - 1) * DOVETAIL_PIN) / f64::from(n);
+            let tail = (width - 2.0 * half_pin - f64::from(n - 1) * pin) / f64::from(n);
             if tail < 2.0 * off + 0.25 {
                 return Err(JoineryError::Size("Too many tails for the width: use fewer."));
             }
@@ -1824,7 +1909,7 @@ impl Document {
             };
             // Each tail at the board's end (wide) and at the baseline (narrower by the slope).
             let tails_at: Vec<(f64, f64)> = (0..n).map(|i| {
-                let x0 = lo_w + DOVETAIL_HALF_PIN + f64::from(i) * (tail + DOVETAIL_PIN);
+                let x0 = lo_w + half_pin + f64::from(i) * (tail + pin);
                 (x0, x0 + tail)
             })
             .collect();
@@ -1846,7 +1931,12 @@ impl Document {
             for polygon in &waste {
                 push_polygon_in(scene, path, tails, pins, polygon, normal, tail_thick)?;
             }
-            let detail = format!("{n} tails, {}", if style.half_blind { "half-blind" } else { "through" });
+            let spacing = if (pin - DOVETAIL_PIN).abs() > EPS || (half_pin - DOVETAIL_HALF_PIN).abs() > EPS {
+                format!(", {} pins, {} half pins", format_length(pin), format_length(half_pin))
+            } else {
+                String::new()
+            };
+            let detail = format!("{n} tails, {}{spacing}", if style.half_blind { "half-blind" } else { "through" });
             record(scene, path, JointKind::Dovetails, tails, pins, detail)
         })
     }
@@ -1882,20 +1972,34 @@ mod dovetail_tests {
         let (front, side) = drawer_corner(&mut doc);
         let tails = Dovetails::suggested(6.0);
         assert_eq!(tails, 2);
-        doc.dovetails(side, front, Dovetails { tails: 3, half_blind: false }).unwrap();
+        doc.dovetails(side, front, Dovetails::new(3, false)).unwrap();
         assert!(closed(&doc, side) && closed(&doc, front), "both stay closed solids");
         assert_eq!(doc.part_size(side).unwrap()[0], 14.75, "the side reaches through the front");
         assert_eq!(doc.joint_list(front)[0].1.detail, "3 tails, through");
         // And it comes out again.
         doc.remove_joint(0).unwrap();
         assert_eq!(doc.part_size(side).unwrap()[0], 14.0);
+        // Hand-cut spacing: 1/8" pins and 1/4" half pins leave wider tails, the pins' sockets
+        // between them narrower (less taken out of the front).
+        let taken = |doc: &Document| {
+            let def = doc.container().instance(front).unwrap().definition;
+            let m = &doc.scene().definition(def).unwrap().container.model;
+            m.faces().count()
+        };
+        doc.dovetails(side, front, Dovetails { tails: 3, half_blind: false, pin: 0.125, half_pin: 0.25 }).unwrap();
+        assert!(closed(&doc, side) && closed(&doc, front));
+        assert!(taken(&doc) > 6);
+        assert_eq!(doc.joint_list(front)[0].1.detail, "3 tails, through, 1/8\" pins, 1/4\" half pins");
+        assert_eq!(doc.scene().joints[0].sizes, vec![3.0, 0.0, 0.125, 0.25]);
+        doc.remove_joint(0).unwrap();
+        assert!(doc.dovetails(side, front, Dovetails { tails: 3, half_blind: false, pin: 0.0, half_pin: 0.25 }).is_err(), "pins need a width");
     }
 
     #[test]
     fn half_blind_dovetails_stop_short_of_the_front_face() {
         let mut doc = Document::default();
         let (front, side) = drawer_corner(&mut doc);
-        doc.dovetails(side, front, Dovetails { tails: 2, half_blind: true }).unwrap();
+        doc.dovetails(side, front, Dovetails::new(2, true)).unwrap();
         assert!(closed(&doc, side) && closed(&doc, front));
         assert_eq!(doc.part_size(side).unwrap()[0], 14.5, "into the front, short of its face by 1/4\"");
     }
@@ -1966,5 +2070,54 @@ mod fit_tests {
         let center = rim.iter().copied().sum::<DVec3>() / rim.len() as f64;
         let radius = rim.iter().map(|p| p.distance(center)).fold(0.0, f64::max);
         assert!((radius - (0.375 + 1.0 / 64.0) / 2.0).abs() < 1e-6, "{radius}");
+    }
+
+    /// What's taken out of a part: its box less what's left (by the divergence theorem).
+    fn removed(doc: &Document, part: InstanceId) -> f64 {
+        let def = doc.container().instance(part).unwrap().definition;
+        let m = &doc.scene().definition(def).unwrap().container.model;
+        let left: f64 = m
+            .faces()
+            .flat_map(|(_, face)| {
+                m.triangulate(face).into_iter().map(move |[a, b, c]| {
+                    let (b, c) = if (b - a).cross(c - a).dot(face.normal) < 0.0 { (c, b) } else { (b, c) };
+                    a.dot(b.cross(c)) / 6.0
+                })
+            })
+            .sum();
+        let (lo, hi) = m.bounds().unwrap();
+        (hi - lo).element_product() - left
+    }
+
+    #[test]
+    fn a_fit_allowance_makes_slots_and_haunched_mortises_roomier() {
+        // Biscuit slots: each 1/32" thicker and longer, 1/64" deeper each side.
+        let slotted = |fit: f64| {
+            let mut doc = Document::default();
+            let side = board(&mut doc, DVec3::ZERO, DVec3::Z, DVec3::Y, [30.0, 11.25, 0.75]);
+            let shelf = board(&mut doc, DVec3::new(0.0, 0.0, 12.0), DVec3::X, DVec3::Y, [20.0, 11.25, 0.75]);
+            let mut slots = Slots::biscuits(2, 11.25);
+            slots.fit = fit;
+            doc.slots(shelf, side, &slots).unwrap();
+            assert!(closed(&doc, side) && closed(&doc, shelf));
+            (removed(&doc, side), doc.joint_list(side)[0].1.detail.clone())
+        };
+        let ((tight, _), (roomy, detail)) = (slotted(0.0), slotted(1.0 / 32.0));
+        let (l, t, d) = (2.625, 0.15625, 0.5);
+        let expected = 2.0 * ((l + 1.0 / 32.0) * (t + 1.0 / 32.0) * (d + 1.0 / 64.0) - l * t * d);
+        assert!((roomy - tight - expected).abs() < 1e-9, "{roomy} - {tight} vs {expected}");
+        assert!(detail.contains("roomier"), "{detail}");
+        // A haunched tenon's mortise.
+        let haunched = |fit: f64| {
+            let mut doc = Document::default();
+            let stile = board(&mut doc, DVec3::ZERO, DVec3::Z, DVec3::X, [30.0, 3.0, 1.5]);
+            let rail = board(&mut doc, DVec3::new(3.0, 0.0, 30.0), DVec3::X, -DVec3::Z, [20.0, 2.5, 1.5]);
+            doc.mortise_and_tenon(rail, stile, Tenon { length: 1.0, thickness: 0.5, shoulder: 0.5, haunch: 0.375, fit }).unwrap();
+            assert!(closed(&doc, rail) && closed(&doc, stile));
+            (removed(&doc, stile), doc.joint_list(rail)[0].1.detail.clone())
+        };
+        let ((tight, _), (roomy, detail)) = (haunched(0.0), haunched(1.0 / 16.0));
+        assert!(roomy > tight + 1e-6, "{roomy} vs {tight}");
+        assert!(detail.contains("haunch") && detail.contains("1/16\" roomier"), "{detail}");
     }
 }

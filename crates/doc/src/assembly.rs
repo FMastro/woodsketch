@@ -268,23 +268,53 @@ fn touching(a: &Member, b: &Member) -> bool {
     boxes && (square(a) && square(b) || face_contact(a, b) > 1e-6)
 }
 
-/// The red, green and blue directions `m` can slide out along without running into any of `others`:
-/// none of them overlaps it across that direction and reaches past it along it.
+/// The directions `m` can slide out along without running into any of `others`: red, green and
+/// blue, and its own axes when it's at an angle (a brace comes out along its length). In a frame
+/// along each, none of them overlaps it across that direction and reaches past it along it.
 fn slide_out<'a>(m: &Member, others: impl Iterator<Item = &'a Member> + Clone) -> Vec<DVec3> {
     const TOL: f64 = 1e-3;
+    // Frames to try: the world's axes, then its own (its faces' directions) if they differ.
+    let mut frames: Vec<[DVec3; 3]> = vec![[DVec3::X, DVec3::Y, DVec3::Z]];
+    let mut own: Vec<DVec3> = Vec::new();
+    for (_, n, _) in &m.faces {
+        if !own.iter().any(|o| o.dot(*n).abs() > 1.0 - 1e-6) {
+            own.push(*n);
+        }
+    }
+    if let [a, b, c] = own[..]
+        && a.dot(b).abs() < 1e-6
+        && a.dot(c).abs() < 1e-6
+        && b.dot(c).abs() < 1e-6
+        && [a, b, c].iter().any(|n| n.abs().max_element() < 1.0 - 1e-6)
+    {
+        frames.push([a, b, c]);
+    }
+    // A member's extent along a direction: its faces' corners, else its box's.
+    let extent = |o: &Member, w: DVec3| -> (f64, f64) {
+        let corners: Vec<DVec3> = (0..8).map(|i| DVec3::new(if i & 1 == 0 { o.lo.x } else { o.hi.x }, if i & 2 == 0 { o.lo.y } else { o.hi.y }, if i & 4 == 0 { o.lo.z } else { o.hi.z })).collect();
+        let points: Vec<DVec3> = o.faces.iter().flat_map(|(ps, _, _)| ps.iter().copied()).collect();
+        let points = if points.is_empty() { corners } else { points };
+        points.iter().fold((f64::INFINITY, f64::NEG_INFINITY), |(lo, hi), p| (lo.min(p.dot(w)), hi.max(p.dot(w))))
+    };
     let mut free = Vec::new();
-    for axis in 0..3 {
-        let across = [(axis + 1) % 3, (axis + 2) % 3];
-        for sign in [1.0, -1.0] {
-            let blocked = others.clone().any(|o| {
-                let overlaps = across.iter().all(|&k| o.hi[k].min(m.hi[k]) - o.lo[k].max(m.lo[k]) > TOL);
-                let past = if sign > 0.0 { o.hi[axis] > m.hi[axis] + TOL && o.hi[axis] > m.lo[axis] + TOL } else { o.lo[axis] < m.lo[axis] - TOL && o.lo[axis] < m.hi[axis] - TOL };
-                overlaps && past
-            });
-            if !blocked {
-                let mut d = DVec3::ZERO;
-                d[axis] = sign;
-                free.push(d);
+    for frame in frames {
+        for axis in 0..3 {
+            let (d, across) = (frame[axis], [frame[(axis + 1) % 3], frame[(axis + 2) % 3]]);
+            let (m_lo, m_hi) = extent(m, d);
+            let m_across = across.map(|w| extent(m, w));
+            for sign in [1.0, -1.0] {
+                let blocked = others.clone().any(|o| {
+                    let overlaps = across.iter().zip(&m_across).all(|(&w, &(lo, hi))| {
+                        let (olo, ohi) = extent(o, w);
+                        ohi.min(hi) - olo.max(lo) > TOL
+                    });
+                    let (olo, ohi) = extent(o, d);
+                    let past = if sign > 0.0 { ohi > m_hi + TOL && ohi > m_lo + TOL } else { olo < m_lo - TOL && olo < m_hi - TOL };
+                    overlaps && past
+                });
+                if !blocked {
+                    free.push(d * sign);
+                }
             }
         }
     }
@@ -967,6 +997,42 @@ mod tests {
         // With only the right side on, it also comes off to the left.
         let one = slide_out(&shelf, [&right].into_iter());
         assert!(one.contains(&-DVec3::X) && !one.contains(&DVec3::X), "{one:?}");
+    }
+
+    #[test]
+    fn a_brace_slides_out_along_its_own_length() {
+        // A box from its center, its axes and half sizes, with its six faces.
+        let block = |center: DVec3, axes: [DVec3; 3], half: [f64; 3]| {
+            let mut m = Member::new("Part".into(), false);
+            for k in 0..3 {
+                for sign in [1.0, -1.0] {
+                    let (n, u, v) = (axes[k] * sign, axes[(k + 1) % 3], axes[(k + 2) % 3]);
+                    let c = center + n * half[k];
+                    let (hu, hv) = (half[(k + 1) % 3], half[(k + 2) % 3]);
+                    let points = vec![c - u * hu - v * hv, c + u * hu - v * hv, c + u * hu + v * hv, c - u * hu + v * hv];
+                    m.faces.push((points, n, [200, 150, 100]));
+                }
+            }
+            let all: Vec<DVec3> = m.faces.iter().flat_map(|f| f.0.clone()).collect();
+            (m.lo, m.hi) = all.iter().fold((DVec3::splat(f64::INFINITY), DVec3::splat(f64::NEG_INFINITY)), |(lo, hi), p| (lo.min(*p), hi.max(*p)));
+            m
+        };
+        let d = std::f64::consts::FRAC_1_SQRT_2;
+        let (along, across) = (DVec3::new(d, 0.0, d), DVec3::new(-d, 0.0, d));
+        let brace = block(DVec3::new(0.0, 0.5, 0.0), [along, across, DVec3::Y], [2.0, 0.5, 0.5]);
+        // Blocks all round it, red, green and blue, but none along the brace's own length.
+        let world = [DVec3::X, DVec3::Y, DVec3::Z];
+        let blocks = [
+            block(DVec3::new(10.5, 0.5, 0.0), world, [0.5, 3.0, 2.0]),
+            block(DVec3::new(-10.5, 0.5, 0.0), world, [0.5, 3.0, 2.0]),
+            block(DVec3::new(0.0, 0.5, 10.5), world, [2.0, 3.0, 0.5]),
+            block(DVec3::new(0.0, 0.5, -10.5), world, [2.0, 3.0, 0.5]),
+            block(DVec3::new(0.0, 5.5, 0.0), world, [2.0, 0.5, 2.0]),
+            block(DVec3::new(0.0, -4.5, 0.0), world, [2.0, 0.5, 2.0]),
+        ];
+        let free = slide_out(&brace, blocks.iter());
+        assert!(world.iter().all(|w| !free.contains(w) && !free.contains(&-*w)), "{free:?}");
+        assert!(free.iter().any(|f| (*f - along).length() < 1e-9) && free.iter().any(|f| (*f + along).length() < 1e-9), "{free:?}");
     }
 
     #[test]

@@ -30,7 +30,8 @@ const TOL: f64 = 1e-3;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum AngledJoint {
     /// A tenon `thickness` thick through the middle, set in `shoulder` from each edge.
-    MortiseAndTenon { thickness: f64, shoulder: f64 },
+    /// `fit`: how much smaller the tenon is than its mortise (thinner, narrower, shorter).
+    MortiseAndTenon { thickness: f64, shoulder: f64, fit: f64 },
     /// The whole overlap let into the other part.
     Housing,
 }
@@ -98,8 +99,8 @@ impl Document {
         // The tenon: a slice through the middle of the part's thickness, set in from its edges.
         let across = DVec2::new(-p.along.y, p.along.x);
         let (lo, hi) = extent(&p.corners, across);
-        let (strip, ty) = match joint {
-            AngledJoint::MortiseAndTenon { thickness, shoulder } => {
+        let (strip, ty, fit) = match joint {
+            AngledJoint::MortiseAndTenon { thickness, shoulder, fit } => {
                 let mid = (p.y.0 + p.y.1) / 2.0;
                 let ty = (mid - thickness / 2.0, mid + thickness / 2.0);
                 if thickness <= TOL || ty.0 < p.y.0 - TOL || ty.1 > p.y.1 + TOL || ty.0 < q.y.0 - TOL || ty.1 > q.y.1 + TOL {
@@ -108,30 +109,64 @@ impl Document {
                 if hi - lo <= 2.0 * shoulder + TOL {
                     return Err(JoineryError::Size("The shoulders are wider than the part."));
                 }
-                (Some((lo + shoulder, hi - shoulder)), Some(ty))
+                if fit < 0.0 || 2.0 * fit >= thickness.min(hi - lo - 2.0 * shoulder) {
+                    return Err(JoineryError::Size("The fit allowance must leave a tenon."));
+                }
+                (Some((lo + shoulder, hi - shoulder)), Some(ty), fit)
             }
-            AngledJoint::Housing => (None, None),
+            AngledJoint::Housing => (None, None, 0.0),
         };
         // The shoulder lines cut the plane too, and the tenon's faces the slabs.
         let mut extra = Vec::new();
+        let mut extra_levels: Vec<f64> = ty.map(|t| vec![t.0, t.1]).unwrap_or_default();
         if let Some((s0, s1)) = strip {
             for s in [s0, s1] {
                 let point = across * s;
                 extra.push((point, point + p.along));
             }
         }
-        let extra_levels: Vec<f64> = ty.map(|t| vec![t.0, t.1]).unwrap_or_default();
+        // With a fit allowance the tenon is smaller than its mortise: in from the shoulders and
+        // faces by half of it, and short of the mortise's bottom by all of it (its tip, where the
+        // overlap ends along the part).
+        let center = |c: &[DVec2]| c.iter().copied().sum::<DVec2>() / c.len() as f64;
+        let mut tip: Option<(f64, bool)> = None;
+        if fit > TOL
+            && let (Some((s0, s1)), Some(t)) = (strip, ty)
+        {
+            let (cells, levels) = layout(&p, &q, &extra, &extra_levels);
+            let (in_p, in_q) = (p.occupancy(&frame, &cells, &levels), q.occupancy(&frame, &cells, &levels));
+            let overlap: Vec<DVec2> = (0..cells.len()).filter(|&i| in_p[i].iter().zip(&in_q[i]).any(|(a, b)| *a && *b)).flat_map(|i| cells[i].iter().copied()).collect();
+            if !overlap.is_empty() {
+                let ((a0, a1), (o0, o1)) = (extent(&p.corners, p.along), extent(&overlap, p.along));
+                // The end of the part that's in the other: keep the tenon short of it.
+                tip = Some(if (a1 - o1).abs() <= (o0 - a0).abs() { (o1 - fit, true) } else { (o0 + fit, false) });
+            }
+            for s in [s0 + fit / 2.0, s1 - fit / 2.0] {
+                let point = across * s;
+                extra.push((point, point + p.along));
+            }
+            if let Some((at, _)) = tip {
+                let point = p.along * at;
+                extra.push((point, point + across));
+            }
+            extra_levels.extend([t.0 + fit / 2.0, t.1 - fit / 2.0]);
+        }
         let (cells, levels) = layout(&p, &q, &extra, &extra_levels);
         let (in_p, in_q) = (p.occupancy(&frame, &cells, &levels), q.occupancy(&frame, &cells, &levels));
         if !in_p.iter().flatten().zip(in_q.iter().flatten()).any(|(a, b)| *a && *b) {
             return Err(JoineryError::Size("Draw the end of one part into the other where the joint goes: the overlap is the joint."));
         }
-        let center = |c: &[DVec2]| c.iter().copied().sum::<DVec2>() / c.len() as f64;
-        let in_strip = |c: DVec2| strip.is_some_and(|(s0, s1)| (s0..=s1).contains(&c.dot(across)));
-        let in_tenon = |i: usize, k: usize| {
+        // The mortise (`inset` 0) and the tenon in it (`inset` the fit allowance).
+        let in_tenon_by = |i: usize, k: usize, inset: f64| {
             let y = (levels[k] + levels[k + 1]) / 2.0;
-            in_strip(center(&cells[i])) && ty.is_some_and(|t| y > t.0 && y < t.1)
+            let c = center(&cells[i]);
+            let short = inset > 0.0 && tip.is_some_and(|(at, high)| if high { c.dot(p.along) > at } else { c.dot(p.along) < at });
+            strip.is_some_and(|(s0, s1)| (s0 + inset / 2.0..=s1 - inset / 2.0).contains(&c.dot(across)))
+                && ty.is_some_and(|t| y > t.0 + inset / 2.0 && y < t.1 - inset / 2.0)
+                && !short
         };
+        let in_tenon = |i: usize, k: usize| in_tenon_by(i, k, fit);
+        let in_mortise = |i: usize, k: usize| in_tenon_by(i, k, 0.0);
         let slabs = levels.len() - 1;
         let mut part_fills = vec![vec![false; slabs]; cells.len()];
         let mut into_fills = vec![vec![false; slabs]; cells.len()];
@@ -140,9 +175,10 @@ impl Document {
             for k in 0..slabs {
                 let both = in_p[i][k] && in_q[i][k];
                 let tenon = both && in_tenon(i, k);
-                // The part keeps its tenon of the overlap (housed: all of it); the other loses it.
+                // The part keeps its tenon of the overlap (housed: all of it); the other loses
+                // its mortise (with a fit allowance, a little more than the tenon).
                 part_fills[i][k] = in_p[i][k] && (!both || tenon || ty.is_none());
-                into_fills[i][k] = in_q[i][k] && !(both && (tenon || ty.is_none()));
+                into_fills[i][k] = in_q[i][k] && !(both && (in_mortise(i, k) || ty.is_none()));
                 if tenon {
                     tenon_cells.push(i);
                 }
@@ -155,7 +191,8 @@ impl Document {
                 }
                 let corners: Vec<DVec2> = tenon_cells.iter().flat_map(|&i| cells[i].iter().copied()).collect();
                 let depth = extent(&corners, p.along);
-                format!("{} tenon, {} long, at an angle", format_length(t.1 - t.0), format_length(depth.1 - depth.0))
+                let roomier = if fit > TOL { format!(", mortise {} roomier", format_length(fit)) } else { String::new() };
+                format!("{} tenon, {} long, at an angle{roomier}", format_length(t.1 - t.0 - fit), format_length(depth.1 - depth.0))
             }
             None => "housed, at an angle".to_owned(),
         };
@@ -582,7 +619,7 @@ mod tests {
         let mut doc = Document::default();
         let (post, brace) = post_and_brace(&mut doc);
         let (post_before, brace_before) = (volume(&doc, post), volume(&doc, brace));
-        doc.angled_joint(brace, post, AngledJoint::MortiseAndTenon { thickness: 0.5, shoulder: 0.25 }).unwrap();
+        doc.angled_joint(brace, post, AngledJoint::MortiseAndTenon { thickness: 0.5, shoulder: 0.25, fit: 0.0 }).unwrap();
         assert!(closed(&doc, post) && closed(&doc, brace), "both closed solids");
         let (post_after, brace_after) = (volume(&doc, post), volume(&doc, brace));
         let mortise = post_before - post_after;
@@ -597,6 +634,14 @@ mod tests {
         doc.remove_joint(0).unwrap();
         assert!((volume(&doc, post) - post_before).abs() < 1e-9);
         assert!((volume(&doc, brace) - brace_before).abs() < 1e-9);
+        // With a 1/16" fit allowance the mortise is the same, the tenon smaller all round.
+        doc.angled_joint(brace, post, AngledJoint::MortiseAndTenon { thickness: 0.5, shoulder: 0.25, fit: 0.0625 }).unwrap();
+        assert!(closed(&doc, post) && closed(&doc, brace), "both closed solids");
+        assert!((post_before - volume(&doc, post) - mortise).abs() < 1e-9, "the same mortise");
+        let roomy = brace_before - volume(&doc, brace);
+        assert!(roomy > trimmed + 1e-6, "the tenon is smaller: {roomy} vs {trimmed}");
+        assert!(doc.scene().joints[0].detail.contains("roomier"), "{}", doc.scene().joints[0].detail);
+        assert!(doc.angled_joint(brace, post, AngledJoint::MortiseAndTenon { thickness: 0.5, shoulder: 0.25, fit: 0.5 }).is_err(), "no tenon left");
     }
 
     #[test]
@@ -617,7 +662,7 @@ mod tests {
                 m.set_face_material(f, Some(red));
             }
         });
-        doc.angled_joint(brace, post, AngledJoint::MortiseAndTenon { thickness: 0.5, shoulder: 0.25 }).unwrap();
+        doc.angled_joint(brace, post, AngledJoint::MortiseAndTenon { thickness: 0.5, shoulder: 0.25, fit: 0.0 }).unwrap();
         let def = doc.container().instance(brace).unwrap().definition;
         let m = &doc.scene().definition(def).unwrap().container.model;
         let painted = m.faces().filter(|(_, f)| f.material == Some(red)).count();
@@ -643,7 +688,7 @@ mod tests {
         let other = doc.transform_entities(&[Entity::Instance(post)], &[DAffine3::from_translation(DVec3::X * 40.0)], true).unwrap();
         let Entity::Instance(other) = other[0] else { panic!() };
         let untouched = volume(&doc, other);
-        doc.angled_joint(brace, post, AngledJoint::MortiseAndTenon { thickness: 0.5, shoulder: 0.25 }).unwrap();
+        doc.angled_joint(brace, post, AngledJoint::MortiseAndTenon { thickness: 0.5, shoulder: 0.25, fit: 0.0 }).unwrap();
         assert!(volume(&doc, post) < untouched, "this post has its mortise");
         assert!((volume(&doc, other) - untouched).abs() < 1e-9, "the other copy doesn't");
     }
@@ -675,7 +720,7 @@ mod real_file {
                 for post in named(&doc, "Post") {
                     match doc.angled_fit(brace, post) {
                         Ok(fit) if fit.overlap => {
-                            let r = doc.angled_joint(brace, post, AngledJoint::MortiseAndTenon { thickness: 0.5, shoulder: 0.25 });
+                            let r = doc.angled_joint(brace, post, AngledJoint::MortiseAndTenon { thickness: 0.5, shoulder: 0.25, fit: 0.0 });
                             println!("{brace_name} {brace:?} -> post {post:?}: {:.0}° {r:?}", fit.angle);
                         }
                         Ok(fit) => println!("{brace_name} {brace:?} -> post {post:?}: {:.0}°, no overlap", fit.angle),

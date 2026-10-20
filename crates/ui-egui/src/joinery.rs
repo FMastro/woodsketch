@@ -3,7 +3,7 @@
 //! them. Entity Info lists the joints a part has.
 
 use eframe::egui;
-use woodsketch_doc::joinery::{BISCUITS, Dovetails, Dowels, Fit, JointKind, LOOSE_TENONS, Slots, Spline, Tenon, pocket_screw_for};
+use woodsketch_doc::joinery::{BISCUITS, DOVETAIL_HALF_PIN, DOVETAIL_PIN, Dovetails, Dowels, Fit, JointKind, LOOSE_TENONS, Slots, Spline, Tenon, pocket_screw_for};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, Entity, InstanceId};
 
@@ -246,11 +246,19 @@ fn picker(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
                             ui.selectable_value(&mut half_blind, true, "Half-blind").on_hover_text("Hidden from the front, as on a drawer front");
                         });
                         ui.data_mut(|d| d.insert_temp(blind_id, half_blind));
-                        let [tails] = fields(ui, ("dovetails", a, b), [("Tails", f64::from(Dovetails::suggested(wide)), "How many tails across the width")]);
+                        let [tails, pin, half_pin] = fields(
+                            ui,
+                            ("dovetails", a, b),
+                            [
+                                ("Tails", f64::from(Dovetails::suggested(wide)), "How many tails across the width"),
+                                ("Pins", DOVETAIL_PIN, "Each pin's width where it shows: narrow (1/8\") for a hand-cut look, wider for a machine-cut one"),
+                                ("Half pins", DOVETAIL_HALF_PIN, "The pins at each edge; the tails share the rest"),
+                            ],
+                        );
                         ui.weak(format!("{pn} gets the tails, {inn} the pins (1:8 slope)."));
-                        if let (true, Some(tails)) = (button(ui, tails.is_some(), "Cut the dovetails"), tails) {
-                            let style = Dovetails { tails: tails.round().max(0.0) as u32, half_blind };
-                            message = Some(result(sized(doc, |doc| doc.dovetails(part, into, style), vec![f64::from(style.tails), f64::from(u8::from(style.half_blind))]).map(|()| format!("Dovetails cut; {pn} is longer by the tails."))));
+                        if let (true, Some(tails), Some(pin), Some(half_pin)) = (button(ui, tails.is_some() && pin.is_some() && half_pin.is_some(), "Cut the dovetails"), tails, pin, half_pin) {
+                            let style = Dovetails { tails: tails.round().max(0.0) as u32, half_blind, pin, half_pin };
+                            message = Some(result(sized(doc, |doc| doc.dovetails(part, into, style), vec![f64::from(style.tails), f64::from(u8::from(style.half_blind)), pin, half_pin]).map(|()| format!("Dovetails cut; {pn} is longer by the tails."))));
                         }
                     }
                     Choice::Splines => {
@@ -281,11 +289,16 @@ fn picker(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
                         });
                         ui.data_mut(|d| d.insert_temp(size_id, size));
                         let mut slots = if biscuits { Slots::biscuits(size, wide) } else { Slots::loose_tenons(size, wide) };
-                        let [count] = fields(ui, ("slot_count", a, b), [("Count", f64::from(slots.count), "Spread evenly across the joint")]);
+                        let [count, room] = fields(
+                            ui,
+                            ("slot_count", a, b),
+                            [("Count", f64::from(slots.count), "Spread evenly across the joint"), ("Fit", 0.0, "How much roomier the slots are than the pieces (thicker, longer, deeper); 0 for a tight fit")],
+                        );
                         let label = if biscuits { "Cut biscuit slots" } else { "Cut loose tenon mortises" };
-                        if let (true, Some(count)) = (button(ui, count.is_some(), label), count) {
+                        if let (true, Some(count), Some(room)) = (button(ui, count.is_some() && room.is_some(), label), count, room) {
                             slots.count = count.round().max(0.0) as u32;
-                            message = Some(result(sized(doc, |doc| doc.slots(part, into, &slots), vec![size as f64, f64::from(slots.count)]).map(|()| format!("{} slots cut in each part, for {} x {}.", slots.count, slots.count, slots.piece))));
+                            slots.fit = room;
+                            message = Some(result(sized(doc, |doc| doc.slots(part, into, &slots), vec![size as f64, f64::from(slots.count), slots.fit]).map(|()| format!("{} slots cut in each part, for {} x {}.", slots.count, slots.count, slots.piece))));
                         }
                     }
                     Choice::PocketScrews => {
@@ -408,15 +421,17 @@ fn fields<const N: usize>(ui: &mut egui::Ui, key: (&str, InstanceId, InstanceId)
 
 /// The joints a part has, for Entity Info.
 pub fn part_joints(ui: &mut egui::Ui, doc: &mut Document, part: InstanceId) {
-    let joints = doc.joint_list(part);
+    let joints = doc.joint_rows(part);
     if joints.is_empty() {
         return;
     }
     ui.label("Joints");
     let mut remove = None;
-    for (index, joint, other) in joints {
+    for row in joints {
+        let (index, joint, other) = (row.index, row.joint, row.other);
+        let at = row.at.map(|at| format!(" (at the {at})")).unwrap_or_default();
         ui.horizontal_wrapped(|ui| {
-            ui.weak(format!("  {} with {other}, {}", joint.kind.name(), joint.detail));
+            ui.weak(format!("  {} with {other}{at}, {}", joint.kind.name(), joint.detail));
             if ui.small_button("Remove").on_hover_text("Take this joint out of both parts").clicked() {
                 remove = Some(index);
             }
@@ -468,11 +483,12 @@ fn angled(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
     if let Some((index, sizes)) = change {
         let message = match doc.remove_joint(index) {
             Ok(()) => {
-                // Back to the choice and sizes it was made with: [thickness, shoulders, housing].
-                if let [thickness, shoulder, housing] = sizes[..] {
+                // Back to the choice and sizes it was made with: [thickness, shoulders, housing, fit].
+                if let [thickness, shoulder, housing, ..] = sizes[..] {
+                    let fit = sizes.get(3).copied().unwrap_or(0.0);
                     ui.data_mut(|d| {
                         d.insert_temp(egui::Id::new(("angled_tenon", a, b)), housing > 0.5);
-                        d.insert_temp(egui::Id::new(("angled", a, b)), vec![format_length(thickness), format_length(shoulder)]);
+                        d.insert_temp(egui::Id::new(("angled", a, b)), vec![format_length(thickness), format_length(shoulder), format_length(fit)]);
                     });
                 }
                 "Set it up again, then make it.".to_owned()
@@ -503,16 +519,21 @@ fn angled(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
             } else {
                 // A third of the thinner part, to the nearest 1/8".
                 let third = ((fit.thickness.0.min(fit.thickness.1) / 3.0) * 8.0).round().max(1.0) / 8.0;
-                let [thickness, shoulder] = fields(
+                let [thickness, shoulder, room] = fields(
                     ui,
                     ("angled", a, b),
-                    [("Thickness", third, "Through the middle of the tenoned part; about a third"), ("Shoulders", 0.25, "Set in from its edges, each side")],
+                    [
+                        ("Thickness", third, "Through the middle of the tenoned part; about a third"),
+                        ("Shoulders", 0.25, "Set in from its edges, each side"),
+                        ("Fit", 0.0, "How much smaller the tenon is than its mortise (thinner, narrower, shorter); 0 for a tight fit"),
+                    ],
                 );
                 for (part, into) in [(a, b), (b, a)] {
                     let (pn, inn) = (name(doc, part), name(doc, into));
-                    if let (true, Some(thickness), Some(shoulder)) = (button(ui, thickness.is_some() && shoulder.is_some(), &format!("Tenon on {pn}, mortise in {inn}")), thickness, shoulder) {
-                        let joint = AngledJoint::MortiseAndTenon { thickness, shoulder };
-                        message = Some(result(sized(doc, |doc| doc.angled_joint(part, into, joint), vec![thickness, shoulder, 0.0]).map(|()| format!("Angled mortise and tenon made: {pn}'s end is trimmed to {inn}'s face, with its tenon in."))));
+                    let ready = thickness.is_some() && shoulder.is_some() && room.is_some();
+                    if let (true, Some(thickness), Some(shoulder), Some(fit)) = (button(ui, ready, &format!("Tenon on {pn}, mortise in {inn}")), thickness, shoulder, room) {
+                        let joint = AngledJoint::MortiseAndTenon { thickness, shoulder, fit };
+                        message = Some(result(sized(doc, |doc| doc.angled_joint(part, into, joint), vec![thickness, shoulder, 0.0, fit]).map(|()| format!("Angled mortise and tenon made: {pn}'s end is trimmed to {inn}'s face, with its tenon in."))));
                     }
                 }
             }
@@ -549,13 +570,14 @@ fn restore(ui: &mut egui::Ui, kind: JointKind, sizes: &[f64], (a, b): (InstanceI
         Choice::BoxJoint => texts("box", vec![length(0)]),
         Choice::Dovetails => {
             ui.data_mut(|d| d.insert_temp(egui::Id::new(("half_blind", a, b)), flag(1)));
-            texts("dovetails", vec![length(0)])
+            let or = |i: usize, default: f64| format_length(sizes.get(i).copied().unwrap_or(default));
+            texts("dovetails", vec![count(0), or(2, DOVETAIL_PIN), or(3, DOVETAIL_HALF_PIN)])
         }
         Choice::Biscuits | Choice::LooseTenons => {
             let biscuits = kind == JointKind::Biscuits;
             let size = sizes.first().map_or(0, |v| *v as usize);
             ui.data_mut(|d| d.insert_temp(egui::Id::new(("slot_size", biscuits, a, b)), size));
-            texts("slot_count", vec![count(1)])
+            texts("slot_count", vec![count(1), length(2)])
         }
         Choice::PocketScrews => texts("pocket", vec![count(0), length(1)]),
         Choice::MortiseAndTenon => {
