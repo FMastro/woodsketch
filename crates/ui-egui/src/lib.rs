@@ -497,6 +497,16 @@ impl WoodSketchApp {
         &self.viewport.camera
     }
 
+    /// The camera to turn, and View > Wood Movement to switch: for tests and the screenshots
+    /// they make.
+    pub fn camera_mut(&mut self) -> &mut woodsketch_view::OrbitCamera {
+        &mut self.viewport.camera
+    }
+
+    pub fn show_wood_movement(&mut self, show: bool) {
+        self.viewport.show_movement = show;
+    }
+
     /// Where a model point (inches) appears in the window. For tests that click on geometry.
     pub fn to_window(&self, point: glam::DVec3) -> Option<egui::Pos2> {
         self.viewport.to_window(point)
