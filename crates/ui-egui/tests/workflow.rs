@@ -1373,6 +1373,7 @@ fn a_crash_is_offered_for_a_report_at_the_next_start() {
     let crash = woodsketch_doc::feedback::Crash {
         message: "index out of bounds: the len is 3 but the index is 7".into(),
         location: "crates/doc/src/model.rs:120:9".into(),
+        frames: vec!["woodsketch_doc::joinery::rebuilt_without (crates/doc/src/joinery.rs:980:17)".into()],
         version: "0.1.47".into(),
     };
     std::fs::write(dir.join("crash.txt"), crash.to_text()).unwrap();
@@ -1388,6 +1389,7 @@ fn a_crash_is_offered_for_a_report_at_the_next_start() {
     assert!(harness.query_by_label("Report a Problem").is_some(), "the report form opens");
     assert!(harness.query_by_label_contains("Crashed (in 0.1.47): index out of bounds").is_some(), "with the crash in its details");
     assert!(harness.query_by_label_contains("at crates/doc/src/model.rs:120:9").is_some());
+    assert!(harness.query_by_label_contains("from woodsketch_doc::joinery::rebuilt_without").is_some(), "and the calls that led there");
     assert!(!dir.join("crash.txt").exists(), "offered once");
     snapshot(&mut harness, "crash_report");
     let _ = std::fs::remove_dir_all(&dir);

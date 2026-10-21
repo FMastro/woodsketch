@@ -65,25 +65,35 @@ pub fn os_name() -> String {
     .clone()
 }
 
-/// What a crash left: the message (paths taken out), where in WoodSketch's code it happened, and
-/// the version that crashed. Saved when it happens, offered for a report at the next start.
-#[derive(Clone, Debug, PartialEq)]
+/// What a crash left: the message (paths taken out), where in WoodSketch's code it happened, the
+/// calls that led there (WoodSketch's own, innermost first: see [`own_frames`]), and the version
+/// that crashed. Saved when it happens, offered for a report at the next start.
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Crash {
     pub message: String,
     pub location: String,
+    pub frames: Vec<String>,
     pub version: String,
 }
 
 impl Crash {
-    /// As saved: the version, the location, then the message.
+    /// As saved: the version, the location, a line `in <frame>` for each frame, then the message.
     pub fn to_text(&self) -> String {
-        format!("{}\n{}\n{}", self.version, self.location, self.message)
+        let mut s = format!("{}\n{}\n", self.version, self.location);
+        for frame in &self.frames {
+            let _ = writeln!(s, "in {frame}");
+        }
+        s.push_str(&self.message);
+        s
     }
 
     pub fn from_text(text: &str) -> Option<Crash> {
-        let mut lines = text.splitn(3, '\n');
-        let (version, location, message) = (lines.next()?, lines.next()?, lines.next().unwrap_or_default());
-        Some(Crash { version: version.trim().to_owned(), location: location.trim().to_owned(), message: message.trim().to_owned() })
+        let mut lines = text.lines();
+        let (version, location) = (lines.next()?.trim().to_owned(), lines.next()?.trim().to_owned());
+        let rest: Vec<&str> = lines.collect();
+        let frames: Vec<String> = rest.iter().map_while(|l| l.strip_prefix("in ")).map(|f| f.trim().to_owned()).collect();
+        let message = rest[frames.len()..].join("\n").trim().to_owned();
+        Some(Crash { message, location, frames, version })
     }
 
     /// A title for its report: the message's first line, shortened.
@@ -91,6 +101,52 @@ impl Crash {
         let first = self.message.lines().next().unwrap_or_default();
         let short: String = first.chars().take(60).collect();
         format!("Crash: {short}{}", if first.chars().count() > 60 { "..." } else { "" })
+    }
+}
+
+/// The frames of a backtrace (as `std::backtrace::Backtrace` prints one) in WoodSketch's own code,
+/// innermost first, at most `most`: `woodsketch_doc::joinery::rebuilt_without
+/// (crates/doc/src/joinery.rs:120:9)`, the place only when the build has line numbers. The
+/// libraries' and the standard library's frames, and the crash handler's own, are left out.
+pub fn own_frames(backtrace: &str, most: usize) -> Vec<String> {
+    let mut frames = Vec::new();
+    let mut lines = backtrace.lines().peekable();
+    while let Some(line) = lines.next() {
+        // `  12: name`, then perhaps `             at file:line:column`.
+        let Some((number, name)) = line.trim().split_once(": ") else { continue };
+        if number.parse::<u32>().is_err() {
+            continue;
+        }
+        let at = lines.peek().and_then(|l| l.trim().strip_prefix("at ")).map(str::to_owned);
+        if at.is_some() {
+            lines.next();
+        }
+        let name = without_hash(name.trim());
+        let own = name.trim_start_matches('<').starts_with("woodsketch");
+        if !own || name.contains("::crash::") {
+            continue;
+        }
+        let place = at.and_then(|at| {
+            let mut parts = at.rsplitn(3, ':');
+            let (column, line, file) = (parts.next()?.parse().ok()?, parts.next()?.parse().ok()?, parts.next()?);
+            Some(source_location(file, line, column))
+        });
+        frames.push(match place {
+            Some(place) => format!("{name} ({place})"),
+            None => name.to_owned(),
+        });
+        if frames.len() == most {
+            break;
+        }
+    }
+    frames
+}
+
+/// A symbol without the hash on its end (`::h0123456789abcdef`).
+fn without_hash(name: &str) -> &str {
+    match name.rsplit_once("::h") {
+        Some((front, hash)) if hash.len() == 16 && hash.chars().all(|c| c.is_ascii_hexdigit()) => front,
+        _ => name,
     }
 }
 
@@ -214,6 +270,9 @@ pub fn details(system: &System, drawing: Option<&Drawing>, last_error: Option<&s
     if let Some(crash) = crash {
         let _ = writeln!(s, "Crashed (in {}): {}", crash.version, crash.message);
         let _ = writeln!(s, "  at {}", crash.location);
+        for frame in &crash.frames {
+            let _ = writeln!(s, "  from {frame}");
+        }
     }
     s
 }
@@ -299,15 +358,50 @@ mod tests {
             "wgpu-30.0.0/src/api/device.rs:50:5"
         );
         assert_eq!(source_location("lib.rs", 1, 1), "lib.rs:1:1");
-        let crash = Crash { message: "index out of bounds: the len is 3 but the index is 7".into(), location: "crates/doc/src/model.rs:12:5".into(), version: "0.1.47".into() };
+        let crash = Crash {
+            message: "index out of bounds: the len is 3 but the index is 7\nsecond line".into(),
+            location: "crates/doc/src/model.rs:12:5".into(),
+            frames: vec!["woodsketch_doc::model::Model::push_pull (crates/doc/src/push_pull.rs:62:13)".into(), "woodsketch_tools::Tools::key".into()],
+            version: "0.1.47".into(),
+        };
         assert_eq!(Crash::from_text(&crash.to_text()), Some(crash.clone()));
         assert_eq!(crash.title(), "Crash: index out of bounds: the len is 3 but the index is 7");
         let text = details(&System::here("0.1.47", "GPU", "Inches"), None, None, Some(&crash));
         assert!(text.contains("Crashed (in 0.1.47): index out of bounds") && text.contains("  at crates/doc/src/model.rs:12:5"), "{text}");
+        assert!(text.contains("  from woodsketch_doc::model::Model::push_pull (crates/doc/src/push_pull.rs:62:13)\n  from woodsketch_tools::Tools::key"), "{text}");
+        // Saved by the version before frames were kept: still read.
+        let old = Crash::from_text("0.1.47\ncrates/doc/src/model.rs:12:5\nboom").unwrap();
+        assert_eq!((old.message.as_str(), old.frames.len()), ("boom", 0));
         // The OS with a version, and the processor.
         let os = os_name();
         assert!(os.contains(std::env::consts::ARCH), "{os}");
         println!("{os}");
+    }
+
+    #[test]
+    fn a_backtrace_keeps_woodsketchs_own_calls() {
+        let windows = r"   0: std::backtrace_rs::backtrace::win64::trace
+             at /rustc/abc/library/std/src/../../backtrace/src/backtrace/win64.rs:85
+   1: woodsketch_ui_egui::crash::install::closure$0
+   2: std::panicking::rust_panic_with_hook
+   3: woodsketch_doc::joinery::rebuilt_without::h0123456789abcdef
+             at D:\a\woodsketch\woodsketch\crates\doc\src\joinery.rs:980:17
+   4: <woodsketch_tools::Tools as core::default::Default>::default
+   5: eframe::native::run::run_and_return
+   6: woodsketch::main
+             at .\apps\woodsketch\src\main.rs:40:5";
+        assert_eq!(
+            own_frames(windows, 12),
+            [
+                "woodsketch_doc::joinery::rebuilt_without (crates/doc/src/joinery.rs:980:17)",
+                "<woodsketch_tools::Tools as core::default::Default>::default",
+                "woodsketch::main (apps/woodsketch/src/main.rs:40:5)",
+            ]
+        );
+        assert_eq!(own_frames(windows, 1).len(), 1, "at most as many as asked");
+        // A real one, from here (an optimized build without line tables has this inlined away).
+        let here = own_frames(&std::backtrace::Backtrace::force_capture().to_string(), 12);
+        assert!(!cfg!(debug_assertions) || here.iter().any(|f| f.contains("a_backtrace_keeps_woodsketchs_own_calls")), "{here:?}");
     }
 
     #[test]

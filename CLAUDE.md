@@ -61,7 +61,8 @@ any address they left to the developer privately; or Open on GitHub instead, fro
 `.github/ISSUE_TEMPLATE`. Either way it's labeled `bug` or `enhancement` plus `from-app`, with a "Details from WoodSketch" block (version, OS, graphics,
 units, the last error with paths scrubbed, counts from the drawing; never names or the file).
 A crash (any panic) is saved by `ui-egui::crash` (a panic hook installed in `main`) as a
-`feedback::Crash` (message scrubbed, `source_location` trimmed to `crates/...`); the next start offers
+`feedback::Crash` (message scrubbed, `source_location` trimmed to `crates/...`, `own_frames` of the
+backtrace: names only in release, from the PDB `release.yml` ships beside the Windows exe); the next start offers
 it for a report (`FeedbackWindow::start_crash`). `feedback::os_name` (the `os_info` crate) names the OS.
 - At the start of a session, and when asked, check them: `gh issue list --label from-app --state open`
   (read one with `gh issue view N --comments`). Tell the user what's new before starting other work.

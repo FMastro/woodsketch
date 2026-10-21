@@ -89,6 +89,11 @@ jobs:
         run: |
           mkdir -p publish releases
           cp "target/${{ matrix.target }}/release/${{ matrix.exe }}" publish/
+          # Windows keeps function names and line numbers apart from the program: beside it, a
+          # crash report can say which calls led to the crash.
+          if [ "${{ runner.os }}" = Windows ]; then
+            cp "target/${{ matrix.target }}/release/woodsketch.pdb" publish/
+          fi
           # The command line and MCP server for agents, installed beside the app.
           cp "target/${{ matrix.target }}/release/${{ matrix.cli }}" publish/
           case "${{ runner.os }}" in

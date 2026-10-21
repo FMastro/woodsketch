@@ -3,6 +3,11 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.48
+
+- Crash reports also list the calls in WoodSketch that led to the crash, so it can be found and
+  fixed without asking you how it happened.
+
 ## 0.1.47
 
 - If WoodSketch crashes, the next start says so and offers to report it: Report a Problem opens
