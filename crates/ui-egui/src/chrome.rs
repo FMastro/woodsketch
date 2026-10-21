@@ -567,9 +567,12 @@ fn tool_item(ui: &mut egui::Ui, tools: &mut Tools, tool: ToolId) {
 
 /// A square icon button with a tooltip. Returns whether it was clicked.
 fn icon_button(ui: &mut egui::Ui, icon: &str, selected: bool, enabled: bool, hint: &str) -> bool {
-    let button = egui::Button::selectable(selected, egui::RichText::new(icon).size(20.0))
-        .min_size(egui::vec2(BUTTON_SIZE, BUTTON_SIZE));
+    // An empty button, the icon painted over it in two colors (its name kept for screen readers
+    // and tests).
+    let button = egui::Button::selectable(selected, "").min_size(egui::vec2(BUTTON_SIZE, BUTTON_SIZE));
     let response = ui.add_enabled(enabled, button);
+    response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Button, enabled, selected, icon));
+    icons::paint(ui, response.rect, icon, 20.0, enabled);
     let response = if enabled { response.on_hover_text(hint) } else { response.on_disabled_hover_text(hint) };
     if response.clicked() {
         // Don't keep keyboard focus, or Space would press the button again.

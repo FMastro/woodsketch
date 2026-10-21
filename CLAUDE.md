@@ -89,7 +89,8 @@ add it there; when you finish an item, remove it.
 ## Roadmap (MVP)
 1. Viewport, grid, axes, orbit/pan/zoom (done)
 2. Select + Rectangle with typed dimensions, all tool shortcuts, undo/redo, Delete (done)
-3. Push/Pull + icon toolbar (Phosphor icons via `egui-phosphor`) (done)
+3. Push/Pull + icon toolbar (Phosphor icons via `egui-phosphor`, two-toned: `icons::paint` lays the
+   regular glyph in ink over the Fill font's in amber) (done)
    - `doc::push_pull`: free face → closed solid; prism cap → moves (no seam); face set in a
      surface → block or pocket. Tool: typed distance, retype after, double-click repeats.
 4. Move (done): `doc::transform` (move vertices with stretch + planarity check, copy);

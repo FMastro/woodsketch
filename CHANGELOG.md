@@ -3,6 +3,11 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.49
+
+- Two-color toolbar icons, as SketchUp has: a dark outline over an amber fill, in the logo's wood
+  colors (maple over amber in the dark theme).
+
 ## 0.1.48
 
 - Crash reports also list the calls in WoodSketch that led to the crash, so it can be found and

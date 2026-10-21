@@ -1,4 +1,6 @@
-//! Toolbar icons from the Phosphor icon font (MIT), drawn as text glyphs.
+//! Toolbar icons from the Phosphor icon font (MIT), drawn as text glyphs. The toolbars draw them in
+//! two colors, as SketchUp's are (its navy and red): the filled glyph in amber behind, the outline
+//! in walnut over it, the logo's wood colors (see [`paint`]).
 
 use eframe::egui;
 use egui_phosphor::regular as ph;
@@ -8,7 +10,35 @@ use woodsketch_tools::ToolId;
 pub fn install(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
     egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
+    // The filled glyphs, by name only: the second color under the outline.
+    egui_phosphor::add_font_bytes_as_family(&mut fonts, FILL, egui_phosphor::Variant::Fill.font_bytes());
     ctx.set_fonts(fonts);
+}
+
+/// The font family of the filled glyphs.
+const FILL: &str = "phosphor-fill";
+
+/// Walnut and amber, from the logo (lighter for the dark theme).
+const OUTLINE: egui::Color32 = egui::Color32::from_rgb(0x3a, 0x27, 0x18);
+const OUTLINE_DARK: egui::Color32 = egui::Color32::from_rgb(0xe9, 0xc5, 0x8f);
+const ACCENT: egui::Color32 = egui::Color32::from_rgb(0xd0, 0x8a, 0x2e);
+
+/// Paint `icon` centered in `rect`, `size` points: its filled shape in amber, its outline over it
+/// in walnut. Greyed when not `enabled`.
+pub fn paint(ui: &egui::Ui, rect: egui::Rect, icon: &str, size: f32, enabled: bool) {
+    let dark = ui.visuals().dark_mode;
+    let (outline, accent) = if !enabled {
+        let gray = ui.visuals().weak_text_color();
+        (gray, gray.gamma_multiply(0.35))
+    } else if dark {
+        (OUTLINE_DARK, ACCENT.gamma_multiply(0.75))
+    } else {
+        (OUTLINE, ACCENT.gamma_multiply(0.6))
+    };
+    let painter = ui.painter();
+    let at = rect.center();
+    painter.text(at, egui::Align2::CENTER_CENTER, icon, egui::FontId::new(size, egui::FontFamily::Name(FILL.into())), accent);
+    painter.text(at, egui::Align2::CENTER_CENTER, icon, egui::FontId::proportional(size), outline);
 }
 
 pub fn tool(tool: ToolId) -> &'static str {

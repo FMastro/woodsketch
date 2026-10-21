@@ -24,11 +24,11 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 11 | Parts and boards | 11 | Small drawing conveniences |
 | 12 | Modeling tools | 121 | SketchUp parity for general modeling |
 | 13 | Groups, components and tags | 63 | Organizing bigger projects |
-| 14 | UI | 87 | Comfort and polish |
+| 14 | UI | 95 | Comfort and polish |
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 48 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1364** | |
+| | **All** | **1372** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -322,6 +322,9 @@ Done: View > Theme (Light, Dark, Follow System), remembered; the viewport's sky 
 12. [21] Movable, customizable toolbars; tray panels reordered and undocked.
 13. [3] Updating reopens the drawing only if it has a file: a never-saved drawing (or a `.skp`
     opened and not saved) isn't brought back after the restart (carry it over through autosave).
+14. [8] Our own toolbar icons, drawn for WoodSketch with the second color only where it matters
+    (Move's arrows, a line's end points, as SketchUp's are): Phosphor's are two-toned by
+    filling the whole shape now. Panel buttons and menus are still one color.
 
 ## 15. Rendering and performance
 At 1500 boards (12,900 faces): hover 1-3 ms, click 9 ms, selection highlight 2 ms, an edit 14-17

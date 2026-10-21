@@ -16,7 +16,7 @@ eframe.workspace = true
 egui.workspace = true
 egui-wgpu.workspace = true
 glam.workspace = true
-egui-phosphor = "0.14"
+egui-phosphor = { version = "0.14", features = ["regular", "fill"] }
 # Sending a report to woodsketch.net (already built for Velopack's update checks).
 ureq = "3.4"
 
