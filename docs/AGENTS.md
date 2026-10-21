@@ -18,8 +18,10 @@ Two ways in:
   prompt `design` starts a project.
 - **Command line**: `woodsketch-cli build recipe.json -o piece.woodsketch`, then `summary`,
   `cutlist`, `movement`, `render -o view.png --view iso`, `cutsheet -o cut.html`,
-  `buildsheets -o build.html`, `export -o piece.obj`; `recipe piece.woodsketch` writes a drawing
-  as a recipe, `schema` the recipe's JSON Schema. Run `woodsketch-cli help` for all of them.
+  `buildsheets -o build.html`, `export -o piece.obj` (or `.stl`; `.dxf` or `.svg` lay each part
+  out flat for CNC: outline, through holes, pockets on layers by depth); `recipe piece.woodsketch`
+  writes a drawing as a recipe, `schema` the recipe's JSON Schema. Run `woodsketch-cli help` for
+  all of them.
 
 ## Coordinates and sizes
 

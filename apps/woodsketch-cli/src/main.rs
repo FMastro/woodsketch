@@ -8,7 +8,7 @@ mod picture;
 
 use std::path::{Path, PathBuf};
 
-use woodsketch_doc::{Document, cutlist, cutplan, export, movement, recipe};
+use woodsketch_doc::{Document, cutlist, cutplan, export, flat, movement, recipe};
 
 /// How to write recipes and use the tools, for agents (and people).
 pub const GUIDE: &str = include_str!("../../../docs/AGENTS.md");
@@ -22,6 +22,7 @@ const USAGE: &str = "woodsketch-cli: WoodSketch from the command line.
   buildsheets <drawing> -o sheets.html          a page per part, then how it goes together
   movement <drawing>                            the wood movement check
   export <drawing> -o out.obj|out.stl [--mm]    3D model for other programs
+  export <drawing> -o out.dxf|out.svg [--mm]    each part flat for CNC (outline, holes, pockets by depth)
   render <drawing> -o view.png [--view iso|top|front|right] [--angle 30,20] [--size 1200x800]
                   [--dark] [--highlight 'Part name']...
   recipe <drawing> [-o recipe.json]             the drawing as a recipe (to change it and rebuild)
@@ -208,7 +209,8 @@ pub fn cut_sheet(doc: &Document) -> String {
     woodsketch_doc::cutsheet::to_html(doc.scene(), &list, &plans, "Cut sheet")
 }
 
-/// OBJ (with its MTL beside it) or STL, by the file's extension.
+/// OBJ (with its MTL beside it) or STL, by the file's extension; or each part flattened for CNC as
+/// DXF or SVG.
 pub fn export_to(doc: &Document, path: &Path, mm: bool) -> Result<(), String> {
     let units = if mm { export::ExportUnits::Millimeters } else { export::ExportUnits::Inches };
     match path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).as_deref() {
@@ -220,7 +222,9 @@ pub fn export_to(doc: &Document, path: &Path, mm: bool) -> Result<(), String> {
             write(&mtl.to_string_lossy(), materials)
         }
         Some("stl") => write(&path.to_string_lossy(), export::to_stl(doc.scene(), units)),
-        _ => Err("Export to a .obj or .stl file.".to_owned()),
+        Some("dxf") => write(&path.to_string_lossy(), flat::to_dxf(&flat::flat_parts(doc.scene()), units)),
+        Some("svg") => write(&path.to_string_lossy(), flat::to_svg(&flat::flat_parts(doc.scene()), units)),
+        _ => Err("Export to a .obj or .stl file (3D), or .dxf or .svg (each part flat, for CNC).".to_owned()),
     }
 }
 

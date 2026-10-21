@@ -747,7 +747,7 @@ fn drill_a_dowel_hole_with_circle_and_push_pull() {
 }
 
 #[test]
-fn export_obj_with_materials_and_stl() {
+fn export_obj_with_materials_stl_and_flat_parts() {
     use egui_kittest::kittest::Queryable;
     use woodsketch_ui_egui::files::ExportFormat;
     let dir = std::env::temp_dir().join(format!("woodsketch-export-{}", std::process::id()));
@@ -763,6 +763,18 @@ fn export_obj_with_materials_and_stl() {
 
     harness.state().export_to(&dir.join("bench.obj"), ExportFormat::Obj).unwrap();
     harness.state().export_to(&dir.join("bench.stl"), ExportFormat::Stl).unwrap();
+    // And flat for CNC: the board's outline, in millimeters.
+    harness.state().export_to(&dir.join("bench.dxf"), ExportFormat::Dxf).unwrap();
+    harness.state().export_to(&dir.join("bench.svg"), ExportFormat::Svg).unwrap();
+    let dxf = std::fs::read_to_string(dir.join("bench.dxf")).unwrap();
+    assert!(dxf.contains("
+OUTLINE
+") && dxf.contains("
+$INSUNITS
+70
+4
+"), "millimeters");
+    assert!(std::fs::read_to_string(dir.join("bench.svg")).unwrap().contains(r#"class="outline""#));
     let obj = std::fs::read_to_string(dir.join("bench.obj")).unwrap();
     assert!(obj.contains("mtllib bench.mtl") && obj.contains("units: millimeters"));
     assert!(std::fs::read_to_string(dir.join("bench.mtl")).unwrap().contains("newmtl"));

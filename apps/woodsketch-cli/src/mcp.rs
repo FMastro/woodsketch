@@ -177,7 +177,7 @@ fn tools() -> Vec<Value> {
         ),
         tool("cut_sheet", "Write the printable cut sheet (parts, what to buy, cutting diagrams) as an HTML file.", json!({ "path": path }), &["path"]),
         tool("build_sheets", "Write the build sheets (a page per part with its steps, then assembly) as an HTML file.", json!({ "path": path }), &["path"]),
-        tool("export", "Export the current drawing as .obj (with .mtl) or .stl for other 3D programs.", json!({ "path": path, "millimeters": { "type": "boolean" } }), &["path"]),
+        tool("export", "Export the current drawing as .obj (with .mtl) or .stl for other 3D programs, or as .dxf or .svg: each part flattened for CNC (its outline, through holes, and pockets on layers by depth; what a router can't cut from a face is listed, not drawn).", json!({ "path": path, "millimeters": { "type": "boolean" } }), &["path"]),
     ]
 }
 

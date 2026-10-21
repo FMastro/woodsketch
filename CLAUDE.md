@@ -146,7 +146,10 @@ add it there; when you finish an item, remove it.
    meeting under 30° are drawn soft (hidden).
 16. Export (done): `doc::export` (visible geometry in world coordinates, triangles wound to their
    front; OBJ named per group with an MTL of material colors; ASCII STL), File > Export with
-   inches or millimeters.
+   inches or millimeters. `doc::flat`: each cut-list part flattened along its thickness for CNC
+   (faces square to it projected into a planar arrangement with `Model::add_line`; each region full
+   thickness, a pocket from the face or back, or a hole; merged into loops), written as DXF R12
+   (layers by depth) or SVG (fills: outline black, holes white, pockets grey).
 17. Cut-list polish (done): stock sizes and kerf saved with the drawing (`Scene::cut_settings`), each
    material can override them (`Material::stock`, `cutplan::plan_all`); Entity Info renames groups
    and components (the part name); `doc::cutsheet` writes a printable HTML cut sheet (parts, what

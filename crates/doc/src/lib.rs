@@ -14,6 +14,7 @@ pub mod cutsheet;
 mod document;
 pub mod export;
 pub mod feedback;
+pub mod flat;
 pub mod file;
 pub mod joinery;
 pub mod hardware;

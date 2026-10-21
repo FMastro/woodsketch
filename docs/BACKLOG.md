@@ -26,9 +26,9 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 13 | Groups, components and tags | 63 | Organizing bigger projects |
 | 14 | UI | 95 | Comfort and polish |
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
-| 16 | Export | 48 | More ways out (CNC, other apps) |
+| 16 | Export | 54 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1372** | |
+| | **All** | **1378** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -349,13 +349,19 @@ Measured with `tests/perf.rs` (`cargo test --release -p woodsketch-ui-egui --tes
     in shown values to match). Convert once, so a material looks the color you picked.
 
 ## 16. Export
-Done: OBJ (+ MTL colors) and ASCII STL, inches or millimeters.
+Done: OBJ (+ MTL colors) and ASCII STL, inches or millimeters; DXF and SVG of each part flat for CNC
+(outline, through holes, pockets by depth from the face and the back; square parts laid on the side
+that shows the most).
 1. [3] Export the selection only.
 2. [3] Each part as its own STL file.
 3. [8] glTF.
 4. [8] Textures in exports (needs textured materials).
 5. [13] DAE.
-6. [13] DXF / SVG (2D, for CNC).
+6. [3] Each part as its own DXF or SVG file (all parts one above the other in one file now).
+7. [5] Parts nested onto sheets in the DXF / SVG (one above the other now; CAM programs nest).
+8. [3] Round holes as circles in the DXF, for drilling (polylines of their sides now).
+9. [8] A part's edges and ends in the flat drawing (cuts there, like a mortise in a leg's side, and
+   angled cuts like pocket holes and dovetail pins are listed as not drawn).
 
 ## 17. Later
 1. [100] A community model library (a separate service: accounts, moderation, licensing; 3D

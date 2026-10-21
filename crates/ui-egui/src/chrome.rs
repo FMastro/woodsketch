@@ -138,8 +138,17 @@ impl WoodSketchApp {
                 self.cut_list.export_build_sheets(&self.doc);
             }
             ui.menu_button("Export", |ui| {
-                for (label, format) in [("OBJ...", files::ExportFormat::Obj), ("STL...", files::ExportFormat::Stl)] {
-                    if ui.button(label).clicked() {
+                let formats = [
+                    ("OBJ...", files::ExportFormat::Obj, "The 3D model with its material colors, for renderers and other modelers"),
+                    ("STL...", files::ExportFormat::Stl, "The 3D model, for 3D printing"),
+                    ("DXF for CNC...", files::ExportFormat::Dxf, "Each part flat, seen from its face: the outline, through holes, and pockets on layers by depth"),
+                    ("SVG for CNC...", files::ExportFormat::Svg, "Each part flat, seen from its face: the outline black, holes white, pockets grey"),
+                ];
+                for (label, format, hint) in formats {
+                    if format == files::ExportFormat::Dxf {
+                        ui.separator();
+                    }
+                    if ui.button(label).on_hover_text(hint).clicked() {
                         ui.close();
                         if let Some(path) = files::export_dialog(self.files.path.as_deref(), format)
                             && let Err(error) = self.export_to(&path, format)

@@ -3,6 +3,17 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.50
+
+- File > Export > DXF for CNC and SVG for CNC: every part in the cut list laid out flat, seen from
+  its face, at full size in inches or millimeters, each labeled with its letter, count and stock.
+  The outline to cut out and through holes; dados, grooves, rabbets, mortises and tenon cheeks as
+  pockets, on DXF layers named by depth (`POCKET_0_250IN`) or grey in the SVG; what to cut from the
+  back after turning the part over on its own layers. Cuts a router can't make from a face (a
+  mortise in a leg's side, a pocket screw's angled bore, dovetail pins) are listed above the part,
+  not drawn.
+- For AI assistants: `export` writes `.dxf` and `.svg` too.
+
 ## 0.1.49
 
 - Two-color toolbar icons, as SketchUp has: a dark outline over an amber fill, in the logo's wood

@@ -19,7 +19,7 @@ pub enum ExportUnits {
 }
 
 impl ExportUnits {
-    fn scale(self) -> f64 {
+    pub(crate) fn scale(self) -> f64 {
         match self {
             Self::Inches => 1.0,
             Self::Millimeters => 25.4,

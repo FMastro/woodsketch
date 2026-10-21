@@ -22,14 +22,14 @@ pub(crate) fn esc(text: &str) -> String {
 
 /// A part to make: one definition with faces, however many copies (and other definitions shaped
 /// the same, or mirror images of it, as a drawer's left and right sides).
-struct Sheet {
-    definition: DefinitionId,
-    count: usize,
+pub(crate) struct Sheet {
+    pub(crate) definition: DefinitionId,
+    pub(crate) count: usize,
     /// How many of `count` are mirror images.
-    mirrored: usize,
-    material: Option<crate::MaterialId>,
+    pub(crate) mirrored: usize,
+    pub(crate) material: Option<crate::MaterialId>,
     /// How much each of its own axes is stretched (copies' scale).
-    scale: DVec3,
+    pub(crate) scale: DVec3,
 }
 
 fn collect(scene: &Scene, container: &Container, inherited: Option<crate::MaterialId>, linear: DMat3, found: &mut BTreeMap<DefinitionId, Sheet>) {
@@ -56,9 +56,6 @@ fn collect(scene: &Scene, container: &Container, inherited: Option<crate::Materi
 
 /// The build sheets for the drawing, one per part, in cut-list order.
 pub fn to_html(scene: &Scene, list: &CutList, title: &str) -> String {
-    let mut found = BTreeMap::new();
-    collect(scene, &scene.root, None, DMat3::IDENTITY, &mut found);
-
     let mut html = String::new();
     let _ = write!(
         html,
@@ -87,32 +84,7 @@ svg text {{ font: 11px system-ui, sans-serif; fill: #333; }}
         title = esc(title)
     );
 
-    // Cut-list order: by the letter of the row each part falls in. Only what's made in the shop:
-    // not flat things (no row) or parts of metal, glass and such (material type Other).
-    let not_wood = |sheet: &Sheet| {
-        sheet.material.and_then(|m| scene.material(m)).is_some_and(|m| matches!(m.kind, crate::MaterialKind::Other | crate::MaterialKind::Hardware))
-    };
-    let mut sheets: Vec<(String, Sheet, Option<&Part>)> = Vec::new();
-    for sheet in found.into_values().filter(|sheet| !not_wood(sheet)) {
-        let Some(row) = row_for(scene, list, &sheet) else { continue };
-        // Another design with the same name, row and shape (or its mirror image) is the same
-        // part: one sheet, counted together.
-        let name = scene.definition(sheet.definition).map(|d| d.name.as_str());
-        let same = sheets.iter_mut().find_map(|(label, kept, _)| {
-            if *label != row.label || scene.definition(kept.definition).map(|d| d.name.as_str()) != name {
-                return None;
-            }
-            same_shape(scene, kept, &sheet).map(|mirrored| (kept, mirrored))
-        });
-        match same {
-            Some((kept, mirrored)) => {
-                kept.count += sheet.count;
-                kept.mirrored += if mirrored { sheet.count - sheet.mirrored } else { sheet.mirrored };
-            }
-            None => sheets.push((row.label.clone(), sheet, Some(row))),
-        }
-    }
-    sheets.sort_by(|a, b| (a.0.len(), &a.0).cmp(&(b.0.len(), &b.0)));
+    let sheets = sheets(scene, list);
     if sheets.is_empty() {
         html.push_str("<p>No parts yet. Each group or component is a part.</p>");
     }
@@ -136,6 +108,40 @@ svg text {{ font: 11px system-ui, sans-serif; fill: #333; }}
     }
     html.push_str("</body></html>\n");
     html
+}
+
+/// The parts to make, one per design, in cut-list order with their letters (and cut-list rows).
+/// Only what's made in the shop: not flat things (no row) or parts of metal, glass and such
+/// (material type Other).
+pub(crate) fn sheets<'a>(scene: &Scene, list: &'a CutList) -> Vec<(String, Sheet, Option<&'a Part>)> {
+    let mut found = BTreeMap::new();
+    collect(scene, &scene.root, None, DMat3::IDENTITY, &mut found);
+    let not_wood = |sheet: &Sheet| {
+        sheet.material.and_then(|m| scene.material(m)).is_some_and(|m| matches!(m.kind, crate::MaterialKind::Other | crate::MaterialKind::Hardware))
+    };
+    let mut sheets: Vec<(String, Sheet, Option<&Part>)> = Vec::new();
+    for sheet in found.into_values().filter(|sheet| !not_wood(sheet)) {
+        let Some(row) = row_for(scene, list, &sheet) else { continue };
+        // Another design with the same name, row and shape (or its mirror image) is the same
+        // part: one sheet, counted together.
+        let name = scene.definition(sheet.definition).map(|d| d.name.as_str());
+        let same = sheets.iter_mut().find_map(|(label, kept, _)| {
+            if *label != row.label || scene.definition(kept.definition).map(|d| d.name.as_str()) != name {
+                return None;
+            }
+            same_shape(scene, kept, &sheet).map(|mirrored| (kept, mirrored))
+        });
+        match same {
+            Some((kept, mirrored)) => {
+                kept.count += sheet.count;
+                kept.mirrored += if mirrored { sheet.count - sheet.mirrored } else { sheet.mirrored };
+            }
+            None => sheets.push((row.label.clone(), sheet, Some(row))),
+        }
+    }
+    // Cut-list order: by the letter of the row each part falls in.
+    sheets.sort_by(|a, b| (a.0.len(), &a.0).cmp(&(b.0.len(), &b.0)));
+    sheets
 }
 
 /// Whether two parts are the same shape: `Some(false)` alike, turned any way; `Some(true)` mirror

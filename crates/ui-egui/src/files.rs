@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use eframe::egui;
 use woodsketch_doc::Document;
 use woodsketch_doc::export::{self, ExportUnits};
+use woodsketch_doc::flat;
 use woodsketch_doc::file::{self, EXTENSION, OLD_EXTENSION};
 
 /// Something that would discard the drawing, waiting on the "save changes?" answer.
@@ -192,11 +193,13 @@ pub fn open_dialog(current: Option<&Path>) -> Option<PathBuf> {
     dialog.pick_file()
 }
 
-/// A 3D export format (File > Export).
+/// An export format (File > Export): a 3D model, or each part flat for CNC.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ExportFormat {
     Obj,
     Stl,
+    Dxf,
+    Svg,
 }
 
 impl ExportFormat {
@@ -204,6 +207,8 @@ impl ExportFormat {
         match self {
             Self::Obj => "obj",
             Self::Stl => "stl",
+            Self::Dxf => "dxf",
+            Self::Svg => "svg",
         }
     }
 }
@@ -213,6 +218,8 @@ pub fn export_to(doc: &Document, path: &Path, format: ExportFormat, units: Expor
     let fail = |e: std::io::Error| format!("Couldn't export {}: {e}", path.display());
     match format {
         ExportFormat::Stl => std::fs::write(path, export::to_stl(doc.scene(), units)).map_err(fail),
+        ExportFormat::Dxf => std::fs::write(path, flat::to_dxf(&flat::flat_parts(doc.scene()), units)).map_err(fail),
+        ExportFormat::Svg => std::fs::write(path, flat::to_svg(&flat::flat_parts(doc.scene()), units)).map_err(fail),
         ExportFormat::Obj => {
             let mtl_path = path.with_extension("mtl");
             let mtl_name = mtl_path.file_name().map_or_else(|| "materials.mtl".into(), |n| n.to_string_lossy().into_owned());
@@ -230,6 +237,8 @@ pub fn export_dialog(current: Option<&Path>, format: ExportFormat) -> Option<Pat
     let label = match format {
         ExportFormat::Obj => "OBJ model",
         ExportFormat::Stl => "STL model",
+        ExportFormat::Dxf => "DXF drawing",
+        ExportFormat::Svg => "SVG drawing",
     };
     let mut dialog = rfd::FileDialog::new().add_filter(label, &[ext]).set_file_name(format!("{stem}.{ext}"));
     if let Some(dir) = current.and_then(Path::parent) {
