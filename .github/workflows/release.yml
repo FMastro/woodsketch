@@ -26,8 +26,9 @@ permissions:
 env:
   # Must equal the velopack crate version in apps/woodsketch/Cargo.toml.
   VPK_VERSION: 1.2.161
-  # Microsoft's signing tool, for the one file vpk doesn't sign for us (see Pack).
-  SIGN_VERSION: 1.1.5
+  # Microsoft's Sign CLI, for the one file vpk doesn't sign for us (see Pack). It is only
+  # published as a prerelease, and the stable `Sign` package on NuGet is a different tool.
+  SIGN_VERSION: 0.9.1-beta.26475.3
 
 jobs:
   version:
