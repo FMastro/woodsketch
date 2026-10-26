@@ -3,6 +3,12 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.51
+
+- The Windows installer, the app and `woodsketch-cli` are signed with Azure Artifact Signing, so
+  Windows names the publisher instead of calling it unknown. SmartScreen may still warn on the
+  first downloads, until the signature earns a reputation. macOS and Linux are unsigned for now.
+
 ## 0.1.50
 
 - File > Export > DXF for CNC and SVG for CNC: every part in the cut list laid out flat, seen from

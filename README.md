@@ -15,8 +15,9 @@ on [woodsketch.net](https://woodsketch.net/#get-started) and in
 [GitHub Releases](https://github.com/FMastro/woodsketch/releases/latest). Installed copies check
 for updates when they start and install them when you restart.
 
-The installers aren't signed yet. On Windows, click *More info*, then *Run anyway*; on a Mac,
-right-click the installer and choose *Open*.
+The Windows installer is signed, though SmartScreen may still warn until the signature earns a
+reputation: click *More info*, then *Run anyway*. The macOS installer isn't signed yet, so
+right-click it and choose *Open*.
 
 ## What it does
 

@@ -229,7 +229,10 @@ add it there; when you finish an item, remove it.
    ship). The app runs `VelopackApp` first, then checks GitHub Releases in the background at startup
    (Help > Check for updates at startup; Help > Check for Updates...), downloads quietly, and offers
    "Restart to update" in the status bar (after "Save changes?"; the open drawing reopens). The UI side (`ui-egui::updates`)
-   has no Velopack dependency; `apps/woodsketch/src/update.rs` plugs it in. CI
+   has no Velopack dependency; `apps/woodsketch/src/update.rs` plugs it in. The Windows build is
+   signed with Azure Artifact Signing (profile `woodsketch-public`) over OIDC from the `release`
+   environment when the `AZURE_*` repository variables are set, and ships unsigned without them;
+   macOS and Linux aren't signed yet (`docs/BACKLOG.md`). CI
    (`.github/workflows/ci.yml`) lints and runs the non-GPU tests on all three platforms.
 
 ## Direction

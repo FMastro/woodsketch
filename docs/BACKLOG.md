@@ -16,7 +16,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 0 | Done |
-| 6 | Release polish | 79 | Signing before announcing widely |
+| 6 | Release polish | 74 | macOS signing before announcing widely |
 | 7 | Importing | 225 | Gets people's existing models in |
 | 8 | Cut list and materials | 171 | Better buying and cutting |
 | 9 | Wood movement | 23 | Fewer false warnings, clearer results |
@@ -28,7 +28,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 54 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1378** | |
+| | **All** | **1373** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -121,37 +121,35 @@ render highlights at any depth; build progress step by step over MCP. Nothing le
 Done: installers, auto-update, icons, release notes, the site's download links; Help > Report a
 Problem / Send Feedback (GitHub issue forms, details with nothing private; fixed issues close
 when their release is published); a crash is saved (with the calls that led there) and offered for a
-report at the next start; reports name the OS version.
-1. [5] Windows signing with Azure Artifact Signing (~$9.99/month; individuals in the US/Canada; a
-   paid Azure subscription; identity validation takes days; CI signs via OIDC, no stored key).
-   Until then SmartScreen warns. Do it before announcing WoodSketch widely.
-2. [8] macOS signing with an Apple Developer ID ($99/year) plus notarization, or Gatekeeper blocks it.
-3. [2] SHA-256 checksums (Linux needs no signing; optionally GPG-signed checksums).
-4. [2] A Download button on woodsketch.net that picks the visitor's OS.
-5. [3] Delta updates (download the previous release before packing, so updates are small).
-6. [5] `.woodsketch` file association on all three (double-click opens it).
-7. [3] A macOS DMG.
-8. [5] Linux .deb and .rpm.
-9. [5] Windows ARM64 and Linux ARM64 builds.
-10. [3] Crash reports: a line number for each call that led there (names only in release builds:
+report at the next start; reports name the OS version; Windows signing (Azure Artifact Signing,
+signed in CI over OIDC with no stored key).
+1. [8] macOS signing with an Apple Developer ID ($99/year) plus notarization, or Gatekeeper blocks it.
+2. [2] SHA-256 checksums (Linux needs no signing; optionally GPG-signed checksums).
+3. [2] A Download button on woodsketch.net that picks the visitor's OS.
+4. [3] Delta updates (download the previous release before packing, so updates are small).
+5. [5] `.woodsketch` file association on all three (double-click opens it).
+6. [3] A macOS DMG.
+7. [5] Linux .deb and .rpm.
+8. [5] Windows ARM64 and Linux ARM64 builds.
+9. [3] Crash reports: a line number for each call that led there (names only in release builds:
     line tables make the Windows symbols 67 MB instead of 6; or keep them on GitHub and look the
     addresses up when a report comes in).
-11. [5] Crashes that aren't Rust panics (a graphics driver crash, running out of memory, a stack
+10. [5] Crashes that aren't Rust panics (a graphics driver crash, running out of memory, a stack
     overflow) leave nothing to report.
-12. [2] A scheduled check of new reports (a daily routine that reads `from-app` issues and drafts
+11. [2] A scheduled check of new reports (a daily routine that reads `from-app` issues and drafts
     fixes for review); now they're checked at the start of each session (CLAUDE.md).
-13. [21] End-user help for every feature: a User Guide on woodsketch.net (/help), a page per
+12. [21] End-user help for every feature: a User Guide on woodsketch.net (/help), a page per
     feature or tool (what it's for, step by step, the keys and typed values, tips, what it doesn't
     do yet), written for woodworkers new to SketchUp as well as SketchUp users. Getting started
     (draw a board, join two parts, print a cut list), each drawing tool, groups and components,
     tags, materials and stock, the Board tool, joinery (each joint), edge profiles, templates,
     drawers and doors, cut list and cutting diagrams, build sheets, wood movement, reference
     face and edge, units, SketchUp import, export, updates and reporting a problem.
-14. [5] Screenshots for the guide made by the UI tests (egui_kittest snapshots of each step), so
+13. [5] Screenshots for the guide made by the UI tests (egui_kittest snapshots of each step), so
     they're redone when the app changes instead of going stale.
-15. [3] Help > User Guide, and F1 opening the page for the tool or panel in use; a "?" link in
+14. [3] Help > User Guide, and F1 opening the page for the tool or panel in use; a "?" link in
     each tray panel and window to its page.
-16. [2] Keep it current: every feature ships with its help page updated (a rule in CLAUDE.md
+15. [2] Keep it current: every feature ships with its help page updated (a rule in CLAUDE.md
     next to the CHANGELOG one), and the release notes link to the pages.
 
 ## 7. Importing

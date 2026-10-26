@@ -6,8 +6,16 @@ name: Release
 # offer it to installed copies as an update.
 #
 # Each platform has its own update channel, named in its files, so an update never crosses
-# platforms or processors. Installers are unsigned for now (Windows SmartScreen and macOS
-# Gatekeeper warn); signing is in docs/BACKLOG.md.
+# platforms or processors. Windows is signed with Azure Artifact Signing when the repository
+# variables below are set; macOS and Linux are unsigned for now (Gatekeeper warns), and that
+# signing is in docs/BACKLOG.md.
+#
+# Windows signing needs these repository variables, and the `release` environment the package
+# job names (the signing app's federated credential trusts
+# repo:<owner>/<repo>:environment:release, so no key or secret is stored anywhere):
+#   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID   the app that signs, over OIDC
+#   AZURE_SIGNING_ENDPOINT, AZURE_SIGNING_ACCOUNT, AZURE_SIGNING_PROFILE   what it signs with
+# Without them the Windows build still runs, and ships unsigned.
 on:
   push:
     tags: ["v*"]
@@ -18,6 +26,8 @@ permissions:
 env:
   # Must equal the velopack crate version in apps/woodsketch/Cargo.toml.
   VPK_VERSION: 1.2.161
+  # Microsoft's signing tool, for the one file vpk doesn't sign for us (see Pack).
+  SIGN_VERSION: 1.1.5
 
 jobs:
   version:
@@ -49,6 +59,12 @@ jobs:
           - { os: macos-latest, target: x86_64-apple-darwin, channel: osx-x64, runtime: osx-x64, exe: woodsketch, cli: woodsketch-cli }
           - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, channel: linux-x64, runtime: linux-x64, exe: woodsketch, cli: woodsketch-cli }
     runs-on: ${{ matrix.os }}
+    # The environment the signing app's federated credential trusts; id-token lets the runner
+    # prove who it is to Azure without a stored secret.
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
     env:
       VERSION: ${{ needs.version.outputs.version }}
     steps:
@@ -73,6 +89,30 @@ jobs:
       - name: Install vpk
         shell: bash
         run: dotnet tool install -g vpk --version "$VPK_VERSION"
+      # Signing is skipped whole when the variables aren't set, so a release can still be cut
+      # before signing is configured, or if it ever has to be turned off.
+      - name: Sign in to Azure
+        if: runner.os == 'Windows' && vars.AZURE_CLIENT_ID != ''
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Prepare signing
+        if: runner.os == 'Windows' && vars.AZURE_CLIENT_ID != ''
+        shell: bash
+        run: |
+          # vpk reads the account to sign with from this file; the credentials come from the
+          # sign-in above (DefaultAzureCredential finds the Azure CLI's session).
+          cat > "$RUNNER_TEMP/azure-signing.json" <<JSON
+          {
+            "Endpoint": "${{ vars.AZURE_SIGNING_ENDPOINT }}",
+            "CodeSigningAccountName": "${{ vars.AZURE_SIGNING_ACCOUNT }}",
+            "CertificateProfileName": "${{ vars.AZURE_SIGNING_PROFILE }}"
+          }
+          JSON
+          echo "AZURE_SIGN_FILE=$RUNNER_TEMP/azure-signing.json" >> "$GITHUB_ENV"
+          dotnet tool install -g sign --version "$SIGN_VERSION"
       - name: macOS icon (.icns from the PNGs)
         if: runner.os == 'macOS'
         shell: bash
@@ -96,22 +136,36 @@ jobs:
           fi
           # The command line and MCP server for agents, installed beside the app.
           cp "target/${{ matrix.target }}/release/${{ matrix.cli }}" publish/
+          # vpk signs a copy of publish/, not publish/ itself, so the command line on its own
+          # (zipped from publish/ below) would go out unsigned. Sign it here first: vpk leaves
+          # a file already signed and trusted alone, so it isn't signed twice.
+          if [ -n "${AZURE_SIGN_FILE:-}" ]; then
+            sign code trusted-signing "publish/${{ matrix.cli }}" \
+              --trusted-signing-endpoint "${{ vars.AZURE_SIGNING_ENDPOINT }}" \
+              --trusted-signing-account "${{ vars.AZURE_SIGNING_ACCOUNT }}" \
+              --trusted-signing-certificate-profile "${{ vars.AZURE_SIGNING_PROFILE }}"
+          fi
           case "${{ runner.os }}" in
             Windows) icon=assets/icon/woodsketch.ico ;;
             macOS) icon=assets/icon/woodsketch.icns ;;
             *) icon=assets/icon/woodsketch-512.png ;;
           esac
+          sign_args=()
+          if [ -n "${AZURE_SIGN_FILE:-}" ]; then
+            sign_args=(--azureTrustedSignFile "$AZURE_SIGN_FILE")
+          fi
           vpk pack \
             --packId WoodSketch \
             --packVersion "$VERSION" \
             --packTitle WoodSketch \
-            --packAuthors "Fred Mastro" \
+            --packAuthors "Fred Mastropasqua" \
             --packDir publish \
             --mainExe "${{ matrix.exe }}" \
             --channel "${{ matrix.channel }}" \
             --runtime "${{ matrix.runtime }}" \
             --icon "$icon" \
-            --outputDir releases
+            --outputDir releases \
+            "${sign_args[@]}"
           # The command line on its own too, for a machine without the app (a server, CI).
           cli_zip="woodsketch-cli-$VERSION-${{ matrix.channel }}.zip"
           if [ "${{ runner.os }}" = "Windows" ]; then
