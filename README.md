@@ -65,7 +65,19 @@ and `docs/BACKLOG.md` lists what's planned.
 
 ## Feedback
 
-Found a bug, or missing a feature? [Open an issue](https://github.com/FMastro/woodsketch/issues).
+WoodSketch is new, and what gets built next depends on what people tell me they need. If a joint
+you use isn't there, if the cut list doesn't match how your shop works, or if something simply
+broke, I'd like to hear it.
+
+- **In the app:** *Help > Report a Problem* and *Help > Send Feedback*. These need no GitHub
+  account, and you can leave an email if you'd like a reply.
+- **On GitHub:** [open an issue](https://github.com/FMastro/woodsketch/issues/new/choose) if you
+  have an account.
+
+Rough edges and half-finished corners are expected at this stage, so don't assume a problem is
+already known. Nothing is too small to mention.
+
+## Independent of SketchUp
 
 WoodSketch reimplements SketchUp's *behavior* from its public documentation and from using the
 app. It is a clean-room implementation: none of SketchUp's code, SDK or artwork was decompiled,
