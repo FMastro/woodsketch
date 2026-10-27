@@ -3,6 +3,12 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.52
+
+- `THIRD-PARTY-NOTICES.md` is installed beside the app: every package WoodSketch is built with,
+  its license and its copyright notices, so the attributions those licenses ask for travel with
+  the program rather than living only in the repository.
+
 ## 0.1.51
 
 - The Windows installer, the app and `woodsketch-cli` are signed with Azure Artifact Signing, so
