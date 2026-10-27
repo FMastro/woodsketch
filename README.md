@@ -10,7 +10,7 @@ real stock sizes, joinery, cut lists and build sheets.
 
 ## Download
 
-WoodSketch is in **beta**. Installers for Windows, macOS (Apple silicon and Intel) and Linux are
+Installers for Windows, macOS (Apple silicon and Intel) and Linux are
 on [woodsketch.net](https://woodsketch.net/#get-started) and in
 [GitHub Releases](https://github.com/FMastro/woodsketch/releases/latest). Installed copies check
 for updates when they start and install them when you restart.
@@ -67,9 +67,15 @@ and `docs/BACKLOG.md` lists what's planned.
 
 Found a bug, or missing a feature? [Open an issue](https://github.com/FMastro/woodsketch/issues).
 
-WoodSketch reimplements SketchUp's behavior from its public documentation and from using it. It
-isn't affiliated with Trimble or SketchUp, and contains none of their code or artwork.
+WoodSketch reimplements SketchUp's *behavior* from its public documentation and from using the
+app. It is a clean-room implementation: none of SketchUp's code, SDK or artwork was decompiled,
+disassembled, read or copied, and none of it is present here. The `.skp` reader was worked out by
+examining `.skp` files alone, without Trimble's SDK (see the notes at the top of
+`crates/doc/src/skp.rs`). WoodSketch isn't affiliated with, endorsed by or connected to Trimble or
+SketchUp; SketchUp is a trademark of Trimble Inc.
 
 ## License
 
-See [LICENSE](LICENSE).
+See [LICENSE](LICENSE) (MIT or Apache-2.0, your choice). The open-source packages WoodSketch is
+built with, and their licenses, are in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md), which ships beside the app.

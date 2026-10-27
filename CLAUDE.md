@@ -82,6 +82,10 @@ it for a report (`FeedbackWindow::start_crash`). `feedback::os_name` (the `os_in
 - `cargo test --workspace`
 - `cargo clippy --workspace --all-targets` (keep it warning-free)
 
+## Third-party notices
+`THIRD-PARTY-NOTICES.md` lists every package WoodSketch is built with and its license, and
+`release.yml` packs it beside the app. Regenerate it when dependencies change.
+
 ## Backlog
 `docs/BACKLOG.md` lists known gaps and skipped work. When you skip or simplify something,
 add it there; when you finish an item, remove it.

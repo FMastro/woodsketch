@@ -135,6 +135,9 @@ jobs:
           if [ "${{ runner.os }}" = Windows ]; then
             cp "target/${{ matrix.target }}/release/woodsketch.pdb" publish/
           fi
+          # The licenses of everything WoodSketch is built with, installed beside the app
+          # (MIT and the rest want their notices to travel with the program).
+          cp THIRD-PARTY-NOTICES.md publish/
           # The command line and MCP server for agents, installed beside the app.
           cp "target/${{ matrix.target }}/release/${{ matrix.cli }}" publish/
           # vpk signs a copy of publish/, not publish/ itself, so the command line on its own
