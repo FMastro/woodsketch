@@ -59,6 +59,9 @@ pub fn describe(state: &UpdateState) -> String {
 /// Every version's release notes, on GitHub.
 pub const RELEASES_URL: &str = "https://github.com/FMastro/woodsketch/releases";
 
+/// Where to ask how to do something, suggest what to build next, or show a piece.
+pub const DISCUSSIONS_URL: &str = "https://github.com/FMastro/woodsketch/discussions";
+
 /// The release notes for `version`.
 pub fn notes_url(version: &str) -> String {
     format!("{RELEASES_URL}/tag/v{version}")

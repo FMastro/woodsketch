@@ -73,6 +73,9 @@ broke, I'd like to hear it.
   account, and you can leave an email if you'd like a reply.
 - **On GitHub:** [open an issue](https://github.com/FMastro/woodsketch/issues/new/choose) if you
   have an account.
+- **Questions, ideas and what you've built:**
+  [Discussions](https://github.com/FMastro/woodsketch/discussions) — ask how to do something, say
+  what the app should handle next, or show a piece you've made.
 
 Rough edges and half-finished corners are expected at this stage, so don't assume a problem is
 already known. Nothing is too small to mention.

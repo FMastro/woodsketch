@@ -3,6 +3,11 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.53
+
+- Help > Discussions opens the project's GitHub Discussions, for asking how to do something,
+  saying what WoodSketch should handle next, or showing a piece you've made.
+
 ## 0.1.52
 
 - `THIRD-PARTY-NOTICES.md` is installed beside the app: every package WoodSketch is built with,
