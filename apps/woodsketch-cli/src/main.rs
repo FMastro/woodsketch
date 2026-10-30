@@ -107,6 +107,7 @@ fn run(args: &[String]) -> Result<(), String> {
             let doc = load(Path::new(path))?;
             let to = a.out.map(PathBuf::from).unwrap_or_else(|| Path::new(path).with_extension("woodsketch"));
             save(&doc, &to)?;
+            println!("Wrote {}.", to.display());
             print!("{}", recipe::summary(&doc));
         }
         "summary" => print!("{}", recipe::summary(&load(Path::new(input()?))?)),
@@ -192,8 +193,10 @@ pub fn build(json: &str) -> Result<Document, String> {
     recipe::build(&recipe).map_err(|errors| format!("The recipe has {} problem(s):\n- {}", errors.len(), errors.join("\n- ")))
 }
 
+/// Save the drawing, whole or not at all, and say nothing: this is called from the MCP server
+/// too, whose stdout carries JSON-RPC and nothing else.
 pub fn save(doc: &Document, path: &Path) -> Result<(), String> {
-    write(&path.to_string_lossy(), woodsketch_doc::file::to_string(doc.scene()))
+    woodsketch_doc::file::save(doc.scene(), path)
 }
 
 fn write(path: &str, text: String) -> Result<(), String> {

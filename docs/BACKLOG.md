@@ -15,7 +15,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 2 | Joinery | 71 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
-| 5 | Agent-ready | 0 | Done |
+| 5 | Agent-ready | 21 | A live link to the open drawing |
 | 6 | Release polish | 74 | macOS signing before announcing widely |
 | 7 | Importing | 225 | Gets people's existing models in |
 | 8 | Cut list and materials | 171 | Better buying and cutting |
@@ -28,7 +28,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 15 | Rendering and performance | 66 | Only pressing for very big models |
 | 16 | Export | 54 | More ways out (CNC, other apps) |
 | 17 | Later | 100 | Separate projects |
-| | **All** | **1373** | |
+| | **All** | **1394** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -115,7 +115,19 @@ any angle, with parts highlighted; the CLI alone as a zip per platform on each r
 joint keeps the sizes it was made with, wherever it was made. Shaped parts as outlines (with arcs and cut-outs) or their faces;
 compound-angle turns; tags with folders and hidden ones (hidden things come back hidden), on
 groups, templates and copies too; hardware parts; drawer and door groups; profiles on some edges;
-render highlights at any depth; build progress step by step over MCP. Nothing left.
+render highlights at any depth; build progress step by step over MCP. The app follows a drawing
+the MCP server is editing: it watches the open file, reloads it as one undo step, and the server
+writes every edit back to the file it was opened from or saved to (#6).
+1. [21] A live connection to the running app, so MCP tools act on the drawing on screen instead of
+   a copy on disk (#6, the half not built). The app would own the drawing and listen on a local
+   socket (a named pipe on Windows), the CLI forwarding to it. The work isn't the writes, it's
+   that every *read* has to go the same way or the assistant reasons about a model that no longer
+   exists: `summary`, `cut_list`, `movement`, `cut_sheet`, `build_sheets`, `export` and `render`
+   (which means the app renders and sends a PNG back). Also: finding the app (a port file in the
+   settings folder), which window wins when two are open, a token so only this machine's user can
+   drive it, what happens when the person is mid-drag or a modal is up, and reconciling a drawing
+   they edited by hand (the recipe no longer describes it). File watching stays useful either way
+   (synced folders, a checkout, editing the recipe by hand), so none of it is wasted.
 
 ## 6. Release polish
 Done: installers, auto-update, icons, release notes, the site's download links; Help > Report a

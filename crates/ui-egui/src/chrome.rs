@@ -511,6 +511,13 @@ impl WoodSketchApp {
                     measurements_box(ui, &self.tools);
                     ui.label(self.tools.measurement_label());
                     ui.separator();
+                    // Reloaded because the file changed outside (an assistant working through
+                    // woodsketch-cli, a synced folder): say so briefly, so it isn't a mystery.
+                    if self.reloaded_recently() {
+                        ui.label(format!("{} Reloaded: the file changed outside WoodSketch", egui_phosphor::regular::ARROWS_CLOCKWISE))
+                            .on_hover_text("Ctrl+Z goes back to the drawing as it was before the reload");
+                        ui.separator();
+                    }
                     // Just updated: say so once, with what changed.
                     if self.updated {
                         if ui.small_button(egui_phosphor::regular::X).on_hover_text("Dismiss").clicked() {

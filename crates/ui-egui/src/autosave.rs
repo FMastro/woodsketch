@@ -117,17 +117,9 @@ impl Autosave {
     }
 }
 
-/// Write `text` to `path` without ever leaving it half-written: write a temporary file next to
-/// it, then swap it in.
-pub fn write_safely(path: &Path, text: &str) -> std::io::Result<()> {
-    let mut temp = path.as_os_str().to_owned();
-    temp.push(".tmp");
-    let temp = PathBuf::from(temp);
-    std::fs::write(&temp, text)?;
-    std::fs::rename(&temp, path).inspect_err(|_| {
-        let _ = std::fs::remove_file(&temp);
-    })
-}
+/// Write `text` to `path` whole or not at all; the drawing format's own writer, so the app and
+/// `woodsketch-cli` write files the same way.
+pub use woodsketch_doc::file::write_safely;
 
 #[cfg(test)]
 mod tests {

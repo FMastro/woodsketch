@@ -9,6 +9,7 @@ mod icons;
 mod keys;
 mod materials;
 mod autosave;
+mod watch;
 mod board;
 mod joinery;
 mod outliner;
@@ -77,6 +78,12 @@ pub struct WoodSketchApp {
     update_started: bool,
     update_asked: bool,
     autosave_failed: bool,
+    /// Watches the open drawing's file, so changes made outside WoodSketch show up.
+    watch: watch::Watch,
+    /// The file changed outside and there are unsaved changes here: waiting on the answer.
+    reload_asking: bool,
+    /// Reloaded just now, to say so in the status bar for a moment.
+    reloaded: Option<std::time::Instant>,
 }
 
 impl WoodSketchApp {
@@ -127,6 +134,9 @@ impl WoodSketchApp {
             crash_dir,
             crash,
             autosave_failed: false,
+            watch: watch::Watch::default(),
+            reload_asking: false,
+            reloaded: None,
             updater: None,
             check_updates: cc.storage.and_then(|s| eframe::get_value(s, UPDATES_KEY)).unwrap_or(true),
             updated: cc
@@ -150,6 +160,9 @@ impl WoodSketchApp {
         self.files.name_hint = None;
         self.files.mark_saved(&self.doc);
         self.autosave.clear();
+        self.watch.stamped(self.files.path.as_deref());
+        self.reload_asking = false;
+        self.reloaded = None;
     }
 
     /// Fit the whole drawing in the view (Zoom Extents).
@@ -206,7 +219,42 @@ impl WoodSketchApp {
         self.files.save_to(&self.doc, path)?;
         self.autosave.clear();
         files::remember(&mut self.recent, path);
+        // Our own write, so take it as current: otherwise the next check reads it back as a
+        // change from outside.
+        self.watch.stamped(Some(path));
+        self.reload_asking = false;
         Ok(())
+    }
+
+    /// Read the open drawing's file again, as one undo step so Ctrl+Z goes back to what was on
+    /// screen. The camera, the selection and the tray stay as they are: the point is to watch a
+    /// drawing change while something else edits it, which a Zoom Extents would spoil.
+    pub fn reload_from_file(&mut self) {
+        let Some(path) = self.files.path.clone() else { return };
+        match files::Files::read(&path) {
+            Ok(fresh) => {
+                self.tools.cancel();
+                self.doc.reload_from(&fresh);
+                self.files.mark_saved(&self.doc);
+                self.viewport.drawing_reloaded();
+                self.watch.settled(Some(&path));
+                self.reload_asking = false;
+                self.reloaded = Some(std::time::Instant::now());
+            }
+            Err(error) => {
+                self.watch.settled(Some(&path));
+                self.reload_asking = false;
+                self.files.show_error(error);
+            }
+        }
+    }
+
+    /// Keep the drawing in the window and leave the file alone; the file as it now is counts as
+    /// seen, so the same change isn't raised again (saving from here still overwrites it, which
+    /// is what "Keep mine" means).
+    fn keep_mine(&mut self) {
+        self.watch.settled(self.files.path.as_deref());
+        self.reload_asking = false;
     }
 
     /// Autosave into `dir` (and offer back what's already there), as the app does with its
@@ -248,6 +296,52 @@ impl WoodSketchApp {
             if let Some(dir) = &self.crash_dir {
                 crash::clear(dir);
             }
+        }
+    }
+
+    /// Look at the open drawing's file on the next frame instead of waiting out the check
+    /// interval (tests, and anywhere a reload is asked for rather than noticed).
+    pub fn check_file_now(&mut self) {
+        self.watch.check_now();
+    }
+
+    /// Whether a reload just happened, for the note in the status bar. It clears itself: while
+    /// the file is being watched a repaint is already due every [`watch::INTERVAL`].
+    pub(crate) fn reloaded_recently(&self) -> bool {
+        self.reloaded.is_some_and(|at| at.elapsed() < std::time::Duration::from_secs(5))
+    }
+
+    /// Check whether the open drawing's file changed outside WoodSketch, and reload it (or ask).
+    fn watch_the_file(&mut self, ctx: &egui::Context) {
+        let dirty = self.is_dirty();
+        let (next, found) = self.watch.tick(self.files.path.as_deref(), dirty, std::time::Instant::now());
+        if let Some(wait) = next {
+            ctx.request_repaint_after(wait);
+        }
+        match found {
+            Some(watch::Found::Reload) => self.reload_from_file(),
+            Some(watch::Found::Ask) => self.reload_asking = true,
+            None => {}
+        }
+        if !self.reload_asking {
+            return;
+        }
+        let name = self.files.path.as_deref().and_then(Path::file_name).map_or_else(|| "The drawing".to_owned(), |n| n.to_string_lossy().into_owned());
+        let (mut reload, mut keep) = (false, false);
+        egui::Modal::new(egui::Id::new("reload")).show(ctx, |ui| {
+            ui.set_max_width(400.0);
+            ui.heading("The file changed outside WoodSketch");
+            ui.label(format!("{name} was changed by something else, and this drawing has changes that aren't saved. Only one of the two can be kept."));
+            ui.add_space(8.0);
+            ui.horizontal(|ui| {
+                reload = ui.button("Reload from the file").on_hover_text("Take the file as it is now, losing the unsaved changes here (Ctrl+Z brings them back)").clicked();
+                keep = ui.button("Keep mine").on_hover_text("Leave this drawing as it is; saving will write over the file").clicked();
+            });
+        });
+        if reload {
+            self.reload_from_file();
+        } else if keep {
+            self.keep_mine();
         }
     }
 
@@ -534,10 +628,11 @@ impl eframe::App for WoodSketchApp {
         let ctx = ui.ctx().clone();
         self.theme = ctx.options(|o| o.theme_preference);
         self.handle_files(&ctx);
+        self.watch_the_file(&ctx);
         self.autosave_and_recover(&ctx);
         self.offer_crash_report(&ctx);
         self.keep_up_to_date();
-        if !self.files.is_asking() && self.leftovers.is_empty() && self.crash.is_none() {
+        if !self.files.is_asking() && self.leftovers.is_empty() && self.crash.is_none() && !self.reload_asking {
             self.keyboard.handle(&ctx, &mut self.doc, &mut self.tools, &mut self.viewport);
         }
 

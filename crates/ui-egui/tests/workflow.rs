@@ -1394,6 +1394,91 @@ fn joinery_panel_lets_a_butted_top_into_a_rabbet() {
     assert!(harness.query_by_label_contains("Rabbet cut in Group#1").is_some());
 }
 
+/// A drawing with `boards` boards along the x axis, as another program would write it.
+fn written(path: &std::path::Path, boards: usize) {
+    let mut doc = woodsketch_doc::Document::default();
+    for i in 0..boards {
+        let at = glam::DVec3::X * (i as f64 * 4.0);
+        doc.edit(|m| m.add_rectangle(at, at + glam::DVec3::X * 3.0, at + glam::DVec3::Y * 2.0, glam::DVec3::Z));
+    }
+    woodsketch_doc::file::save(doc.scene(), path).unwrap();
+}
+
+#[test]
+fn the_drawing_reloads_when_its_file_changes_outside_and_ctrl_z_goes_back() {
+    // Issue #6: an assistant working through `woodsketch-cli` saves the drawing, and the window
+    // kept showing the old one. Now the file is watched and read again as one undo step.
+    let dir = std::env::temp_dir().join(format!("woodsketch-watch-ui-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("kitchen.woodsketch");
+    written(&path, 1);
+
+    let mut harness = app();
+    harness.state_mut().open_path(&path).unwrap();
+    harness.run();
+    assert_eq!(harness.state().document().model().faces().count(), 1);
+    // Look at it from somewhere particular: a reload must not move the camera.
+    type_text(&mut harness, "Z");
+    harness.run();
+    let view_before = harness.state().to_window(glam::DVec3::ZERO);
+
+    // Something else edits the file (the assistant adding a part).
+    written(&path, 3);
+    harness.state_mut().check_file_now();
+    harness.run();
+
+    assert_eq!(harness.state().document().model().faces().count(), 3, "the new parts are on screen");
+    assert!(!harness.state().is_dirty(), "reloading isn't an unsaved change");
+    assert_eq!(harness.state().to_window(glam::DVec3::ZERO), view_before, "the camera stayed put");
+
+    // The reload is one undo step, so Ctrl+Z goes back to the drawing as it was.
+    harness.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+    harness.run();
+    assert_eq!(harness.state().document().model().faces().count(), 1, "back to before the reload");
+    harness.key_press_modifiers(Modifiers::COMMAND, Key::Y);
+    harness.run();
+    assert_eq!(harness.state().document().model().faces().count(), 3, "and forward again");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn unsaved_changes_are_not_thrown_away_by_a_change_on_disk() {
+    use egui_kittest::kittest::Queryable;
+    let dir = std::env::temp_dir().join(format!("woodsketch-watch-ask-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("hutch.woodsketch");
+    written(&path, 1);
+
+    let mut harness = app();
+    harness.state_mut().open_path(&path).unwrap();
+    harness.run();
+    // Draw something here, so there's unsaved work to lose.
+    board(&mut harness);
+    assert!(harness.state().is_dirty());
+    let mine = harness.state().document().model().faces().count();
+
+    written(&path, 4);
+    harness.state_mut().check_file_now();
+    harness.run();
+    // Asked, not reloaded over the top.
+    assert!(harness.query_by_label("The file changed outside WoodSketch").is_some());
+    assert_eq!(harness.state().document().model().faces().count(), mine, "nothing lost while asking");
+    snapshot(&mut harness, "reload_asks");
+
+    harness.get_by_label("Keep mine").click();
+    harness.run();
+    assert_eq!(harness.state().document().model().faces().count(), mine, "kept");
+    assert!(harness.query_by_label("The file changed outside WoodSketch").is_none());
+
+    // Asked once: it doesn't nag on every check.
+    harness.state_mut().check_file_now();
+    harness.run();
+    assert!(harness.query_by_label("The file changed outside WoodSketch").is_none(), "asked once");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn a_crash_leaves_unsaved_work_to_recover() {
     use egui_kittest::kittest::Queryable;

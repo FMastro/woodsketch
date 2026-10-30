@@ -11,7 +11,8 @@ Two ways in:
   progress (each part, joint and group) to a client that asks for it. Call
   `guide` (this text), `build` with a recipe, check with `summary`, `movement` and `render`, then
   change it a piece at a time (`add_part`, `change_part`, `remove`, `add_joint`, `remove_joint`,
-  `add_profile`; `recipe` shows the whole recipe now), and `save` (a `.woodsketch` file) and
+  `add_profile`; `recipe` shows the whole recipe now), and `save` (a `.woodsketch` file; call it
+  early, and every later edit is written there too, so the app shows your work as you go) and
   `cut_sheet` / `build_sheets` (HTML). `open` reads a drawing (`.woodsketch`, or a SketchUp `.skp`)
   back as a recipe, so a design made by hand can be changed the same way. The guide and the
   recipe's JSON Schema are resources (`woodsketch://guide`, `woodsketch://recipe-schema`), and the
@@ -186,6 +187,21 @@ reference, another version).
   it looks right.
 - `save` the drawing for the person to open in WoodSketch; `cut_sheet` and `build_sheets` write
   what they take to the shop.
+
+## Working with the app open (watch it change)
+
+Call `save` early, before you start changing things. From then on every edit is written back to
+that file as you make it, and the WoodSketch app, which watches the open drawing's file, reloads
+it: the person sees each part, joint and profile appear while you work, without opening anything
+again. The camera stays where they left it, and each reload is one undo step, so Ctrl+Z walks back
+through your changes.
+
+- `open` names the file too, so changing a drawing the person already has follows straight back
+  into their window.
+- Tell them to save their own edits before asking you for changes. If they have unsaved work when
+  your change lands, WoodSketch asks them which to keep rather than overwriting either.
+- An edit that doesn't build changes neither the drawing nor the file, so a mistake can't reach
+  their window.
 
 ## Setting it up
 

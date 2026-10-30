@@ -768,6 +768,13 @@ impl Viewport {
 
 impl Viewport {
     /// A different drawing was opened (or a new one started): rebuild everything and frame it.
+    /// The drawing was read again from its file (changed outside WoodSketch). The geometry is
+    /// rebuilt anyway, since the model version changed; what mustn't happen is a Zoom Extents,
+    /// which would throw the view away each time an assistant edits the drawing.
+    pub fn drawing_reloaded(&mut self) {
+        self.last_hover = None;
+    }
+
     pub fn document_replaced(&mut self, doc: &Document) {
         self.scene_version = None;
         self.last_hover = None;

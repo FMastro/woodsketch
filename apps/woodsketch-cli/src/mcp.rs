@@ -20,6 +20,9 @@ const PROTOCOL: &str = "2025-06-18";
 pub struct Session {
     pub drawing: Option<Document>,
     pub recipe: Option<Recipe>,
+    /// The drawing's file, once `open` or `save` has named one. Knowing it is what makes
+    /// watching work: each edit is written straight back, and the app reloads what it sees.
+    pub path: Option<std::path::PathBuf>,
 }
 
 pub fn serve() {
@@ -206,7 +209,17 @@ fn call(name: &str, args: &Value, session: &mut Session, progress: &mut dyn FnMu
             let doc = recipe::build_reporting(&recipe, &mut *progress).map_err(|errors| format!("That doesn't build, so nothing changed:\n- {}", errors.join("\n- ")))?;
             let summary = recipe::summary(&doc);
             (session.drawing, session.recipe) = (Some(doc), Some(recipe));
-            Ok(text(format!("{said}\n{summary}"), false))
+            // Write it back to its file, so the app beside you shows the change. Nothing to
+            // write to until `open` or `save` has named one.
+            let saved = match &session.path {
+                Some(path) => match crate::save(session.drawing.as_ref().expect("just set"), path) {
+                    Ok(()) => String::new(),
+                    // The edit itself worked, so say the file didn't take it rather than fail.
+                    Err(e) => format!("\n(Changed here, but couldn't be saved: {e})"),
+                },
+                None => String::new(),
+            };
+            Ok(text(format!("{said}\n{summary}{saved}"), false))
         };
         match name {
             "add_part" => {
@@ -265,17 +278,23 @@ fn call(name: &str, args: &Value, session: &mut Session, progress: &mut dyn FnMu
                 Ok(text(serde_json::to_string_pretty(recipe).map_err(|e| e.to_string())?, false))
             }
             "open" => {
-                let doc = crate::load(path()?)?;
+                let opened = path()?;
+                let doc = crate::load(opened)?;
                 let summary = recipe::summary(&doc);
                 let (read, notes) = woodsketch_doc::recipe_of::from_document(&doc);
                 let notes = if notes.is_empty() { String::new() } else { format!("\nRead back as a recipe, but:\n- {}", notes.join("\n- ")) };
                 (session.drawing, session.recipe) = (Some(doc), Some(read));
+                session.path = Some(opened.to_owned());
                 Ok(text(format!("Opened.\n{summary}{notes}"), false))
             }
             "save" => {
                 let to = path()?;
                 crate::save(current()?, to)?;
-                Ok(text(format!("Saved {}.", to.display()), false))
+                let first = session.path.as_deref() != Some(to);
+                session.path = Some(to.to_owned());
+                // Worth saying once, so an assistant can pass it on to whoever it's working for.
+                let following = if first { " Changes from here on are saved to it as they're made, so the WoodSketch app will show them as you work." } else { "" };
+                Ok(text(format!("Saved {}.{following}", to.display()), false))
             }
             "summary" => Ok(text(recipe::summary(current()?), false)),
             "cut_list" => {
@@ -389,6 +408,74 @@ mod tests {
         assert!(said(&bad).contains("parts[0] (Shelf): no material \"teak\""));
         let unknown = ask(&mut session, json!({ "jsonrpc": "2.0", "id": 7, "method": "nothing/here" }));
         assert_eq!(unknown["error"]["code"], -32601);
+    }
+
+    #[test]
+    fn every_edit_is_written_back_to_the_file_so_the_app_can_follow() {
+        // Issue #6: the drawing on screen never saw the assistant's changes. Once a file has
+        // been named, each edit is saved to it, and the app (watching the file) reloads.
+        let dir = std::env::temp_dir().join(format!("woodsketch-mcp-save-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("bench.woodsketch");
+
+        let mut session = Session::default();
+        let recipe = json!({
+            "materials": [{ "id": "oak", "library": "Red Oak" }],
+            "parts": [{ "name": "Top", "material": "oak", "size": [60, 24, 1.5] }],
+        });
+        call_tool(&mut session, 1, "build", json!({ "recipe": recipe }));
+        assert_eq!(session.path, None, "nowhere to save to yet");
+
+        // Building alone writes nothing: there is no file until one is named.
+        assert!(!path.exists());
+        let parts = |p: &std::path::Path| {
+            let scene = woodsketch_doc::file::from_str(&std::fs::read_to_string(p).unwrap()).unwrap();
+            woodsketch_doc::Document::from_scene(scene).view().model().faces().count()
+        };
+
+        let saved = call_tool(&mut session, 2, "save", json!({ "path": path.to_string_lossy() }));
+        assert_eq!(saved["isError"], false, "{saved}");
+        assert!(said(&saved).contains("saved here as they're made") || said(&saved).contains("as they're made"), "{saved}");
+        assert_eq!(session.path.as_deref(), Some(path.as_path()), "the file is remembered");
+        let one_part = parts(&path);
+
+        // An edit, with no save call: it lands in the file by itself.
+        let leg = json!({ "name": "Leg", "material": "oak", "size": [30, 3, 3], "length": "z" });
+        let added = call_tool(&mut session, 3, "add_part", json!({ "part": leg }));
+        assert_eq!(added["isError"], false, "{added}");
+        assert!(parts(&path) > one_part, "the new part reached the file without asking");
+
+        // An edit that doesn't build leaves the file alone, as it leaves the drawing alone.
+        let before = std::fs::read_to_string(&path).unwrap();
+        let broken = call_tool(&mut session, 4, "add_joint", json!({ "joint": { "kind": "dado", "part": "Leg", "into": "Nothing" } }));
+        assert_eq!(broken["isError"], true);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), before, "a failed edit writes nothing");
+
+        // `open` names the file too, so changes to something opened follow it back.
+        let mut next = Session::default();
+        call_tool(&mut next, 1, "open", json!({ "path": path.to_string_lossy() }));
+        assert_eq!(next.path.as_deref(), Some(path.as_path()));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn saving_says_nothing_on_stdout_because_that_is_the_protocol() {
+        // `woodsketch-cli save` prints what it wrote; the MCP server must not, since its stdout
+        // carries JSON-RPC. The answer goes in the reply instead.
+        let dir = std::env::temp_dir().join(format!("woodsketch-mcp-quiet-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("quiet.woodsketch");
+        let mut session = Session::default();
+        call_tool(&mut session, 1, "build", json!({ "recipe": { "parts": [{ "name": "Shelf", "size": [20, 10, 0.75] }] } }));
+        let out = handle(&json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": { "name": "save", "arguments": { "path": path.to_string_lossy() } } }).to_string(), &mut session);
+        // Every message out is JSON-RPC; nothing stray rides along.
+        for message in &out {
+            assert_eq!(message["jsonrpc"], "2.0", "{message}");
+        }
+        assert!(path.exists(), "it did save");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

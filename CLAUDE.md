@@ -82,6 +82,18 @@ it for a report (`FeedbackWindow::start_crash`). `feedback::os_name` (the `os_in
 - `cargo test --workspace`
 - `cargo clippy --workspace --all-targets` (keep it warning-free)
 
+## Following a drawing another program is editing
+The app watches the open drawing's file (`ui-egui::watch`, polled every `watch::INTERVAL` by
+modified time and length, so no folder-watching dependency) and reads it again when it changes:
+`Document::reload_from` keeps the history, so a reload is one undo step and Ctrl+Z goes back to
+what was on screen, and the camera, selection and tray are left alone (`viewport::drawing_reloaded`,
+never `document_replaced`, whose Zoom Extents would throw the view away). With unsaved changes
+here it asks instead of choosing. The MCP server remembers its file (`mcp::Session::path`, named
+by `open` or `save`) and writes every edit back to it, which is what makes the app follow along
+(#6). Drawings are written through `doc::file::write_safely` (temp file, then rename) by both the
+app and the CLI, so a watcher never reads half a file; `crate::save` in the CLI says nothing on
+stdout, because the MCP server's stdout carries JSON-RPC.
+
 ## Third-party notices
 `THIRD-PARTY-NOTICES.md` lists every package WoodSketch is built with and its license, and
 `release.yml` packs it beside the app. Regenerate it when dependencies change.

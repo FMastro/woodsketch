@@ -451,6 +451,17 @@ impl Document {
         }
     }
 
+    /// Take in a drawing read from somewhere else as one undo step, keeping this one's history:
+    /// the file changed on disk while it was open (an assistant working through
+    /// `woodsketch-cli`, a synced folder, a checkout), so Ctrl+Z goes back to what was on screen.
+    /// The editing path is dropped, since the groups it pointed into may be gone.
+    pub fn reload_from(&mut self, other: &Self) {
+        self.push_undo();
+        self.state = State { scene: other.state.scene.clone(), path: Vec::new() };
+        self.coalescing = None;
+        self.changed();
+    }
+
     fn push_undo(&mut self) {
         self.undo.push(self.state.clone());
         if self.undo.len() > MAX_UNDO {

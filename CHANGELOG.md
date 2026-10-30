@@ -3,6 +3,19 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.56
+
+- The drawing follows its file. When something else changes the open drawing (an AI assistant
+  designing through `woodsketch-cli`, a synced folder, a checkout), WoodSketch notices and reads
+  it again, so you watch the piece take shape instead of closing and reopening it (#6). The view
+  stays where you left it, and the reload is a single undo step, so Ctrl+Z goes back to the
+  drawing as it was. If you have unsaved changes of your own, it asks which to keep rather than
+  choosing for you.
+- Over MCP, `save` (or `open`) names the drawing's file, and every edit after that is written
+  there as it's made, which is what the app follows.
+- Drawings are now always written whole: a temporary file, renamed over the top. A program reading
+  one as it's saved can no longer catch it half-written.
+
 ## 0.1.55
 
 - Help > Problems and Ideas opens everything people have reported or suggested, so you can see

@@ -52,6 +52,24 @@ impl fmt::Display for FileError {
 
 impl std::error::Error for FileError {}
 
+/// Write `text` to `path` without ever leaving it half-written: write a temporary file beside
+/// it, then rename it over the top. A reader (WoodSketch watching a drawing another program is
+/// editing, a synced folder) then sees either the old file or the new one, never half of one.
+pub fn write_safely(path: &std::path::Path, text: &str) -> std::io::Result<()> {
+    let mut temp = path.as_os_str().to_owned();
+    temp.push(".tmp");
+    let temp = std::path::PathBuf::from(temp);
+    std::fs::write(&temp, text)?;
+    std::fs::rename(&temp, path).inspect_err(|_| {
+        let _ = std::fs::remove_file(&temp);
+    })
+}
+
+/// Save `scene` to `path`, whole or not at all.
+pub fn save(scene: &Scene, path: &std::path::Path) -> Result<(), String> {
+    write_safely(path, &to_string(scene)).map_err(|e| format!("Couldn't save {}: {e}", path.display()))
+}
+
 pub fn to_string(scene: &Scene) -> String {
     let file = File { format: FORMAT.into(), version: VERSION, units: "inches".into(), scene: scene.clone() };
     serde_json::to_string_pretty(&file).expect("scenes always serialize")
