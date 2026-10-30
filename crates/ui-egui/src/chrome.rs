@@ -351,6 +351,11 @@ impl WoodSketchApp {
                 ui.close();
                 self.feedback.start(woodsketch_doc::feedback::Kind::Idea);
             }
+            ui.separator();
+            if ui.button("Problems and Ideas").on_hover_text("Everything people have reported or suggested, and what's been fixed, on GitHub").clicked() {
+                ui.close();
+                ui.ctx().open_url(egui::OpenUrl::new_tab(crate::updates::ISSUES_URL));
+            }
             if ui.button("Discussions").on_hover_text("Ask how to do something, say what WoodSketch should handle next, or show a piece you've made").clicked() {
                 ui.close();
                 ui.ctx().open_url(egui::OpenUrl::new_tab(crate::updates::DISCUSSIONS_URL));

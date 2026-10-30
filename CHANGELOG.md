@@ -3,6 +3,11 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.55
+
+- Help > Problems and Ideas opens everything people have reported or suggested, so you can see
+  whether something is already known (and what's been fixed) before writing it up.
+
 ## 0.1.54
 
 - Tapping Ctrl during a Move makes a copy again (#5). egui reports the Control key as a key press

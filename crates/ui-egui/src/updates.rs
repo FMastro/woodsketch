@@ -62,6 +62,9 @@ pub const RELEASES_URL: &str = "https://github.com/FMastro/woodsketch/releases";
 /// Where to ask how to do something, suggest what to build next, or show a piece.
 pub const DISCUSSIONS_URL: &str = "https://github.com/FMastro/woodsketch/discussions";
 
+/// Everything reported or suggested so far, open and fixed: worth a look before reporting.
+pub const ISSUES_URL: &str = "https://github.com/FMastro/woodsketch/issues";
+
 /// The release notes for `version`.
 pub fn notes_url(version: &str) -> String {
     format!("{RELEASES_URL}/tag/v{version}")
