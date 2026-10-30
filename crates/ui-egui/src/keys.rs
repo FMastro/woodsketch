@@ -33,6 +33,10 @@ impl Keyboard {
             // Follow Ctrl in event order, so even a tap within one frame registers.
             match &event {
                 egui::Event::ModifiersChanged(modifiers) => self.track_ctrl(modifiers.command, tools),
+                // Ctrl's own press and release are the tap itself, so they mustn't cancel it.
+                // egui reports the modifier keys as `ControlLeft` / `ControlRight` presses as
+                // well as in `ModifiersChanged`, and a held Ctrl repeats.
+                egui::Event::Key { key: egui::Key::ControlLeft | egui::Key::ControlRight, .. } => {}
                 // Ctrl+C, Ctrl+X and Ctrl+V arrive as these rather than key presses; they aren't taps.
                 egui::Event::Key { pressed: true, .. }
                 | egui::Event::PointerButton { pressed: true, .. }

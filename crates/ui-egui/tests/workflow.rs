@@ -54,6 +54,23 @@ fn click(harness: &mut Harness<'_, WoodSketchApp>, pos: egui::Pos2) {
     }
 }
 
+/// Tap Ctrl the way Windows reports it: the modifier state changes, and the Control key
+/// itself is pressed and released like any other key (egui has `Key::ControlLeft` for it).
+fn ctrl_tap(harness: &mut Harness<'_, WoodSketchApp>) {
+    harness.event(Event::ModifiersChanged(Modifiers::COMMAND));
+    for pressed in [true, false] {
+        harness.event(Event::Key {
+            key: Key::ControlLeft,
+            physical_key: Some(Key::ControlLeft),
+            pressed,
+            repeat: false,
+            modifiers: Modifiers::COMMAND,
+        });
+    }
+    harness.event(Event::ModifiersChanged(Modifiers::NONE));
+    harness.run();
+}
+
 fn type_text(harness: &mut Harness<'_, WoodSketchApp>, text: &str) {
     harness.event(Event::Text(text.into()));
     harness.run();
@@ -213,6 +230,41 @@ fn board(harness: &mut App) {
 }
 
 #[test]
+fn ctrl_tapped_after_the_base_point_still_copies() {
+    // Issue #5: tapping Ctrl once the move is under way (SketchUp's own order: pick the base
+    // point, start moving, then decide to copy) left the original where it was.
+    let mut harness = app();
+    board(&mut harness);
+    type_text(&mut harness, " ");
+    harness.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    harness.run();
+    let faces_before = harness.state().document().view().model().faces().count();
+
+    type_text(&mut harness, "m");
+    let (start, _) = harness.state().document().bounds().unwrap();
+    let base = harness.state().to_window(start).unwrap();
+    click(&mut harness, base);
+
+    // Now, mid-move, ask for a copy. A real Ctrl tap is what Windows actually sends: the
+    // modifiers change AND a physical press of the Control key itself.
+    ctrl_tap(&mut harness);
+    assert!(harness.state().tools().status().contains("copying"), "{}", harness.state().tools().status());
+
+    harness.key_press(Key::ArrowRight);
+    harness.hover_at(base + egui::vec2(120.0, 0.0));
+    harness.run();
+    type_text(&mut harness, "16");
+    harness.key_press(Key::Enter);
+    harness.run();
+
+    let model = harness.state().document().view().model();
+    assert_eq!(model.faces().count(), faces_before * 2, "the original and its copy");
+    let (lo, hi) = model.bounds().unwrap();
+    assert_eq!(lo, start, "the original stayed put");
+    assert!((hi.x - lo.x - 17.5).abs() < 1e-9, "copy 16 along red: {}", hi.x - lo.x);
+}
+
+#[test]
 fn copy_a_stud_into_a_wall_with_move_ctrl_and_array() {
     let mut harness = app();
     board(&mut harness);
@@ -223,9 +275,7 @@ fn copy_a_stud_into_a_wall_with_move_ctrl_and_array() {
     type_text(&mut harness, "m");
     assert_eq!(harness.state().tools().active(), ToolId::Move);
     // Tap Ctrl on its own to switch to copying.
-    harness.event(Event::ModifiersChanged(Modifiers::COMMAND));
-    harness.event(Event::ModifiersChanged(Modifiers::NONE));
-    harness.run();
+    ctrl_tap(&mut harness);
     assert!(harness.state().tools().status().contains("copying"), "{}", harness.state().tools().status());
 
     let (start, _) = harness.state().document().bounds().unwrap();
@@ -960,10 +1010,7 @@ fn ctrl_switches_the_tape_between_guides_and_measuring() {
     assert!(harness.state().tools().status().starts_with("Create Guide Lines"));
     // Taps of Ctrl on its own cycle the modes, as in SketchUp.
     for expected in ["Create Guide Points", "Measure", "Create Guide Lines", "Create Guide Points", "Measure"] {
-        harness.event(Event::ModifiersChanged(Modifiers::COMMAND));
-        harness.run();
-        harness.event(Event::ModifiersChanged(Modifiers::NONE));
-        harness.run();
+        ctrl_tap(&mut harness);
         let status = harness.state().tools().status();
         assert!(status.starts_with(expected), "{status}");
     }

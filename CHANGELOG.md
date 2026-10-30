@@ -3,6 +3,12 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.54
+
+- Tapping Ctrl during a Move makes a copy again (#5). egui reports the Control key as a key press
+  of its own as well as a change of modifiers, and that press was being taken for the start of a
+  chord, which cancelled the tap.
+
 ## 0.1.53
 
 - Help > Discussions opens the project's GitHub Discussions, for asking how to do something,
