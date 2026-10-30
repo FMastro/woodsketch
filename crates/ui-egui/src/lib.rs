@@ -73,7 +73,11 @@ pub struct WoodSketchApp {
     /// Check for updates at startup (a setting, kept between runs).
     check_updates: bool,
     /// This is the first run after an update: the status bar says so, with a link to what's new.
-    updated: bool,
+    /// The version that ran before this one, when it was a different one: What's New then shows
+    /// everything between it and now, not just this version.
+    updated_from: Option<String>,
+    /// What's New is open.
+    show_changes: bool,
     /// Whether the startup check has run, and whether the user asked for the last one.
     update_started: bool,
     update_asked: bool,
@@ -139,10 +143,11 @@ impl WoodSketchApp {
             reloaded: None,
             updater: None,
             check_updates: cc.storage.and_then(|s| eframe::get_value(s, UPDATES_KEY)).unwrap_or(true),
-            updated: cc
+            updated_from: cc
                 .storage
                 .and_then(|s| eframe::get_value::<String>(s, LAST_VERSION_KEY))
-                .is_some_and(|last| last != updates::VERSION),
+                .filter(|last| last != updates::VERSION),
+            show_changes: false,
             update_started: false,
             update_asked: false,
         }
@@ -259,6 +264,11 @@ impl WoodSketchApp {
 
     /// Autosave into `dir` (and offer back what's already there), as the app does with its
     /// settings folder; for tests, which have none.
+    /// Pretend this version replaced `version`, as storage says after an update; for tests.
+    pub fn came_from_version(&mut self, version: &str) {
+        self.updated_from = Some(version.to_owned());
+    }
+
     pub fn use_autosave_folder(&mut self, dir: PathBuf) {
         self.autosave = autosave::Autosave::new(Some(dir));
         self.leftovers = self.autosave.leftovers();
@@ -303,6 +313,26 @@ impl WoodSketchApp {
     /// interval (tests, and anywhere a reload is asked for rather than noticed).
     pub fn check_file_now(&mut self) {
         self.watch.check_now();
+    }
+
+    /// Just updated, so the status bar says so until it's dismissed or What's New is read.
+    pub(crate) fn updated(&self) -> bool {
+        self.updated_from.is_some()
+    }
+
+    /// The versions to show in What's New: everything since the one that ran last, or the most
+    /// recent few when there's nothing to compare against (a first run, or a long way behind).
+    pub(crate) fn changes_to_show(&self) -> Vec<updates::Release> {
+        let all = updates::releases(updates::CHANGES);
+        let new = updates::since(&all, self.updated_from.as_deref());
+        // Nothing new (same version as last run): show the recent ones rather than a blank
+        // window, since Help > What's New can be opened any time.
+        if new.is_empty() { updates::since(&all, None).to_vec() } else { new.to_vec() }
+    }
+
+    /// Open What's New, and stop saying "Updated to ..." in the status bar: it's been read.
+    pub(crate) fn read_the_changes(&mut self) {
+        self.show_changes = true;
     }
 
     /// Whether a reload just happened, for the note in the status bar. It clears itself: while
@@ -649,6 +679,7 @@ impl eframe::App for WoodSketchApp {
             self.show_tray = true;
         }
         self.about_window(&ctx);
+        self.changes_window(&ctx);
         self.feedback.show(&ctx, &self.doc, &self.graphics, self.files.last_error.as_deref());
 
         egui::CentralPanel::no_frame()

@@ -1885,6 +1885,43 @@ fn opens_a_sketchup_model() {
 }
 
 #[test]
+fn whats_new_gathers_every_update_you_skipped() {
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    // Updated from three versions back, as someone who hadn't opened it in a while would be.
+    let all = woodsketch_ui_egui::updates::releases(woodsketch_ui_egui::updates::CHANGES);
+    let three_back = all[3].version.clone();
+    harness.state_mut().came_from_version(&three_back);
+    harness.run();
+    // The status bar says so, and offers the notes.
+    assert!(harness.query_by_label_contains("Updated to").is_some());
+
+    harness.get_by_label("What's new").click();
+    harness.run();
+    assert!(harness.query_by_label_contains("What's New in WoodSketch").is_some());
+    // All three, not just this version, each under its own number.
+    assert!(harness.query_by_label_contains(&format!("3 updates since {three_back}")).is_some());
+    for release in &all[..3] {
+        assert!(harness.query_by_label(&release.version).is_some(), "{} is listed", release.version);
+    }
+    assert!(harness.query_by_label_contains(&all[4].version).is_none(), "older versions are left out");
+    snapshot(&mut harness, "whats_new");
+
+    harness.get_by_label("Done").click();
+    harness.run();
+    harness.run();
+    assert!(harness.query_by_label_contains("What's New in WoodSketch").is_none());
+    assert!(harness.query_by_label_contains("Updated to").is_none(), "read, so the status bar stops saying it");
+
+    // Help > What's New still opens it, with the recent few, when nothing is new.
+    harness.get_by_label("Help").click();
+    harness.run();
+    harness.get_by_label_contains("What's New").click();
+    harness.run();
+    assert!(harness.query_by_label_contains("The most recent updates").is_some());
+}
+
+#[test]
 fn the_status_bar_shows_an_update_downloading_then_ready() {
     use egui_kittest::kittest::Queryable;
     use std::sync::{Arc, Mutex};

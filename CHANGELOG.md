@@ -3,6 +3,16 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.57
+
+- Help > What's New gathers the last few updates in one window, each under its version, instead
+  of one release at a time. After an update it shows everything since the version you were
+  running, so skipping four updates no longer means reading four pages (or missing three of
+  them). The notes are built into the app, so it works with no connection.
+- Each release's notes on GitHub now carry the nine versions before them in a folded block, for
+  the same reason: releases are small and frequent, and one on its own reads like nothing much
+  happened.
+
 ## 0.1.56
 
 - The drawing follows its file. When something else changes the open drawing (an AI assistant

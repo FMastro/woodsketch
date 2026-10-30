@@ -338,7 +338,11 @@ impl WoodSketchApp {
             ui.checkbox(&mut self.check_updates, "Check for updates at startup")
                 .on_hover_text("A quick look at WoodSketch's releases on GitHub when it opens; new versions download in the background");
             ui.separator();
-            if ui.button("Release Notes").on_hover_text("What changed in each version, on GitHub").clicked() {
+            if ui.button("What's New...").on_hover_text("What the last few updates brought, newest first").clicked() {
+                ui.close();
+                self.read_the_changes();
+            }
+            if ui.button("Release Notes").on_hover_text("Every version's notes, on GitHub").clicked() {
                 ui.close();
                 ui.ctx().open_url(egui::OpenUrl::new_tab(crate::updates::RELEASES_URL));
             }
@@ -369,18 +373,80 @@ impl WoodSketchApp {
     }
 
     pub(crate) fn about_window(&mut self, ctx: &egui::Context) {
+        // `open` holds a borrow of the flag, so What's New is asked for through a local.
+        let mut show_about = self.show_about;
+        let mut changes = false;
         egui::Window::new("About WoodSketch")
-            .open(&mut self.show_about)
+            .open(&mut show_about)
             .collapsible(false)
             .resizable(false)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
                     ui.label(format!("WoodSketch {}", crate::updates::VERSION));
-                    ui.hyperlink_to("What's new", crate::updates::notes_url(crate::updates::VERSION));
+                    changes = ui.link("What's new").clicked();
                 });
                 ui.label("A lightweight 3D modeler for woodworking, in the spirit of SketchUp.");
                 ui.label("Not affiliated with or endorsed by Trimble.");
             });
+        self.show_about = show_about;
+        if changes {
+            self.read_the_changes();
+        }
+    }
+
+    /// What the last few updates brought, newest first. Releases are small and frequent, so one
+    /// version on its own reads like nothing happened; this gathers them, each under its version,
+    /// from the notes built into the app, so it works with no connection.
+    pub(crate) fn changes_window(&mut self, ctx: &egui::Context) {
+        if !self.show_changes {
+            return;
+        }
+        let releases = self.changes_to_show();
+        let since = self.updated_from.clone();
+        let mut open = true;
+        let mut read = false;
+        egui::Window::new("What's New in WoodSketch")
+            .open(&mut open)
+            .collapsible(false)
+            .default_width(520.0)
+            .default_height(440.0)
+            .show(ctx, |ui| {
+                match (&since, releases.len()) {
+                    (Some(from), 1) => ui.label(format!("One update since {from}:")),
+                    (Some(from), n) => ui.label(format!("{n} updates since {from}:")),
+                    (None, _) => ui.label("The most recent updates:"),
+                };
+                ui.separator();
+                // Leave room for the buttons below: an unbounded scroll area takes the whole
+                // window and pushes them off the bottom, out of reach.
+                let room = (ui.available_height() - 36.0).max(80.0);
+                egui::ScrollArea::vertical().max_height(room).auto_shrink([false, false]).show(ui, |ui| {
+                    for release in &releases {
+                        ui.horizontal(|ui| {
+                            ui.heading(&release.version);
+                            if release.version == crate::updates::VERSION {
+                                ui.label("(this one)");
+                            }
+                        });
+                        for item in notes_items(&release.notes) {
+                            ui.label(format!("{} {item}", egui_phosphor::regular::DOT_OUTLINE));
+                        }
+                        ui.add_space(10.0);
+                    }
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    // "Done" rather than "Close": it marks the notes read, which is why the
+                    // status bar stops offering them afterwards.
+                    read = ui.button("Done").on_hover_text("Marks these as read").clicked();
+                    ui.hyperlink_to("Every version on GitHub", crate::updates::RELEASES_URL);
+                });
+            });
+        if read || !open {
+            self.show_changes = false;
+            // Read, so the status bar needn't keep offering it.
+            self.updated_from = None;
+        }
     }
 
     /// Standard and view buttons under the menu bar.
@@ -518,12 +584,14 @@ impl WoodSketchApp {
                             .on_hover_text("Ctrl+Z goes back to the drawing as it was before the reload");
                         ui.separator();
                     }
-                    // Just updated: say so once, with what changed.
-                    if self.updated {
+                    // Just updated: say so once, with everything the update brought.
+                    if self.updated() {
                         if ui.small_button(egui_phosphor::regular::X).on_hover_text("Dismiss").clicked() {
-                            self.updated = false;
+                            self.updated_from = None;
                         }
-                        ui.hyperlink_to("What's new", crate::updates::notes_url(crate::updates::VERSION));
+                        if ui.link("What's new").on_hover_text("What came in this update, and in any you skipped").clicked() {
+                            self.read_the_changes();
+                        }
                         ui.label(format!("{} Updated to {}", egui_phosphor::regular::CHECK_CIRCLE, crate::updates::VERSION));
                         ui.separator();
                     }
@@ -566,6 +634,29 @@ impl WoodSketchApp {
 }
 
 /// A tray panel: a bar with the panel's name that folds it open and closed.
+/// A version's notes split into its bullets, each with its wrapped lines joined into one, so
+/// egui wraps them to the window's width instead of keeping the file's line breaks.
+fn notes_items(notes: &str) -> Vec<String> {
+    let mut items: Vec<String> = Vec::new();
+    for line in notes.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("- ") {
+            items.push(rest.to_owned());
+        } else if !trimmed.is_empty() {
+            match items.last_mut() {
+                // A wrapped continuation of the bullet above.
+                Some(item) => {
+                    item.push(' ');
+                    item.push_str(trimmed);
+                }
+                // Notes not written as bullets still show.
+                None => items.push(trimmed.to_owned()),
+            }
+        }
+    }
+    items
+}
+
 fn tray_section(ui: &mut egui::Ui, title: &str, contents: impl FnOnce(&mut egui::Ui)) {
     egui::CollapsingHeader::new(egui::RichText::new(title).strong())
         .id_salt(title)

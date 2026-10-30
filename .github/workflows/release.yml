@@ -206,7 +206,27 @@ jobs:
           ls -l release
           # This version's section of CHANGELOG.md (between its heading and the next).
           awk -v v="## $VERSION" '$0 == v {on = 1; next} /^## / {on = 0} on' source/CHANGELOG.md > changes.md
-          # The release notes are just that section.
+          # Releases are small and frequent, so one version's notes read like one small change.
+          # The nine before it go in a folded block, each under its version, so someone who
+          # skipped a few sees everything they're getting and which release brought it.
+          awk -v v="## $VERSION" '
+            $0 == v { seen = 1; next }                      # skip this version: it is above
+            /^## / { if (seen) { kept++; if (kept > 9) exit } }
+            seen && kept { print }
+          ' source/CHANGELOG.md > earlier.md
+          if [ -s earlier.md ]; then
+            {
+              echo
+              echo "<details><summary><b>Also in recent updates</b> (if you skipped a few)</summary>"
+              echo
+              # Each version's own heading, a step smaller so this version's notes stay on top.
+              sed 's/^## /#### /' earlier.md
+              echo
+              echo "Every version's notes are in [CHANGELOG.md](https://github.com/$GITHUB_REPOSITORY/blob/main/CHANGELOG.md)."
+              echo "</details>"
+            } >> changes.md
+          fi
+          # The release notes: this version, then what came just before it.
           gh release create "v$VERSION" release/* \
             --repo "$GITHUB_REPOSITORY" \
             --draft \

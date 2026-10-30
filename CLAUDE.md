@@ -306,10 +306,15 @@ points); keep general modeling working alongside it.
    them back; a shared component's copy is made unique (`Scene::make_unique`) first. The Joinery
    panel offers them when parts aren't square (`JoineryError::NotSquare`).
 35. Release notes: `CHANGELOG.md` (a `## <version>` section per release; add to it with every change
-   that ships). `release.yml` puts the version's section into the GitHub release. Help > Release
-   Notes and the "What's new" link in Help > About (`updates::notes_url`); the first run after an
-   update says "Updated to x.y.z" in the status bar (`last_version` setting). The website links the
-   releases page.
+   that ships). `release.yml` puts the version's section into the GitHub release, then the nine
+   before it in a folded "Also in recent updates" block, since releases are small and frequent and
+   one alone reads like nothing happened. The file is also built into the app
+   (`updates::CHANGES`, parsed by `updates::releases` / `updates::since`): Help > What's New shows
+   the versions since the one that ran last (`last_version`, kept as `updated_from`, not just a
+   bool), and the status bar's "What's new" after an update opens it rather than a browser tab.
+   A test asserts the newest `## ` section is the running version, so a forgotten entry fails
+   before it reaches a release. Help > Release Notes still opens every version on GitHub; the
+   website links the releases page.
 36. Cleanup round (0.1.12-0.1.13): `Joint::sizes` (Change refills the picker), `Tenon::fit` / `Dowels::fit`;
    template stock, adjustable shelves on pins, hinge side, middle rails, table sizes, wood in Change
    size; right-click menu (`Tools::select_under`, Reverse Faces, Make Unique), View > Guides
