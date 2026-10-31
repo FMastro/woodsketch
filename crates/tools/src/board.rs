@@ -47,7 +47,8 @@ pub struct BoardTool {
     hints: Hints,
     /// The board just drawn, which typing can still change.
     last: Option<Last>,
-    // track if we are mirroring the board while drawing
+    /// How W has turned over the board being drawn: 0 not at all, 1 across its width, 2 across
+    /// its width and thickness, 3 across its thickness. Sheets only turn over their thickness.
     mirror: u8,
 }
 
@@ -95,13 +96,14 @@ impl BoardTool {
         self.on_edge = !self.on_edge;
     }
 
-    pub fn mirror(&mut self){
+    /// Turn the board being drawn over (W): lumber steps through its width, then its width and
+    /// thickness, then its thickness, then back; sheets and solid wood flip their thickness.
+    pub fn mirror(&mut self) {
         self.mirror = match (self.is_lumber(), self.mirror) {
             (true, m) => (m + 1) % 4,
-            (false, 0) => 3,
-            (false, _) => 0,
+            (false, 2 | 3) => 0,
+            (false, _) => 3,
         };
-
     }
 
     /// Keep the picked stock valid: if nothing is picked or its material is gone, pick the
@@ -239,7 +241,10 @@ impl BoardTool {
                 Some(Board { origin, length_dir, width_dir, length, width, thickness })
             }
         };
-        board.map(|b| b.mirrored(matches!(self.mirror, 1 | 2), matches!(self.mirror, 2 | 3)))
+        // Only lumber turns over its width, so a flip kept from lumber when the stock changes to
+        // a sheet mid-board doesn't slide the sheet across.
+        let lumber = matches!(stock, Stock::Section { .. });
+        board.map(|b| b.mirrored(lumber && matches!(self.mirror, 1 | 2), matches!(self.mirror, 2 | 3)))
     }
 
     /// The board under the cursor, for the preview.
@@ -590,4 +595,38 @@ mod tests {
         assert_eq!(doc.part_size(part), Some([96.0, 5.5, 1.5]));
     }
 
+    #[test]
+    fn a_width_flip_from_lumber_leaves_a_sheet_where_it_was() {
+        let mut doc = Document::default();
+        let mut tool = with(&mut doc, "Pine Lumber");
+        doc.add_preset(LIBRARY.iter().find(|p| p.name == "Baltic Birch Plywood").unwrap());
+        tool.pick_matching(&mut doc, Stock::Section { thickness: 1.5, width: 3.5 }).unwrap();
+        let camera = camera();
+        let screen = Screen::new(&camera, SIZE);
+        tool.click(&mut doc, screen, at(screen, 0.0, 0.0)).unwrap();
+        // Turned over its width as lumber, then switched to a sheet mid-board.
+        tool.mirror();
+        tool.pick_matching(&mut doc, Stock::Thickness(0.75)).unwrap();
+        tool.hover(&doc, screen, at(screen, 10.0, 30.0));
+        tool.enter(&mut doc, "11 1/4,30").unwrap();
+        let (lo, hi) = doc.bounds().unwrap();
+        assert!(lo.abs_diff_eq(DVec3::ZERO, 1e-9), "{lo}");
+        assert!(hi.abs_diff_eq(DVec3::new(11.25, 30.0, 0.75), 1e-9), "{hi}");
+    }
+
+    #[test]
+    fn w_flips_a_sheet_through_its_thickness() {
+        let mut doc = Document::default();
+        let mut tool = with(&mut doc, "Baltic Birch Plywood");
+        tool.pick_matching(&mut doc, Stock::Thickness(0.75)).unwrap();
+        let camera = camera();
+        let screen = Screen::new(&camera, SIZE);
+        tool.click(&mut doc, screen, at(screen, 0.0, 0.0)).unwrap();
+        tool.mirror();
+        tool.hover(&doc, screen, at(screen, 10.0, 30.0));
+        tool.enter(&mut doc, "11 1/4,30").unwrap();
+        let (lo, hi) = doc.bounds().unwrap();
+        assert!(lo.abs_diff_eq(DVec3::new(0.0, 0.0, -0.75), 1e-9), "{lo}");
+        assert!(hi.abs_diff_eq(DVec3::new(11.25, 30.0, 0.0), 1e-9), "{hi}");
+    }
 }

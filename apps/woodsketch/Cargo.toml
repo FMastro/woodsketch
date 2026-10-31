@@ -11,8 +11,7 @@ woodsketch-ui-egui.workspace = true
 eframe.workspace = true
 env_logger.workspace = true
 velopack = "=1.2.161"
-# log = { workspace = true, default-features = false }
-log = "0.4.34"
+log = { workspace = true, default-features = false }
 
 [lints]
 workspace = true
