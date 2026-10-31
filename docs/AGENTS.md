@@ -11,7 +11,7 @@ Two ways in:
   progress (each part, joint and group) to a client that asks for it. Call
   `guide` (this text), `build` with a recipe, check with `summary`, `movement` and `render`, then
   change it a piece at a time (`add_part`, `change_part`, `remove`, `add_joint`, `remove_joint`,
-  `add_profile`; `recipe` shows the whole recipe now), and `save` (a `.woodsketch` file; call it
+  `add_profile`, `add_group`; `recipe` shows the whole recipe now), and `save` (a `.woodsketch` file; call it
   early, and every later edit is written there too, so the app shows your work as you go) and
   `cut_sheet` / `build_sheets` (HTML). `open` reads a drawing (`.woodsketch`, or a SketchUp `.skp`)
   back as a recipe, so a design made by hand can be changed the same way. The guide and the
@@ -165,6 +165,11 @@ Ready-made assemblies, with only the sizes you change:
 are made between parts side by side first). A group's parts can be templates' names too.
 Groups and templates take a `tag` too. `"moves": true` marks a group that's a drawer or a door,
 so the wood movement check doesn't hold its parts against the case's.
+
+To group parts that are already drawn, use `add_group` with their names rather than rebuilding
+the recipe: `build` replaces the drawing and lets go of its file, so the app stops following the
+changes until you `save` again. `remove` with a group's name takes the group out and leaves its
+parts. A part belongs to one group at a time.
 
 ### tags
 

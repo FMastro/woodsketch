@@ -350,6 +350,28 @@ impl Recipe {
         Ok(())
     }
 
+    /// Put parts that are already in the drawing into a group (or a component), so grouping
+    /// doesn't mean rewriting the recipe. Every named part has to exist, and a part belongs to
+    /// one group at a time.
+    pub fn add_group(&mut self, group: GroupSpec) -> Result<(), String> {
+        if group.parts.is_empty() {
+            return Err("Say which parts to group.".into());
+        }
+        if self.names().contains(&group.name.as_str()) {
+            return Err(format!("\"{}\" is already the name of a part, copy, template or group.", group.name));
+        }
+        for name in &group.parts {
+            if !self.names().contains(&name.as_str()) {
+                return Err(self.no_part(name));
+            }
+            if let Some(already) = self.groups.iter().find(|g| g.parts.contains(name)) {
+                return Err(format!("\"{name}\" is already in \"{}\" (take it out of that first).", already.name));
+            }
+        }
+        self.groups.push(group);
+        Ok(())
+    }
+
     /// Change some of a part's fields (`{"at": [0, 0, 12]}`, `{"size": [30, 10, 0.75]}`), keeping
     /// the rest. Renaming it renames it in its joints, profiles and groups too.
     pub fn change_part(&mut self, name: &str, changes: &serde_json::Value) -> Result<(), String> {

@@ -9,7 +9,7 @@ use std::io::{BufRead, Write};
 use std::path::Path;
 
 use serde_json::{Value, json};
-use woodsketch_doc::recipe::{self, JointSpec, PartSpec, ProfileSpec, Recipe};
+use woodsketch_doc::recipe::{self, GroupSpec, JointSpec, PartSpec, ProfileSpec, Recipe};
 use woodsketch_doc::{Document, cutlist};
 
 /// The protocol version answered when a client asks for one this doesn't know.
@@ -104,7 +104,7 @@ pub fn respond(line: &str, session: &mut Session, send: &mut dyn FnMut(Value)) {
             "protocolVersion": params["protocolVersion"].as_str().unwrap_or(PROTOCOL),
             "capabilities": { "tools": {}, "resources": {}, "prompts": {} },
             "serverInfo": { "name": "woodsketch", "version": env!("CARGO_PKG_VERSION") },
-            "instructions": "WoodSketch designs woodworking projects. Call `guide` first: it explains the project recipe (JSON) that `build` takes (its JSON Schema is the resource woodsketch://recipe-schema). Build, check with `summary`, `movement` and `render`, then change it a piece at a time (`add_part`, `change_part`, `remove`, `add_joint`, `add_profile`; `recipe` shows what it is now), and `save` or write `cut_sheet` / `build_sheets` for the shop."
+            "instructions": "WoodSketch designs woodworking projects. Call `guide` first: it explains the project recipe (JSON) that `build` takes (its JSON Schema is the resource woodsketch://recipe-schema). Build, check with `summary`, `movement` and `render`, then change it a piece at a time (`add_part`, `change_part`, `remove`, `add_joint`, `add_profile`, `add_group`; `recipe` shows what it is now), and `save` or write `cut_sheet` / `build_sheets` for the shop."
         })),
         "ping" => Ok(json!({})),
         "tools/list" => Ok(json!({ "tools": tools() })),
@@ -176,7 +176,7 @@ fn tools() -> Vec<Value> {
         tool("guide", "How to write a WoodSketch project recipe, with an example. Read this before build.", json!({}), &[]),
         tool(
             "build",
-            "Build the drawing from a project recipe (see guide). Replaces the current drawing. Returns a summary (size, parts by material, joints, wood movement) or every problem found, each naming the recipe item to fix.",
+            "Build the drawing from a project recipe (see guide). Replaces the current drawing, so it is no longer saved to the file the last one was: `save` after building to keep it, and to have the WoodSketch app follow the changes that come after. Returns a summary (size, parts by material, joints, wood movement) or every problem found, each naming the recipe item to fix.",
             json!({ "recipe": { "type": "object", "description": "The project recipe (JSON object, or a string of JSON)" } }),
             &["recipe"],
         ),
@@ -197,6 +197,12 @@ fn tools() -> Vec<Value> {
             &["part", "into"],
         ),
         tool("add_profile", "Add an edge profile to a part (as in the recipe's profiles) and rebuild.", json!({ "profile": def("ProfileSpec") }), &["profile"]),
+        tool(
+            "add_group",
+            "Put parts already in the drawing into a group (or a component), so a drawer or a door is one thing to move, turn and count. Takes the parts' names; `remove` takes a group out again, leaving its parts.",
+            json!({ "group": def("GroupSpec") }),
+            &["group"],
+        ),
         tool("open", "Open a .woodsketch drawing, a recipe .json, or a SketchUp 2021+ .skp as the current drawing (read back as a recipe to change).", json!({ "path": path }), &["path"]),
         tool("save", "Save the current drawing as a .woodsketch file (the WoodSketch app opens it).", json!({ "path": path }), &["path"]),
         tool("summary", "The current drawing's overall size, parts by material with sizes, joints and wood movement warnings.", json!({}), &[]),
@@ -302,6 +308,14 @@ fn call(name: &str, args: &Value, session: &mut Session, progress: &mut dyn FnMu
                     Ok(format!("Added a {} on {}.", profile.profile, profile.part))
                 });
             }
+            "add_group" => {
+                let group: GroupSpec = item(&args["group"], "group")?;
+                return edit(&|r| {
+                    let what = if group.component { "component" } else { "group" };
+                    let count = group.parts.len();
+                    r.add_group(group.clone()).map(|()| format!("Grouped {count} part(s) into the {what} {}.", group.name))
+                });
+            }
             _ => {}
         }
         let current = || session.drawing.as_ref().ok_or("No drawing yet: build one from a recipe, or open a file.".to_owned());
@@ -321,8 +335,18 @@ fn call(name: &str, args: &Value, session: &mut Session, progress: &mut dyn FnMu
                 (session.drawing, session.recipe) = (Some(doc), Some(parsed));
                 // A different drawing now, so any file the session was writing to is no longer
                 // its own: `save` names one again, rather than this quietly overwriting it.
-                (session.path, session.written) = (None, None);
-                Ok(text(format!("Built.\n{summary}"), false))
+                // Say so: a build that quietly stops the app following along looks like the
+                // drawing has frozen, and the person has to ask why nothing is happening.
+                let dropped = session.path.take();
+                session.written = None;
+                let note = match dropped {
+                    Some(path) => format!(
+                        "\nThis is a new drawing, so it is no longer saved to {}. `save` it (there or somewhere else) to keep it and to have the WoodSketch app follow your changes again.",
+                        path.display()
+                    ),
+                    None => String::new(),
+                };
+                Ok(text(format!("Built.\n{summary}{note}"), false))
             }
             "recipe" => {
                 let recipe = session.recipe.as_ref().ok_or("No drawing yet: build one from a recipe, or open a file.")?;
@@ -567,6 +591,57 @@ mod tests {
     }
 
     #[test]
+    fn parts_already_drawn_can_be_grouped_without_rebuilding() {
+        // From real use: asked to "group the drawer together", the assistant had no tool for it
+        // and rewrote the whole recipe through `build` — which let go of the file, so the app
+        // quietly stopped following along.
+        let dir = std::env::temp_dir().join(format!("woodsketch-mcp-group-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("chest.woodsketch");
+
+        let mut session = Session::default();
+        call_tool(&mut session, 1, "build", json!({ "recipe": { "parts": [
+            { "name": "Drawer Front", "size": [20, 6, 0.75] },
+            { "name": "Drawer Side L", "size": [18, 6, 0.5] },
+            { "name": "Drawer Side R", "size": [18, 6, 0.5] },
+            { "name": "Case Side", "size": [24, 20, 0.75] },
+        ] } }));
+        call_tool(&mut session, 2, "save", json!({ "path": path.to_string_lossy() }));
+        let before = std::fs::read_to_string(&path).unwrap();
+
+        let drawer = json!({ "name": "Drawer", "parts": ["Drawer Front", "Drawer Side L", "Drawer Side R"], "moves": true });
+        let grouped = call_tool(&mut session, 3, "add_group", json!({ "group": drawer }));
+        assert_eq!(grouped["isError"], false, "{grouped}");
+        assert!(said(&grouped).contains("Grouped 3 part(s) into the group Drawer"), "{grouped}");
+        // The point of the tool: the drawing still belongs to its file, so the app keeps up.
+        assert_eq!(session.path.as_deref(), Some(path.as_path()), "still saving to its file");
+        assert_ne!(std::fs::read_to_string(&path).unwrap(), before, "the group reached the file");
+        assert_eq!(session.recipe.as_ref().unwrap().groups.len(), 1);
+
+        // A part belongs to one group, a name is used once, and parts must exist.
+        let again = call_tool(&mut session, 4, "add_group", json!({ "group": { "name": "Box", "parts": ["Drawer Front"] } }));
+        assert_eq!(again["isError"], true);
+        assert!(said(&again).contains("already in"), "{again}");
+        let taken = call_tool(&mut session, 5, "add_group", json!({ "group": { "name": "Drawer", "parts": ["Case Side"] } }));
+        assert_eq!(taken["isError"], true);
+        assert!(said(&taken).contains("already the name of"), "{taken}");
+        let unknown = call_tool(&mut session, 6, "add_group", json!({ "group": { "name": "Lid", "parts": ["Nothing"] } }));
+        assert_eq!(unknown["isError"], true);
+        assert!(said(&unknown).contains("No part named"), "{unknown}");
+        let empty = call_tool(&mut session, 7, "add_group", json!({ "group": { "name": "Lid", "parts": [] } }));
+        assert_eq!(empty["isError"], true);
+
+        // A component is named as one, and `remove` takes a group out again.
+        let doors = json!({ "name": "Door", "parts": ["Case Side"], "component": true });
+        let made = call_tool(&mut session, 8, "add_group", json!({ "group": doors }));
+        assert!(said(&made).contains("into the component Door"), "{made}");
+        assert_eq!(call_tool(&mut session, 9, "remove", json!({ "name": "Drawer" }))["isError"], false);
+        assert!(session.recipe.as_ref().unwrap().parts.iter().any(|p| p.name == "Drawer Front"), "its parts stay");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn building_a_new_drawing_lets_go_of_the_old_file() {
         let dir = std::env::temp_dir().join(format!("woodsketch-mcp-rebuild-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -579,8 +654,11 @@ mod tests {
         let first = std::fs::read_to_string(&path).unwrap();
 
         // A different project: the old file isn't this drawing's any more.
-        call_tool(&mut session, 3, "build", json!({ "recipe": { "parts": [{ "name": "B", "size": [20, 20, 2] }] } }));
+        let rebuilt = call_tool(&mut session, 3, "build", json!({ "recipe": { "parts": [{ "name": "B", "size": [20, 20, 2] }] } }));
         assert_eq!(session.path, None, "it let go of the file");
+        // It must say so: a build that quietly stops the app following looks like it froze.
+        assert!(said(&rebuilt).contains("no longer saved to"), "{rebuilt}");
+        assert!(said(&rebuilt).contains("`save`"), "and says what to do: {rebuilt}");
         assert_eq!(call_tool(&mut session, 4, "add_part", json!({ "part": { "name": "C", "size": [5, 5, 1] } }))["isError"], false);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), first, "the first project's file is untouched");
         let _ = std::fs::remove_dir_all(&dir);

@@ -3,6 +3,15 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.60
+
+- An assistant can group parts that are already drawn (`add_group` over MCP), instead of
+  rewriting the whole project to put a drawer together. Asking for a group no longer rebuilds
+  everything.
+- Building from a recipe says that the drawing is no longer saved to its file. It never did, so
+  the app quietly stopped showing changes after a rebuild and the only clue was that nothing
+  happened until you asked why.
+
 ## 0.1.59
 
 - What's New reaches back to 0.1.54 rather than ten versions, so the list is the run of recent
