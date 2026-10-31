@@ -81,6 +81,9 @@ it for a report (`FeedbackWindow::start_crash`). `feedback::os_name` (the `os_in
 - `cargo run -p woodsketch-cli -- help` (build a recipe, render, MCP)
 - `cargo test --workspace`
 - `cargo clippy --workspace --all-targets` (keep it warning-free)
+- `python -I scripts/try-mcp.py` drives the real `woodsketch-cli mcp` over its pipe and checks it
+  end to end (`--keep` leaves the drawing to open in the app). The unit tests drive the server
+  in-process; this catches what only breaks across the pipe, such as anything printing to stdout.
 
 ## Following a drawing another program is editing
 The app watches the open drawing's file (`ui-egui::watch`, polled every `watch::INTERVAL` by
