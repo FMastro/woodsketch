@@ -73,6 +73,9 @@ impl Keyboard {
                             tools.make_group(doc, DefinitionKind::Component);
                         } else if c == 'Z' {
                             viewport.request_zoom_extents();
+                        } else if c == 'w' && tools.active() == ToolId::Board && tools.board().is_busy() {
+                            // Halfway through a board W mirrors it; otherwise it picks the Board tool.
+                            tools.board_mut().mirror();
                         } else if let Some(tool) = ToolId::from_shortcut(c) {
                             tools.activate(tool);
                         }

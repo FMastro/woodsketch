@@ -11,6 +11,8 @@ GitHub release; keep a `## <version>` heading for every release.
 - Building from a recipe says that the drawing is no longer saved to its file. It never did, so
   the app quietly stopped showing changes after a rebuild and the only clue was that nothing
   happened until you asked why.
+- While drawing a board, tap W to mirror it without changing the way it runs: lumber turns over
+  its width, then its thickness; sheets and solid wood turn over their thickness.
 
 ## 0.1.59
 
