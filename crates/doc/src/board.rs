@@ -112,15 +112,16 @@ impl Board {
         })
     }
 
+    /// The same board turned over to the other side of its start: across its width, its
+    /// thickness, or both. It still runs the same way; only where it sits changes.
     pub fn mirrored(mut self, width: bool, thickness: bool) -> Self {
-       if width {
+        if width {
             self.origin -= self.width_dir.normalize() * self.width;
         }
         if thickness {
             self.origin -= self.length_dir.cross(self.width_dir).normalize() * self.thickness;
         }
         self
-
     }
 
     /// The twelve edges, for previews.
