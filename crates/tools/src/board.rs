@@ -47,6 +47,8 @@ pub struct BoardTool {
     hints: Hints,
     /// The board just drawn, which typing can still change.
     last: Option<Last>,
+    // track if we are mirroring the board while drawing
+    mirror: u8,
 }
 
 #[derive(Clone, Copy)]
@@ -91,6 +93,15 @@ impl BoardTool {
 
     pub fn toggle_on_edge(&mut self) {
         self.on_edge = !self.on_edge;
+    }
+
+    pub fn mirror(&mut self){
+        self.mirror = match (self.is_lumber(), self.mirror) {
+            (true, m) => (m + 1) % 4,
+            (false, 0) => 3,
+            (false, _) => 0,
+        };
+
     }
 
     /// Keep the picked stock valid: if nothing is picked or its material is gone, pick the
@@ -156,6 +167,7 @@ impl BoardTool {
             None => {
                 let Some(hover) = self.hover else { return Ok(()) };
                 self.last = None;
+                self.mirror = 0;
                 self.start = Some(Start { point: hover.point, normal: hover.normal.normalize() });
                 Ok(())
             }
@@ -195,7 +207,7 @@ impl BoardTool {
     /// rectangle `extents` on the start surface, its longer side as the length.
     fn board(&self, start: Start, dir: DVec3, extents: (f64, f64), stock: Stock) -> Option<Board> {
         let n = start.normal;
-        match stock {
+        let board = match stock {
             Stock::Section { thickness, width } => {
                 let length = extents.0;
                 if length < EPS || dir.length() < 0.5 {
@@ -226,7 +238,8 @@ impl BoardTool {
                 length_dir = length_dir.normalize();
                 Some(Board { origin, length_dir, width_dir, length, width, thickness })
             }
-        }
+        };
+        board.map(|b| b.mirrored(matches!(self.mirror, 1 | 2), matches!(self.mirror, 2 | 3)))
     }
 
     /// The board under the cursor, for the preview.
@@ -402,8 +415,8 @@ impl BoardTool {
                 format!("{}: click where the board starts. Type 2x4x96, or 3,6 1/2 for a custom size. Ctrl stands it on edge.", picked.name)
             }
             (None, Stock::Thickness(_)) => format!("{}: click a corner of the board.", picked.name),
-            (Some(_), Stock::Section { .. }) => "Click where it ends, or type the length. Arrows lock an axis.".into(),
-            (Some(_), Stock::Thickness(_)) => "Click the opposite corner, or type length,width.".into(),
+            (Some(_), Stock::Section { .. }) => "Click where it ends, or type the length. Arrows lock an axis. W mirrors the board.".into(),
+            (Some(_), Stock::Thickness(_)) => "Click the opposite corner, or type length,width. W mirrors the board.".into(),
         }
     }
 
@@ -556,4 +569,25 @@ mod tests {
         let (lo, hi) = doc.bounds().unwrap();
         assert!((hi - lo).abs_diff_eq(DVec3::new(3.5, 36.0, 1.5), 1e-9), "{:?}", hi - lo);
     }
+
+    #[test]
+    fn mirroring_board_twice() {
+        let mut doc = Document::default();
+        let mut tool = BoardTool::default();
+        let camera = camera();
+        let screen = Screen::new(&camera, SIZE);
+        tool.enter(&mut doc, "2x6x96").unwrap();
+        tool.click(&mut doc, screen, at(screen, 0.0, 0.0)).unwrap();
+        tool.hover(&doc, screen, at(screen, 40.0, 0.0));
+        tool.mirror();
+        tool.mirror();
+        tool.enter(&mut doc, "2x6x96").unwrap();
+        // Width and thickness turned over; the length still runs from the start towards the mouse.
+        let (lo, hi) = doc.bounds().unwrap();
+        assert!(lo.abs_diff_eq(DVec3::new(0.0, -5.5, -1.5), 1e-9), "{lo}");
+        assert!(hi.abs_diff_eq(DVec3::new(96.0, 0.0, 0.0), 1e-9), "{hi}");
+        let part = doc.container().instances().next().unwrap().0;
+        assert_eq!(doc.part_size(part), Some([96.0, 5.5, 1.5]));
+    }
+
 }

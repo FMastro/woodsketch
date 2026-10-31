@@ -112,6 +112,17 @@ impl Board {
         })
     }
 
+    pub fn mirrored(mut self, width: bool, thickness: bool) -> Self {
+       if width {
+            self.origin -= self.width_dir.normalize() * self.width;
+        }
+        if thickness {
+            self.origin -= self.length_dir.cross(self.width_dir).normalize() * self.thickness;
+        }
+        self
+
+    }
+
     /// The twelve edges, for previews.
     pub fn edges(&self) -> Vec<[DVec3; 2]> {
         let c = self.corners();
