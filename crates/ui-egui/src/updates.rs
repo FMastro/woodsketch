@@ -74,8 +74,14 @@ pub fn notes_url(version: &str) -> String {
 /// and the file the release workflow already reads, so there is one source of release notes.
 pub const CHANGES: &str = include_str!("../../../CHANGELOG.md");
 
-/// How many versions What's New shows when it can't tell which one ran last.
+/// How many versions What's New shows at most.
 const RECENT: usize = 10;
+
+/// The oldest version it lists. Everything before this is in `CHANGELOG.md` and on GitHub; the
+/// window is for what someone has recently missed, not the whole history. Once [`RECENT`]
+/// versions have shipped since this one, that limit is the narrower of the two and this stops
+/// having any effect, so it doesn't need moving as versions go by.
+const OLDEST: &str = "0.1.54";
 
 /// One version's notes, as `CHANGELOG.md` has them.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -107,11 +113,15 @@ pub fn releases(changes: &str) -> Vec<Release> {
 /// updates sees all four. `None` (a first run, or a version too old to be in the notes) shows
 /// the [`RECENT`] newest instead of nothing.
 pub fn since<'a>(releases: &'a [Release], ran_last: Option<&str>) -> &'a [Release] {
+    // How far back the list may reach: never past [`OLDEST`], and never more than [`RECENT`].
+    // Newest first, so the oldest allowed version's position is the count to stop at.
+    let floor = releases.iter().position(|r| r.version == OLDEST).map_or(releases.len(), |at| at + 1);
+    let most = floor.min(RECENT);
     match ran_last.and_then(|last| releases.iter().position(|r| r.version == last)) {
         // The versions above the one that ran: what this update brought.
         Some(0) => &[],
-        Some(at) => &releases[..at],
-        None => &releases[..releases.len().min(RECENT)],
+        Some(at) => &releases[..at.min(most)],
+        None => &releases[..releases.len().min(most)],
     }
 }
 
@@ -159,6 +169,24 @@ Blurb.
         // No idea what ran last, or it's older than the notes go: show the recent ones.
         assert_eq!(since(&found, None).len(), 3);
         assert_eq!(since(&found, Some("0.0.1")).len(), 3);
+    }
+
+    #[test]
+    fn the_list_reaches_back_to_the_oldest_version_worth_showing() {
+        let all = releases(CHANGES);
+        let shown = since(&all, None);
+        let floor = all.iter().position(|r| r.version == OLDEST).expect("OLDEST is in the notes");
+        assert!(shown.len() <= RECENT, "at most {RECENT}: {}", shown.len());
+        assert!(shown.len() <= floor + 1, "nothing older than {OLDEST}");
+        // While fewer than RECENT versions have shipped since OLDEST, the list reaches it; after
+        // that RECENT is the narrower limit and the oldest shown moves up on its own.
+        if floor < RECENT {
+            assert_eq!(shown.last().expect("something to show").version, OLDEST, "reaches {OLDEST}");
+        }
+        assert_eq!(shown[0].version, VERSION, "newest first");
+        // Someone a long way behind sees the same span, not every version since.
+        let old = all.last().expect("a first release");
+        assert_eq!(since(&all, Some(&old.version)).len(), shown.len().min(all.len() - 1));
     }
 
     #[test]

@@ -3,6 +3,11 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.59
+
+- What's New reaches back to 0.1.54 rather than ten versions, so the list is the run of recent
+  work instead of trailing off into older releases. Ten remains the most it shows.
+
 ## 0.1.58
 
 - An AI assistant working through `woodsketch-cli` no longer writes over changes you made in

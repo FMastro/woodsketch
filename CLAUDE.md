@@ -318,7 +318,9 @@ points); keep general modeling working alongside it.
    one alone reads like nothing happened. The file is also built into the app
    (`updates::CHANGES`, parsed by `updates::releases` / `updates::since`): Help > What's New shows
    the versions since the one that ran last (`last_version`, kept as `updated_from`, not just a
-   bool), and the status bar's "What's new" after an update opens it rather than a browser tab.
+   bool), back to `updates::OLDEST` (0.1.54) and at most `RECENT` (10); once ten versions have
+   shipped since `OLDEST` that limit is the narrower one and `OLDEST` stops mattering, so it needs
+   no moving. The status bar's "What's new" after an update opens the window, not a browser tab.
    A test asserts the newest `## ` section is the running version, so a forgotten entry fails
    before it reaches a release. Help > Release Notes still opens every version on GitHub; the
    website links the releases page.
