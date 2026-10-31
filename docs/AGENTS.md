@@ -202,6 +202,13 @@ through your changes.
   your change lands, WoodSketch asks them which to keep rather than overwriting either.
 - An edit that doesn't build changes neither the drawing nor the file, so a mistake can't reach
   their window.
+- If they change the drawing in WoodSketch and save, your next edit is **refused** rather than
+  writing over their work: the file no longer matches what you last wrote. `open` it again to pick
+  their changes up and carry on from them, or `save` to that path to replace them on purpose. This
+  cuts both ways, so neither of you loses work without being asked.
+- A SketchUp `.skp` or a recipe `.json` opened with `open` is a source, not a destination: edits
+  are never written back to it. `save` the drawing as a `.woodsketch` file to keep your work (and
+  to have the app follow it).
 
 ## Setting it up
 

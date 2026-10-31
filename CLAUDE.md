@@ -93,6 +93,13 @@ by `open` or `save`) and writes every edit back to it, which is what makes the a
 (#6). Drawings are written through `doc::file::write_safely` (temp file, then rename) by both the
 app and the CLI, so a watcher never reads half a file; `crate::save` in the CLI says nothing on
 stdout, because the MCP server's stdout carries JSON-RPC.
+It protects both sides: the session keeps the exact text it last wrote or read (`Session::written`,
+compared with the file by `changed_underneath`, content rather than a timestamp so an unchanged
+re-save in the app isn't mistaken for an edit), and an edit that would write over someone else's
+change is refused whole, naming `open` and `save` as the two ways on. Only a `.woodsketch` (or
+`.scraft`) file becomes the session's own (`is_drawing`): a `.skp` or recipe `.json` is a source,
+and writing drawing JSON over a SketchUp model would destroy it. `build` lets go of the file, since
+the drawing is no longer the one it holds.
 
 ## Third-party notices
 `THIRD-PARTY-NOTICES.md` lists every package WoodSketch is built with and its license, and

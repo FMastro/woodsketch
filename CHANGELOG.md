@@ -3,6 +3,18 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.58
+
+- An AI assistant working through `woodsketch-cli` no longer writes over changes you made in
+  WoodSketch. If you edit the drawing and save while the assistant has it open, its next edit is
+  refused with a note saying so, rather than replacing your work; it can take your changes and
+  carry on, or overwrite them deliberately. 0.1.56 stopped the app losing the assistant's work;
+  this is the same protection the other way round.
+- A SketchUp model or a recipe opened over MCP is never written back to. Editing after opening a
+  `.skp` would have written drawing JSON over the SketchUp file.
+- Building a new drawing lets go of the previous one's file, so the next edit can't quietly
+  overwrite an unrelated project.
+
 ## 0.1.57
 
 - Help > What's New gathers the last few updates in one window, each under its version, instead

@@ -23,6 +23,48 @@ pub struct Session {
     /// The drawing's file, once `open` or `save` has named one. Knowing it is what makes
     /// watching work: each edit is written straight back, and the app reloads what it sees.
     pub path: Option<std::path::PathBuf>,
+    /// Exactly what was last written to (or read from) `path`. Compared against the file before
+    /// an edit overwrites it, so work done in WoodSketch meanwhile isn't thrown away. The text
+    /// rather than a timestamp, so saving an unchanged drawing in the app doesn't look like an
+    /// edit, and so no clock is involved.
+    written: Option<String>,
+}
+
+/// Why this session mustn't write to its file, if it mustn't: someone has changed it since the
+/// session last wrote or read it. `None` means writing is safe (or there's nothing to compare).
+fn changed_underneath(session: &Session) -> Option<String> {
+    let path = session.path.as_deref()?;
+    let ours = session.written.as_deref()?;
+    match std::fs::read_to_string(path) {
+        // The same bytes: ours, or saved again in WoodSketch without changing anything.
+        Ok(theirs) if theirs == ours => None,
+        Ok(_) => Some(format!(
+            "{} has changed since this session last wrote it, so something else (WoodSketch, most likely) has edited the drawing. Nothing was changed here, so neither version is lost yet. Use `open` on it to take those changes and carry on from them, or `save` to that path to overwrite them with this session's drawing.",
+            path.display()
+        )),
+        Err(e) => Some(format!(
+            "{} can't be read ({e}), so this session won't write over whatever is there. Use `save` to that path to write this session's drawing, or `open` another file.",
+            path.display()
+        )),
+    }
+}
+
+/// Whether `path` is a WoodSketch drawing, and so somewhere edits can be written back to. A
+/// SketchUp model or a recipe `.json` is something to read: writing drawing JSON over a `.skp`
+/// would destroy it, which is why the app treats one as a new unsaved drawing as well.
+fn is_drawing(path: &Path) -> bool {
+    let ext = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase);
+    matches!(ext.as_deref(), Some("woodsketch" | "scraft"))
+}
+
+/// Save the drawing to `path` and remember what was written, so [`changed_underneath`] can tell
+/// later whether it's still ours.
+fn save_remembering(session: &mut Session, path: &Path) -> Result<(), String> {
+    let doc = session.drawing.as_ref().ok_or("No drawing to save.")?;
+    let text = woodsketch_doc::file::to_string(doc.scene());
+    woodsketch_doc::file::write_safely(path, &text).map_err(|e| format!("Couldn't save {}: {e}", path.display()))?;
+    session.written = Some(text);
+    Ok(())
 }
 
 pub fn serve() {
@@ -205,14 +247,20 @@ fn call(name: &str, args: &Value, session: &mut Session, progress: &mut dyn FnMu
         // Edits: change the recipe and rebuild, or leave both as they were.
         let mut edit = |change: &dyn Fn(&mut Recipe) -> Result<String, String>| -> Result<Value, String> {
             let mut recipe = session.recipe.clone().ok_or("No drawing yet: build one from a recipe, or open a file.")?;
+            // Checked before anything changes: an edit that would write over someone else's work
+            // is refused whole, leaving this session and the file as they were. The drawing
+            // follows its file in both directions, so this is the other side of that.
+            if let Some(theirs) = changed_underneath(session) {
+                return Err(theirs);
+            }
             let said = change(&mut recipe)?;
             let doc = recipe::build_reporting(&recipe, &mut *progress).map_err(|errors| format!("That doesn't build, so nothing changed:\n- {}", errors.join("\n- ")))?;
             let summary = recipe::summary(&doc);
             (session.drawing, session.recipe) = (Some(doc), Some(recipe));
             // Write it back to its file, so the app beside you shows the change. Nothing to
             // write to until `open` or `save` has named one.
-            let saved = match &session.path {
-                Some(path) => match crate::save(session.drawing.as_ref().expect("just set"), path) {
+            let saved = match session.path.clone() {
+                Some(path) => match save_remembering(session, &path) {
                     Ok(()) => String::new(),
                     // The edit itself worked, so say the file didn't take it rather than fail.
                     Err(e) => format!("\n(Changed here, but couldn't be saved: {e})"),
@@ -271,6 +319,9 @@ fn call(name: &str, args: &Value, session: &mut Session, progress: &mut dyn FnMu
 - ")))?;
                 let summary = recipe::summary(&doc);
                 (session.drawing, session.recipe) = (Some(doc), Some(parsed));
+                // A different drawing now, so any file the session was writing to is no longer
+                // its own: `save` names one again, rather than this quietly overwriting it.
+                (session.path, session.written) = (None, None);
                 Ok(text(format!("Built.\n{summary}"), false))
             }
             "recipe" => {
@@ -284,17 +335,32 @@ fn call(name: &str, args: &Value, session: &mut Session, progress: &mut dyn FnMu
                 let (read, notes) = woodsketch_doc::recipe_of::from_document(&doc);
                 let notes = if notes.is_empty() { String::new() } else { format!("\nRead back as a recipe, but:\n- {}", notes.join("\n- ")) };
                 (session.drawing, session.recipe) = (Some(doc), Some(read));
-                session.path = Some(opened.to_owned());
-                Ok(text(format!("Opened.\n{summary}{notes}"), false))
+                // Only a WoodSketch drawing becomes the file this session writes to. A SketchUp
+                // model or a recipe is a source, not a destination.
+                let following = if is_drawing(opened) {
+                    session.path = Some(opened.to_owned());
+                    session.written = std::fs::read_to_string(opened).ok();
+                    "\nChanges from here on are saved to it as they're made, so the WoodSketch app will show them as you work."
+                } else {
+                    session.path = None;
+                    session.written = None;
+                    "\nThis isn't a WoodSketch drawing, so it won't be written to: `save` the drawing somewhere to keep it (and to have the app follow your changes)."
+                };
+                Ok(text(format!("Opened.\n{summary}{notes}{following}"), false))
             }
             "save" => {
                 let to = path()?;
-                crate::save(current()?, to)?;
                 let first = session.path.as_deref() != Some(to);
+                // Asking to save is saying where the drawing belongs, so this writes even when
+                // the file changed underneath: it's the deliberate way to overwrite, and the
+                // only one. `written` is taken from what goes out, so edits can follow again.
+                let overwrote = !first && changed_underneath(session).is_some();
                 session.path = Some(to.to_owned());
+                save_remembering(session, to)?;
                 // Worth saying once, so an assistant can pass it on to whoever it's working for.
                 let following = if first { " Changes from here on are saved to it as they're made, so the WoodSketch app will show them as you work." } else { "" };
-                Ok(text(format!("Saved {}.{following}", to.display()), false))
+                let over = if overwrote { " This replaced changes something else had made to that file." } else { "" };
+                Ok(text(format!("Saved {}.{following}{over}", to.display()), false))
             }
             "summary" => Ok(text(recipe::summary(current()?), false)),
             "cut_list" => {
@@ -408,6 +474,116 @@ mod tests {
         assert!(said(&bad).contains("parts[0] (Shelf): no material \"teak\""));
         let unknown = ask(&mut session, json!({ "jsonrpc": "2.0", "id": 7, "method": "nothing/here" }));
         assert_eq!(unknown["error"]["code"], -32601);
+    }
+
+    /// The first material's id in the session's recipe. Reading a drawing back names materials
+    /// after themselves, so an id from the recipe that built it may no longer be the one to use.
+    fn first_material(session: &Session) -> String {
+        session.recipe.as_ref().and_then(|r| r.materials.first()).map(|m| m.id.clone()).expect("a material")
+    }
+
+    #[test]
+    fn an_edit_wont_write_over_changes_made_in_the_app() {
+        // The other side of #6: the app no longer loses the assistant's work, and the assistant
+        // mustn't lose the person's. A hand edit saved in WoodSketch is not overwritten silently.
+        let dir = std::env::temp_dir().join(format!("woodsketch-mcp-theirs-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("hutch.woodsketch");
+
+        let mut session = Session::default();
+        call_tool(&mut session, 1, "build", json!({ "recipe": {
+            "materials": [{ "id": "oak", "library": "Red Oak" }],
+            "parts": [{ "name": "Side", "material": "oak", "size": [30, 11.25, 0.75], "length": "z" }],
+        } }));
+        call_tool(&mut session, 2, "save", json!({ "path": path.to_string_lossy() }));
+
+        // Someone moves a part by hand in WoodSketch and saves.
+        let mut theirs = crate::load(&path).unwrap();
+        theirs.edit(|m| m.add_rectangle(glam::DVec3::ZERO, glam::DVec3::X * 9.0, glam::DVec3::Y * 9.0, glam::DVec3::Z));
+        woodsketch_doc::file::save(theirs.scene(), &path).unwrap();
+        let after_theirs = std::fs::read_to_string(&path).unwrap();
+
+        // The next edit is refused whole, and their file is untouched.
+        let shelf = json!({ "name": "Shelf", "material": "oak", "size": [20, 11.25, 0.75] });
+        let refused = call_tool(&mut session, 3, "add_part", json!({ "part": shelf }));
+        assert_eq!(refused["isError"], true, "{refused}");
+        assert!(said(&refused).contains("changed since this session last wrote it"), "{refused}");
+        assert!(said(&refused).contains("`open`") && said(&refused).contains("`save`"), "it says how to go on: {refused}");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), after_theirs, "their work is still there");
+        assert!(!session.recipe.as_ref().unwrap().parts.iter().any(|p| p.name == "Shelf"), "nothing changed here either");
+
+        // `open` takes their changes, and editing follows the file again. Reading a drawing back
+        // names its materials after themselves ("Red Oak" -> red_oak), so use what came back.
+        call_tool(&mut session, 4, "open", json!({ "path": path.to_string_lossy() }));
+        let material = first_material(&session);
+        let shelf = json!({ "name": "Shelf", "material": material, "size": [20, 11.25, 0.75] });
+        let added = call_tool(&mut session, 5, "add_part", json!({ "part": shelf }));
+        assert_eq!(added["isError"], false, "{added}");
+        assert_ne!(std::fs::read_to_string(&path).unwrap(), after_theirs, "the edit reached the file");
+
+        // Saving over a changed file is allowed, since asking to save says where it belongs.
+        let mut ours = crate::load(&path).unwrap();
+        ours.edit(|m| m.add_rectangle(glam::DVec3::ZERO, glam::DVec3::X, glam::DVec3::Y, glam::DVec3::Z));
+        woodsketch_doc::file::save(ours.scene(), &path).unwrap();
+        let saved = call_tool(&mut session, 6, "save", json!({ "path": path.to_string_lossy() }));
+        assert_eq!(saved["isError"], false, "{saved}");
+        assert!(said(&saved).contains("replaced changes"), "it says it overwrote: {saved}");
+        // And editing works again straight after.
+        let more = call_tool(&mut session, 7, "change_part", json!({ "name": "Shelf", "changes": { "size": [22, 11.25, 0.75] } }));
+        assert_eq!(more["isError"], false, "{more}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_sketchup_model_or_a_recipe_is_never_written_over() {
+        // `open` takes .skp and recipe .json too. Those are sources: writing drawing JSON over a
+        // SketchUp model would destroy it, so they don't become the file edits are saved to.
+        let dir = std::env::temp_dir().join(format!("woodsketch-mcp-source-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let recipe_path = dir.join("bench.json");
+        let recipe = json!({
+            "materials": [{ "id": "oak", "library": "Red Oak" }],
+            "parts": [{ "name": "Top", "material": "oak", "size": [48, 20, 1.5] }],
+        });
+        std::fs::write(&recipe_path, recipe.to_string()).unwrap();
+        let before = std::fs::read_to_string(&recipe_path).unwrap();
+
+        let mut session = Session::default();
+        let opened = call_tool(&mut session, 1, "open", json!({ "path": recipe_path.to_string_lossy() }));
+        assert_eq!(opened["isError"], false, "{opened}");
+        assert_eq!(session.path, None, "a recipe isn't a place to write");
+        assert!(said(&opened).contains("`save` the drawing somewhere"), "{opened}");
+
+        let leg = json!({ "name": "Leg", "material": first_material(&session), "size": [28, 3, 3], "length": "z" });
+        let added = call_tool(&mut session, 2, "add_part", json!({ "part": leg }));
+        assert_eq!(added["isError"], false, "{added}");
+        assert_eq!(std::fs::read_to_string(&recipe_path).unwrap(), before, "the recipe file is untouched");
+
+        assert!(is_drawing(Path::new("a.woodsketch")) && is_drawing(Path::new("OLD.SCRAFT")));
+        assert!(!is_drawing(Path::new("model.skp")) && !is_drawing(Path::new("r.json")) && !is_drawing(Path::new("plain")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn building_a_new_drawing_lets_go_of_the_old_file() {
+        let dir = std::env::temp_dir().join(format!("woodsketch-mcp-rebuild-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("first.woodsketch");
+        let mut session = Session::default();
+        call_tool(&mut session, 1, "build", json!({ "recipe": { "parts": [{ "name": "A", "size": [10, 10, 1] }] } }));
+        call_tool(&mut session, 2, "save", json!({ "path": path.to_string_lossy() }));
+        assert!(session.path.is_some());
+        let first = std::fs::read_to_string(&path).unwrap();
+
+        // A different project: the old file isn't this drawing's any more.
+        call_tool(&mut session, 3, "build", json!({ "recipe": { "parts": [{ "name": "B", "size": [20, 20, 2] }] } }));
+        assert_eq!(session.path, None, "it let go of the file");
+        assert_eq!(call_tool(&mut session, 4, "add_part", json!({ "part": { "name": "C", "size": [5, 5, 1] } }))["isError"], false);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), first, "the first project's file is untouched");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
