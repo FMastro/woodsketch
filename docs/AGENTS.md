@@ -218,6 +218,11 @@ through your changes.
 - Without the app (a server, CI): each release also has `woodsketch-cli-<version>-<platform>.zip`
   (`win-x64`, `osx-arm64`, `osx-x64`, `linux-x64`) with just the command line, on GitHub
   (github.com/FMastro/woodsketch/releases). Rendering pictures needs a graphics adapter.
-- Claude Code: `claude mcp add woodsketch -- "<path to woodsketch-cli>" mcp`.
+- Claude Code: `claude mcp add woodsketch -s user -- "<path to woodsketch-cli>" mcp`. Write the
+  path out in full rather than using `%LocalAppData%` or `$HOME`: the shell that expands those
+  isn't always the one you're in, and an unexpanded path is stored as written and simply fails to
+  start. `-s user` makes it available wherever you open a drawing; without it the server belongs
+  to the one folder you ran the command in. Check it with `claude mcp get woodsketch`, which
+  prints the path it stored and whether it connected.
 - Claude Desktop and other MCP clients: a stdio server with the command `<path to woodsketch-cli>`
   and the argument `mcp`.
