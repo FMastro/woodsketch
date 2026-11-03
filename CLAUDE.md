@@ -84,6 +84,12 @@ it for a report (`FeedbackWindow::start_crash`). `feedback::os_name` (the `os_in
 - `python -I scripts/try-mcp.py` drives the real `woodsketch-cli mcp` over its pipe and checks it
   end to end (`--keep` leaves the drawing to open in the app). The unit tests drive the server
   in-process; this catches what only breaks across the pipe, such as anything printing to stdout.
+- `python -I scripts/check-unreleased.py` refuses shipped code sitting at a version that is
+  already tagged, because a CHANGELOG note under a released heading is never read again and the
+  change would go out unmentioned. CI runs it (the `unreleased` job). When it fails, raise the
+  version in `Cargo.toml`, `cargo update --workspace`, and open a new `## <version>` section.
+  Changes under `crates/*/tests` don't count: they build the website's screenshots and ship to
+  nobody.
 
 ## Following a drawing another program is editing
 The app watches the open drawing's file (`ui-egui::watch`, polled every `watch::INTERVAL` by

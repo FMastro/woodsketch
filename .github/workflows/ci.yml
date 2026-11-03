@@ -40,3 +40,20 @@ jobs:
       - name: Tests (without the GPU)
         shell: bash
         run: cargo test --locked -p woodsketch-doc -p woodsketch-tools -p woodsketch-view -p woodsketch-cli
+      # ui-egui's own tests need a GPU, but its unit tests don't, and one of them reads the real
+      # CHANGELOG and asserts its newest section is the running version. That guard was only ever
+      # run by hand until now.
+      - name: Unit tests that need no GPU (the CHANGELOG guard is one)
+        shell: bash
+        run: cargo test --locked -p woodsketch-ui-egui --lib
+
+  unreleased:
+    name: nothing shipped sits at a released version
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The check compares HEAD against the newest v* tag, so it needs the history and tags.
+          fetch-depth: 0
+      - name: Check for source that no release can describe
+        run: python3 -I scripts/check-unreleased.py --verbose
