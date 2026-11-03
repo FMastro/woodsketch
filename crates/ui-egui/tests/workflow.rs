@@ -2047,8 +2047,9 @@ fn a_cabinet_with_drawers_and_doors() {
         c.fills[0] = Fill::Doors;
         c.fills[1] = Fill::Drawer;
         c.fills[2] = Fill::Drawer;
-        let walnut = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Walnut").unwrap());
-        doc.add_template(&Template::Cabinet(c), Some(walnut)).unwrap();
+        // White oak, matching the site's lead picture: the sizes panel names the wood.
+        let oak = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "White Oak").unwrap());
+        doc.add_template(&Template::Cabinet(c), Some(oak)).unwrap();
     }
     harness.state_mut().zoom_extents();
     for _ in 0..3 {

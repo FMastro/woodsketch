@@ -63,7 +63,7 @@ fn pull_apart(doc: &mut Document, name: &str, by: DVec3) {
 }
 
 #[test]
-fn a_walnut_cabinet_with_drawers_and_doors() {
+fn a_white_oak_cabinet_with_drawers_and_doors() {
     use woodsketch_doc::template::{Cabinet, DoorStyle, Fill, Template};
     let (mut harness, _gpu) = app();
     {
@@ -72,8 +72,10 @@ fn a_walnut_cabinet_with_drawers_and_doors() {
         c.fills[0] = Fill::Doors;
         c.fills[1] = Fill::Drawer;
         c.fills[2] = Fill::Drawer;
-        let walnut = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Walnut").unwrap());
-        doc.add_template(&Template::Cabinet(c), Some(walnut)).unwrap();
+        // White oak over walnut: the site's lead picture, where walnut's shadows ran together
+        // and swallowed the drawer fronts and door frames.
+        let oak = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "White Oak").unwrap());
+        doc.add_template(&Template::Cabinet(c), Some(oak)).unwrap();
         doc.selection_mut().clear();
     }
     frame(&mut harness, -62.0, 22.0);
