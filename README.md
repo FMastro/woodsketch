@@ -19,6 +19,9 @@ The Windows installer is signed, though SmartScreen may still warn until the sig
 reputation: click *More info*, then *Run anyway*. The macOS installer isn't signed yet, so
 right-click it and choose *Open*.
 
+Would rather not run someone else's binary? [Build it yourself](#build-it-yourself) — it's three
+commands once Rust is installed.
+
 ## What it does
 
 - **Feels like SketchUp.** Select, Line, Rectangle, Circle, Arc, Push/Pull, Offset, Move,
@@ -47,9 +50,32 @@ right-click it and choose *Open*.
 
 ![A part showing its grain direction](https://woodsketch.net/images/part-grain-direction.webp)
 
-## Build from source
+## Build it yourself
 
-WoodSketch is written in Rust (egui and wgpu).
+You don't have to download an installer. WoodSketch is written in Rust (egui and wgpu), and
+building it from the code gives you exactly the same program.
+
+### What you need
+
+- **Rust 1.95 or newer.** Install it from [rustup.rs](https://rustup.rs), which is the usual way
+  on every platform and sets up `cargo` for you. If you already have Rust, `rustup update` will
+  do. (The code uses the 2024 edition, so an older Rust won't compile it.)
+- **Git**, to fetch the code — or download the ZIP from the repository's green *Code* button.
+- **A C/C++ toolchain**, which some dependencies need to build:
+  - **Windows:** the [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/)
+    with the *Desktop development with C++* workload. The rustup installer offers to get these
+    for you if they're missing.
+  - **macOS:** the Xcode command line tools — run `xcode-select --install`.
+  - **Linux:** a compiler plus the windowing and file-dialog libraries. On Ubuntu or Debian:
+    ```sh
+    sudo apt install build-essential libgtk-3-dev libxkbcommon-dev libwayland-dev libxcursor-dev libxrandr-dev libxi-dev libx11-xcb-dev
+    ```
+    These are exactly what CI installs, so if the list ever goes stale, `.github/workflows/ci.yml`
+    is the one that's right.
+- **A GPU with Vulkan, Metal, DirectX 12 or OpenGL.** The viewport is drawn on the graphics card.
+  Anything that runs SketchUp will do.
+
+### Build and run it
 
 ```sh
 git clone https://github.com/FMastro/woodsketch
@@ -57,11 +83,30 @@ cd woodsketch
 cargo run --release -p woodsketch
 ```
 
-On Linux, first install the windowing and file-dialog libraries, for example on Ubuntu:
-`sudo apt install libgtk-3-dev libxkbcommon-dev libwayland-dev libxcursor-dev libxrandr-dev libxi-dev libx11-xcb-dev`.
+That's the whole thing. The first build compiles about 500 crates, including the entire graphics
+stack, so put the kettle on; everything after that is quick, because only what you changed is
+rebuilt. Leave out `--release` for a faster build of a slower program — handy if you're changing
+the code, not if you're using it.
 
-Run the tests with `cargo test --workspace`. `CLAUDE.md` describes how the code is laid out,
-and `docs/BACKLOG.md` lists what's planned.
+To build without running, and to get the command line tool at the same time:
+
+```sh
+cargo build --release -p woodsketch -p woodsketch-cli
+```
+
+Both programs land in `target/release/` as `woodsketch` and `woodsketch-cli` (with `.exe` on
+Windows). They're self-contained, so you can copy them wherever you like.
+
+### Good to know
+
+- **A copy you built doesn't update itself.** The updater only works in installed copies, and a
+  self-built one simply reports that there's nothing to update. To move to a newer version, run
+  `git pull` and build again.
+- **Your drawings are unaffected either way.** `.woodsketch` files from an installed copy open in
+  a self-built one and the other way round.
+- Check your build with `cargo test --workspace` (the UI tests want a working GPU) and
+  `cargo clippy --workspace --all-targets`.
+- `CLAUDE.md` describes how the code is laid out, and `docs/BACKLOG.md` lists what's planned.
 
 ## Feedback
 
