@@ -290,6 +290,10 @@ it through `render::picture::pixels`, which takes a device rather than opening o
 use the app's own GPU. Cards keep the room for a picture from the first frame, so the page doesn't
 jump as they arrive. `picture::Options` gained `axes` (off for a thumbnail) and `fit` (fill the
 frame; Zoom Extents fits the sphere around the drawing, which leaves a tall piece small).
+Pictures are kept in the settings folder beside the autosaves. A cache file's name holds
+everything that decides whether it is still right (`thumbs::cache_name`: a drawing's modified
+time and length, a sample's app version), so a stale one is never found rather than found and
+checked, and nothing has to be invalidated by hand.
 
 Units belong to the drawing: `Scene::units`, written in the file's header (`file::File::units`,
 which has held it since the first version) rather than in the scene, and `Document::new_in` /

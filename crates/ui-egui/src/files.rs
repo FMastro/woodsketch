@@ -68,7 +68,7 @@ impl Files {
 
     /// Write the drawing to `path` and remember it as the drawing's file.
     pub fn save_to(&mut self, doc: &Document, path: &Path) -> Result<(), String> {
-        crate::autosave::write_safely(path, &file::to_string(doc.scene())).map_err(|e| format!("Couldn't save {}: {e}", path.display()))?;
+        crate::autosave::write_safely(path, file::to_string(doc.scene())).map_err(|e| format!("Couldn't save {}: {e}", path.display()))?;
         self.path = Some(path.to_owned());
         self.mark_saved(doc);
         Ok(())

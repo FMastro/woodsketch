@@ -119,6 +119,8 @@ impl WoodSketchApp {
         let leftovers = autosave.leftovers();
         let crash_dir = cc.storage.is_some().then(|| eframe::storage_dir("WoodSketch")).flatten();
         let crash = crash_dir.as_deref().and_then(crash::left);
+        // Pictures for the Start page live beside the autosaves and the crash report.
+        let thumb_dir = crash_dir.as_deref().map(|d| d.join("thumbnails"));
         Self {
             // A drawing made here carries the units it's shown in, which `set_units` above took
             // from the settings.
@@ -161,7 +163,7 @@ impl WoodSketchApp {
             // Over the drawing at startup for the real app. Tests drive the app with no storage,
             // and would otherwise have to clear the page before every one of them.
             start: start::StartPage { open: cc.storage.is_some() },
-            thumbs: thumbs::Thumbnails::new(cc.wgpu_render_state.as_ref()),
+            thumbs: thumbs::Thumbnails::new(cc.wgpu_render_state.as_ref(), thumb_dir),
         }
     }
 

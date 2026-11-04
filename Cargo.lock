@@ -4907,6 +4907,7 @@ dependencies = [
  "egui_kittest",
  "glam",
  "image",
+ "png",
  "rfd",
  "serde_json",
  "ureq",

@@ -77,7 +77,7 @@ impl Autosave {
         let Some(path) = self.file() else { return Ok(()) };
         let dir = self.dir.as_ref().expect("a file needs a folder");
         std::fs::create_dir_all(dir).map_err(|e| format!("Couldn't autosave: {e}"))?;
-        write_safely(&path, &file::to_string(doc.scene())).map_err(|e| format!("Couldn't autosave: {e}"))?;
+        write_safely(&path, file::to_string(doc.scene())).map_err(|e| format!("Couldn't autosave: {e}"))?;
         let note = original.map_or_else(String::new, |p| p.to_string_lossy().into_owned());
         write_safely(&path.with_extension("path"), &note).map_err(|e| format!("Couldn't autosave: {e}"))?;
         self.written_version = Some(doc.model_version());

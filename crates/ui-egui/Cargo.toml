@@ -21,6 +21,8 @@ glam.workspace = true
 egui-phosphor = { version = "0.14", features = ["regular", "fill"] }
 # Sending a report to woodsketch.net (already built for Velopack's update checks).
 ureq = "3.4"
+# Thumbnails kept between runs (the CLI already builds this to write its pictures).
+png = "0.18"
 
 [dev-dependencies]
 egui_kittest = { workspace = true, features = ["eframe", "wgpu"] }

@@ -14,7 +14,8 @@ GitHub release; keep a `## <version>` heading for every release.
   when you open one, from today's joinery, so they show the app as it is rather than as it was.
   Opening one leaves it unsaved, so Ctrl+S asks where to put it.
 - The Start page's cards show a picture of what they open: each sample and each recent drawing
-  is drawn on a thread of its own while you read the page, so nothing waits on it.
+  is drawn on a thread of its own while you read the page, so nothing waits on it. Pictures are
+  kept between runs, so after the first time the page opens with them already on it.
 - Units belong to the drawing now, not to the app: View > Units is saved with it, and opening a
   drawing shows the sizes it was drawn in instead of whatever was last chosen. Drawings made
   before this keep showing in inches, which is what they were drawn in.

@@ -17,7 +17,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 21 | A live link to the open drawing |
 | 6 | Release polish | 74 | macOS signing before announcing widely |
-| 7 | Start page and samples | 13 | What someone sees in the first minute |
+| 7 | Start page and samples | 11 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
 | 9 | Cut list and materials | 171 | Better buying and cutting |
 | 10 | Wood movement | 23 | Fewer false warnings, clearer results |
@@ -29,7 +29,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1406** | |
+| | **All** | **1404** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -171,14 +171,12 @@ rather than in front of the app, Esc to leave, File > Start Page to come back; u
 the drawing; three samples built into the app as recipes (Bookshelf, Nightstand, Workbench),
 each card saying what it demonstrates; a test that builds them all and checks their parts and
 joints; a picture on every sample and recent card, drawn on a thread of its own on the app's own
-GPU device, framed to fill the card and without the axes.
-1. [2] Thumbnails of recent drawings kept between runs (every one is read off disk and drawn
-   again each time the app starts). A cache in the settings folder, keyed by path and the file's
-   modified time and length, as `watch` already compares them.
-2. [3] More samples: a table, then a kitchen run of five cabinets from one component, to show the
+GPU device, framed to fill the card and without the axes, and kept in the settings folder
+between runs.
+1. [3] More samples: a table, then a kitchen run of five cabinets from one component, to show the
    cut list on something big (91 copies of a stud build in 167 ms, so repeated components are
    nearly free).
-3. [8] A Learn section beside Samples: each sample as a short tutorial, linked to the videos.
+2. [8] A Learn section beside Samples: each sample as a short tutorial, linked to the videos.
 
 Not samples, deliberately: a chair (compound angles and sculpted parts, the hardest thing to say
 in a recipe and the first to break when `doc::angled` changes, and it shows nothing a woodworker

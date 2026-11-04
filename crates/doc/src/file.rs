@@ -59,14 +59,15 @@ impl fmt::Display for FileError {
 
 impl std::error::Error for FileError {}
 
-/// Write `text` to `path` without ever leaving it half-written: write a temporary file beside
-/// it, then rename it over the top. A reader (WoodSketch watching a drawing another program is
-/// editing, a synced folder) then sees either the old file or the new one, never half of one.
-pub fn write_safely(path: &std::path::Path, text: &str) -> std::io::Result<()> {
+/// Write `contents` to `path` without ever leaving it half-written: write a temporary file
+/// beside it, then rename it over the top. A reader (WoodSketch watching a drawing another
+/// program is editing, a synced folder) then sees either the old file or the new one, never
+/// half of one. Takes bytes, since the same care suits a thumbnail as a drawing.
+pub fn write_safely(path: &std::path::Path, contents: impl AsRef<[u8]>) -> std::io::Result<()> {
     let mut temp = path.as_os_str().to_owned();
     temp.push(".tmp");
     let temp = std::path::PathBuf::from(temp);
-    std::fs::write(&temp, text)?;
+    std::fs::write(&temp, contents)?;
     std::fs::rename(&temp, path).inspect_err(|_| {
         let _ = std::fs::remove_file(&temp);
     })
@@ -74,7 +75,7 @@ pub fn write_safely(path: &std::path::Path, text: &str) -> std::io::Result<()> {
 
 /// Save `scene` to `path`, whole or not at all.
 pub fn save(scene: &Scene, path: &std::path::Path) -> Result<(), String> {
-    write_safely(path, &to_string(scene)).map_err(|e| format!("Couldn't save {}: {e}", path.display()))
+    write_safely(path, to_string(scene)).map_err(|e| format!("Couldn't save {}: {e}", path.display()))
 }
 
 pub fn to_string(scene: &Scene) -> String {
