@@ -1,0 +1,142 @@
+{
+  "name": "Kitchen run",
+  "units": "in",
+  "materials": [
+    {
+      "id": "ply",
+      "library": "Baltic Birch Plywood"
+    }
+  ],
+  "templates": [
+    {
+      "kind": "cabinet",
+      "name": "Base cabinet 1",
+      "at": [
+        0.0,
+        0,
+        0
+      ],
+      "wood": "ply",
+      "sizes": {
+        "width": 24,
+        "height": 34.5,
+        "depth": 24,
+        "shelves": 1,
+        "back": true,
+        "joints": "Dados",
+        "fills": [
+          "Drawer",
+          "Doors"
+        ],
+        "fronts": "Overlay",
+        "doors": "Slab",
+        "drawer_joints": "Rabbets",
+        "pulls": "Bar"
+      }
+    },
+    {
+      "kind": "cabinet",
+      "name": "Base cabinet 2",
+      "at": [
+        24.0,
+        0,
+        0
+      ],
+      "wood": "ply",
+      "sizes": {
+        "width": 24,
+        "height": 34.5,
+        "depth": 24,
+        "shelves": 1,
+        "back": true,
+        "joints": "Dados",
+        "fills": [
+          "Drawer",
+          "Drawer"
+        ],
+        "fronts": "Overlay",
+        "doors": "Slab",
+        "drawer_joints": "Rabbets",
+        "pulls": "Bar"
+      }
+    },
+    {
+      "kind": "cabinet",
+      "name": "Base cabinet 3",
+      "at": [
+        48.0,
+        0,
+        0
+      ],
+      "wood": "ply",
+      "sizes": {
+        "width": 24,
+        "height": 34.5,
+        "depth": 24,
+        "shelves": 1,
+        "back": true,
+        "joints": "Dados",
+        "fills": [
+          "Drawer",
+          "Doors"
+        ],
+        "fronts": "Overlay",
+        "doors": "Slab",
+        "drawer_joints": "Rabbets",
+        "pulls": "Bar"
+      }
+    },
+    {
+      "kind": "cabinet",
+      "name": "Base cabinet 4",
+      "at": [
+        72.0,
+        0,
+        0
+      ],
+      "wood": "ply",
+      "sizes": {
+        "width": 24,
+        "height": 34.5,
+        "depth": 24,
+        "shelves": 1,
+        "back": true,
+        "joints": "Dados",
+        "fills": [
+          "Drawer",
+          "Drawer"
+        ],
+        "fronts": "Overlay",
+        "doors": "Slab",
+        "drawer_joints": "Rabbets",
+        "pulls": "Bar"
+      }
+    },
+    {
+      "kind": "cabinet",
+      "name": "Base cabinet 5",
+      "at": [
+        96.0,
+        0,
+        0
+      ],
+      "wood": "ply",
+      "sizes": {
+        "width": 24,
+        "height": 34.5,
+        "depth": 24,
+        "shelves": 1,
+        "back": true,
+        "joints": "Dados",
+        "fills": [
+          "Drawer",
+          "Doors"
+        ],
+        "fronts": "Overlay",
+        "doors": "Slab",
+        "drawer_joints": "Rabbets",
+        "pulls": "Bar"
+      }
+    }
+  ]
+}

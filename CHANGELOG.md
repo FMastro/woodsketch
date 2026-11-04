@@ -3,6 +3,15 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.63
+
+- Two more samples on the Start page. A Dining table: aprons tenoned into cherry legs, a
+  rounded-over top, and the top let to move with the seasons so the movement check passes
+  rather than warning. A Kitchen run: five base cabinets, seventy-five parts, showing the cut
+  list, the sheets to buy and the hardware counted on something the size of a real job.
+- Samples are checked for wood movement warnings as well as parts and joints, so one can't
+  start opening with a warning on its movement tab without somebody deciding that's right.
+
 ## 0.1.62
 
 - A Start page: File > Start Page, and on the way in. New drawing in inches or millimeters,

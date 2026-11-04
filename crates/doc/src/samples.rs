@@ -58,6 +58,16 @@ pub const SAMPLES: &[Sample] = &[
         shows: "A mortise-and-tenon base under a glued-up maple top, with the movement check",
         recipe: include_str!("../../../samples/workbench.json"),
     },
+    Sample {
+        name: "Dining table",
+        shows: "Aprons tenoned into cherry legs, a rounded-over top let to move with the seasons",
+        recipe: include_str!("../../../samples/table.json"),
+    },
+    Sample {
+        name: "Kitchen run",
+        shows: "Five cabinets, seventy parts: the cut list, the sheets to buy and the hardware",
+        recipe: include_str!("../../../samples/kitchen.json"),
+    },
 ];
 
 /// The sample called `name`, for opening one by name.
@@ -75,7 +85,13 @@ mod tests {
     #[test]
     fn every_sample_builds() {
         // name, parts in the cut list, joints
-        let expected = [("Bookshelf", 8, 10), ("Nightstand", 18, 22), ("Workbench", 13, 16)];
+        let expected = [
+            ("Bookshelf", 8, 10),
+            ("Nightstand", 18, 22),
+            ("Workbench", 13, 16),
+            ("Dining table", 9, 8),
+            ("Kitchen run", 75, 86),
+        ];
         assert_eq!(expected.len(), SAMPLES.len(), "every sample needs its counts here");
         for (sample, (name, parts, joints)) in SAMPLES.iter().zip(expected) {
             assert_eq!(sample.name, name);
@@ -94,6 +110,29 @@ mod tests {
             assert!(!sample.name.is_empty());
             assert!(sample.shows.len() > 20, "{}: say what it demonstrates", sample.name);
             assert!(!sample.shows.ends_with('.'), "{}: the card's line isn't a sentence", sample.name);
+        }
+    }
+
+    /// Nothing about a sample should be a surprise to the wood: a sample that opens with a
+    /// warning on its movement tab reads as a design that was got wrong, whatever the warning
+    /// says. Where one is genuinely held (the workbench's rails, tenoned into legs that run the
+    /// other way), it is listed here with why it's right anyway.
+    #[test]
+    fn samples_have_no_movement_warnings_they_shouldnt() {
+        // Sample, and the warnings it is allowed to carry.
+        let allowed = [("Workbench", 2)];
+        for sample in SAMPLES {
+            let doc = sample.build().unwrap();
+            let scene = doc.scene();
+            let report = crate::movement::check(scene, scene.moisture_swing.unwrap_or(crate::movement::DEFAULT_SWING));
+            let expected = allowed.iter().find(|(name, _)| *name == sample.name).map_or(0, |(_, n)| *n);
+            assert_eq!(
+                report.conflicts.len(),
+                expected,
+                "{}: {:?}",
+                sample.name,
+                report.conflicts.iter().map(|c| format!("{c:?}")).collect::<Vec<_>>()
+            );
         }
     }
 

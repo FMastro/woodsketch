@@ -17,7 +17,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 21 | A live link to the open drawing |
 | 6 | Release polish | 74 | macOS signing before announcing widely |
-| 7 | Start page and samples | 11 | What someone sees in the first minute |
+| 7 | Start page and samples | 13 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
 | 9 | Cut list and materials | 171 | Better buying and cutting |
 | 10 | Wood movement | 23 | Fewer false warnings, clearer results |
@@ -29,7 +29,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1404** | |
+| | **All** | **1406** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -172,11 +172,15 @@ the drawing; three samples built into the app as recipes (Bookshelf, Nightstand,
 each card saying what it demonstrates; a test that builds them all and checks their parts and
 joints; a picture on every sample and recent card, drawn on a thread of its own on the app's own
 GPU device, framed to fill the card and without the axes, and kept in the settings folder
-between runs.
-1. [3] More samples: a table, then a kitchen run of five cabinets from one component, to show the
-   cut list on something big (91 copies of a stud build in 167 ms, so repeated components are
-   nearly free).
-2. [8] A Learn section beside Samples: each sample as a short tutorial, linked to the videos.
+between runs; five samples (Bookshelf, Nightstand, Workbench, Dining table, Kitchen run), each
+checked for movement warnings as well as parts and joints.
+1. [8] A Learn section beside Samples: each sample as a short tutorial, linked to the videos.
+2. [2] The Cabinet template can't mark a solid top as free to move, so a table built from it
+   warns about a top it has fastened across the grain; the Dining table sample is built from
+   parts instead. Templates should set `free_to_move` on a solid top.
+3. [3] Opening a sample builds it on the UI thread: about 200 ms, and 330 ms for the kitchen
+   run, with no sign that anything is happening. Build it where the thumbnails are built, and
+   say which one is coming.
 
 Not samples, deliberately: a chair (compound angles and sculpted parts, the hardest thing to say
 in a recipe and the first to break when `doc::angled` changes, and it shows nothing a woodworker

@@ -1,0 +1,37 @@
+{
+  "name": "Dining table",
+  "units": "in",
+  "materials": [
+    { "id": "cherry", "library": "Cherry" }
+  ],
+  "parts": [
+    { "name": "Leg 1", "called": "Leg", "material": "cherry", "size": [29, 2.75, 2.75], "at": [2, 2, 0], "length": "z", "width": "x" },
+    { "name": "Leg 2", "called": "Leg", "material": "cherry", "size": [29, 2.75, 2.75], "at": [55.25, 2, 0], "length": "z", "width": "x" },
+    { "name": "Leg 3", "called": "Leg", "material": "cherry", "size": [29, 2.75, 2.75], "at": [2, 31.25, 0], "length": "z", "width": "x" },
+    { "name": "Leg 4", "called": "Leg", "material": "cherry", "size": [29, 2.75, 2.75], "at": [55.25, 31.25, 0], "length": "z", "width": "x" },
+
+    { "name": "Front apron", "called": "Long apron", "material": "cherry", "size": [50.5, 4.5, 0.75], "at": [4.75, 2, 23.5], "length": "x", "width": "z" },
+    { "name": "Back apron", "called": "Long apron", "material": "cherry", "size": [50.5, 4.5, 0.75], "at": [4.75, 33.25, 23.5], "length": "x", "width": "z" },
+    { "name": "Left apron", "called": "End apron", "material": "cherry", "size": [26.5, 4.5, 0.75], "at": [2, 4.75, 23.5], "length": "y", "width": "z" },
+    { "name": "Right apron", "called": "End apron", "material": "cherry", "size": [26.5, 4.5, 0.75], "at": [57.25, 4.75, 23.5], "length": "y", "width": "z" },
+
+    { "name": "Top", "material": "cherry", "size": [60, 36, 1], "at": [0, 0, 29], "length": "x", "width": "y", "free_to_move": true }
+  ],
+  "joints": [
+    { "kind": "mortise_and_tenon", "part": "Front apron", "into": "Leg 1", "options": { "length": 1.25, "thickness": 0.3125, "fit": 0.03125 } },
+    { "kind": "mortise_and_tenon", "part": "Front apron", "into": "Leg 2", "options": { "length": 1.25, "thickness": 0.3125, "fit": 0.03125 } },
+    { "kind": "mortise_and_tenon", "part": "Back apron", "into": "Leg 3", "options": { "length": 1.25, "thickness": 0.3125, "fit": 0.03125 } },
+    { "kind": "mortise_and_tenon", "part": "Back apron", "into": "Leg 4", "options": { "length": 1.25, "thickness": 0.3125, "fit": 0.03125 } },
+    { "kind": "mortise_and_tenon", "part": "Left apron", "into": "Leg 1", "options": { "length": 1.25, "thickness": 0.3125, "fit": 0.03125 } },
+    { "kind": "mortise_and_tenon", "part": "Left apron", "into": "Leg 3", "options": { "length": 1.25, "thickness": 0.3125, "fit": 0.03125 } },
+    { "kind": "mortise_and_tenon", "part": "Right apron", "into": "Leg 2", "options": { "length": 1.25, "thickness": 0.3125, "fit": 0.03125 } },
+    { "kind": "mortise_and_tenon", "part": "Right apron", "into": "Leg 4", "options": { "length": 1.25, "thickness": 0.3125, "fit": 0.03125 } }
+  ],
+  "profiles": [
+    { "part": "Top", "profile": "roundover", "size": 0.375, "around": "top" }
+  ],
+  "groups": [
+    { "name": "Base", "parts": ["Leg 1", "Leg 2", "Leg 3", "Leg 4", "Front apron", "Back apron", "Left apron", "Right apron"] },
+    { "name": "Dining table", "parts": ["Base", "Top"] }
+  ]
+}
