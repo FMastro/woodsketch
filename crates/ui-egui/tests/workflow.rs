@@ -45,6 +45,16 @@ fn app() -> App {
     App { harness, _gpu: gpu }
 }
 
+/// Hold a key down for `steps` frames, which is what walking needs: the press, the text egui
+/// sends along with it, then the release.
+fn hold(harness: &mut App, key: Key, text: &str, steps: usize) {
+    harness.event(Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE });
+    harness.event(Event::Text(text.into()));
+    harness.run_steps(steps);
+    harness.event(Event::Key { key, physical_key: None, pressed: false, repeat: false, modifiers: Modifiers::NONE });
+    harness.run_steps(2);
+}
+
 fn click(harness: &mut Harness<'_, WoodSketchApp>, pos: egui::Pos2) {
     harness.hover_at(pos);
     harness.run();
@@ -2487,7 +2497,8 @@ fn walk_looks_with_the_mouse_and_walks_with_the_keys() {
     assert!((harness.state().camera().eye().z - 66.0).abs() < 1e-2, "eye at 66\": {}", harness.state().camera().eye().z);
     assert_eq!(harness.state().tools().measurement(), woodsketch_doc::units::format_length(66.0));
 
-    // A wall straight ahead stops it.
+    // A wall straight ahead doesn't stop it. A drawing is a thing being designed, not a place
+    // with rules: being shut out of a room by a door you haven't hung yet helps nobody.
     let (eye, ahead) = (harness.state().camera().eye().as_dvec3(), harness.state().camera().forward().as_dvec3());
     let ahead = glam::DVec3::new(ahead.x, ahead.y, 0.0).normalize();
     let wall = eye + ahead * 30.0;
@@ -2499,12 +2510,55 @@ fn walk_looks_with_the_mouse_and_walks_with_the_keys() {
     harness.event(Event::Key { key: Key::W, physical_key: None, pressed: false, repeat: false, modifiers: Modifiers::NONE });
     harness.run_steps(2);
     let gone = (harness.state().camera().eye().as_dvec3() - eye).dot(ahead);
-    assert!(gone > 5.0 && gone < 30.0, "walked up to the wall, not through it: {gone}");
+    assert!(gone > 40.0, "walked through the wall, not up to it: {gone}");
 
     // Esc stops walking.
     harness.key_press(Key::Escape);
     harness.run();
     assert_eq!(harness.state().tools().active(), ToolId::Select);
+}
+
+/// The floor is the one thing that does hold you up, and it is whatever happens to be under
+/// your feet: the ground when there's nothing, a deck when you step onto one, the joists when
+/// you're up in the attic. F lets go of it and flies.
+#[test]
+fn walking_stands_on_whatever_is_underfoot_and_f_flies() {
+    use egui_kittest::kittest::Queryable;
+    use glam::DVec3;
+    let mut harness = app();
+    // A floor 40" up, big enough that it's underfoot wherever the camera starts.
+    let wide = 4000.0;
+    harness.state_mut().document_mut().edit(|m| {
+        m.add_rectangle(DVec3::new(-wide / 2.0, -wide / 2.0, 40.0), DVec3::X * wide, DVec3::Y * wide, DVec3::Z)
+    });
+    harness.run();
+    harness.get_by_label("Camera").click();
+    harness.run();
+    harness.get_by_label_contains("Walk").click();
+    harness.run_steps(2);
+    let eye = |h: &App| h.state().camera().eye().z;
+    assert!((eye(&harness) - (40.0 + 68.0)).abs() < 1e-2, "stood on the floor at 5' 8\": {}", eye(&harness));
+
+    // A floor above doesn't reach down and grab you: walking stays on the one underfoot.
+    harness.state_mut().document_mut().edit(|m| {
+        m.add_rectangle(DVec3::new(-wide / 2.0, -wide / 2.0, 140.0), DVec3::X * wide, DVec3::Y * wide, DVec3::Z)
+    });
+    harness.run();
+    hold(&mut harness, Key::W, "w", 6);
+    assert!((eye(&harness) - 108.0).abs() < 1e-2, "still on the lower floor: {}", eye(&harness));
+
+    // E flies up through it, and keeps the height while walking: nothing pulls it back down.
+    hold(&mut harness, Key::E, "e", 60);
+    let up = eye(&harness);
+    assert!(up > 140.0, "flew up past the floor above: {up}");
+    hold(&mut harness, Key::W, "w", 6);
+    assert!((eye(&harness) - up).abs() < 1e-2, "flying keeps its height: {}", eye(&harness));
+
+    // F lands, on the floor that is now underfoot: the attic, not the one it took off from.
+    harness.key_press(Key::F);
+    harness.run_steps(2);
+    assert!((eye(&harness) - (140.0 + 68.0)).abs() < 1e-2, "landed in the attic at 5' 8\": {}", eye(&harness));
+    assert_eq!(harness.state().tools().active(), ToolId::Walk, "F flies rather than picking Offset");
 }
 
 #[test]
@@ -2650,7 +2704,7 @@ fn the_house_is_built_on_a_thread_and_says_so() {
     }
     let list = woodsketch_doc::cutlist::cut_list(harness.state().document().scene());
     let parts: usize = list.materials.iter().flat_map(|m| &m.parts).map(|p| p.count).sum();
-    assert_eq!(parts, 807, "the whole house arrived");
+    assert_eq!(parts, 995, "the whole house arrived");
     let (lo, hi) = harness.state().document().bounds().unwrap();
     assert!((hi - lo).x > 400.0 && (hi - lo).z > 190.0, "a 34' house, got {:?}", hi - lo);
     snapshot(&mut harness, "start_page_house");

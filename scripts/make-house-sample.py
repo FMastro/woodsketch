@@ -24,6 +24,8 @@ INT = 3.5                    # 2x4 interior walls
 STUD_H = 92.625              # a precut stud: an 8'1-1/8" wall with one bottom and two top plates
 PLATE = 1.5
 WALL_TOP = PLATE + STUD_H + 2 * PLATE        # 97.125
+STUD_TOP = PLATE + STUD_H    # underside of the top plates: where a cripple run stops
+BLOCK_Z = 48.0 - PLATE / 2   # blocking centred on the drywall's horizontal seam
 OC = 16.0                    # studs and joists on centre
 PITCH = 6.0 / 12.0
 RIDGE_Y = D / 2.0
@@ -195,11 +197,12 @@ materials = [
     {"id": "shingle", "name": "Asphalt Shingles", "kind": "other", "color": [74, 74, 78]},
     {"id": "stone", "name": "Quartz Countertop", "kind": "other", "color": [226, 224, 216]},
     {"id": "china", "name": "Plumbing Fixture", "kind": "other", "color": [246, 246, 248]},
+    {"id": "metal", "name": "Satin Nickel Hardware", "kind": "hardware", "color": [176, 180, 186]},
 ]
 
 # Tag folders, so the Tags panel peels the house apart a layer at a time.
 for folder, inside in [("Shell", ["Slab", "Wall framing", "Sheathing"]),
-                       ("Roof", ["Roof framing", "Roof sheathing", "Roofing"]),
+                       ("Roof", ["Roof framing", "Roof sheathing", "Roofing", "Eaves"]),
                        ("Inside", ["Drywall", "Doors", "Windows", "Kitchen", "Bathrooms"]),
                        ("Outside", ["Porch"])]:
     tags.append({"name": folder, "folder": True})
@@ -223,6 +226,20 @@ def stud_runs(a, b, blocked):
                    if not any(s + PLATE > h0 - 0.01 and s < h1 + 0.01 for h0, h1 in blocked)})
 
 
+def cripples_in(o0, o1):
+    """Where the short studs over a header and under a rough sill go.
+
+    Laid out 16" on centre from the opening's near edge, with one always against the far jack,
+    which is how the run actually gets framed: the last space is whatever is left.
+    """
+    out, x = [o0], o0 + OC
+    while x < o1 - PLATE - 1.0:
+        out.append(x)
+        x += OC
+    out.append(o1 - PLATE)
+    return sorted({round(v, 3) for v in out})
+
+
 def wall(x0, y0, x1, y1, thick, holes, interior):
     along_x = abs(x1 - x0) > abs(y1 - y0)
     a, b = (x0, x1) if along_x else (y0, y1)
@@ -242,7 +259,8 @@ def wall(x0, y0, x1, y1, thick, holes, interior):
         openings.append({"axis": "y" if along_x else "x", "band": (y0, y0 + thick) if along_x else (x0, x0 + thick),
                          "lo": o0, "hi": o1, "sill": sill, "head": head})
     blocked = [(o[1] - 3.0, o[2] + 3.0) for o in holes]
-    for s in stud_runs(a, b, blocked):
+    runs = stud_runs(a, b, blocked)
+    for s in runs:
         (int_studs if interior else ext_studs).append((s, y0, PLATE) if along_x else (x0, s, PLATE))
     for label, o0, o1, sill, head in holes:
         for side in (o0 - PLATE, o1):                     # king studs
@@ -255,6 +273,26 @@ def wall(x0, y0, x1, y1, thick, holes, interior):
         if sill > 0.0:
             at = (o0, y0, sill - PLATE) if along_x else (x0, o0, sill - PLATE)
             sticks.append(("Sill", at, o1 - o0, thick, "x" if along_x else "y"))
+        # Cripples fill what the header and the rough sill leave over: 8-5/8" of it above a
+        # window header, 33" below its sill. Without them the wall is open there.
+        for c in cripples_in(o0, o1):
+            over = STUD_TOP - (head + PLATE)
+            if over > 1.0:
+                at = (c, y0, head + PLATE) if along_x else (x0, c, head + PLATE)
+                sticks.append(("Cripple", at, over, thick, "z"))
+            if sill - 2 * PLATE > 1.0:
+                at = (c, y0, PLATE) if along_x else (x0, c, PLATE)
+                sticks.append(("Cripple", at, sill - 2 * PLATE, thick, "z"))
+    # One row of blocking between the studs, on the seam where the drywall's two courses meet
+    # (the sheets break at 48"), which is what backs it. It stops short of the openings.
+    for s0, s1 in zip(runs, runs[1:]):
+        gap = s1 - (s0 + PLATE)
+        # A bay narrower than the wall is thick gets none: the block would be a square scrap
+        # whose grain reads the wrong way round, and nothing spans a gap that small anyway.
+        if gap <= thick or any(s0 + PLATE < h1 and s1 > h0 for h0, h1 in blocked):
+            continue
+        at = (s0 + PLATE, y0, BLOCK_Z) if along_x else (x0, s0 + PLATE, BLOCK_Z)
+        sticks.append(("Block", at, gap, thick, "x" if along_x else "y"))
 
 
 wall(0, 0, W, 0, EXT, [("Front door", 96.0, 134.0, 0.0, DOOR_H),
@@ -330,6 +368,25 @@ part("Ceiling joist back", "fir", [D - EXT - Y1, RAFTER_D, PLATE], [0, Y1, WALL_
      width="z", called="Ceiling joist", tag="Roof framing", free_to_move=True,
      copies=copies_at("Ceiling joist back", [(x, Y1, WALL_TOP) for x in spread(OC, W, OC)]))
 
+
+# The eaves. The rafter tails are cut square, so a tail's end leans outward as it rises: its
+# bottom corner sits on the tail line and its top corner LEAN further out and RISE_D up. The
+# fascia hangs plumb off that top corner, the way it goes on site, and the soffit closes the
+# triangle back to the wall sheathing. Without the pair of them the tails stop in mid-air.
+FASCIA_H, FASCIA_T, SOFFIT_T = 7.25, 0.75, 0.5
+LEAN = RAFTER_D * math.sin(math.radians(SLOPE))      # how far out a tail's top corner sits
+RISE_D = RAFTER_D * math.cos(math.radians(SLOPE))    # and how far up
+FASCIA_Z = EAVE_Z + RISE_D - FASCIA_H                # its top meets the sheathing above the tail
+SOFFIT_Z = FASCIA_Z - SOFFIT_T
+for side, out_y, front in [("", -EAVE - LEAN, True), (" back", D + EAVE + LEAN, False)]:
+    face = out_y - FASCIA_T if front else out_y      # the fascia's own lowest-y corner
+    place_group(f"Fascia{side}", "cedar", "Eaves", tiles(ROOF_W, FASCIA_H, 136.0, FASCIA_H),
+                lambda u, v, w, h, fy=face: (ROOF_X + u, fy, FASCIA_Z + v),
+                "z", "x", FASCIA_T, called="Fascia")
+    inner, wall_face = (out_y, -OSB) if front else (D + OSB, out_y)
+    place_group(f"Soffit{side}", "ply", "Eaves", tiles(ROOF_W, wall_face - inner, 96.0, 48.0),
+                lambda u, v, w, h, oy=inner: (ROOF_X + u, oy + v, SOFFIT_Z),
+                "y", "x", SOFFIT_T, called="Soffit")
 
 # Gable end walls: the triangle over each end wall. Without them the attic is open at both ends
 # and you can see daylight straight through the house.
@@ -418,6 +475,46 @@ part("Window", "glass", [38, WIN_H, 0.25], list(front_windows[0]), length="x", w
 side_windows = [(0.0, 60.0, SILL), (0.0, 200.0, SILL), (W - 0.25, 60.0, SILL), (W - 0.25, 200.0, SILL)]
 part("Window side", "glass", [38, WIN_H, 0.25], list(side_windows[0]), length="y", width="z", called="Window",
      tag="Windows", copies=copies_at("Window side", side_windows[1:]))
+
+# ---------------------------------------------------------------- door hardware
+# A knob and its rose on both sides of every door. These are `hardware`, not wood: they are
+# named, counted in the shopping list, and kept out of the cutting diagrams and the cut list,
+# which is what you want of a thing you buy in a box rather than cut from a board.
+KNOB_D, KNOB_P, ROSE_D, ROSE_T = 2.25, 1.75, 2.75, 0.1875
+KNOB_Z = 36.0                # a knob's height off the floor
+
+
+def disc(d):
+    """A circle of diameter `d` as an outline, which the recipe pushes through the thickness."""
+    return [[0, d / 2], {"arc_to": [d, d / 2], "through": [d / 2, 0]},
+            {"arc_to": [0, d / 2], "through": [d / 2, d]}]
+
+
+# Each door as (the centre across its face, its two faces, the axis a knob's shank runs along).
+knobs: dict[str, list] = {"y": [], "x": []}
+roses: dict[str, list] = {"y": [], "x": []}
+for across, near, far, axis in [(130.5, 1.875, 3.625, "y"),      # the front door
+                                (70.5, 169.0, 170.375, "y"),     # three off the hall
+                                (180.5, 169.0, 170.375, "y"),
+                                (320.5, 169.0, 170.375, "y"),
+                                (230.5, 253.0, 254.375, "x")]:   # bath 2, off bedroom 2
+    for face, outward in ((near, False), (far, True)):
+        rose = face if outward else face - ROSE_T
+        knob = face + ROSE_T if outward else face - ROSE_T - KNOB_P
+        if axis == "y":
+            roses[axis].append((across - ROSE_D / 2, rose, KNOB_Z - ROSE_D / 2))
+            knobs[axis].append((across - KNOB_D / 2, knob, KNOB_Z - KNOB_D / 2))
+        else:
+            roses[axis].append((rose, across - ROSE_D / 2, KNOB_Z - ROSE_D / 2))
+            knobs[axis].append((knob, across - KNOB_D / 2, KNOB_Z - KNOB_D / 2))
+
+for what, dia, thick, bought, held in [("knob", KNOB_D, KNOB_P, "Passage knob", knobs),
+                                       ("rose", ROSE_D, ROSE_T, "Knob rose", roses)]:
+    for axis, ats in held.items():
+        name = f"Door {what}" if axis == "y" else f"Door {what} side"
+        part(name, "metal", [dia, dia, thick], list(ats[0]), length="x" if axis == "y" else "y",
+             width="z", tag="Doors", called=f"Door {what}", hardware=bought, outline=disc(dia),
+             copies=copies_at(name, ats[1:]))
 
 # ---------------------------------------------------------------- drywall
 # Two 4' courses up each wall and board on the ceiling, cut round the doorways the same way the

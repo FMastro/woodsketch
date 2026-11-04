@@ -78,7 +78,7 @@ pub const SAMPLES: &[Sample] = &[
     },
     Sample {
         name: "Small house",
-        shows: "Seven hundred parts: a framed 2 bed, 2 bath, tagged so you can peel it apart",
+        shows: "A thousand parts: a framed 2 bed, 2 bath, tagged so you can peel it apart",
         recipe: include_str!("../../../samples/house.json"),
     },
 ];
@@ -104,7 +104,7 @@ mod tests {
             ("Workbench", 13, 16),
             ("Dining table", 9, 8),
             ("Kitchen run", 75, 86),
-            ("Small house", 807, 72),
+            ("Small house", 995, 72),
         ];
         assert_eq!(expected.len(), SAMPLES.len(), "every sample needs its counts here");
         for (sample, (name, parts, joints)) in SAMPLES.iter().zip(expected) {
@@ -148,6 +148,24 @@ mod tests {
         // Everything placed carries one, or hiding a layer would leave pieces of it behind.
         let untagged = scene.root.instances().filter(|(_, i)| i.tag.is_none()).count();
         assert_eq!(untagged, 0, "every part of the house is tagged");
+    }
+
+    /// The house's door knobs are the one thing in it nobody cuts: they come in a box. So they
+    /// belong in the shopping list and nowhere near the cutting diagrams, which is what marking
+    /// them `hardware` buys. Getting that backwards would quietly put twenty metal discs into a
+    /// sheet-goods layout, and no part count above would notice.
+    #[test]
+    fn the_houses_knobs_are_bought_not_cut() {
+        let doc = by_name("Small house").expect("the house is a sample").build().unwrap();
+        let list = crate::cutlist::cut_list(doc.scene());
+        let bought = list.hardware(doc.scene());
+        for (piece, count) in [("Passage knob", 10), ("Knob rose", 10)] {
+            let found = bought.iter().find(|(name, _)| name == piece);
+            let (_, n) = found.unwrap_or_else(|| panic!("the house buys {piece}: {bought:?}"));
+            assert_eq!(*n, count, "{piece}: one on each side of all five doors");
+        }
+        let cut: Vec<&String> = list.materials.iter().flat_map(|m| &m.parts).flat_map(|p| &p.names).collect();
+        assert!(!cut.iter().any(|n| n.contains("knob") || n.contains("rose")), "no knob is cut from anything: {cut:?}");
     }
 
     /// Nothing about a sample should be a surprise to the wood: a sample that opens with a

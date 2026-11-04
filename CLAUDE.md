@@ -44,6 +44,18 @@ Just type: digits and length punctuation start a Measurements entry; once typing
 to the box too (so `38mm` isn't Move). Otherwise letters are tool shortcuts, Space is Select,
 `Z` (Shift+Z) is Zoom Extents. Enter submits, Esc clears typing / cancels / deselects.
 
+## Walking (Camera > Walk)
+`ui-egui::viewport::walk`, as in a game: the mouse looks, W A S D or the arrows walk, Shift is
+faster, E and Q (PageUp/PageDown) go up and down, F flies, the wheel sets the speed. Nothing
+blocks the way — you walk through a shut door or a wall on purpose, because a drawing is a thing
+being designed rather than a place with rules. The floor is the only thing that holds, and it is
+whatever one ray straight down finds under the eye (`floor_under`), so the attic works like the
+ground floor and nothing is left to tune; with nothing below, the ground holds. The eye rides
+`EYE_HEIGHT` (5' 8") above it, `stand_on_floor` puts it there on entering Walk and after each
+step, and a typed length changes the height and lands you. E or Q takes off, since otherwise the
+floor would pull the eye straight back and they'd do nothing. While walking, `keys.rs` swallows
+`wasdqef` so they don't fire tool shortcuts.
+
 ## Conventions
 - Z up; red = X, green = Y, blue = Z (SketchUp). Model units are **inches**.
 - Screen coordinates: egui points, origin top-left of the viewport, Y down.
@@ -294,7 +306,8 @@ holds it; `collect_building` shows the bar each frame and swaps the drawing in w
 Tests have to pump frames until it lands (`workflow::build_sample`), not assume the click built it.
 
 The Small house is the odd one out and is meant to be: ~750 parts of a stud-framed 2 bed / 2
-bath, mostly *not* wood (concrete, drywall, glass, asphalt as `MaterialKind::Other`). It is
+bath, mostly *not* wood (concrete, drywall, glass, asphalt as `MaterialKind::Other`; the door
+knobs are `hardware`, so they are bought rather than cut). It is
 there to answer "how big does this get?" and "is this only for woodworking?", not to produce a
 sensible cut list. It leans on three things being right — components placed many times
 (everything repeated is `copies`, so the renderer draws one design per placement), tag folders

@@ -3,6 +3,21 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.65
+
+- Walk goes where you point it. Walls, shut doors and worktops no longer stop you: a drawing is
+  a thing being designed, not a place with rules, and being shut out of a room by a door you
+  haven't hung yet helps nobody. What does hold you up is the floor, and the floor is whatever
+  is under your feet — the ground, a porch deck, or the joists when you are up in the attic. The
+  eye rides 5' 8" above it, and a height you type changes that.
+- F flies, which lets go of the floor; E and Q (or PageUp and PageDown) go up and down, and
+  using them takes off. F again lands you on whatever you are over.
+- The Small house is framed properly now: cripples over every header and under every rough
+  sill, blocking between the studs on the drywall's seam, and a fascia and soffit closing the
+  rafter tails at the eaves. About two hundred more pieces, and a takeoff you could believe.
+- Its doors have knobs, with roses, in satin nickel. They are hardware rather than wood, so
+  they are counted in the shopping list and kept out of the cutting diagrams.
+
 ## 0.1.64
 
 - A sixth sample, and a much bigger one: a Small house. A stud-framed 2 bed, 2 bath with a

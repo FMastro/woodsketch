@@ -1152,7 +1152,7 @@ impl Tools {
             ToolId::Orbit => "Drag to orbit.".into(),
             ToolId::Pan => "Drag to pan.".into(),
             ToolId::Zoom => "Drag up to zoom in, down to zoom out.".into(),
-            ToolId::Walk => "Walking: move the mouse to look; W A S D or the arrows walk (Shift: faster), E and Q go up and down, the wheel sets the speed; type an eye height. Esc stops.".into(),
+            ToolId::Walk => "Walking: move the mouse to look; W A S D or the arrows walk (Shift: faster), E and Q go up and down, F flies, the wheel sets the speed; type an eye height. Walls don't stop you; the floor holds you up. Esc stops.".into(),
         }
     }
 

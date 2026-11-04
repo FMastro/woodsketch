@@ -179,11 +179,9 @@ thread with a bar, since the house takes a couple of seconds.
 2. [2] The Cabinet template can't mark a solid top as free to move, so a table built from it
    warns about a top it has fastened across the grain; the Dining table sample is built from
    parts instead. Templates should set `free_to_move` on a solid top.
-3. [2] The house's framing leaves out the cripples over each header and under each rough sill,
-   blocking between the studs, and the rim and soffit that close the rafter tails at the eaves.
-   None of it changes what the model shows; all of it would show up in a real takeoff. (The
-   drywall *is* cut round the windows, the same way the sheathing is: an earlier note here said
-   otherwise and was wrong.)
+3. [1] The house's headers are single flat 2x stock: present, but only a token of the built-up
+   pair or the 2x8 on edge a 38" opening really wants. The rake boards up the gable ends are
+   missing too (the eaves themselves are closed now). Neither changes what the model shows.
 4. [3] `scripts/make-house-sample.py` writes `samples/house.json`, because seven hundred stud
    positions are arithmetic. Nothing checks the file still matches the script, so a hand edit to
    one and not the other goes unnoticed. Run it in CI and diff.

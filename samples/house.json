@@ -14,7 +14,8 @@
     {"id": "glass", "name": "Glazing", "kind": "other", "color": [168, 204, 214]},
     {"id": "shingle", "name": "Asphalt Shingles", "kind": "other", "color": [74, 74, 78]},
     {"id": "stone", "name": "Quartz Countertop", "kind": "other", "color": [226, 224, 216]},
-    {"id": "china", "name": "Plumbing Fixture", "kind": "other", "color": [246, 246, 248]}
+    {"id": "china", "name": "Plumbing Fixture", "kind": "other", "color": [246, 246, 248]},
+    {"id": "metal", "name": "Satin Nickel Hardware", "kind": "hardware", "color": [176, 180, 186]}
   ],
   "tags": [
     {"name": "Shell", "folder": true},
@@ -25,6 +26,7 @@
     {"name": "Roof framing", "inside": "Roof"},
     {"name": "Roof sheathing", "inside": "Roof"},
     {"name": "Roofing", "inside": "Roof"},
+    {"name": "Eaves", "inside": "Roof"},
     {"name": "Inside", "folder": true},
     {"name": "Drywall", "inside": "Inside"},
     {"name": "Doors", "inside": "Inside"},
@@ -223,72 +225,256 @@
     {"name": "Plate 13", "material": "fir", "size": [48, 3.5, 1.5], "at": [216, 120, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate"},
     {"name": "Plate 14", "material": "fir", "size": [28.5, 3.5, 1.5], "at": [252, 171.5, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate"},
     {"name": "Plate 15", "material": "fir", "size": [48.5, 3.5, 1.5], "at": [252, 234, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate"},
-    {"name": "Jack 1", "material": "fir", "size": [82.5, 5.5, 1.5], "at": [30, 0, 1.5], "length": "z", "tag": "Wall framing", "called": "Jack", "copies": [
-      {"name": "Jack 1 2", "at": [66.5, 0, 1.5]},
-      {"name": "Jack 1 3", "at": [160, 0, 1.5]},
-      {"name": "Jack 1 4", "at": [196.5, 0, 1.5]},
-      {"name": "Jack 1 5", "at": [250, 0, 1.5]},
-      {"name": "Jack 1 6", "at": [286.5, 0, 1.5]},
-      {"name": "Jack 1 7", "at": [320, 0, 1.5]},
-      {"name": "Jack 1 8", "at": [356.5, 0, 1.5]},
-      {"name": "Jack 1 9", "at": [50, 282.5, 1.5]},
-      {"name": "Jack 1 10", "at": [86.5, 282.5, 1.5]},
-      {"name": "Jack 1 11", "at": [296, 282.5, 1.5]},
-      {"name": "Jack 1 12", "at": [332.5, 282.5, 1.5]},
-      {"name": "Jack 1 13", "at": [0, 60, 1.5]},
-      {"name": "Jack 1 14", "at": [0, 96.5, 1.5]},
-      {"name": "Jack 1 15", "at": [0, 200, 1.5]},
-      {"name": "Jack 1 16", "at": [0, 236.5, 1.5]},
-      {"name": "Jack 1 17", "at": [378.5, 60, 1.5]},
-      {"name": "Jack 1 18", "at": [378.5, 96.5, 1.5]},
-      {"name": "Jack 1 19", "at": [378.5, 200, 1.5]},
-      {"name": "Jack 1 20", "at": [378.5, 236.5, 1.5]}
+    {"name": "Cripple 1", "material": "fir", "size": [8.625, 5.5, 1.5], "at": [30, 0, 85.5], "length": "z", "tag": "Wall framing", "called": "Cripple", "copies": [
+      {"name": "Cripple 1 2", "at": [46, 0, 85.5]},
+      {"name": "Cripple 1 3", "at": [62, 0, 85.5]},
+      {"name": "Cripple 1 4", "at": [66.5, 0, 85.5]},
+      {"name": "Cripple 1 5", "at": [160, 0, 85.5]},
+      {"name": "Cripple 1 6", "at": [176, 0, 85.5]},
+      {"name": "Cripple 1 7", "at": [192, 0, 85.5]},
+      {"name": "Cripple 1 8", "at": [196.5, 0, 85.5]},
+      {"name": "Cripple 1 9", "at": [250, 0, 85.5]},
+      {"name": "Cripple 1 10", "at": [266, 0, 85.5]},
+      {"name": "Cripple 1 11", "at": [282, 0, 85.5]},
+      {"name": "Cripple 1 12", "at": [286.5, 0, 85.5]},
+      {"name": "Cripple 1 13", "at": [320, 0, 85.5]},
+      {"name": "Cripple 1 14", "at": [336, 0, 85.5]},
+      {"name": "Cripple 1 15", "at": [352, 0, 85.5]},
+      {"name": "Cripple 1 16", "at": [356.5, 0, 85.5]},
+      {"name": "Cripple 1 17", "at": [50, 282.5, 85.5]},
+      {"name": "Cripple 1 18", "at": [66, 282.5, 85.5]},
+      {"name": "Cripple 1 19", "at": [82, 282.5, 85.5]},
+      {"name": "Cripple 1 20", "at": [86.5, 282.5, 85.5]},
+      {"name": "Cripple 1 21", "at": [296, 282.5, 85.5]},
+      {"name": "Cripple 1 22", "at": [312, 282.5, 85.5]},
+      {"name": "Cripple 1 23", "at": [328, 282.5, 85.5]},
+      {"name": "Cripple 1 24", "at": [332.5, 282.5, 85.5]},
+      {"name": "Cripple 1 25", "at": [0, 60, 85.5]},
+      {"name": "Cripple 1 26", "at": [0, 76, 85.5]},
+      {"name": "Cripple 1 27", "at": [0, 92, 85.5]},
+      {"name": "Cripple 1 28", "at": [0, 96.5, 85.5]},
+      {"name": "Cripple 1 29", "at": [0, 200, 85.5]},
+      {"name": "Cripple 1 30", "at": [0, 216, 85.5]},
+      {"name": "Cripple 1 31", "at": [0, 232, 85.5]},
+      {"name": "Cripple 1 32", "at": [0, 236.5, 85.5]},
+      {"name": "Cripple 1 33", "at": [378.5, 60, 85.5]},
+      {"name": "Cripple 1 34", "at": [378.5, 76, 85.5]},
+      {"name": "Cripple 1 35", "at": [378.5, 92, 85.5]},
+      {"name": "Cripple 1 36", "at": [378.5, 96.5, 85.5]},
+      {"name": "Cripple 1 37", "at": [378.5, 200, 85.5]},
+      {"name": "Cripple 1 38", "at": [378.5, 216, 85.5]},
+      {"name": "Cripple 1 39", "at": [378.5, 232, 85.5]},
+      {"name": "Cripple 1 40", "at": [378.5, 236.5, 85.5]}
     ]},
-    {"name": "Jack 2", "material": "fir", "size": [80.5, 3.5, 1.5], "at": [40, 168, 1.5], "length": "z", "tag": "Wall framing", "called": "Jack", "copies": [
-      {"name": "Jack 2 2", "at": [72.5, 168, 1.5]},
-      {"name": "Jack 2 3", "at": [150, 168, 1.5]},
-      {"name": "Jack 2 4", "at": [182.5, 168, 1.5]},
-      {"name": "Jack 2 5", "at": [290, 168, 1.5]},
-      {"name": "Jack 2 6", "at": [322.5, 168, 1.5]},
-      {"name": "Jack 2 7", "at": [216, 60, 1.5]},
-      {"name": "Jack 2 8", "at": [216, 118.5, 1.5]},
-      {"name": "Jack 2 9", "at": [252, 200, 1.5]},
-      {"name": "Jack 2 10", "at": [252, 232.5, 1.5]}
+    {"name": "Cripple 2", "material": "fir", "size": [33, 5.5, 1.5], "at": [30, 0, 1.5], "length": "z", "tag": "Wall framing", "called": "Cripple", "copies": [
+      {"name": "Cripple 2 2", "at": [46, 0, 1.5]},
+      {"name": "Cripple 2 3", "at": [62, 0, 1.5]},
+      {"name": "Cripple 2 4", "at": [66.5, 0, 1.5]},
+      {"name": "Cripple 2 5", "at": [160, 0, 1.5]},
+      {"name": "Cripple 2 6", "at": [176, 0, 1.5]},
+      {"name": "Cripple 2 7", "at": [192, 0, 1.5]},
+      {"name": "Cripple 2 8", "at": [196.5, 0, 1.5]},
+      {"name": "Cripple 2 9", "at": [250, 0, 1.5]},
+      {"name": "Cripple 2 10", "at": [266, 0, 1.5]},
+      {"name": "Cripple 2 11", "at": [282, 0, 1.5]},
+      {"name": "Cripple 2 12", "at": [286.5, 0, 1.5]},
+      {"name": "Cripple 2 13", "at": [320, 0, 1.5]},
+      {"name": "Cripple 2 14", "at": [336, 0, 1.5]},
+      {"name": "Cripple 2 15", "at": [352, 0, 1.5]},
+      {"name": "Cripple 2 16", "at": [356.5, 0, 1.5]},
+      {"name": "Cripple 2 17", "at": [50, 282.5, 1.5]},
+      {"name": "Cripple 2 18", "at": [66, 282.5, 1.5]},
+      {"name": "Cripple 2 19", "at": [82, 282.5, 1.5]},
+      {"name": "Cripple 2 20", "at": [86.5, 282.5, 1.5]},
+      {"name": "Cripple 2 21", "at": [296, 282.5, 1.5]},
+      {"name": "Cripple 2 22", "at": [312, 282.5, 1.5]},
+      {"name": "Cripple 2 23", "at": [328, 282.5, 1.5]},
+      {"name": "Cripple 2 24", "at": [332.5, 282.5, 1.5]},
+      {"name": "Cripple 2 25", "at": [0, 60, 1.5]},
+      {"name": "Cripple 2 26", "at": [0, 76, 1.5]},
+      {"name": "Cripple 2 27", "at": [0, 92, 1.5]},
+      {"name": "Cripple 2 28", "at": [0, 96.5, 1.5]},
+      {"name": "Cripple 2 29", "at": [0, 200, 1.5]},
+      {"name": "Cripple 2 30", "at": [0, 216, 1.5]},
+      {"name": "Cripple 2 31", "at": [0, 232, 1.5]},
+      {"name": "Cripple 2 32", "at": [0, 236.5, 1.5]},
+      {"name": "Cripple 2 33", "at": [378.5, 60, 1.5]},
+      {"name": "Cripple 2 34", "at": [378.5, 76, 1.5]},
+      {"name": "Cripple 2 35", "at": [378.5, 92, 1.5]},
+      {"name": "Cripple 2 36", "at": [378.5, 96.5, 1.5]},
+      {"name": "Cripple 2 37", "at": [378.5, 200, 1.5]},
+      {"name": "Cripple 2 38", "at": [378.5, 216, 1.5]},
+      {"name": "Cripple 2 39", "at": [378.5, 232, 1.5]},
+      {"name": "Cripple 2 40", "at": [378.5, 236.5, 1.5]}
     ]},
-    {"name": "Header 3", "material": "fir", "size": [41, 5.5, 1.5], "at": [94.5, 0, 82], "tag": "Wall framing", "called": "Header", "copies": [
-      {"name": "Header 3 2", "at": [28.5, 0, 84]},
-      {"name": "Header 3 3", "at": [158.5, 0, 84]},
-      {"name": "Header 3 4", "at": [248.5, 0, 84]},
-      {"name": "Header 3 5", "at": [318.5, 0, 84]},
-      {"name": "Header 3 6", "at": [48.5, 282.5, 84]},
-      {"name": "Header 3 7", "at": [294.5, 282.5, 84]}
+    {"name": "Jack 3", "material": "fir", "size": [82.5, 5.5, 1.5], "at": [30, 0, 1.5], "length": "z", "tag": "Wall framing", "called": "Jack", "copies": [
+      {"name": "Jack 3 2", "at": [66.5, 0, 1.5]},
+      {"name": "Jack 3 3", "at": [160, 0, 1.5]},
+      {"name": "Jack 3 4", "at": [196.5, 0, 1.5]},
+      {"name": "Jack 3 5", "at": [250, 0, 1.5]},
+      {"name": "Jack 3 6", "at": [286.5, 0, 1.5]},
+      {"name": "Jack 3 7", "at": [320, 0, 1.5]},
+      {"name": "Jack 3 8", "at": [356.5, 0, 1.5]},
+      {"name": "Jack 3 9", "at": [50, 282.5, 1.5]},
+      {"name": "Jack 3 10", "at": [86.5, 282.5, 1.5]},
+      {"name": "Jack 3 11", "at": [296, 282.5, 1.5]},
+      {"name": "Jack 3 12", "at": [332.5, 282.5, 1.5]},
+      {"name": "Jack 3 13", "at": [0, 60, 1.5]},
+      {"name": "Jack 3 14", "at": [0, 96.5, 1.5]},
+      {"name": "Jack 3 15", "at": [0, 200, 1.5]},
+      {"name": "Jack 3 16", "at": [0, 236.5, 1.5]},
+      {"name": "Jack 3 17", "at": [378.5, 60, 1.5]},
+      {"name": "Jack 3 18", "at": [378.5, 96.5, 1.5]},
+      {"name": "Jack 3 19", "at": [378.5, 200, 1.5]},
+      {"name": "Jack 3 20", "at": [378.5, 236.5, 1.5]}
     ]},
-    {"name": "Sill 4", "material": "fir", "size": [38, 5.5, 1.5], "at": [30, 0, 34.5], "tag": "Wall framing", "called": "Sill", "copies": [
-      {"name": "Sill 4 2", "at": [160, 0, 34.5]},
-      {"name": "Sill 4 3", "at": [250, 0, 34.5]},
-      {"name": "Sill 4 4", "at": [320, 0, 34.5]},
-      {"name": "Sill 4 5", "at": [50, 282.5, 34.5]},
-      {"name": "Sill 4 6", "at": [296, 282.5, 34.5]}
+    {"name": "Cripple 4", "material": "fir", "size": [10.625, 3.5, 1.5], "at": [40, 168, 83.5], "length": "z", "tag": "Wall framing", "called": "Cripple", "copies": [
+      {"name": "Cripple 4 2", "at": [56, 168, 83.5]},
+      {"name": "Cripple 4 3", "at": [72.5, 168, 83.5]},
+      {"name": "Cripple 4 4", "at": [150, 168, 83.5]},
+      {"name": "Cripple 4 5", "at": [166, 168, 83.5]},
+      {"name": "Cripple 4 6", "at": [182.5, 168, 83.5]},
+      {"name": "Cripple 4 7", "at": [290, 168, 83.5]},
+      {"name": "Cripple 4 8", "at": [306, 168, 83.5]},
+      {"name": "Cripple 4 9", "at": [322.5, 168, 83.5]},
+      {"name": "Cripple 4 10", "at": [216, 60, 83.5]},
+      {"name": "Cripple 4 11", "at": [216, 76, 83.5]},
+      {"name": "Cripple 4 12", "at": [216, 92, 83.5]},
+      {"name": "Cripple 4 13", "at": [216, 108, 83.5]},
+      {"name": "Cripple 4 14", "at": [216, 118.5, 83.5]},
+      {"name": "Cripple 4 15", "at": [252, 200, 83.5]},
+      {"name": "Cripple 4 16", "at": [252, 216, 83.5]},
+      {"name": "Cripple 4 17", "at": [252, 232.5, 83.5]}
     ]},
-    {"name": "Header 5", "material": "fir", "size": [41, 5.5, 1.5], "at": [0, 58.5, 84], "length": "y", "width": "x", "tag": "Wall framing", "called": "Header", "copies": [
-      {"name": "Header 5 2", "at": [0, 198.5, 84]},
-      {"name": "Header 5 3", "at": [378.5, 58.5, 84]},
-      {"name": "Header 5 4", "at": [378.5, 198.5, 84]}
+    {"name": "Block 5", "material": "fir", "size": [14.5, 5.5, 1.5], "at": [208.75, 0, 47.25], "tag": "Wall framing", "called": "Block", "copies": [
+      {"name": "Block 5 2", "at": [224.75, 0, 47.25]},
+      {"name": "Block 5 3", "at": [16.75, 282.5, 47.25]},
+      {"name": "Block 5 4", "at": [96.75, 282.5, 47.25]},
+      {"name": "Block 5 5", "at": [112.75, 282.5, 47.25]},
+      {"name": "Block 5 6", "at": [128.75, 282.5, 47.25]},
+      {"name": "Block 5 7", "at": [144.75, 282.5, 47.25]},
+      {"name": "Block 5 8", "at": [160.75, 282.5, 47.25]},
+      {"name": "Block 5 9", "at": [176.75, 282.5, 47.25]},
+      {"name": "Block 5 10", "at": [192.75, 282.5, 47.25]},
+      {"name": "Block 5 11", "at": [208.75, 282.5, 47.25]},
+      {"name": "Block 5 12", "at": [224.75, 282.5, 47.25]},
+      {"name": "Block 5 13", "at": [240.75, 282.5, 47.25]},
+      {"name": "Block 5 14", "at": [256.75, 282.5, 47.25]},
+      {"name": "Block 5 15", "at": [272.75, 282.5, 47.25]},
+      {"name": "Block 5 16", "at": [352.75, 282.5, 47.25]}
     ]},
-    {"name": "Sill 6", "material": "fir", "size": [38, 5.5, 1.5], "at": [0, 60, 34.5], "length": "y", "width": "x", "tag": "Wall framing", "called": "Sill", "copies": [
-      {"name": "Sill 6 2", "at": [0, 200, 34.5]},
-      {"name": "Sill 6 3", "at": [378.5, 60, 34.5]},
-      {"name": "Sill 6 4", "at": [378.5, 200, 34.5]}
+    {"name": "Block 6", "material": "fir", "size": [14.5, 5.5, 1.5], "at": [0, 22.25, 47.25], "length": "y", "width": "x", "tag": "Wall framing", "called": "Block", "copies": [
+      {"name": "Block 6 2", "at": [0, 38.25, 47.25]},
+      {"name": "Block 6 3", "at": [0, 118.25, 47.25]},
+      {"name": "Block 6 4", "at": [0, 134.25, 47.25]},
+      {"name": "Block 6 5", "at": [0, 150.25, 47.25]},
+      {"name": "Block 6 6", "at": [0, 166.25, 47.25]},
+      {"name": "Block 6 7", "at": [0, 246.25, 47.25]},
+      {"name": "Block 6 8", "at": [0, 262.25, 47.25]},
+      {"name": "Block 6 9", "at": [378.5, 22.25, 47.25]},
+      {"name": "Block 6 10", "at": [378.5, 38.25, 47.25]},
+      {"name": "Block 6 11", "at": [378.5, 118.25, 47.25]},
+      {"name": "Block 6 12", "at": [378.5, 134.25, 47.25]},
+      {"name": "Block 6 13", "at": [378.5, 150.25, 47.25]},
+      {"name": "Block 6 14", "at": [378.5, 166.25, 47.25]},
+      {"name": "Block 6 15", "at": [378.5, 246.25, 47.25]},
+      {"name": "Block 6 16", "at": [378.5, 262.25, 47.25]}
     ]},
-    {"name": "Header 7", "material": "fir", "size": [37, 3.5, 1.5], "at": [38.5, 168, 82], "tag": "Wall framing", "called": "Header", "copies": [
-      {"name": "Header 7 2", "at": [148.5, 168, 82]},
-      {"name": "Header 7 3", "at": [288.5, 168, 82]}
+    {"name": "Block 7", "material": "fir", "size": [14.5, 3.5, 1.5], "at": [216, 22.25, 47.25], "length": "y", "width": "x", "tag": "Wall framing", "called": "Block", "copies": [
+      {"name": "Block 7 2", "at": [216, 38.25, 47.25]},
+      {"name": "Block 7 3", "at": [216, 134.25, 47.25]},
+      {"name": "Block 7 4", "at": [216, 150.25, 47.25]},
+      {"name": "Block 7 5", "at": [132, 188.25, 47.25]},
+      {"name": "Block 7 6", "at": [132, 204.25, 47.25]},
+      {"name": "Block 7 7", "at": [132, 220.25, 47.25]},
+      {"name": "Block 7 8", "at": [132, 236.25, 47.25]},
+      {"name": "Block 7 9", "at": [132, 252.25, 47.25]},
+      {"name": "Block 7 10", "at": [192, 188.25, 47.25]},
+      {"name": "Block 7 11", "at": [192, 204.25, 47.25]},
+      {"name": "Block 7 12", "at": [192, 220.25, 47.25]},
+      {"name": "Block 7 13", "at": [192, 236.25, 47.25]},
+      {"name": "Block 7 14", "at": [192, 252.25, 47.25]},
+      {"name": "Block 7 15", "at": [252, 252.25, 47.25]}
     ]},
-    {"name": "Jack 8", "material": "fir", "size": [80.5, 5.5, 1.5], "at": [96, 0, 1.5], "length": "z", "tag": "Wall framing", "called": "Jack", "copies": [
-      {"name": "Jack 8 2", "at": [132.5, 0, 1.5]}
+    {"name": "Jack 8", "material": "fir", "size": [80.5, 3.5, 1.5], "at": [40, 168, 1.5], "length": "z", "tag": "Wall framing", "called": "Jack", "copies": [
+      {"name": "Jack 8 2", "at": [72.5, 168, 1.5]},
+      {"name": "Jack 8 3", "at": [150, 168, 1.5]},
+      {"name": "Jack 8 4", "at": [182.5, 168, 1.5]},
+      {"name": "Jack 8 5", "at": [290, 168, 1.5]},
+      {"name": "Jack 8 6", "at": [322.5, 168, 1.5]},
+      {"name": "Jack 8 7", "at": [216, 60, 1.5]},
+      {"name": "Jack 8 8", "at": [216, 118.5, 1.5]},
+      {"name": "Jack 8 9", "at": [252, 200, 1.5]},
+      {"name": "Jack 8 10", "at": [252, 232.5, 1.5]}
     ]},
-    {"name": "Header 9", "material": "fir", "size": [63, 3.5, 1.5], "at": [216, 58.5, 82], "length": "y", "width": "x", "tag": "Wall framing", "called": "Header"},
-    {"name": "Header 10", "material": "fir", "size": [37, 3.5, 1.5], "at": [252, 198.5, 82], "length": "y", "width": "x", "tag": "Wall framing", "called": "Header"},
+    {"name": "Block 9", "material": "fir", "size": [14.5, 3.5, 1.5], "at": [86.25, 168, 47.25], "tag": "Wall framing", "called": "Block", "copies": [
+      {"name": "Block 9 2", "at": [102.25, 168, 47.25]},
+      {"name": "Block 9 3", "at": [118.25, 168, 47.25]},
+      {"name": "Block 9 4", "at": [198.25, 168, 47.25]},
+      {"name": "Block 9 5", "at": [214.25, 168, 47.25]},
+      {"name": "Block 9 6", "at": [230.25, 168, 47.25]},
+      {"name": "Block 9 7", "at": [246.25, 168, 47.25]},
+      {"name": "Block 9 8", "at": [262.25, 168, 47.25]},
+      {"name": "Block 9 9", "at": [342.25, 168, 47.25]},
+      {"name": "Block 9 10", "at": [358.25, 168, 47.25]}
+    ]},
+    {"name": "Header 10", "material": "fir", "size": [41, 5.5, 1.5], "at": [94.5, 0, 82], "tag": "Wall framing", "called": "Header", "copies": [
+      {"name": "Header 10 2", "at": [28.5, 0, 84]},
+      {"name": "Header 10 3", "at": [158.5, 0, 84]},
+      {"name": "Header 10 4", "at": [248.5, 0, 84]},
+      {"name": "Header 10 5", "at": [318.5, 0, 84]},
+      {"name": "Header 10 6", "at": [48.5, 282.5, 84]},
+      {"name": "Header 10 7", "at": [294.5, 282.5, 84]}
+    ]},
+    {"name": "Sill 11", "material": "fir", "size": [38, 5.5, 1.5], "at": [30, 0, 34.5], "tag": "Wall framing", "called": "Sill", "copies": [
+      {"name": "Sill 11 2", "at": [160, 0, 34.5]},
+      {"name": "Sill 11 3", "at": [250, 0, 34.5]},
+      {"name": "Sill 11 4", "at": [320, 0, 34.5]},
+      {"name": "Sill 11 5", "at": [50, 282.5, 34.5]},
+      {"name": "Sill 11 6", "at": [296, 282.5, 34.5]}
+    ]},
+    {"name": "Cripple 12", "material": "fir", "size": [10.625, 5.5, 1.5], "at": [96, 0, 83.5], "length": "z", "tag": "Wall framing", "called": "Cripple", "copies": [
+      {"name": "Cripple 12 2", "at": [112, 0, 83.5]},
+      {"name": "Cripple 12 3", "at": [128, 0, 83.5]},
+      {"name": "Cripple 12 4", "at": [132.5, 0, 83.5]}
+    ]},
+    {"name": "Block 13", "material": "fir", "size": [13.75, 5.5, 1.5], "at": [1.5, 0, 47.25], "tag": "Wall framing", "called": "Block", "copies": [
+      {"name": "Block 13 2", "at": [368.75, 0, 47.25]},
+      {"name": "Block 13 3", "at": [1.5, 282.5, 47.25]},
+      {"name": "Block 13 4", "at": [368.75, 282.5, 47.25]}
+    ]},
+    {"name": "Header 14", "material": "fir", "size": [41, 5.5, 1.5], "at": [0, 58.5, 84], "length": "y", "width": "x", "tag": "Wall framing", "called": "Header", "copies": [
+      {"name": "Header 14 2", "at": [0, 198.5, 84]},
+      {"name": "Header 14 3", "at": [378.5, 58.5, 84]},
+      {"name": "Header 14 4", "at": [378.5, 198.5, 84]}
+    ]},
+    {"name": "Sill 15", "material": "fir", "size": [38, 5.5, 1.5], "at": [0, 60, 34.5], "length": "y", "width": "x", "tag": "Wall framing", "called": "Sill", "copies": [
+      {"name": "Sill 15 2", "at": [0, 200, 34.5]},
+      {"name": "Sill 15 3", "at": [378.5, 60, 34.5]},
+      {"name": "Sill 15 4", "at": [378.5, 200, 34.5]}
+    ]},
+    {"name": "Block 16", "material": "fir", "size": [13.75, 3.5, 1.5], "at": [216, 7, 47.25], "length": "y", "width": "x", "tag": "Wall framing", "called": "Block", "copies": [
+      {"name": "Block 16 2", "at": [132, 173, 47.25]},
+      {"name": "Block 16 3", "at": [192, 173, 47.25]},
+      {"name": "Block 16 4", "at": [252, 173, 47.25]}
+    ]},
+    {"name": "Header 17", "material": "fir", "size": [37, 3.5, 1.5], "at": [38.5, 168, 82], "tag": "Wall framing", "called": "Header", "copies": [
+      {"name": "Header 17 2", "at": [148.5, 168, 82]},
+      {"name": "Header 17 3", "at": [288.5, 168, 82]}
+    ]},
+    {"name": "Block 18", "material": "fir", "size": [12.75, 3.5, 1.5], "at": [132, 268.25, 47.25], "length": "y", "width": "x", "tag": "Wall framing", "called": "Block", "copies": [
+      {"name": "Block 18 2", "at": [192, 268.25, 47.25]},
+      {"name": "Block 18 3", "at": [252, 268.25, 47.25]}
+    ]},
+    {"name": "Jack 19", "material": "fir", "size": [80.5, 5.5, 1.5], "at": [96, 0, 1.5], "length": "z", "tag": "Wall framing", "called": "Jack", "copies": [
+      {"name": "Jack 19 2", "at": [132.5, 0, 1.5]}
+    ]},
+    {"name": "Block 20", "material": "fir", "size": [13.75, 5.5, 1.5], "at": [0, 7, 47.25], "length": "y", "width": "x", "tag": "Wall framing", "called": "Block", "copies": [
+      {"name": "Block 20 2", "at": [378.5, 7, 47.25]}
+    ]},
+    {"name": "Block 21", "material": "fir", "size": [13.75, 3.5, 1.5], "at": [7, 168, 47.25], "tag": "Wall framing", "called": "Block"},
+    {"name": "Header 22", "material": "fir", "size": [63, 3.5, 1.5], "at": [216, 58.5, 82], "length": "y", "width": "x", "tag": "Wall framing", "called": "Header"},
+    {"name": "Header 23", "material": "fir", "size": [37, 3.5, 1.5], "at": [252, 198.5, 82], "length": "y", "width": "x", "tag": "Wall framing", "called": "Header"},
     {"name": "Sheathing", "material": "osb", "size": [36, 38, 0.438], "at": [30, -0.438, 0], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing", "copies": [
       {"name": "Sheathing 2", "at": [160, -0.438, 0]},
       {"name": "Sheathing 3", "at": [250, -0.438, 0]},
@@ -487,6 +673,26 @@
       {"name": "Ceiling joist back 23", "at": [352, 168, 97.125]},
       {"name": "Ceiling joist back 24", "at": [368, 168, 97.125]}
     ]},
+    {"name": "Fascia", "material": "cedar", "size": [7.25, 136, 0.75], "at": [-12, -15.992, 90.36], "length": "z", "width": "x", "tag": "Eaves", "called": "Fascia", "copies": [
+      {"name": "Fascia 2", "at": [124, -15.992, 90.36]},
+      {"name": "Fascia 3", "at": [260, -15.992, 90.36]}
+    ]},
+    {"name": "Soffit", "material": "ply", "size": [14.805, 96, 0.5], "at": [-12, -15.242, 89.86], "length": "y", "width": "x", "tag": "Eaves", "called": "Soffit", "copies": [
+      {"name": "Soffit 2", "at": [84, -15.242, 89.86]},
+      {"name": "Soffit 3", "at": [180, -15.242, 89.86]},
+      {"name": "Soffit 4", "at": [276, -15.242, 89.86]}
+    ]},
+    {"name": "Soffit b", "material": "ply", "size": [14.805, 24, 0.5], "at": [372, -15.242, 89.86], "length": "y", "width": "x", "tag": "Eaves", "called": "Soffit"},
+    {"name": "Fascia back", "material": "cedar", "size": [7.25, 136, 0.75], "at": [-12, 303.242, 90.36], "length": "z", "width": "x", "tag": "Eaves", "called": "Fascia", "copies": [
+      {"name": "Fascia back 2", "at": [124, 303.242, 90.36]},
+      {"name": "Fascia back 3", "at": [260, 303.242, 90.36]}
+    ]},
+    {"name": "Soffit back", "material": "ply", "size": [14.805, 96, 0.5], "at": [-12, 288.438, 89.86], "length": "y", "width": "x", "tag": "Eaves", "called": "Soffit", "copies": [
+      {"name": "Soffit back 2", "at": [84, 288.438, 89.86]},
+      {"name": "Soffit back 3", "at": [180, 288.438, 89.86]},
+      {"name": "Soffit back 4", "at": [276, 288.438, 89.86]}
+    ]},
+    {"name": "Soffit back b", "material": "ply", "size": [14.805, 24, 0.5], "at": [372, 288.438, 89.86], "length": "y", "width": "x", "tag": "Eaves", "called": "Soffit"},
     {"name": "Gable stud 1", "material": "fir", "size": [72, 5.5, 1.5], "at": [0, 143.25, 97.125], "length": "z", "tag": "Wall framing", "called": "Gable stud", "copies": [
       {"name": "Gable stud 1 2", "at": [378.5, 143.25, 97.125]}
     ]},
@@ -674,6 +880,30 @@
       {"name": "Window side 2", "at": [0, 200, 36]},
       {"name": "Window side 3", "at": [383.75, 60, 36]},
       {"name": "Window side 4", "at": [383.75, 200, 36]}
+    ]},
+    {"name": "Door knob", "material": "metal", "size": [2.25, 2.25, 1.75], "at": [129.375, -0.062, 34.875], "width": "z", "tag": "Doors", "called": "Door knob", "hardware": "Passage knob", "outline": [[0, 1.125], {"arc_to": [2.25, 1.125], "through": [1.125, 0]}, {"arc_to": [0, 1.125], "through": [1.125, 2.25]}], "copies": [
+      {"name": "Door knob 2", "at": [129.375, 3.812, 34.875]},
+      {"name": "Door knob 3", "at": [69.375, 167.062, 34.875]},
+      {"name": "Door knob 4", "at": [69.375, 170.562, 34.875]},
+      {"name": "Door knob 5", "at": [179.375, 167.062, 34.875]},
+      {"name": "Door knob 6", "at": [179.375, 170.562, 34.875]},
+      {"name": "Door knob 7", "at": [319.375, 167.062, 34.875]},
+      {"name": "Door knob 8", "at": [319.375, 170.562, 34.875]}
+    ]},
+    {"name": "Door knob side", "material": "metal", "size": [2.25, 2.25, 1.75], "at": [251.062, 229.375, 34.875], "length": "y", "width": "z", "tag": "Doors", "called": "Door knob", "hardware": "Passage knob", "outline": [[0, 1.125], {"arc_to": [2.25, 1.125], "through": [1.125, 0]}, {"arc_to": [0, 1.125], "through": [1.125, 2.25]}], "copies": [
+      {"name": "Door knob side 2", "at": [254.562, 229.375, 34.875]}
+    ]},
+    {"name": "Door rose", "material": "metal", "size": [2.75, 2.75, 0.188], "at": [129.125, 1.688, 34.625], "width": "z", "tag": "Doors", "called": "Door rose", "hardware": "Knob rose", "outline": [[0, 1.375], {"arc_to": [2.75, 1.375], "through": [1.375, 0]}, {"arc_to": [0, 1.375], "through": [1.375, 2.75]}], "copies": [
+      {"name": "Door rose 2", "at": [129.125, 3.625, 34.625]},
+      {"name": "Door rose 3", "at": [69.125, 168.812, 34.625]},
+      {"name": "Door rose 4", "at": [69.125, 170.375, 34.625]},
+      {"name": "Door rose 5", "at": [179.125, 168.812, 34.625]},
+      {"name": "Door rose 6", "at": [179.125, 170.375, 34.625]},
+      {"name": "Door rose 7", "at": [319.125, 168.812, 34.625]},
+      {"name": "Door rose 8", "at": [319.125, 170.375, 34.625]}
+    ]},
+    {"name": "Door rose side", "material": "metal", "size": [2.75, 2.75, 0.188], "at": [252.812, 229.125, 34.625], "length": "y", "width": "z", "tag": "Doors", "called": "Door rose", "hardware": "Knob rose", "outline": [[0, 1.375], {"arc_to": [2.75, 1.375], "through": [1.375, 0]}, {"arc_to": [0, 1.375], "through": [1.375, 2.75]}], "copies": [
+      {"name": "Door rose side 2", "at": [254.375, 229.125, 34.625]}
     ]},
     {"name": "Drywall Living S", "material": "board", "size": [36, 38, 0.5], "at": [30, 5.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
       {"name": "Drywall Living S 2", "at": [160, 5.5, 0]}

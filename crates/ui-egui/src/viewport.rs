@@ -32,6 +32,10 @@ pub struct Viewport {
     walking: bool,
     /// Walk's speed, inches a second (the wheel changes it).
     walk_speed: f32,
+    /// Flying (F while walking): the floor stops holding the eye up, so it goes anywhere.
+    flying: bool,
+    /// How far the eye rides above whatever is under it, inches. Typing a length changes it.
+    eye_height: f64,
     last_hover: Option<Vec2>,
     /// Where the viewport was last laid out, in window points.
     rect: egui::Rect,
@@ -51,6 +55,8 @@ impl Viewport {
             zoom_extents_pending: false,
             walking: false,
             walk_speed: WALK_SPEED,
+            flying: false,
+            eye_height: EYE_HEIGHT,
             last_hover: None,
             rect: egui::Rect::NOTHING,
         }
@@ -471,15 +477,22 @@ fn tooltip(painter: &egui::Painter, pos: egui::Pos2, label: &str) {
 /// tooltip, and the selection window.
 /// How fast Walk starts out, inches a second (a slow walk; Shift for three times that).
 const WALK_SPEED: f32 = 48.0;
-/// How close Walk comes to a wall, inches.
-const WALL_CLEARANCE: f64 = 9.0;
+/// How high the eye rides above the floor: 5' 8", an average pair of eyes.
+const EYE_HEIGHT: f64 = 68.0;
 
 impl Viewport {
     /// Walk (Camera > Walk), as in a game: the mouse looks around, W A S D or the arrow keys
-    /// walk, Shift goes faster, E and Q go up and down, the wheel sets the speed; walls stop
-    /// it. The mouse's own motion turns the view, with the cursor hidden and kept in the middle
-    /// so it never runs into the screen's edge. Leaving Walk shows it. A typed eye height
-    /// (Measurements box) puts the eye that high.
+    /// walk, Shift goes faster, E and Q go up and down, F flies, the wheel sets the speed. The
+    /// mouse's own motion turns the view, with the cursor hidden and kept in the middle so it
+    /// never runs into the screen's edge. Leaving Walk shows it. A typed eye height
+    /// (Measurements box) changes how high the eye rides.
+    ///
+    /// Nothing blocks the way: you walk through a shut door, a wall or a worktop, because a
+    /// drawing is a thing being designed rather than a place with rules, and being stopped by
+    /// a door you have not hung yet is no help. What does hold is the floor. The eye rides
+    /// [`EYE_HEIGHT`] above whatever surface is under it, found by looking straight down, so
+    /// stepping onto a deck or up into the attic carries the eye with it, and where there is
+    /// nothing underneath the ground does the holding. Flying (F) lets that go.
     fn walk(&mut self, ctx: &egui::Context, rect: egui::Rect, doc: &Document, tools: &mut Tools) {
         if tools.active() != woodsketch_tools::ToolId::Walk {
             if self.walking {
@@ -490,10 +503,17 @@ impl Viewport {
         }
         if !self.walking {
             self.walking = true;
+            self.flying = false;
             ctx.send_viewport_cmd(egui::ViewportCommand::CursorVisible(false));
+            // Start standing on whatever is underfoot rather than wherever the orbit camera
+            // happened to be, which is usually somewhere out in the sky.
+            self.stand_on_floor(doc);
         }
         if let Some(height) = tools.take_walk_eye() {
-            self.camera.raise(height as f32 - self.camera.eye().z);
+            // Asking for an eye height is asking to stand at it, so it lands you if you were flying.
+            self.eye_height = height;
+            self.flying = false;
+            self.stand_on_floor(doc);
         }
         let typing = tools.is_typing();
         let (motion, delta, dt, keys, scroll) = ctx.input(|i| {
@@ -506,6 +526,7 @@ impl Viewport {
                 down(&[egui::Key::D, egui::Key::ArrowRight]),
                 i.modifiers.shift,
                 f32::from(u8::from(down(&[egui::Key::E, egui::Key::PageUp]))) - f32::from(u8::from(down(&[egui::Key::Q, egui::Key::PageDown]))),
+                !typing && i.key_pressed(egui::Key::F),
             );
             (i.pointer.motion(), i.pointer.delta(), i.stable_dt.min(0.1), keys, i.smooth_scroll_delta.y)
         });
@@ -523,41 +544,60 @@ impl Viewport {
             Some(_) => {}
             None => self.camera.look(Vec2::new(delta.x, delta.y)),
         }
-        let (ahead, back, left, right, fast, up) = keys;
+        let (ahead, back, left, right, fast, up, fly) = keys;
         let forward = f32::from(u8::from(ahead)) - f32::from(u8::from(back));
         let across = f32::from(u8::from(right)) - f32::from(u8::from(left));
         let step = self.walk_speed * if fast { 3.0 } else { 1.0 } * dt;
-        if forward != 0.0 || across != 0.0 {
-            let before = self.camera.target;
-            self.camera.walk(forward * step, across * step);
-            let moved = (self.camera.target - before).as_dvec3();
-            if blocked(doc, self.camera.eye().as_dvec3() - moved, moved) {
-                self.camera.target = before;
+        if fly {
+            self.flying = !self.flying;
+            if !self.flying {
+                self.stand_on_floor(doc);
             }
+            tools.set_message(
+                if self.flying { "Flying: nothing holds you up. E and Q go up and down; F walks again." } else { "Walking: back on the floor." }.into(),
+            );
+        }
+        if forward != 0.0 || across != 0.0 {
+            self.camera.walk(forward * step, across * step);
         }
         if up != 0.0 {
+            // Going up or down by hand is flying by definition: left walking, the floor would
+            // pull the eye straight back down and E and Q would do nothing at all.
+            self.flying = true;
             self.camera.raise(up * step);
         }
-        tools.set_walk_eye(f64::from(self.camera.eye().z));
+        if !self.flying && (forward != 0.0 || across != 0.0) {
+            self.stand_on_floor(doc);
+        }
+        tools.set_walk_eye(self.eye_height);
         if forward != 0.0 || across != 0.0 || up != 0.0 {
             // Keep walking while a key is held.
             ctx.request_repaint();
         }
     }
+
+    /// Put the eye [`EYE_HEIGHT`] (or whatever height was typed) above whatever is under it.
+    /// Looking straight down is what makes the attic work the same way as the ground floor:
+    /// the surface found is the one you are standing on, whichever it is. With nothing below,
+    /// the ground holds, so stepping off the end of the drawing doesn't drop you forever.
+    fn stand_on_floor(&mut self, doc: &Document) {
+        let eye = self.camera.eye().as_dvec3();
+        let floor = floor_under(doc, eye).unwrap_or(0.0);
+        self.camera.raise((floor + self.eye_height - eye.z) as f32);
+    }
 }
 
-/// Whether walking `moved` from `eye` would take it into a wall: a face ahead, within the step
-/// and a little room, at eye height or lower down (a tabletop at the waist stops it too).
-fn blocked(doc: &Document, eye: DVec3, moved: DVec3) -> bool {
-    let Some(dir) = moved.try_normalize() else { return false };
-    let to_local = doc.context_transform().inverse();
-    let reach = moved.length() + WALL_CLEARANCE;
-    let model = doc.view().model();
-    [0.0, 0.5].iter().any(|&down| {
-        let from = eye - DVec3::Z * (eye.z.max(0.0) * down);
-        let ray = woodsketch_tools::pick::Ray { origin: to_local.transform_point3(from), dir: to_local.transform_vector3(dir).normalize() };
-        woodsketch_tools::pick::hit_face(model, &ray).is_some_and(|(_, p)| to_local.inverse().transform_point3(p).distance(from) < reach)
-    })
+/// The top of the nearest surface straight below `eye`, if there is one. One ray down is all
+/// the floor is: no gravity, no falling, nothing to tune.
+fn floor_under(doc: &Document, eye: DVec3) -> Option<f64> {
+    let to_world = doc.context_transform();
+    let to_local = to_world.inverse();
+    let ray = woodsketch_tools::pick::Ray {
+        origin: to_local.transform_point3(eye),
+        dir: to_local.transform_vector3(-DVec3::Z).normalize(),
+    };
+    let (_, hit) = woodsketch_tools::pick::hit_face(doc.view().model(), &ray)?;
+    Some(to_world.transform_point3(hit).z)
 }
 
 /// View > Wood Movement: a double arrow across each solid-wood part's width with how much it
