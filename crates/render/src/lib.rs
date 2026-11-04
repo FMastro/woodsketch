@@ -2,6 +2,7 @@
 //! UI shows as an image. Rendering offscreen gives the viewport its own depth buffer and MSAA,
 //! independent of egui's render pass.
 
+pub mod picture;
 mod scene;
 
 pub use scene::{Batch, Color, DashedVertex, FaceVertex, LineVertex, Placement, Scene, SceneGuide, guide_vertices, srgb};

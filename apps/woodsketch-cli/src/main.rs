@@ -138,6 +138,7 @@ fn run(args: &[String]) -> Result<(), String> {
                 size: a.size,
                 dark: a.dark,
                 highlight: a.highlight.clone(),
+                ..Default::default()
             };
             let png = picture::render(&doc, &options)?;
             std::fs::write(out()?, png).map_err(|e| format!("Couldn't write {}: {e}", out().unwrap_or_default()))?;

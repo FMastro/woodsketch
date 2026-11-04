@@ -491,7 +491,9 @@ pub fn build_reporting(recipe: &Recipe, progress: &mut dyn FnMut(usize, usize, &
 }
 
 fn build_in(recipe: &Recipe, mm: bool, progress: &mut dyn FnMut(usize, usize, &str)) -> Result<Document, Vec<String>> {
-    let mut doc = Document::default();
+    // The drawing keeps the units its recipe was written in, so opening it shows the sizes the
+    // recipe asked for rather than the app's last choice.
+    let mut doc = Document::new_in(if mm { Units::Millimeters } else { Units::Inches });
     let total = recipe.parts.len() + recipe.profiles.len() + recipe.templates.len() + recipe.joints.len() + recipe.groups.len();
     let mut step = 0;
     let mut report = |what: &str| {

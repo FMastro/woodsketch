@@ -17,6 +17,8 @@ mod part;
 mod profile;
 mod tags;
 mod template;
+pub mod start;
+pub mod thumbs;
 pub mod updates;
 mod viewport;
 
@@ -88,6 +90,10 @@ pub struct WoodSketchApp {
     reload_asking: bool,
     /// Reloaded just now, to say so in the status bar for a moment.
     reloaded: Option<std::time::Instant>,
+    /// The Start page (New, Open, Recent, Samples), over the drawing at startup.
+    start: start::StartPage,
+    /// Pictures for the Start page's cards, drawn on a thread of their own.
+    thumbs: thumbs::Thumbnails,
 }
 
 impl WoodSketchApp {
@@ -114,7 +120,9 @@ impl WoodSketchApp {
         let crash_dir = cc.storage.is_some().then(|| eframe::storage_dir("WoodSketch")).flatten();
         let crash = crash_dir.as_deref().and_then(crash::left);
         Self {
-            doc: Document::default(),
+            // A drawing made here carries the units it's shown in, which `set_units` above took
+            // from the settings.
+            doc: Document::new_in(woodsketch_doc::units::units()),
             tools: Tools::default(),
             keyboard: keys::Keyboard::default(),
             tags: tags::TagsPanel::default(),
@@ -150,11 +158,20 @@ impl WoodSketchApp {
             show_changes: false,
             update_started: false,
             update_asked: false,
+            // Over the drawing at startup for the real app. Tests drive the app with no storage,
+            // and would otherwise have to clear the page before every one of them.
+            start: start::StartPage { open: cc.storage.is_some() },
+            thumbs: thumbs::Thumbnails::new(cc.wgpu_render_state.as_ref()),
         }
     }
 
     /// Replace the drawing (New or Open), resetting everything that pointed into the old one.
     fn replace_document(&mut self, doc: Document, path: Option<PathBuf>) {
+        // The drawing on screen decides the units. One saved before they were kept says nothing,
+        // and keeps whatever the app is set to rather than being rewritten on open.
+        if let Some(units) = doc.scene().units {
+            woodsketch_doc::units::set_units(units);
+        }
         self.doc = doc;
         self.tools.cancel();
         self.tools.active_material = None;
@@ -168,6 +185,14 @@ impl WoodSketchApp {
         self.watch.stamped(self.files.path.as_deref());
         self.reload_asking = false;
         self.reloaded = None;
+        self.start.open = false;
+    }
+
+    /// Put the Start page over the drawing (File > Start Page). The drawing is left alone, so
+    /// Esc comes straight back to it with nothing lost.
+    pub fn show_start_page(&mut self) {
+        self.tools.cancel();
+        self.start.open = true;
     }
 
     /// Fit the whole drawing in the view (Zoom Extents).
@@ -175,9 +200,15 @@ impl WoodSketchApp {
         self.viewport.request_zoom_extents();
     }
 
-    /// Start a new, empty drawing (without asking about unsaved changes).
+    /// Start a new, empty drawing (without asking about unsaved changes), in the units last used.
     pub fn new_document(&mut self) {
-        self.replace_document(Document::default(), None);
+        self.new_document_in(woodsketch_doc::units::units());
+    }
+
+    /// Start a new, empty drawing in `units`, which it then carries (File > New in inches or
+    /// millimeters, and the Start page's two New cards).
+    pub fn new_document_in(&mut self, units: woodsketch_doc::units::Units) {
+        self.replace_document(Document::new_in(units), None);
     }
 
     /// Open the drawing at `path` (without asking about unsaved changes).
@@ -228,6 +259,8 @@ impl WoodSketchApp {
         // change from outside.
         self.watch.stamped(Some(path));
         self.reload_asking = false;
+        // The drawing on disk is a different drawing now, so its card gets a new picture.
+        self.thumbs.changed(path);
         Ok(())
     }
 
@@ -532,6 +565,25 @@ impl WoodSketchApp {
     fn carry_out(&mut self, ctx: &egui::Context, action: files::Discard) {
         match action {
             files::Discard::New => self.new_document(),
+            files::Discard::NewIn(units) => self.new_document_in(units),
+            files::Discard::Sample(i) => {
+                if let Some(sample) = woodsketch_doc::samples::SAMPLES.get(i) {
+                    // ~200 ms on the click that asks for it, which is quick enough not to need a
+                    // thread; the cursor says so meanwhile.
+                    ctx.set_cursor_icon(egui::CursorIcon::Wait);
+                    match sample.build() {
+                        // No path: a sample is a starting point, so saving asks where to put it,
+                        // and Ctrl+S can't write over what shipped with the app.
+                        Ok(doc) => {
+                            self.replace_document(doc, None);
+                            self.files.name_hint = Some(sample.name.to_owned());
+                            self.files.mark_unsaved();
+                            self.viewport.request_zoom_extents();
+                        }
+                        Err(error) => self.files.show_error(error),
+                    }
+                }
+            }
             files::Discard::Open => {
                 if let Some(path) = files::open_dialog(self.files.path.as_deref())
                     && let Err(error) = self.open_path(&path)
@@ -612,6 +664,11 @@ impl WoodSketchApp {
         &mut self.doc
     }
 
+    /// The Start page's pictures, for tests that wait for one to be drawn.
+    pub fn thumbnails(&self) -> &thumbs::Thumbnails {
+        &self.thumbs
+    }
+
     pub fn tools(&self) -> &Tools {
         &self.tools
     }
@@ -662,12 +719,31 @@ impl eframe::App for WoodSketchApp {
         self.autosave_and_recover(&ctx);
         self.offer_crash_report(&ctx);
         self.keep_up_to_date();
-        if !self.files.is_asking() && self.leftovers.is_empty() && self.crash.is_none() && !self.reload_asking {
+        if !self.files.is_asking() && self.leftovers.is_empty() && self.crash.is_none() && !self.reload_asking && !self.start.open {
             self.keyboard.handle(&ctx, &mut self.doc, &mut self.tools, &mut self.viewport);
         }
 
         // Panels claim space in order: bars across the top and bottom, then the sides.
         self.menu_bar(ui);
+        if self.start.open {
+            // The page stands in for the toolbars, tray and viewport; the menu bar stays, so
+            // File and Help work from here. The drawing underneath is untouched.
+            let drawing = self.files.name();
+            self.thumbs.collect(&ctx);
+            match self.start.show(ui, &drawing, &self.recent, &mut self.thumbs) {
+                Some(start::Picked::Instead(action)) => self.request(&ctx, action),
+                Some(start::Picked::Import) => {
+                    if let Some(path) = files::import_dialog(self.files.path.as_deref())
+                        && let Err(error) = self.import_sketchup(&path)
+                    {
+                        self.files.show_error(error);
+                    }
+                }
+                None => {}
+            }
+            // `handle_files` draws "save changes?" at the top of the next frame.
+            return;
+        }
         self.toolbar(ui);
         self.status_bar(ui);
         self.tool_set(ui);

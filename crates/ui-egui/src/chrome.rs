@@ -92,6 +92,11 @@ impl WoodSketchApp {
     fn file_menu(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
         ui.menu_button("File", |ui| {
+            if ui.button("Start Page").on_hover_text("New, Open, Recent and the samples; Esc comes back here").clicked() {
+                ui.close();
+                self.show_start_page();
+            }
+            ui.separator();
             if ui.add(egui::Button::new("New").shortcut_text("Ctrl+N")).clicked() {
                 ui.close();
                 self.request(&ctx, files::Discard::New);
@@ -255,10 +260,11 @@ impl WoodSketchApp {
                 }
             });
             ui.menu_button("Units", |ui| {
-                use woodsketch_doc::units::{Units, set_units, units};
+                use woodsketch_doc::units::Units;
+                let current = self.doc.units();
                 for choice in Units::ALL {
-                    if ui.radio(units() == choice, choice.name()).on_hover_text("How lengths are shown, and what a number typed without a unit means").clicked() {
-                        set_units(choice);
+                    if ui.radio(current == choice, choice.name()).on_hover_text("How lengths are shown, and what a number typed without a unit means; saved with the drawing").clicked() {
+                        self.doc.set_units(choice);
                         ui.close();
                     }
                 }

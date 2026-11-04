@@ -10,7 +10,10 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 /// How lengths are shown, and what a bare number means.
+// Lowercase: the `.woodsketch` header has written `"units": "inches"` since the first version,
+// so the spelling is part of the file format.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Units {
     /// Fractional inches, to the nearest 1/16".
     #[default]

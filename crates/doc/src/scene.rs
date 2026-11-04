@@ -267,6 +267,12 @@ pub struct Scene {
     /// The seasonal moisture swing wood movement is checked for, percent (`None`: 4%).
     #[serde(default)]
     pub moisture_swing: Option<f64>,
+    /// How lengths are shown and typed in this drawing (View > Units). Saved in the file's
+    /// header rather than here (`file::File::units`), which has carried the drawing's unit since
+    /// the first version; `file` moves it in and out. `None` in a drawing that came from
+    /// somewhere with no unit of its own, such as a SketchUp model.
+    #[serde(skip)]
+    pub units: Option<crate::units::Units>,
     /// Counters for default names, like SketchUp's "Group#1", "Component#1".
     next_group: u32,
     next_component: u32,

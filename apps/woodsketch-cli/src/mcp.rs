@@ -406,6 +406,7 @@ fn call(name: &str, args: &Value, session: &mut Session, progress: &mut dyn FnMu
                     size: [args["width"].as_u64().unwrap_or(1000).clamp(64, 4096) as u32, args["height"].as_u64().unwrap_or(700).clamp(64, 4096) as u32],
                     dark: args["dark"].as_bool().unwrap_or(false),
                     highlight: args["highlight"].as_array().map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect()).unwrap_or_default(),
+                    ..Default::default()
                 };
                 let png = crate::picture::render(doc, &options)?;
                 Ok(json!({ "content": [{ "type": "image", "data": base64(&png), "mimeType": "image/png" }], "isError": false }))

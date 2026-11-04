@@ -1,0 +1,33 @@
+{
+  "name": "Bookshelf",
+  "units": "in",
+  "materials": [
+    { "id": "oak", "library": "White Oak" },
+    { "id": "ply", "library": "Plywood" }
+  ],
+  "parts": [
+    { "name": "Left side", "called": "Side", "material": "oak", "size": [72, 11.25, 0.75], "at": [0, 0, 0], "length": "z", "width": "y" },
+    { "name": "Right side", "called": "Side", "material": "oak", "size": [72, 11.25, 0.75], "at": [31.25, 0, 0], "length": "z", "width": "y" },
+    { "name": "Bottom", "material": "oak", "size": [30.5, 11.25, 0.75], "at": [0.75, 0, 3], "length": "x", "width": "y" },
+    { "name": "Shelf 1", "called": "Shelf", "material": "oak", "size": [30.5, 11.25, 0.75], "at": [0.75, 0, 20], "length": "x", "width": "y" },
+    { "name": "Shelf 2", "called": "Shelf", "material": "oak", "size": [30.5, 11.25, 0.75], "at": [0.75, 0, 37], "length": "x", "width": "y" },
+    { "name": "Shelf 3", "called": "Shelf", "material": "oak", "size": [30.5, 11.25, 0.75], "at": [0.75, 0, 54], "length": "x", "width": "y" },
+    { "name": "Top", "material": "oak", "size": [30.5, 11.25, 0.75], "at": [0.75, 0, 71.25], "length": "x", "width": "y" },
+    { "name": "Back", "material": "ply", "size": [68.25, 30.5, 0.25], "at": [0.75, 11.25, 3], "length": "z", "width": "x" }
+  ],
+  "joints": [
+    { "kind": "let_in", "part": "Bottom", "into": "Left side", "options": { "depth": 0.25 } },
+    { "kind": "let_in", "part": "Bottom", "into": "Right side", "options": { "depth": 0.25 } },
+    { "kind": "let_in", "part": "Shelf 1", "into": "Left side", "options": { "depth": 0.25 } },
+    { "kind": "let_in", "part": "Shelf 1", "into": "Right side", "options": { "depth": 0.25 } },
+    { "kind": "let_in", "part": "Shelf 2", "into": "Left side", "options": { "depth": 0.25 } },
+    { "kind": "let_in", "part": "Shelf 2", "into": "Right side", "options": { "depth": 0.25 } },
+    { "kind": "let_in", "part": "Shelf 3", "into": "Left side", "options": { "depth": 0.25 } },
+    { "kind": "let_in", "part": "Shelf 3", "into": "Right side", "options": { "depth": 0.25 } },
+    { "kind": "let_in", "part": "Top", "into": "Left side", "options": { "depth": 0.25 } },
+    { "kind": "let_in", "part": "Top", "into": "Right side", "options": { "depth": 0.25 } }
+  ],
+  "groups": [
+    { "name": "Bookshelf", "parts": ["Left side", "Right side", "Bottom", "Shelf 1", "Shelf 2", "Shelf 3", "Top", "Back"] }
+  ]
+}

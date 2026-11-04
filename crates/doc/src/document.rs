@@ -911,6 +911,33 @@ impl Document {
         }
     }
 
+    /// A new, empty drawing that shows lengths in `units` and carries them (File > New, and the
+    /// Start page's New cards). Set straight on the scene, not through [`Self::set_units`]: this
+    /// is the drawing's starting state, so it is neither an edit to undo nor a change to save.
+    /// Nothing here changes the units in use; whoever puts the drawing on screen does that.
+    ///
+    /// Not [`Self::from_scene`], which counts the scene it is handed as a change: this drawing
+    /// is empty and brand new, so it has nothing unsaved in it and its title carries no `*`.
+    pub fn new_in(units: crate::units::Units) -> Self {
+        let mut doc = Self::default();
+        doc.state.scene.units = Some(units);
+        doc
+    }
+
+    /// Show lengths in `units` in this drawing (View > Units), saved with it and undoable. Also
+    /// sets the units in use now, since the drawing on screen is this one.
+    pub fn set_units(&mut self, units: crate::units::Units) {
+        if self.scene().units != Some(units) {
+            self.edit_scene(|scene, _| scene.units = Some(units));
+        }
+        crate::units::set_units(units);
+    }
+
+    /// The drawing's own units, or the ones in use for a drawing saved before they were kept.
+    pub fn units(&self) -> crate::units::Units {
+        self.scene().units.unwrap_or_else(crate::units::units)
+    }
+
     /// Explode the selected groups and components back into loose geometry, selecting it.
     pub fn explode_selection(&mut self) -> bool {
         let instances: Vec<InstanceId> =

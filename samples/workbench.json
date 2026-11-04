@@ -1,0 +1,48 @@
+{
+  "name": "Workbench",
+  "units": "in",
+  "materials": [
+    { "id": "maple", "library": "Hard Maple" }
+  ],
+  "parts": [
+    { "name": "Leg 1", "called": "Leg", "material": "maple", "size": [31.75, 3.5, 3.5], "at": [3, 3, 0], "length": "z", "width": "x" },
+    { "name": "Leg 2", "called": "Leg", "material": "maple", "size": [31.75, 3.5, 3.5], "at": [53.5, 3, 0], "length": "z", "width": "x" },
+    { "name": "Leg 3", "called": "Leg", "material": "maple", "size": [31.75, 3.5, 3.5], "at": [3, 17.5, 0], "length": "z", "width": "x" },
+    { "name": "Leg 4", "called": "Leg", "material": "maple", "size": [31.75, 3.5, 3.5], "at": [53.5, 17.5, 0], "length": "z", "width": "x" },
+
+    { "name": "Front rail", "called": "Long rail", "material": "maple", "size": [47, 5, 1.5], "at": [6.5, 3, 24], "length": "x", "width": "z" },
+    { "name": "Back rail", "called": "Long rail", "material": "maple", "size": [47, 5, 1.5], "at": [6.5, 19.5, 24], "length": "x", "width": "z" },
+    { "name": "Left rail", "called": "End rail", "material": "maple", "size": [11, 5, 1.5], "at": [3, 6.5, 24], "length": "y", "width": "z" },
+    { "name": "Right rail", "called": "End rail", "material": "maple", "size": [11, 5, 1.5], "at": [53.5, 6.5, 24], "length": "y", "width": "z" },
+
+    { "name": "Front stretcher", "called": "Long stretcher", "material": "maple", "size": [47, 4, 1.5], "at": [6.5, 3, 6], "length": "x", "width": "z" },
+    { "name": "Back stretcher", "called": "Long stretcher", "material": "maple", "size": [47, 4, 1.5], "at": [6.5, 19.5, 6], "length": "x", "width": "z" },
+    { "name": "Left stretcher", "called": "End stretcher", "material": "maple", "size": [11, 4, 1.5], "at": [3, 6.5, 6], "length": "y", "width": "z" },
+    { "name": "Right stretcher", "called": "End stretcher", "material": "maple", "size": [11, 4, 1.5], "at": [53.5, 6.5, 6], "length": "y", "width": "z" },
+
+    { "name": "Top", "material": "maple", "size": [60, 24, 2.25], "at": [0, 0, 31.75], "length": "x", "width": "y", "free_to_move": true }
+  ],
+  "joints": [
+    { "kind": "mortise_and_tenon", "part": "Front rail", "into": "Leg 1", "options": { "length": 1.25, "thickness": 0.5 } },
+    { "kind": "mortise_and_tenon", "part": "Front rail", "into": "Leg 2", "options": { "length": 1.25, "thickness": 0.5 } },
+    { "kind": "mortise_and_tenon", "part": "Back rail", "into": "Leg 3", "options": { "length": 1.25, "thickness": 0.5 } },
+    { "kind": "mortise_and_tenon", "part": "Back rail", "into": "Leg 4", "options": { "length": 1.25, "thickness": 0.5 } },
+    { "kind": "mortise_and_tenon", "part": "Left rail", "into": "Leg 1", "options": { "length": 1.25, "thickness": 0.5 } },
+    { "kind": "mortise_and_tenon", "part": "Left rail", "into": "Leg 3", "options": { "length": 1.25, "thickness": 0.5 } },
+    { "kind": "mortise_and_tenon", "part": "Right rail", "into": "Leg 2", "options": { "length": 1.25, "thickness": 0.5 } },
+    { "kind": "mortise_and_tenon", "part": "Right rail", "into": "Leg 4", "options": { "length": 1.25, "thickness": 0.5 } },
+
+    { "kind": "mortise_and_tenon", "part": "Front stretcher", "into": "Leg 1", "options": { "length": 1.25, "thickness": 0.5 } },
+    { "kind": "mortise_and_tenon", "part": "Front stretcher", "into": "Leg 2", "options": { "length": 1.25, "thickness": 0.5 } },
+    { "kind": "mortise_and_tenon", "part": "Back stretcher", "into": "Leg 3", "options": { "length": 1.25, "thickness": 0.5 } },
+    { "kind": "mortise_and_tenon", "part": "Back stretcher", "into": "Leg 4", "options": { "length": 1.25, "thickness": 0.5 } },
+    { "kind": "mortise_and_tenon", "part": "Left stretcher", "into": "Leg 1", "options": { "length": 1.25, "thickness": 0.5 } },
+    { "kind": "mortise_and_tenon", "part": "Left stretcher", "into": "Leg 3", "options": { "length": 1.25, "thickness": 0.5 } },
+    { "kind": "mortise_and_tenon", "part": "Right stretcher", "into": "Leg 2", "options": { "length": 1.25, "thickness": 0.5 } },
+    { "kind": "mortise_and_tenon", "part": "Right stretcher", "into": "Leg 4", "options": { "length": 1.25, "thickness": 0.5 } }
+  ],
+  "groups": [
+    { "name": "Base", "parts": ["Leg 1", "Leg 2", "Leg 3", "Leg 4", "Front rail", "Back rail", "Left rail", "Right rail", "Front stretcher", "Back stretcher", "Left stretcher", "Right stretcher"] },
+    { "name": "Workbench", "parts": ["Base", "Top"] }
+  ]
+}

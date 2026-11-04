@@ -1,0 +1,27 @@
+{
+  "name": "Nightstand",
+  "units": "in",
+  "materials": [
+    { "id": "walnut", "library": "Walnut" }
+  ],
+  "templates": [
+    {
+      "kind": "cabinet",
+      "name": "Nightstand",
+      "at": [0, 0, 0],
+      "wood": "walnut",
+      "sizes": {
+        "width": 20,
+        "height": 26,
+        "depth": 17,
+        "shelves": 1,
+        "back": true,
+        "joints": "Dados",
+        "fills": ["Drawer", "Drawer"],
+        "fronts": "Overlay",
+        "drawer_joints": "Dovetails",
+        "pulls": "Bar"
+      }
+    }
+  ]
+}

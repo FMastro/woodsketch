@@ -17,18 +17,19 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 21 | A live link to the open drawing |
 | 6 | Release polish | 74 | macOS signing before announcing widely |
-| 7 | Importing | 225 | Gets people's existing models in |
-| 8 | Cut list and materials | 171 | Better buying and cutting |
-| 9 | Wood movement | 23 | Fewer false warnings, clearer results |
-| 10 | Edge profiles | 76 | More bits, profiles on any board |
-| 11 | Parts and boards | 11 | Small drawing conveniences |
-| 12 | Modeling tools | 121 | SketchUp parity for general modeling |
-| 13 | Groups, components and tags | 63 | Organizing bigger projects |
-| 14 | UI | 95 | Comfort and polish |
-| 15 | Rendering and performance | 66 | Only pressing for very big models |
-| 16 | Export | 54 | More ways out (CNC, other apps) |
-| 17 | Later | 100 | Separate projects |
-| | **All** | **1394** | |
+| 7 | Start page and samples | 13 | What someone sees in the first minute |
+| 8 | Importing | 225 | Gets people's existing models in |
+| 9 | Cut list and materials | 171 | Better buying and cutting |
+| 10 | Wood movement | 23 | Fewer false warnings, clearer results |
+| 11 | Edge profiles | 76 | More bits, profiles on any board |
+| 12 | Parts and boards | 11 | Small drawing conveniences |
+| 13 | Modeling tools | 121 | SketchUp parity for general modeling |
+| 14 | Groups, components and tags | 63 | Organizing bigger projects |
+| 15 | UI | 94 | Comfort and polish |
+| 16 | Rendering and performance | 66 | Only pressing for very big models |
+| 17 | Export | 54 | More ways out (CNC, other apps) |
+| 18 | Later | 100 | Separate projects |
+| | **All** | **1406** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -164,7 +165,28 @@ signed in CI over OIDC with no stored key).
 15. [2] Keep it current: every feature ships with its help page updated (a rule in CLAUDE.md
     next to the CHANGELOG one), and the release notes link to the pages.
 
-## 7. Importing
+## 7. Start page and samples
+Done: the Start page (New in either unit, Open, Import, Recent, Samples) over an empty drawing
+rather than in front of the app, Esc to leave, File > Start Page to come back; units saved with
+the drawing; three samples built into the app as recipes (Bookshelf, Nightstand, Workbench),
+each card saying what it demonstrates; a test that builds them all and checks their parts and
+joints; a picture on every sample and recent card, drawn on a thread of its own on the app's own
+GPU device, framed to fill the card and without the axes.
+1. [2] Thumbnails of recent drawings kept between runs (every one is read off disk and drawn
+   again each time the app starts). A cache in the settings folder, keyed by path and the file's
+   modified time and length, as `watch` already compares them.
+2. [3] More samples: a table, then a kitchen run of five cabinets from one component, to show the
+   cut list on something big (91 copies of a stud build in 167 ms, so repeated components are
+   nearly free).
+3. [8] A Learn section beside Samples: each sample as a short tutorial, linked to the videos.
+
+Not samples, deliberately: a chair (compound angles and sculpted parts, the hardest thing to say
+in a recipe and the first to break when `doc::angled` changes, and it shows nothing a woodworker
+comes here for) and a tiny house (its cut list is a lumber takeoff, its movement check means
+nothing, build sheets per stud are absurd, and it invites "is this a house tool?" against the
+specialization in Direction). The kitchen run is the big model instead.
+
+## 8. Importing
 Done: SketchUp 2021+ `.skp` (geometry, components, groups, materials, tags and tag folders, hidden
 tags, hidden objects on a "Hidden in SketchUp" tag, guide lines and construction lines, hidden and
 softened edges, dimensions and text attached to geometry, lumber told from boards by the parts'
@@ -198,7 +220,7 @@ sizes); checked against 34 real files.
    back as a recipe part plus a group around it and its contents, so the cut list measures its
    faces alone instead of the whole group; recipe parts that hold other parts would keep it.
 
-## 8. Cut list and materials
+## 9. Cut list and materials
 1. [2] Warn when a part is thinner than the thinnest stock (it comes from it, silently, now).
 2. [3] Drawings saved before 5/4 and 6x lumber sizes keep their old size lists (add the sizes in
    the Materials panel, or re-add from the library); offer to update them.
@@ -221,7 +243,7 @@ sizes); checked against 34 real files.
 17. [21] Textures: wood grain shown in the wood (color only now; grain shows as an arrow).
 18. [21] Packing that's closer to optimal (heuristic now: several orders and rules, best kept).
 
-## 9. Wood movement
+## 10. Wood movement
 Done: Wood Handbook coefficients per species and cut, a moisture swing setting, movement per part,
 warnings where touching parts fight it (Cut List window); panels in grooves float and parts can be
 "Fastened so it can move" (listed as allowed for); View > Wood Movement draws arrows on the parts;
@@ -234,7 +256,7 @@ warnings where touching parts fight it (Cut List window); panels in grooves floa
 4. [5] Movement in thickness and along the grain.
 5. [8] Parts at an angle (only parts square to the axes are checked or get arrows).
 
-## 10. Edge profiles
+## 11. Edge profiles
 Done: roundover, chamfer, cove, ogee, around a face (mitered corners) or along a length.
 1. [5] Bead and other bits.
 2. [8] Click edges in the model to pick them (named by direction in the panel now).
@@ -243,12 +265,12 @@ Done: roundover, chamfer, cove, ogee, around a face (mitered corners) or along a
 5. [21] Profile a board that already has joints or other cuts (profile first for now).
 6. [21] Curved and angled edges.
 
-## 11. Parts and boards
+## 12. Parts and boards
 1. [3] Choose which side of the line a lumber board's width goes (always to the left of the drag).
 2. [3] Pick stock straight from the Materials panel.
 3. [5] Tab cycles a board's faces against a surface.
 
-## 12. Modeling tools
+## 13. Modeling tools
 Done: Polygon (Ctrl: to a side or a corner), Protractor (angled guide lines), Push/Pull with Ctrl
 (keeps the face), Offset repeats on a double-click, `[x,y,z]` typed before the first click (Line,
 Rectangle), Walk (mouse looks, W A S D walk), retyping a line's length, Rectangle's square and golden
@@ -298,7 +320,7 @@ circle or polygon's rim goes through a point passed over.
 17. [13] Solid Tools for groups: subtract, union, intersect, trim (`doc::solid` subtracts rods for
     joinery now; it would take any closed solid).
 
-## 13. Groups, components and tags
+## 14. Groups, components and tags
 1. [1] Opening one copy of a shared group gives it its own definition; make that an undo step by itself.
 2. [2] Hidden groups can be selected in the Outliner (listed, dimmed, now).
 3. [3] Rename in the Outliner (Entity Info renames now).
@@ -314,13 +336,13 @@ circle or polygon's rim goes through a point passed over.
     clipboard only gets a note now).
 13. [13] Component browser (copy and paste or Move with Ctrl place more instances now).
 
-## 14. UI
+## 15. UI
 Done: View > Theme (Light, Dark, Follow System), remembered; the viewport's sky and overlays follow it.
 1. [2] Eraser: erase a face by itself (select it and press Delete now).
 2. [3] Standard views: Back, Left, Bottom; a Parallel Projection toggle.
 3. [3] Units: centimeters, decimal inches, feet and inches.
-4. [3] Units saved with the drawing (an app preference now); joint descriptions follow the units
-   (they keep the ones they were made in).
+4. [2] Joint descriptions follow the units (they keep the ones they were made in). Units saved
+   with the drawing is 7.1.
 5. [3] Sky and ground colors of your own (light and dark presets now).
 6. [5] Eraser: Shift hides, Ctrl softens/smooths.
 7. [5] Right-click menu: Hide, Entity Info, Intersect Faces and per-tool menus.
@@ -336,7 +358,7 @@ Done: View > Theme (Light, Dark, Follow System), remembered; the viewport's sky 
     (Move's arrows, a line's end points, as SketchUp's are): Phosphor's are two-toned by
     filling the whole shape now. Panel buttons and menus are still one color.
 
-## 15. Rendering and performance
+## 16. Rendering and performance
 At 1500 boards (12,900 faces): hover 1-3 ms, click 9 ms, selection highlight 2 ms, an edit 14-17
 ms. A 729,000-face SketchUp deck: opens in 0.3 s, first frame 0.06 s, a frame after an edit 0.03 s.
 Measured with `tests/perf.rs` (`cargo test --release -p woodsketch-ui-egui --test perf --
@@ -358,7 +380,7 @@ Measured with `tests/perf.rs` (`cargo test --release -p woodsketch-ui-egui --tes
     are, so material colors look darker in the drawing than their swatches (the dark sky is given
     in shown values to match). Convert once, so a material looks the color you picked.
 
-## 16. Export
+## 17. Export
 Done: OBJ (+ MTL colors) and ASCII STL, inches or millimeters; DXF and SVG of each part flat for CNC
 (outline, through holes, pockets by depth from the face and the back; square parts laid on the side
 that shows the most).
@@ -373,7 +395,7 @@ that shows the most).
 9. [8] A part's edges and ends in the flat drawing (cuts there, like a mortise in a leg's side, and
    angled cuts like pocket holes and dovetail pins are listed as not drawn).
 
-## 17. Later
+## 18. Later
 1. [100] A community model library (a separate service: accounts, moderation, licensing; 3D
    Warehouse's terms forbid aggregating its models).
 

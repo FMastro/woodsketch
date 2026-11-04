@@ -84,6 +84,8 @@ it for a report (`FeedbackWindow::start_crash`). `feedback::os_name` (the `os_in
 - `python -I scripts/try-mcp.py` drives the real `woodsketch-cli mcp` over its pipe and checks it
   end to end (`--keep` leaves the drawing to open in the app). The unit tests drive the server
   in-process; this catches what only breaks across the pipe, such as anything printing to stdout.
+- `woodsketch-cli build samples/<name>.json -o out.woodsketch` builds a sample by hand, to check
+  one after a joinery change (`summary` then says what it made).
 - `python -I scripts/check-unreleased.py` refuses shipped code sitting at a version that is
   already tagged, because a CHANGELOG note under a released heading is never read again and the
   change would go out unmentioned. CI runs it (the `unreleased` job). When it fails, raise the
@@ -266,6 +268,34 @@ add it there; when you finish an item, remove it.
    environment when the `AZURE_*` repository variables are set, and ships unsigned without them;
    macOS and Linux aren't signed yet (`docs/BACKLOG.md`). CI
    (`.github/workflows/ci.yml`) lints and runs the non-GPU tests on all three platforms.
+
+## Start page and samples
+The app opens on a Start page (`ui-egui::start`) over an empty drawing, not in front of it:
+`StartPage::open` is set only when there's settings storage, so tests never have to clear it,
+and Esc or "Back to <drawing>" leaves without making anything. File > Start Page opens it again.
+It offers New in either unit, Open, Import, the recent list and the samples. Each card is one
+painted widget that names itself (`WidgetInfo::labeled`), because labels inside a frame would
+each be a separate thing to stop on.
+
+Samples (`doc::samples`) are **recipes**, `include_str!`d from `samples/*.json`, not saved
+drawings: a recipe is a few hundred bytes against a drawing's half-megabyte, and it is built by
+today's joinery instead of freezing the geometry of the day it was saved. Building one takes
+~200 ms, on the click that asks for it. `samples::tests::every_sample_builds` builds them all
+and checks their parts and joints, which is the widest end-to-end test here; when a joinery
+change moves those counts, check the drawing looks right and then move the numbers. Opening a
+sample leaves it unsaved and with no path, so Ctrl+S asks where to put it.
+
+Each card carries a picture (`ui-egui::thumbs`): a thread builds or reads the drawing and draws
+it through `render::picture::pixels`, which takes a device rather than opening one, so thumbnails
+use the app's own GPU. Cards keep the room for a picture from the first frame, so the page doesn't
+jump as they arrive. `picture::Options` gained `axes` (off for a thumbnail) and `fit` (fill the
+frame; Zoom Extents fits the sphere around the drawing, which leaves a tall piece small).
+
+Units belong to the drawing: `Scene::units`, written in the file's header (`file::File::units`,
+which has held it since the first version) rather than in the scene, and `Document::new_in` /
+`set_units` / `units`. `replace_document` applies the drawing's units when it goes on screen.
+`None` means a drawing from somewhere with no unit of its own (a SketchUp model), which then
+follows the app.
 
 ## Direction
 Specialized for woodworking: SketchUp-familiar modeling where parts know they're wood (species,

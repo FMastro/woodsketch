@@ -3,6 +3,22 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.62
+
+- A Start page: File > Start Page, and on the way in. New drawing in inches or millimeters,
+  Open, Import, the drawings you had open lately, and samples. It sits over an empty drawing
+  rather than in front of the app, so Esc goes straight to the drawing with nothing to clear.
+- Three samples to take apart: a Bookshelf (dadoed shelves, the cut list and cutting diagrams),
+  a Nightstand (dovetailed drawers on slides, with the hardware counted) and a Workbench (a
+  mortise-and-tenon base under a glued-up maple top, with the movement check). They're built
+  when you open one, from today's joinery, so they show the app as it is rather than as it was.
+  Opening one leaves it unsaved, so Ctrl+S asks where to put it.
+- The Start page's cards show a picture of what they open: each sample and each recent drawing
+  is drawn on a thread of its own while you read the page, so nothing waits on it.
+- Units belong to the drawing now, not to the app: View > Units is saved with it, and opening a
+  drawing shows the sizes it was drawn in instead of whatever was last chosen. Drawings made
+  before this keep showing in inches, which is what they were drawn in.
+
 ## 0.1.61
 
 - While drawing a board, tap W to mirror it without changing the way it runs: lumber turns over

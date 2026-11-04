@@ -2570,3 +2570,109 @@ fn dimension_a_board_and_add_a_note() {
     assert!(text.as_deref().is_some_and(|t| t.contains("flat")), "typed into the note: {text:?}");
     snapshot(&mut harness, "dimension_and_text");
 }
+
+/// The Start page: open it, see every sample offered, build one, and come back out. Tests run
+/// with no settings storage, so the page starts closed and File > Start Page opens it.
+#[test]
+fn the_start_page_offers_the_samples_and_builds_one() {
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    harness.state_mut().show_start_page();
+    harness.run();
+    snapshot(&mut harness, "start_page");
+
+    // Every sample is on the page, named, with the line saying what it shows.
+    for sample in woodsketch_doc::samples::SAMPLES {
+        harness.get_by_label_contains(sample.name);
+        harness.get_by_label_contains(sample.shows);
+    }
+
+    // Each card asks for its picture the first time it's drawn, and a thread builds the sample
+    // and draws it. Wait for them: three builds and three renders, about a second in all.
+    let wanted: Vec<_> = (0..woodsketch_doc::samples::SAMPLES.len()).map(woodsketch_ui_egui::thumbs::Of::Sample).collect();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while !wanted.iter().all(|of| harness.state().thumbnails().has(of)) {
+        assert!(std::time::Instant::now() < deadline, "the sample thumbnails were never drawn");
+        harness.run();
+    }
+    snapshot(&mut harness, "start_page_thumbnails");
+
+    // Esc goes back to the drawing that was always there, rather than making one.
+    harness.key_press(Key::Escape);
+    harness.run();
+    assert!(harness.state().document().bounds().is_none(), "Esc shouldn't have drawn anything");
+
+    // Building a sample puts it on screen, unsaved so Ctrl+S can't write over what shipped.
+    harness.state_mut().show_start_page();
+    harness.run();
+    harness.get_by_label_contains("Bookshelf").click();
+    harness.run();
+    harness.run();
+    let (lo, hi) = harness.state().document().bounds().expect("the bookshelf was built");
+    assert!((hi - lo).x > 30.0 && (hi - lo).z > 70.0, "a 32 x 72 bookshelf, got {:?}", hi - lo);
+    let list = woodsketch_doc::cutlist::cut_list(harness.state().document().scene());
+    let parts: usize = list.materials.iter().flat_map(|m| &m.parts).map(|p| p.count).sum();
+    assert_eq!(parts, 8, "the bookshelf's parts");
+    snapshot(&mut harness, "start_page_sample");
+}
+
+/// A new drawing carries the units it was started in, and the drawing on screen decides what
+/// View > Units shows, rather than a setting that outlives it.
+#[test]
+fn a_new_drawing_keeps_the_units_it_was_started_in() {
+    use egui_kittest::kittest::Queryable;
+    use woodsketch_doc::units::Units;
+    let mut harness = app();
+    harness.state_mut().new_document_in(Units::Millimeters);
+    harness.run();
+    assert_eq!(harness.state().document().units(), Units::Millimeters);
+    assert_eq!(woodsketch_doc::units::units(), Units::Millimeters);
+
+    // Opening a sample, which is in inches, changes what's shown back without being asked.
+    harness.state_mut().show_start_page();
+    harness.run();
+    harness.get_by_label_contains("Bookshelf").click();
+    harness.run();
+    harness.run();
+    assert_eq!(harness.state().document().units(), Units::Inches);
+    assert_eq!(woodsketch_doc::units::units(), Units::Inches);
+}
+
+/// A drawing that has been saved shows up under Recent with a picture of itself.
+#[test]
+fn the_start_page_pictures_a_recent_drawing() {
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    {
+        let doc = harness.state_mut().document_mut();
+        add_board(doc, glam::DVec3::ZERO, 24.0, 3.5, 1.5);
+    }
+    harness.run();
+    let dir = std::env::temp_dir().join(format!("woodsketch-recent-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("A board.woodsketch");
+    harness.state_mut().save_to(&path).expect("save the drawing");
+    harness.run();
+    // The recent list keeps canonical paths (on Windows that means a `\?\` prefix), and the
+    // card and its picture are both keyed by what's in the list.
+    let path = std::fs::canonicalize(&path).expect("the saved drawing is there");
+
+    harness.state_mut().show_start_page();
+    harness.run();
+    // The card names the drawing and the folder it's in. (Just "A board" would also match the
+    // window title and the Outliner behind the page.)
+    let folder = path.parent().unwrap().display().to_string();
+    let folder = folder.strip_prefix(r#"\\?\"#).unwrap_or(&folder);
+    harness.get_by_label_contains(&format!("A board. {folder}"));
+
+    // Only a card that has been drawn asks for its picture, so waiting for one proves the
+    // drawing reached the Recent row, was read back off disk, and drew into something.
+    let of = woodsketch_ui_egui::thumbs::Of::Drawing(path.clone());
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while !harness.state().thumbnails().has(&of) {
+        assert!(std::time::Instant::now() < deadline, "the recent drawing was never pictured");
+        harness.run();
+    }
+    snapshot(&mut harness, "start_page_recent");
+    let _ = std::fs::remove_dir_all(&dir);
+}

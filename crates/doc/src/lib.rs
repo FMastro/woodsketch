@@ -24,6 +24,7 @@ pub mod part;
 pub mod profile;
 pub mod recipe;
 pub mod recipe_of;
+pub mod samples;
 pub mod template;
 mod lines;
 mod model;

@@ -12,9 +12,13 @@ use woodsketch_doc::file::{self, EXTENSION, OLD_EXTENSION};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Discard {
     New,
+    /// Start a new drawing that shows lengths in these units (the Start page's New cards).
+    NewIn(woodsketch_doc::units::Units),
     Open,
     /// Open the drawing at this place in the recent list.
     OpenRecent(usize),
+    /// Build and open the sample at this place in `woodsketch_doc::samples::SAMPLES`.
+    Sample(usize),
     Close,
     /// Install the downloaded update and restart.
     RestartToUpdate,

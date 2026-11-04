@@ -1,28 +1,10 @@
-//! A picture of a drawing without a window: the app's renderer on an offscreen GPU device, framed
-//! like Zoom Extents from a standard view (or turned to any angle), saved as PNG. For agents
-//! checking their work: in the light or dark theme, with parts picked out in the selection's blue.
+//! A picture of a drawing from the command line: a GPU device of our own, the shared offscreen
+//! renderer ([`woodsketch_render::picture`]), and PNG out. For agents checking their work.
 
-use glam::{DAffine3, Vec2};
-use woodsketch_doc::{Container, Document, Entity, Instance, MaterialId, Selection};
-use woodsketch_render::{Scene, Sky, ViewportRenderer};
-use woodsketch_view::{OrbitCamera, StandardView};
+use woodsketch_doc::Document;
+use woodsketch_view::StandardView;
 
-/// How to draw it.
-pub struct Options {
-    pub view: StandardView,
-    /// Turned to this angle instead: degrees around (from the front, toward the right) and up.
-    pub angle: Option<(f32, f32)>,
-    pub size: [u32; 2],
-    pub dark: bool,
-    /// Parts or groups (by name) drawn picked out, as when selected.
-    pub highlight: Vec<String>,
-}
-
-impl Default for Options {
-    fn default() -> Self {
-        Self { view: StandardView::Iso, angle: None, size: [1200, 800], dark: false, highlight: Vec::new() }
-    }
-}
+pub use woodsketch_render::picture::Options;
 
 /// `iso`, `top`, `front` or `right`.
 pub fn view(name: &str) -> Result<StandardView, String> {
@@ -42,70 +24,15 @@ pub fn angle(text: &str) -> Result<(f32, f32), String> {
     Ok((around.trim().parse().map_err(|_| bad())?, up.trim().parse().map_err(|_| bad())?))
 }
 
-/// Every shown part or group called `name` inside `container` (at `world`, painted `paint` from
-/// around it), as an instance placed in the world.
-fn named(scene: &woodsketch_doc::Scene, container: &Container, world: DAffine3, paint: Option<MaterialId>, name: &str, found: &mut Vec<Instance>) {
-    for (_, instance) in container.instances().filter(|(_, i)| scene.is_visible(i)) {
-        let Some(def) = scene.definition(instance.definition) else { continue };
-        let placed = world * instance.transform;
-        let paint = instance.material.or(paint);
-        if def.name.trim().eq_ignore_ascii_case(name.trim()) {
-            found.push(Instance { definition: instance.definition, transform: placed, tag: None, material: paint });
-        } else {
-            named(scene, &def.container, placed, paint, name, found);
-        }
-    }
-}
-
 /// The drawing drawn as `options` say, as PNG bytes.
 pub fn render(doc: &Document, options: &Options) -> Result<Vec<u8>, String> {
-    let [width, height] = options.size;
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
         .map_err(|e| format!("No graphics adapter to draw with: {e}"))?;
     let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
         .map_err(|e| format!("Couldn't open the graphics device: {e}"))?;
 
-    let mut scene = Scene::reference(false);
-    scene.add_drawing(doc.scene(), doc.path());
-    // The parts to pick out, by name, at any depth: each lifted to the top of a copy of the
-    // drawing where it is in the world, and highlighted there over the drawing.
-    if !options.highlight.is_empty() {
-        let mut lifted = doc.scene().clone();
-        lifted.root = Default::default();
-        for name in &options.highlight {
-            let mut found = Vec::new();
-            named(doc.scene(), &doc.scene().root, DAffine3::IDENTITY, None, name, &mut found);
-            if found.is_empty() {
-                return Err(format!("No part or group named \"{name}\" in the drawing to highlight."));
-            }
-            for instance in found {
-                lifted.root.add_instance(instance);
-            }
-        }
-        let lifted = Document::from_scene(lifted);
-        let mut picked = Selection::default();
-        picked.extend(lifted.scene().root.instances().map(|(id, _)| Entity::Instance(id)));
-        scene.add_selection(lifted.view(), &picked, &lifted.context_transform(), lifted.scene());
-    }
-    let mut renderer = ViewportRenderer::new(&device, &scene);
-    if options.dark {
-        renderer.sky = Sky::dark();
-    }
-    let viewport = Vec2::new(width as f32, height as f32);
-    let mut camera = OrbitCamera::default();
-    camera.set_view(options.view);
-    if let Some((around, up)) = options.angle {
-        // From the front (looking toward +y), turned toward the right, and raised.
-        camera.yaw = (around - 90.0).to_radians();
-        camera.pitch = up.clamp(-89.0, 89.0).to_radians();
-    }
-    if let Some((lo, hi)) = doc.bounds() {
-        camera.zoom_extents(lo.as_vec3(), hi.as_vec3(), viewport);
-    }
-    renderer.render(&device, &queue, [width, height], camera.view_proj(viewport), camera.eye(), 1.0);
-    let (w, h, pixels) = renderer.read_pixels(&device, &queue).ok_or("Couldn't read the picture back from the GPU.")?;
-
+    let (w, h, pixels) = woodsketch_render::picture::pixels(&device, &queue, doc, options)?;
     let mut png = Vec::new();
     {
         let mut encoder = png::Encoder::new(&mut png, w, h);

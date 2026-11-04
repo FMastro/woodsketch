@@ -5,6 +5,11 @@
 //! { "format": "woodsketch", "version": 1, "units": "inches", "scene": { ... } }
 //! ```
 //!
+//! `units` is how the drawing shows and reads lengths (View > Units), not how it stores them:
+//! geometry is always inches. The field has been there since the first version, written as
+//! "inches" before the unit was the drawing's own to choose, which is what those drawings were
+//! made in, so reading it needs no special case.
+//!
 //! Ids inside the scene are kept as-is (arena slots), so a saved drawing reloads with the same
 //! ids it had. Bump [`VERSION`] when the scene's shape changes, and keep reading old versions.
 
@@ -27,8 +32,10 @@ const VERSION: u32 = 1;
 struct File {
     format: String,
     version: u32,
-    /// Always inches for now; recorded so a future metric model unit can be told apart.
-    units: String,
+    /// How the drawing shows and reads lengths; see the module docs. Unknown to a drawing from
+    /// elsewhere (a SketchUp model saved straight out), which then follows the app.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    units: Option<crate::units::Units>,
     scene: Scene,
 }
 
@@ -71,7 +78,7 @@ pub fn save(scene: &Scene, path: &std::path::Path) -> Result<(), String> {
 }
 
 pub fn to_string(scene: &Scene) -> String {
-    let file = File { format: FORMAT.into(), version: VERSION, units: "inches".into(), scene: scene.clone() };
+    let file = File { format: FORMAT.into(), version: VERSION, units: scene.units, scene: scene.clone() };
     serde_json::to_string_pretty(&file).expect("scenes always serialize")
 }
 
@@ -91,6 +98,7 @@ pub fn from_str(text: &str) -> Result<Scene, FileError> {
     }
     let mut file: File = serde_json::from_str(text).map_err(|e| FileError::Corrupt(e.to_string()))?;
     file.scene.upgrade_materials();
+    file.scene.units = file.units;
     Ok(file.scene)
 }
 
@@ -162,7 +170,7 @@ mod tests {
 
     #[test]
     fn the_file_is_readable_json_with_a_header() {
-        let text = to_string(Document::default().scene());
+        let text = to_string(Document::new_in(crate::units::Units::Inches).scene());
         assert!(text.contains("\"format\": \"woodsketch\""));
         assert!(text.contains("\"version\": 1"));
         assert!(text.contains("\"units\": \"inches\""));
@@ -196,5 +204,22 @@ mod tests {
             from_str(r#"{"format":"woodsketch","version":1,"units":"inches","scene":42}"#),
             Err(FileError::Corrupt(_))
         ));
+    }
+    #[test]
+    fn units_are_the_drawings_own_and_survive_a_save() {
+        use crate::units::Units;
+        let saved = to_string(Document::new_in(Units::Millimeters).scene());
+        assert!(saved.contains(r#""units": "millimeters""#), "the unit goes in the header: {saved}");
+        assert_eq!(from_str(&saved).unwrap().units, Some(Units::Millimeters));
+
+        // Drawings saved before the unit was the drawing's own to choose all say "inches", which
+        // is what they were drawn in, so they need no special case on the way in.
+        let older = r#"{"format":"woodsketch","version":1,"units":"inches","scene":%}"#
+            .replace('%', &serde_json::to_string(Document::default().scene()).unwrap());
+        assert_eq!(from_str(&older).unwrap().units, Some(Units::Inches));
+
+        // A drawing from somewhere with no unit of its own (a SketchUp model) says nothing, and
+        // follows whatever the app is set to rather than being told it's inches.
+        assert_eq!(from_str(&to_string(Document::default().scene())).unwrap().units, None);
     }
 }
