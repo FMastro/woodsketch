@@ -694,6 +694,11 @@ impl WoodSketchApp {
         &self.viewport.camera
     }
 
+    /// The wood-movement arrows on screen (View > Wood Movement). For tests.
+    pub fn movement_arrows(&self) -> &[woodsketch_doc::movement::Arrow] {
+        self.viewport.movement_arrows()
+    }
+
     /// The camera to turn, and View > Wood Movement to switch: for tests and the screenshots
     /// they make.
     pub fn camera_mut(&mut self) -> &mut woodsketch_view::OrbitCamera {

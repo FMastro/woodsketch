@@ -2561,6 +2561,54 @@ fn walking_stands_on_whatever_is_underfoot_and_f_flies() {
     assert_eq!(harness.state().tools().active(), ToolId::Walk, "F flies rather than picking Offset");
 }
 
+/// Arrows belong to the drawing they were worked out for. They are worked out once and kept
+/// against the drawing's version counter -- but that counter restarts at zero with every new
+/// drawing, so two files opened one after the other both read as version 0 and the cache looked
+/// fresh when it was nothing of the sort. The first drawing's arrows stayed on screen, floating
+/// in the air over the second one, pointing at wood that wasn't there.
+#[test]
+fn wood_movement_arrows_dont_outlive_the_drawing_they_belong_to() {
+    use egui_kittest::kittest::Queryable;
+    use glam::DVec3;
+    use woodsketch_doc::board::Board;
+    let dir = std::env::temp_dir().join(format!("woodsketch-movement-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let (wooden, empty) = (dir.join("board.woodsketch"), dir.join("empty.woodsketch"));
+
+    let mut harness = app();
+    {
+        // Solid wood, so it has movement to draw in the first place.
+        let doc = harness.state_mut().document_mut();
+        let cherry = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Cherry").unwrap());
+        let board = Board { origin: DVec3::ZERO, length_dir: DVec3::X, width_dir: DVec3::Y, length: 30.0, width: 16.0, thickness: 0.75 };
+        let id = doc.add_board(&board, Some(cherry)).unwrap();
+        doc.rename_instance(id, "Top");
+    }
+    harness.run();
+    harness.state_mut().save_to(&wooden).unwrap();
+    harness.run();
+    harness.state_mut().new_document();
+    harness.run();
+    harness.state_mut().save_to(&empty).unwrap();
+    harness.run();
+
+    // The drawing with wood in it, with View > Wood Movement switched on.
+    harness.state_mut().open_path(&wooden).unwrap();
+    harness.run();
+    harness.get_by_label("View").click();
+    harness.run();
+    harness.get_by_label_contains("Wood Movement").click();
+    harness.run_steps(2);
+    assert!(!harness.state().movement_arrows().is_empty(), "the board's movement is drawn");
+
+    // Now one with nothing in it. Both were loaded from a file, so both are at version 0.
+    harness.state_mut().open_path(&empty).unwrap();
+    harness.run_steps(2);
+    assert_eq!(harness.state().document().bounds(), None, "the second drawing is empty");
+    let left = harness.state().movement_arrows().len();
+    assert_eq!(left, 0, "{left} arrows left over from the drawing before");
+}
+
 #[test]
 fn dimension_a_board_and_add_a_note() {
     use egui_kittest::kittest::Queryable;
@@ -2633,7 +2681,9 @@ fn build_sample(harness: &mut App, name: &str) {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
     while harness.state().document().bounds().is_none() {
         assert!(std::time::Instant::now() < deadline, "{name} was never built");
-        harness.run();
+        // One step at a time: `run` stops only once nothing asks to repaint, and the progress
+        // bar asks on every frame, so it would run out its step limit before the build lands.
+        harness.run_steps(1);
     }
 }
 
@@ -2700,7 +2750,9 @@ fn the_house_is_built_on_a_thread_and_says_so() {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
     while harness.state().document().bounds().is_none() {
         assert!(std::time::Instant::now() < deadline, "the house was never built");
-        harness.run();
+        // One step at a time: `run` stops only once nothing asks to repaint, and the progress
+        // bar asks on every frame, so it would run out its step limit before the build lands.
+        harness.run_steps(1);
     }
     let list = woodsketch_doc::cutlist::cut_list(harness.state().document().scene());
     let parts: usize = list.materials.iter().flat_map(|m| &m.parts).map(|p| p.count).sum();

@@ -17,6 +17,8 @@ GitHub release; keep a `## <version>` heading for every release.
   rafter tails at the eaves. About two hundred more pieces, and a takeoff you could believe.
 - Its doors have knobs, with roses, in satin nickel. They are hardware rather than wood, so
   they are counted in the shopping list and kept out of the cutting diagrams.
+- Fixed: with View > Wood Movement on, opening one drawing after another left the first one's
+  arrows floating in the air over the second, pointing at wood that wasn't there.
 
 ## 0.1.64
 

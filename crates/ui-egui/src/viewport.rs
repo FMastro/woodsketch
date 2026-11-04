@@ -815,8 +815,21 @@ impl Viewport {
         self.last_hover = None;
     }
 
+    /// The wood-movement arrows as they will be drawn. For tests: this is a cache keyed on a
+    /// counter that restarts with every drawing, so that it is dropped when one drawing is
+    /// swapped for another needs proving rather than assuming.
+    pub fn movement_arrows(&self) -> &[woodsketch_doc::movement::Arrow] {
+        self.movement.as_ref().map_or(&[], |(_, arrows)| arrows.as_slice())
+    }
+
     pub fn document_replaced(&mut self, doc: &Document) {
+        // Every cache kept against a version number has to go. The number counts a single
+        // drawing's edits and starts again at zero for the next one, so it says nothing about
+        // *which* drawing: two files opened one after the other are both version 0, and
+        // anything still held from the first looks current. That left the old drawing's
+        // movement arrows hanging in the air over the new one.
         self.scene_version = None;
+        self.movement = None;
         self.last_hover = None;
         if doc.bounds().is_some() {
             self.zoom_extents_pending = true;
