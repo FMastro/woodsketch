@@ -33,10 +33,18 @@ impl Sample {
         serde_json::from_str(self.recipe).map_err(|e| format!("{}'s recipe couldn't be read: {e}", self.name))
     }
 
-    /// Build the drawing. Slow enough to notice (~200 ms) but not slow enough to need a thread.
+    /// Build the drawing.
     pub fn build(&self) -> Result<Document, String> {
+        self.build_reporting(&mut |_, _, _| {})
+    }
+
+    /// Build it, saying after each piece how far along it is (`done`, `all`, what it just made).
+    /// The furniture takes about 200 ms and the house a couple of seconds, which is why the app
+    /// builds on a thread ([`ui_egui::building`]) and watches this rather than holding the frame.
+    pub fn build_reporting(&self, progress: &mut dyn FnMut(usize, usize, &str)) -> Result<Document, String> {
         let recipe = self.recipe()?;
-        recipe::build(&recipe).map_err(|problems| format!("{} couldn't be built: {}", self.name, problems.join("; ")))
+        recipe::build_reporting(&recipe, progress)
+            .map_err(|problems| format!("{} couldn't be built: {}", self.name, problems.join("; ")))
     }
 }
 
@@ -68,6 +76,11 @@ pub const SAMPLES: &[Sample] = &[
         shows: "Five cabinets, seventy parts: the cut list, the sheets to buy and the hardware",
         recipe: include_str!("../../../samples/kitchen.json"),
     },
+    Sample {
+        name: "Small house",
+        shows: "Seven hundred parts: a framed 2 bed, 2 bath, tagged so you can peel it apart",
+        recipe: include_str!("../../../samples/house.json"),
+    },
 ];
 
 /// The sample called `name`, for opening one by name.
@@ -91,6 +104,7 @@ mod tests {
             ("Workbench", 13, 16),
             ("Dining table", 9, 8),
             ("Kitchen run", 75, 86),
+            ("Small house", 807, 72),
         ];
         assert_eq!(expected.len(), SAMPLES.len(), "every sample needs its counts here");
         for (sample, (name, parts, joints)) in SAMPLES.iter().zip(expected) {
@@ -111,6 +125,29 @@ mod tests {
             assert!(sample.shows.len() > 20, "{}: say what it demonstrates", sample.name);
             assert!(!sample.shows.ends_with('.'), "{}: the card's line isn't a sentence", sample.name);
         }
+    }
+
+    /// The house is the one sample too big to take in at once, and the way into it is the Tags
+    /// panel: hide Roofing and Roof sheathing and you are looking at the rafters, hide those and
+    /// you are standing in the rooms. That rests entirely on its parts being tagged and the tags
+    /// being in folders, which no count above would notice the loss of.
+    #[test]
+    fn the_house_comes_apart_by_tag() {
+        let doc = by_name("Small house").expect("the house is a sample").build().unwrap();
+        let scene = doc.scene();
+        let folders: Vec<&str> = scene.tags().filter(|(_, t)| t.folder).map(|(_, t)| t.name.as_str()).collect();
+        for wanted in ["Shell", "Roof", "Inside", "Outside"] {
+            assert!(folders.contains(&wanted), "the house's tags go in folders: {folders:?}");
+        }
+        for wanted in ["Wall framing", "Roofing", "Drywall", "Windows"] {
+            let tag = scene.tags().find(|(_, t)| t.name == wanted);
+            let (_, tag) = tag.unwrap_or_else(|| panic!("the house has a \"{wanted}\" tag: {folders:?}"));
+            assert!(tag.parent.is_some(), "\"{wanted}\" sits in a folder");
+            assert!(!tag.folder, "\"{wanted}\" is a tag, not a folder");
+        }
+        // Everything placed carries one, or hiding a layer would leave pieces of it behind.
+        let untagged = scene.root.instances().filter(|(_, i)| i.tag.is_none()).count();
+        assert_eq!(untagged, 0, "every part of the house is tagged");
     }
 
     /// Nothing about a sample should be a surprise to the wood: a sample that opens with a

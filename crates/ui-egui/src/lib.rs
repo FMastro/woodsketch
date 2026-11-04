@@ -11,6 +11,7 @@ mod materials;
 mod autosave;
 mod watch;
 mod board;
+mod building;
 mod joinery;
 mod outliner;
 mod part;
@@ -94,6 +95,8 @@ pub struct WoodSketchApp {
     start: start::StartPage,
     /// Pictures for the Start page's cards, drawn on a thread of their own.
     thumbs: thumbs::Thumbnails,
+    /// A sample being built on a thread, if one is.
+    building: Option<building::Building>,
 }
 
 impl WoodSketchApp {
@@ -164,6 +167,7 @@ impl WoodSketchApp {
             // and would otherwise have to clear the page before every one of them.
             start: start::StartPage { open: cc.storage.is_some() },
             thumbs: thumbs::Thumbnails::new(cc.wgpu_render_state.as_ref(), thumb_dir),
+            building: None,
         }
     }
 
@@ -563,27 +567,37 @@ impl WoodSketchApp {
         }
     }
 
+    /// Take delivery of a sample built on a thread, or say how far along it is.
+    fn collect_building(&mut self, ctx: &egui::Context) {
+        let Some(building) = self.building.take() else { return };
+        let Some(built) = building.ready() else {
+            building.show(ctx);
+            self.building = Some(building);
+            return;
+        };
+        match built {
+            // No path: a sample is a starting point, so saving asks where to put it, and Ctrl+S
+            // can't write over what shipped with the app.
+            Ok(doc) => {
+                self.replace_document(*doc, None);
+                self.files.name_hint = Some(building.name.to_owned());
+                self.files.mark_unsaved();
+                self.viewport.request_zoom_extents();
+            }
+            Err(error) => self.files.show_error(error),
+        }
+    }
+
     /// New, Open or Close, after any unsaved changes are dealt with.
     fn carry_out(&mut self, ctx: &egui::Context, action: files::Discard) {
         match action {
             files::Discard::New => self.new_document(),
             files::Discard::NewIn(units) => self.new_document_in(units),
             files::Discard::Sample(i) => {
+                // Built on a thread: the furniture takes about 200 ms and the house a couple of
+                // seconds, and a window that stops answering for that long reads as a crash.
                 if let Some(sample) = woodsketch_doc::samples::SAMPLES.get(i) {
-                    // ~200 ms on the click that asks for it, which is quick enough not to need a
-                    // thread; the cursor says so meanwhile.
-                    ctx.set_cursor_icon(egui::CursorIcon::Wait);
-                    match sample.build() {
-                        // No path: a sample is a starting point, so saving asks where to put it,
-                        // and Ctrl+S can't write over what shipped with the app.
-                        Ok(doc) => {
-                            self.replace_document(doc, None);
-                            self.files.name_hint = Some(sample.name.to_owned());
-                            self.files.mark_unsaved();
-                            self.viewport.request_zoom_extents();
-                        }
-                        Err(error) => self.files.show_error(error),
-                    }
+                    self.building = Some(building::Building::start(sample, ctx));
                 }
             }
             files::Discard::Open => {
@@ -721,7 +735,14 @@ impl eframe::App for WoodSketchApp {
         self.autosave_and_recover(&ctx);
         self.offer_crash_report(&ctx);
         self.keep_up_to_date();
-        if !self.files.is_asking() && self.leftovers.is_empty() && self.crash.is_none() && !self.reload_asking && !self.start.open {
+        self.collect_building(&ctx);
+        if !self.files.is_asking()
+            && self.leftovers.is_empty()
+            && self.crash.is_none()
+            && !self.reload_asking
+            && !self.start.open
+            && self.building.is_none()
+        {
             self.keyboard.handle(&ctx, &mut self.doc, &mut self.tools, &mut self.viewport);
         }
 

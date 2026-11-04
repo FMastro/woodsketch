@@ -3,6 +3,20 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.64
+
+- A sixth sample, and a much bigger one: a Small house. A stud-framed 2 bed, 2 bath with a
+  kitchen, a living room and a covered porch — about seven hundred and fifty pieces, from the
+  studs and rafters to the sheathing cut round the windows and the board on the walls. It is
+  there to show the app handles a building and not only the furniture in it: most of what it is
+  made of isn't wood at all, and concrete, drywall, glass and shingles are listed as what they
+  are and left out of the cutting diagrams.
+- Its parts are tagged in folders — Shell, Roof, Inside, Outside — so the Tags panel takes it
+  apart a layer at a time: hide the roofing and you are looking at rafters, hide those and the
+  ceiling and you are standing in the rooms.
+- Samples are built on a thread now, with a bar saying how far along it is. The house takes a
+  couple of seconds, and the window used to stop answering for as long as a sample took.
+
 ## 0.1.63
 
 - Two more samples on the Start page. A Dining table: aprons tenoned into cherry legs, a

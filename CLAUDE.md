@@ -86,6 +86,8 @@ it for a report (`FeedbackWindow::start_crash`). `feedback::os_name` (the `os_in
   in-process; this catches what only breaks across the pipe, such as anything printing to stdout.
 - `woodsketch-cli build samples/<name>.json -o out.woodsketch` builds a sample by hand, to check
   one after a joinery change (`summary` then says what it made).
+- `python -I scripts/make-house-sample.py > samples/house.json` regenerates the Small house.
+  That JSON is generated; change the script, not the file.
 - `python -I scripts/check-unreleased.py` refuses shipped code sitting at a version that is
   already tagged, because a CHANGELOG note under a released heading is never read again and the
   change would go out unmentioned. CI runs it (the `unreleased` job). When it fails, raise the
@@ -279,11 +281,27 @@ each be a separate thing to stop on.
 
 Samples (`doc::samples`) are **recipes**, `include_str!`d from `samples/*.json`, not saved
 drawings: a recipe is a few hundred bytes against a drawing's half-megabyte, and it is built by
-today's joinery instead of freezing the geometry of the day it was saved. Building one takes
-~200 ms, on the click that asks for it. `samples::tests::every_sample_builds` builds them all
-and checks their parts and joints, which is the widest end-to-end test here; when a joinery
-change moves those counts, check the drawing looks right and then move the numbers. Opening a
-sample leaves it unsaved and with no path, so Ctrl+S asks where to put it.
+today's joinery instead of freezing the geometry of the day it was saved.
+`samples::tests::every_sample_builds` builds them all and checks their parts and joints, which
+is the widest end-to-end test here; when a joinery change moves those counts, check the drawing
+looks right and then move the numbers. Opening a sample leaves it unsaved and with no path, so
+Ctrl+S asks where to put it.
+
+Building happens on a thread (`ui-egui::building`, driven by `samples::Sample::build_reporting`
+over `recipe::build_reporting`'s progress): the furniture takes ~200 ms and the house a couple
+of seconds, and a window that stops answering for that long reads as a crash. `App::building`
+holds it; `collect_building` shows the bar each frame and swaps the drawing in when it arrives.
+Tests have to pump frames until it lands (`workflow::build_sample`), not assume the click built it.
+
+The Small house is the odd one out and is meant to be: ~750 parts of a stud-framed 2 bed / 2
+bath, mostly *not* wood (concrete, drywall, glass, asphalt as `MaterialKind::Other`). It is
+there to answer "how big does this get?" and "is this only for woodworking?", not to produce a
+sensible cut list. It leans on three things being right — components placed many times
+(everything repeated is `copies`, so the renderer draws one design per placement), tag folders
+(Shell / Roof / Inside / Outside, which is how you peel it apart), and `PartSpec::outline` for
+the gable ends. `samples::tests::the_house_comes_apart_by_tag` guards the tagging, which no
+part count would notice the loss of. `scripts/make-house-sample.py` writes `samples/house.json`:
+stud and sheet positions are arithmetic, so edit the script and regenerate, never the JSON.
 
 Each card carries a picture (`ui-egui::thumbs`): a thread builds or reads the drawing and draws
 it through `render::picture::pixels`, which takes a device rather than opening one, so thumbnails

@@ -17,7 +17,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 21 | A live link to the open drawing |
 | 6 | Release polish | 74 | macOS signing before announcing widely |
-| 7 | Start page and samples | 13 | What someone sees in the first minute |
+| 7 | Start page and samples | 10 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
 | 9 | Cut list and materials | 171 | Better buying and cutting |
 | 10 | Wood movement | 23 | Fewer false warnings, clearer results |
@@ -29,7 +29,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1406** | |
+| | **All** | **1403** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -172,21 +172,30 @@ the drawing; three samples built into the app as recipes (Bookshelf, Nightstand,
 each card saying what it demonstrates; a test that builds them all and checks their parts and
 joints; a picture on every sample and recent card, drawn on a thread of its own on the app's own
 GPU device, framed to fill the card and without the axes, and kept in the settings folder
-between runs; five samples (Bookshelf, Nightstand, Workbench, Dining table, Kitchen run), each
-checked for movement warnings as well as parts and joints.
+between runs; six samples (Bookshelf, Nightstand, Workbench, Dining table, Kitchen run, Small
+house), each checked for movement warnings as well as parts and joints; samples built on a
+thread with a bar, since the house takes a couple of seconds.
 1. [8] A Learn section beside Samples: each sample as a short tutorial, linked to the videos.
 2. [2] The Cabinet template can't mark a solid top as free to move, so a table built from it
    warns about a top it has fastened across the grain; the Dining table sample is built from
    parts instead. Templates should set `free_to_move` on a solid top.
-3. [3] Opening a sample builds it on the UI thread: about 200 ms, and 330 ms for the kitchen
-   run, with no sign that anything is happening. Build it where the thumbnails are built, and
-   say which one is coming.
+3. [2] The house's framing leaves out cripples, blocking and the rim at the eaves, and its
+   drywall isn't cut round the window openings the way the sheathing is. None of it changes what
+   the model shows; all of it would show up in a real takeoff.
+4. [3] `scripts/make-house-sample.py` writes `samples/house.json`, because seven hundred stud
+   positions are arithmetic. Nothing checks the file still matches the script, so a hand edit to
+   one and not the other goes unnoticed. Run it in CI and diff.
 
-Not samples, deliberately: a chair (compound angles and sculpted parts, the hardest thing to say
-in a recipe and the first to break when `doc::angled` changes, and it shows nothing a woodworker
-comes here for) and a tiny house (its cut list is a lumber takeoff, its movement check means
-nothing, build sheets per stud are absurd, and it invites "is this a house tool?" against the
-specialization in Direction). The kitchen run is the big model instead.
+Not a sample, deliberately: a chair (compound angles and sculpted parts, the hardest thing to
+say in a recipe and the first to break when `doc::angled` changes, and it shows nothing a
+woodworker comes here for).
+
+The house was on this list for a while, turned down because its cut list is a lumber takeoff,
+its movement check means little and build sheets per stud are absurd — all still true. It is
+here anyway, and for a different job than the furniture: it answers "how big does this get?"
+with seven hundred and fifty parts that still open and spin, and it answers "is this only for
+woodworking?" by being mostly concrete, drywall, glass and asphalt. Keep it pointed at that.
+The specialization in Direction stands: nothing in the app was bent to suit a building.
 
 ## 8. Importing
 Done: SketchUp 2021+ `.skp` (geometry, components, groups, materials, tags and tag folders, hidden

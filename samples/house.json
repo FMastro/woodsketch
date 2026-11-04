@@ -1,0 +1,927 @@
+{
+  "name": "Small house",
+  "units": "in",
+  "materials": [
+    {"id": "fir", "library": "Douglas Fir Lumber"},
+    {"id": "pt", "library": "Pressure-Treated Lumber"},
+    {"id": "osb", "name": "OSB Sheathing", "kind": "sheet", "color": [198, 164, 110]},
+    {"id": "ply", "library": "Plywood"},
+    {"id": "cedar", "library": "Cedar Lumber"},
+    {"id": "maple", "library": "Hard Maple"},
+    {"id": "cabply", "library": "Baltic Birch Plywood"},
+    {"id": "slab", "name": "Concrete Slab", "kind": "other", "color": [176, 176, 172]},
+    {"id": "board", "name": "Drywall", "kind": "other", "color": [238, 236, 230]},
+    {"id": "glass", "name": "Glazing", "kind": "other", "color": [168, 204, 214]},
+    {"id": "shingle", "name": "Asphalt Shingles", "kind": "other", "color": [74, 74, 78]},
+    {"id": "stone", "name": "Quartz Countertop", "kind": "other", "color": [226, 224, 216]},
+    {"id": "china", "name": "Plumbing Fixture", "kind": "other", "color": [246, 246, 248]}
+  ],
+  "tags": [
+    {"name": "Shell", "folder": true},
+    {"name": "Slab", "inside": "Shell"},
+    {"name": "Wall framing", "inside": "Shell"},
+    {"name": "Sheathing", "inside": "Shell"},
+    {"name": "Roof", "folder": true},
+    {"name": "Roof framing", "inside": "Roof"},
+    {"name": "Roof sheathing", "inside": "Roof"},
+    {"name": "Roofing", "inside": "Roof"},
+    {"name": "Inside", "folder": true},
+    {"name": "Drywall", "inside": "Inside"},
+    {"name": "Doors", "inside": "Inside"},
+    {"name": "Windows", "inside": "Inside"},
+    {"name": "Kitchen", "inside": "Inside"},
+    {"name": "Bathrooms", "inside": "Inside"},
+    {"name": "Outside", "folder": true},
+    {"name": "Porch", "inside": "Outside"}
+  ],
+  "parts": [
+    {"name": "Slab", "material": "slab", "size": [384, 288, 4], "at": [0, 0, -4], "tag": "Slab"},
+    {"name": "Exterior stud", "material": "fir", "size": [92.625, 5.5, 1.5], "at": [0, 0, 1.5], "length": "z", "tag": "Wall framing", "copies": [
+      {"name": "Exterior stud 2", "at": [15.25, 0, 1.5]},
+      {"name": "Exterior stud 3", "at": [79.25, 0, 1.5]},
+      {"name": "Exterior stud 4", "at": [143.25, 0, 1.5]},
+      {"name": "Exterior stud 5", "at": [207.25, 0, 1.5]},
+      {"name": "Exterior stud 6", "at": [223.25, 0, 1.5]},
+      {"name": "Exterior stud 7", "at": [239.25, 0, 1.5]},
+      {"name": "Exterior stud 8", "at": [303.25, 0, 1.5]},
+      {"name": "Exterior stud 9", "at": [367.25, 0, 1.5]},
+      {"name": "Exterior stud 10", "at": [382.5, 0, 1.5]},
+      {"name": "Exterior stud 11", "at": [94.5, 0, 1.5]},
+      {"name": "Exterior stud 12", "at": [134, 0, 1.5]},
+      {"name": "Exterior stud 13", "at": [28.5, 0, 1.5]},
+      {"name": "Exterior stud 14", "at": [68, 0, 1.5]},
+      {"name": "Exterior stud 15", "at": [158.5, 0, 1.5]},
+      {"name": "Exterior stud 16", "at": [198, 0, 1.5]},
+      {"name": "Exterior stud 17", "at": [248.5, 0, 1.5]},
+      {"name": "Exterior stud 18", "at": [288, 0, 1.5]},
+      {"name": "Exterior stud 19", "at": [318.5, 0, 1.5]},
+      {"name": "Exterior stud 20", "at": [358, 0, 1.5]},
+      {"name": "Exterior stud 21", "at": [0, 282.5, 1.5]},
+      {"name": "Exterior stud 22", "at": [15.25, 282.5, 1.5]},
+      {"name": "Exterior stud 23", "at": [31.25, 282.5, 1.5]},
+      {"name": "Exterior stud 24", "at": [95.25, 282.5, 1.5]},
+      {"name": "Exterior stud 25", "at": [111.25, 282.5, 1.5]},
+      {"name": "Exterior stud 26", "at": [127.25, 282.5, 1.5]},
+      {"name": "Exterior stud 27", "at": [143.25, 282.5, 1.5]},
+      {"name": "Exterior stud 28", "at": [159.25, 282.5, 1.5]},
+      {"name": "Exterior stud 29", "at": [175.25, 282.5, 1.5]},
+      {"name": "Exterior stud 30", "at": [191.25, 282.5, 1.5]},
+      {"name": "Exterior stud 31", "at": [207.25, 282.5, 1.5]},
+      {"name": "Exterior stud 32", "at": [223.25, 282.5, 1.5]},
+      {"name": "Exterior stud 33", "at": [239.25, 282.5, 1.5]},
+      {"name": "Exterior stud 34", "at": [255.25, 282.5, 1.5]},
+      {"name": "Exterior stud 35", "at": [271.25, 282.5, 1.5]},
+      {"name": "Exterior stud 36", "at": [287.25, 282.5, 1.5]},
+      {"name": "Exterior stud 37", "at": [351.25, 282.5, 1.5]},
+      {"name": "Exterior stud 38", "at": [367.25, 282.5, 1.5]},
+      {"name": "Exterior stud 39", "at": [382.5, 282.5, 1.5]},
+      {"name": "Exterior stud 40", "at": [48.5, 282.5, 1.5]},
+      {"name": "Exterior stud 41", "at": [88, 282.5, 1.5]},
+      {"name": "Exterior stud 42", "at": [294.5, 282.5, 1.5]},
+      {"name": "Exterior stud 43", "at": [334, 282.5, 1.5]},
+      {"name": "Exterior stud 44", "at": [0, 5.5, 1.5]},
+      {"name": "Exterior stud 45", "at": [0, 20.75, 1.5]},
+      {"name": "Exterior stud 46", "at": [0, 36.75, 1.5]},
+      {"name": "Exterior stud 47", "at": [0, 52.75, 1.5]},
+      {"name": "Exterior stud 48", "at": [0, 116.75, 1.5]},
+      {"name": "Exterior stud 49", "at": [0, 132.75, 1.5]},
+      {"name": "Exterior stud 50", "at": [0, 148.75, 1.5]},
+      {"name": "Exterior stud 51", "at": [0, 164.75, 1.5]},
+      {"name": "Exterior stud 52", "at": [0, 180.75, 1.5]},
+      {"name": "Exterior stud 53", "at": [0, 244.75, 1.5]},
+      {"name": "Exterior stud 54", "at": [0, 260.75, 1.5]},
+      {"name": "Exterior stud 55", "at": [0, 276.75, 1.5]},
+      {"name": "Exterior stud 56", "at": [0, 281, 1.5]},
+      {"name": "Exterior stud 57", "at": [0, 58.5, 1.5]},
+      {"name": "Exterior stud 58", "at": [0, 98, 1.5]},
+      {"name": "Exterior stud 59", "at": [0, 198.5, 1.5]},
+      {"name": "Exterior stud 60", "at": [0, 238, 1.5]},
+      {"name": "Exterior stud 61", "at": [378.5, 5.5, 1.5]},
+      {"name": "Exterior stud 62", "at": [378.5, 20.75, 1.5]},
+      {"name": "Exterior stud 63", "at": [378.5, 36.75, 1.5]},
+      {"name": "Exterior stud 64", "at": [378.5, 52.75, 1.5]},
+      {"name": "Exterior stud 65", "at": [378.5, 116.75, 1.5]},
+      {"name": "Exterior stud 66", "at": [378.5, 132.75, 1.5]},
+      {"name": "Exterior stud 67", "at": [378.5, 148.75, 1.5]},
+      {"name": "Exterior stud 68", "at": [378.5, 164.75, 1.5]},
+      {"name": "Exterior stud 69", "at": [378.5, 180.75, 1.5]},
+      {"name": "Exterior stud 70", "at": [378.5, 244.75, 1.5]},
+      {"name": "Exterior stud 71", "at": [378.5, 260.75, 1.5]},
+      {"name": "Exterior stud 72", "at": [378.5, 276.75, 1.5]},
+      {"name": "Exterior stud 73", "at": [378.5, 281, 1.5]},
+      {"name": "Exterior stud 74", "at": [378.5, 58.5, 1.5]},
+      {"name": "Exterior stud 75", "at": [378.5, 98, 1.5]},
+      {"name": "Exterior stud 76", "at": [378.5, 198.5, 1.5]},
+      {"name": "Exterior stud 77", "at": [378.5, 238, 1.5]}
+    ]},
+    {"name": "Interior stud", "material": "fir", "size": [92.625, 3.5, 1.5], "at": [5.5, 168, 1.5], "length": "z", "tag": "Wall framing", "copies": [
+      {"name": "Interior stud 2", "at": [20.75, 168, 1.5]},
+      {"name": "Interior stud 3", "at": [84.75, 168, 1.5]},
+      {"name": "Interior stud 4", "at": [100.75, 168, 1.5]},
+      {"name": "Interior stud 5", "at": [116.75, 168, 1.5]},
+      {"name": "Interior stud 6", "at": [132.75, 168, 1.5]},
+      {"name": "Interior stud 7", "at": [196.75, 168, 1.5]},
+      {"name": "Interior stud 8", "at": [212.75, 168, 1.5]},
+      {"name": "Interior stud 9", "at": [228.75, 168, 1.5]},
+      {"name": "Interior stud 10", "at": [244.75, 168, 1.5]},
+      {"name": "Interior stud 11", "at": [260.75, 168, 1.5]},
+      {"name": "Interior stud 12", "at": [276.75, 168, 1.5]},
+      {"name": "Interior stud 13", "at": [340.75, 168, 1.5]},
+      {"name": "Interior stud 14", "at": [356.75, 168, 1.5]},
+      {"name": "Interior stud 15", "at": [372.75, 168, 1.5]},
+      {"name": "Interior stud 16", "at": [377, 168, 1.5]},
+      {"name": "Interior stud 17", "at": [38.5, 168, 1.5]},
+      {"name": "Interior stud 18", "at": [74, 168, 1.5]},
+      {"name": "Interior stud 19", "at": [148.5, 168, 1.5]},
+      {"name": "Interior stud 20", "at": [184, 168, 1.5]},
+      {"name": "Interior stud 21", "at": [288.5, 168, 1.5]},
+      {"name": "Interior stud 22", "at": [324, 168, 1.5]},
+      {"name": "Interior stud 23", "at": [216, 5.5, 1.5]},
+      {"name": "Interior stud 24", "at": [216, 20.75, 1.5]},
+      {"name": "Interior stud 25", "at": [216, 36.75, 1.5]},
+      {"name": "Interior stud 26", "at": [216, 52.75, 1.5]},
+      {"name": "Interior stud 27", "at": [216, 132.75, 1.5]},
+      {"name": "Interior stud 28", "at": [216, 148.75, 1.5]},
+      {"name": "Interior stud 29", "at": [216, 164.75, 1.5]},
+      {"name": "Interior stud 30", "at": [216, 166.5, 1.5]},
+      {"name": "Interior stud 31", "at": [216, 58.5, 1.5]},
+      {"name": "Interior stud 32", "at": [216, 120, 1.5]},
+      {"name": "Interior stud 33", "at": [132, 171.5, 1.5]},
+      {"name": "Interior stud 34", "at": [132, 186.75, 1.5]},
+      {"name": "Interior stud 35", "at": [132, 202.75, 1.5]},
+      {"name": "Interior stud 36", "at": [132, 218.75, 1.5]},
+      {"name": "Interior stud 37", "at": [132, 234.75, 1.5]},
+      {"name": "Interior stud 38", "at": [132, 250.75, 1.5]},
+      {"name": "Interior stud 39", "at": [132, 266.75, 1.5]},
+      {"name": "Interior stud 40", "at": [132, 281, 1.5]},
+      {"name": "Interior stud 41", "at": [192, 171.5, 1.5]},
+      {"name": "Interior stud 42", "at": [192, 186.75, 1.5]},
+      {"name": "Interior stud 43", "at": [192, 202.75, 1.5]},
+      {"name": "Interior stud 44", "at": [192, 218.75, 1.5]},
+      {"name": "Interior stud 45", "at": [192, 234.75, 1.5]},
+      {"name": "Interior stud 46", "at": [192, 250.75, 1.5]},
+      {"name": "Interior stud 47", "at": [192, 266.75, 1.5]},
+      {"name": "Interior stud 48", "at": [192, 281, 1.5]},
+      {"name": "Interior stud 49", "at": [252, 171.5, 1.5]},
+      {"name": "Interior stud 50", "at": [252, 186.75, 1.5]},
+      {"name": "Interior stud 51", "at": [252, 250.75, 1.5]},
+      {"name": "Interior stud 52", "at": [252, 266.75, 1.5]},
+      {"name": "Interior stud 53", "at": [252, 281, 1.5]},
+      {"name": "Interior stud 54", "at": [252, 198.5, 1.5]},
+      {"name": "Interior stud 55", "at": [252, 234, 1.5]}
+    ]},
+    {"name": "Plate 1", "material": "fir", "size": [138.5, 5.5, 1.5], "at": [0, 5.5, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate", "copies": [
+      {"name": "Plate 1 2", "at": [0, 144, 0]},
+      {"name": "Plate 1 3", "at": [0, 5.5, 94.125]},
+      {"name": "Plate 1 4", "at": [0, 144, 94.125]},
+      {"name": "Plate 1 5", "at": [0, 5.5, 95.625]},
+      {"name": "Plate 1 6", "at": [0, 144, 95.625]},
+      {"name": "Plate 1 7", "at": [378.5, 5.5, 0]},
+      {"name": "Plate 1 8", "at": [378.5, 144, 0]},
+      {"name": "Plate 1 9", "at": [378.5, 5.5, 94.125]},
+      {"name": "Plate 1 10", "at": [378.5, 144, 94.125]},
+      {"name": "Plate 1 11", "at": [378.5, 5.5, 95.625]},
+      {"name": "Plate 1 12", "at": [378.5, 144, 95.625]}
+    ]},
+    {"name": "Plate 2", "material": "fir", "size": [192, 5.5, 1.5], "at": [0, 0, 94.125], "tag": "Wall framing", "called": "Plate", "copies": [
+      {"name": "Plate 2 2", "at": [192, 0, 94.125]},
+      {"name": "Plate 2 3", "at": [0, 0, 95.625]},
+      {"name": "Plate 2 4", "at": [192, 0, 95.625]},
+      {"name": "Plate 2 5", "at": [0, 282.5, 0]},
+      {"name": "Plate 2 6", "at": [192, 282.5, 0]},
+      {"name": "Plate 2 7", "at": [0, 282.5, 94.125]},
+      {"name": "Plate 2 8", "at": [192, 282.5, 94.125]},
+      {"name": "Plate 2 9", "at": [0, 282.5, 95.625]},
+      {"name": "Plate 2 10", "at": [192, 282.5, 95.625]}
+    ]},
+    {"name": "Plate 3", "material": "fir", "size": [111, 3.5, 1.5], "at": [132, 171.5, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate", "copies": [
+      {"name": "Plate 3 2", "at": [132, 171.5, 94.125]},
+      {"name": "Plate 3 3", "at": [132, 171.5, 95.625]},
+      {"name": "Plate 3 4", "at": [192, 171.5, 0]},
+      {"name": "Plate 3 5", "at": [192, 171.5, 94.125]},
+      {"name": "Plate 3 6", "at": [192, 171.5, 95.625]},
+      {"name": "Plate 3 7", "at": [252, 171.5, 94.125]},
+      {"name": "Plate 3 8", "at": [252, 171.5, 95.625]}
+    ]},
+    {"name": "Plate 4", "material": "fir", "size": [186.5, 3.5, 1.5], "at": [5.5, 168, 94.125], "tag": "Wall framing", "called": "Plate", "copies": [
+      {"name": "Plate 4 2", "at": [192, 168, 94.125]},
+      {"name": "Plate 4 3", "at": [5.5, 168, 95.625]},
+      {"name": "Plate 4 4", "at": [192, 168, 95.625]}
+    ]},
+    {"name": "Plate 5", "material": "fir", "size": [125, 5.5, 1.5], "at": [134, 0, 0], "tag": "Wall framing", "called": "Plate", "copies": [
+      {"name": "Plate 5 2", "at": [259, 0, 0]}
+    ]},
+    {"name": "Plate 6", "material": "fir", "size": [162.5, 3.5, 1.5], "at": [216, 5.5, 94.125], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate", "copies": [
+      {"name": "Plate 6 2", "at": [216, 5.5, 95.625]}
+    ]},
+    {"name": "Plate 7", "material": "fir", "size": [96, 5.5, 1.5], "at": [0, 0, 0], "tag": "Wall framing", "called": "Plate"},
+    {"name": "Plate 8", "material": "fir", "size": [34.5, 3.5, 1.5], "at": [5.5, 168, 0], "tag": "Wall framing", "called": "Plate"},
+    {"name": "Plate 9", "material": "fir", "size": [76, 3.5, 1.5], "at": [74, 168, 0], "tag": "Wall framing", "called": "Plate"},
+    {"name": "Plate 10", "material": "fir", "size": [106, 3.5, 1.5], "at": [184, 168, 0], "tag": "Wall framing", "called": "Plate"},
+    {"name": "Plate 11", "material": "fir", "size": [54.5, 3.5, 1.5], "at": [324, 168, 0], "tag": "Wall framing", "called": "Plate"},
+    {"name": "Plate 12", "material": "fir", "size": [54.5, 3.5, 1.5], "at": [216, 5.5, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate"},
+    {"name": "Plate 13", "material": "fir", "size": [48, 3.5, 1.5], "at": [216, 120, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate"},
+    {"name": "Plate 14", "material": "fir", "size": [28.5, 3.5, 1.5], "at": [252, 171.5, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate"},
+    {"name": "Plate 15", "material": "fir", "size": [48.5, 3.5, 1.5], "at": [252, 234, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate"},
+    {"name": "Jack 1", "material": "fir", "size": [82.5, 5.5, 1.5], "at": [30, 0, 1.5], "length": "z", "tag": "Wall framing", "called": "Jack", "copies": [
+      {"name": "Jack 1 2", "at": [66.5, 0, 1.5]},
+      {"name": "Jack 1 3", "at": [160, 0, 1.5]},
+      {"name": "Jack 1 4", "at": [196.5, 0, 1.5]},
+      {"name": "Jack 1 5", "at": [250, 0, 1.5]},
+      {"name": "Jack 1 6", "at": [286.5, 0, 1.5]},
+      {"name": "Jack 1 7", "at": [320, 0, 1.5]},
+      {"name": "Jack 1 8", "at": [356.5, 0, 1.5]},
+      {"name": "Jack 1 9", "at": [50, 282.5, 1.5]},
+      {"name": "Jack 1 10", "at": [86.5, 282.5, 1.5]},
+      {"name": "Jack 1 11", "at": [296, 282.5, 1.5]},
+      {"name": "Jack 1 12", "at": [332.5, 282.5, 1.5]},
+      {"name": "Jack 1 13", "at": [0, 60, 1.5]},
+      {"name": "Jack 1 14", "at": [0, 96.5, 1.5]},
+      {"name": "Jack 1 15", "at": [0, 200, 1.5]},
+      {"name": "Jack 1 16", "at": [0, 236.5, 1.5]},
+      {"name": "Jack 1 17", "at": [378.5, 60, 1.5]},
+      {"name": "Jack 1 18", "at": [378.5, 96.5, 1.5]},
+      {"name": "Jack 1 19", "at": [378.5, 200, 1.5]},
+      {"name": "Jack 1 20", "at": [378.5, 236.5, 1.5]}
+    ]},
+    {"name": "Jack 2", "material": "fir", "size": [80.5, 3.5, 1.5], "at": [40, 168, 1.5], "length": "z", "tag": "Wall framing", "called": "Jack", "copies": [
+      {"name": "Jack 2 2", "at": [72.5, 168, 1.5]},
+      {"name": "Jack 2 3", "at": [150, 168, 1.5]},
+      {"name": "Jack 2 4", "at": [182.5, 168, 1.5]},
+      {"name": "Jack 2 5", "at": [290, 168, 1.5]},
+      {"name": "Jack 2 6", "at": [322.5, 168, 1.5]},
+      {"name": "Jack 2 7", "at": [216, 60, 1.5]},
+      {"name": "Jack 2 8", "at": [216, 118.5, 1.5]},
+      {"name": "Jack 2 9", "at": [252, 200, 1.5]},
+      {"name": "Jack 2 10", "at": [252, 232.5, 1.5]}
+    ]},
+    {"name": "Header 3", "material": "fir", "size": [41, 5.5, 1.5], "at": [94.5, 0, 82], "tag": "Wall framing", "called": "Header", "copies": [
+      {"name": "Header 3 2", "at": [28.5, 0, 84]},
+      {"name": "Header 3 3", "at": [158.5, 0, 84]},
+      {"name": "Header 3 4", "at": [248.5, 0, 84]},
+      {"name": "Header 3 5", "at": [318.5, 0, 84]},
+      {"name": "Header 3 6", "at": [48.5, 282.5, 84]},
+      {"name": "Header 3 7", "at": [294.5, 282.5, 84]}
+    ]},
+    {"name": "Sill 4", "material": "fir", "size": [38, 5.5, 1.5], "at": [30, 0, 34.5], "tag": "Wall framing", "called": "Sill", "copies": [
+      {"name": "Sill 4 2", "at": [160, 0, 34.5]},
+      {"name": "Sill 4 3", "at": [250, 0, 34.5]},
+      {"name": "Sill 4 4", "at": [320, 0, 34.5]},
+      {"name": "Sill 4 5", "at": [50, 282.5, 34.5]},
+      {"name": "Sill 4 6", "at": [296, 282.5, 34.5]}
+    ]},
+    {"name": "Header 5", "material": "fir", "size": [41, 5.5, 1.5], "at": [0, 58.5, 84], "length": "y", "width": "x", "tag": "Wall framing", "called": "Header", "copies": [
+      {"name": "Header 5 2", "at": [0, 198.5, 84]},
+      {"name": "Header 5 3", "at": [378.5, 58.5, 84]},
+      {"name": "Header 5 4", "at": [378.5, 198.5, 84]}
+    ]},
+    {"name": "Sill 6", "material": "fir", "size": [38, 5.5, 1.5], "at": [0, 60, 34.5], "length": "y", "width": "x", "tag": "Wall framing", "called": "Sill", "copies": [
+      {"name": "Sill 6 2", "at": [0, 200, 34.5]},
+      {"name": "Sill 6 3", "at": [378.5, 60, 34.5]},
+      {"name": "Sill 6 4", "at": [378.5, 200, 34.5]}
+    ]},
+    {"name": "Header 7", "material": "fir", "size": [37, 3.5, 1.5], "at": [38.5, 168, 82], "tag": "Wall framing", "called": "Header", "copies": [
+      {"name": "Header 7 2", "at": [148.5, 168, 82]},
+      {"name": "Header 7 3", "at": [288.5, 168, 82]}
+    ]},
+    {"name": "Jack 8", "material": "fir", "size": [80.5, 5.5, 1.5], "at": [96, 0, 1.5], "length": "z", "tag": "Wall framing", "called": "Jack", "copies": [
+      {"name": "Jack 8 2", "at": [132.5, 0, 1.5]}
+    ]},
+    {"name": "Header 9", "material": "fir", "size": [63, 3.5, 1.5], "at": [216, 58.5, 82], "length": "y", "width": "x", "tag": "Wall framing", "called": "Header"},
+    {"name": "Header 10", "material": "fir", "size": [37, 3.5, 1.5], "at": [252, 198.5, 82], "length": "y", "width": "x", "tag": "Wall framing", "called": "Header"},
+    {"name": "Sheathing", "material": "osb", "size": [36, 38, 0.438], "at": [30, -0.438, 0], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing 2", "at": [160, -0.438, 0]},
+      {"name": "Sheathing 3", "at": [250, -0.438, 0]},
+      {"name": "Sheathing 4", "at": [320, -0.438, 0]}
+    ]},
+    {"name": "Sheathing b", "material": "osb", "size": [13.125, 38, 0.438], "at": [30, -0.438, 84], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing b 2", "at": [160, -0.438, 84]},
+      {"name": "Sheathing b 3", "at": [250, -0.438, 84]},
+      {"name": "Sheathing b 4", "at": [320, -0.438, 84]}
+    ]},
+    {"name": "Sheathing c", "material": "osb", "size": [96, 26, 0.438], "at": [134, -0.438, 0], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing c 2", "at": [358, -0.438, 0]}
+    ]},
+    {"name": "Sheathing d", "material": "osb", "size": [1.125, 26, 0.438], "at": [134, -0.438, 96], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing d 2", "at": [358, -0.438, 96]}
+    ]},
+    {"name": "Sheathing e", "material": "osb", "size": [96, 48, 0.438], "at": [198, -0.438, 0], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing f", "material": "osb", "size": [1.125, 48, 0.438], "at": [198, -0.438, 96], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing g", "material": "osb", "size": [15.125, 38, 0.438], "at": [96, -0.438, 82], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing h", "material": "osb", "size": [96, 32, 0.438], "at": [288, -0.438, 0], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing i", "material": "osb", "size": [1.125, 32, 0.438], "at": [288, -0.438, 96], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing j", "material": "osb", "size": [96, 30, 0.438], "at": [0, -0.438, 0], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing k", "material": "osb", "size": [1.125, 30, 0.438], "at": [0, -0.438, 96], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing l", "material": "osb", "size": [96, 28, 0.438], "at": [68, -0.438, 0], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing m", "material": "osb", "size": [1.125, 28, 0.438], "at": [68, -0.438, 96], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing n", "material": "osb", "size": [96, 4, 0.438], "at": [246, -0.438, 0], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing o", "material": "osb", "size": [1.125, 4, 0.438], "at": [246, -0.438, 96], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing back", "material": "osb", "size": [96, 48, 0.438], "at": [0, 288, 0], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing back 2", "at": [88, 288, 0]},
+      {"name": "Sheathing back 3", "at": [136, 288, 0]},
+      {"name": "Sheathing back 4", "at": [184, 288, 0]},
+      {"name": "Sheathing back 5", "at": [232, 288, 0]},
+      {"name": "Sheathing back 6", "at": [334, 288, 0]}
+    ]},
+    {"name": "Sheathing back b", "material": "osb", "size": [1.125, 48, 0.438], "at": [0, 288, 96], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing back b 2", "at": [88, 288, 96]},
+      {"name": "Sheathing back b 3", "at": [136, 288, 96]},
+      {"name": "Sheathing back b 4", "at": [184, 288, 96]},
+      {"name": "Sheathing back b 5", "at": [232, 288, 96]},
+      {"name": "Sheathing back b 6", "at": [334, 288, 96]}
+    ]},
+    {"name": "Sheathing back c", "material": "osb", "size": [36, 38, 0.438], "at": [50, 288, 0], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing back c 2", "at": [296, 288, 0]}
+    ]},
+    {"name": "Sheathing back d", "material": "osb", "size": [13.125, 38, 0.438], "at": [50, 288, 84], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing back d 2", "at": [296, 288, 84]}
+    ]},
+    {"name": "Sheathing back e", "material": "osb", "size": [96, 2, 0.438], "at": [48, 288, 0], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing back e 2", "at": [382, 288, 0]}
+    ]},
+    {"name": "Sheathing back f", "material": "osb", "size": [1.125, 2, 0.438], "at": [48, 288, 96], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing back f 2", "at": [382, 288, 96]}
+    ]},
+    {"name": "Sheathing back g", "material": "osb", "size": [96, 16, 0.438], "at": [280, 288, 0], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing back h", "material": "osb", "size": [1.125, 16, 0.438], "at": [280, 288, 96], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing west", "material": "osb", "size": [96, 48, 0.438], "at": [-0.438, 5.5, 0], "length": "z", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing west 2", "at": [-0.438, 98, 0]},
+      {"name": "Sheathing west 3", "at": [-0.438, 146, 0]}
+    ]},
+    {"name": "Sheathing west b", "material": "osb", "size": [1.125, 48, 0.438], "at": [-0.438, 5.5, 96], "length": "z", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing west b 2", "at": [-0.438, 98, 96]},
+      {"name": "Sheathing west b 3", "at": [-0.438, 146, 96]}
+    ]},
+    {"name": "Sheathing west c", "material": "osb", "size": [36, 38, 0.438], "at": [-0.438, 60, 0], "length": "z", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing west c 2", "at": [-0.438, 200, 0]}
+    ]},
+    {"name": "Sheathing west d", "material": "osb", "size": [13.125, 38, 0.438], "at": [-0.438, 60, 84], "length": "z", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing west d 2", "at": [-0.438, 200, 84]}
+    ]},
+    {"name": "Sheathing west e", "material": "osb", "size": [96, 44.5, 0.438], "at": [-0.438, 238, 0], "length": "z", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing west f", "material": "osb", "size": [1.125, 44.5, 0.438], "at": [-0.438, 238, 96], "length": "z", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing west g", "material": "osb", "size": [96, 6.5, 0.438], "at": [-0.438, 53.5, 0], "length": "z", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing west h", "material": "osb", "size": [1.125, 6.5, 0.438], "at": [-0.438, 53.5, 96], "length": "z", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing west i", "material": "osb", "size": [96, 6, 0.438], "at": [-0.438, 194, 0], "length": "z", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing west j", "material": "osb", "size": [1.125, 6, 0.438], "at": [-0.438, 194, 96], "length": "z", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing east", "material": "osb", "size": [96, 48, 0.438], "at": [384, 5.5, 0], "length": "z", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing east 2", "at": [384, 98, 0]},
+      {"name": "Sheathing east 3", "at": [384, 146, 0]}
+    ]},
+    {"name": "Sheathing east b", "material": "osb", "size": [1.125, 48, 0.438], "at": [384, 5.5, 96], "length": "z", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing east b 2", "at": [384, 98, 96]},
+      {"name": "Sheathing east b 3", "at": [384, 146, 96]}
+    ]},
+    {"name": "Sheathing east c", "material": "osb", "size": [36, 38, 0.438], "at": [384, 60, 0], "length": "z", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing east c 2", "at": [384, 200, 0]}
+    ]},
+    {"name": "Sheathing east d", "material": "osb", "size": [13.125, 38, 0.438], "at": [384, 60, 84], "length": "z", "tag": "Sheathing", "called": "Sheathing", "copies": [
+      {"name": "Sheathing east d 2", "at": [384, 200, 84]}
+    ]},
+    {"name": "Sheathing east e", "material": "osb", "size": [96, 44.5, 0.438], "at": [384, 238, 0], "length": "z", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing east f", "material": "osb", "size": [1.125, 44.5, 0.438], "at": [384, 238, 96], "length": "z", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing east g", "material": "osb", "size": [96, 6.5, 0.438], "at": [384, 53.5, 0], "length": "z", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing east h", "material": "osb", "size": [1.125, 6.5, 0.438], "at": [384, 53.5, 96], "length": "z", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing east i", "material": "osb", "size": [96, 6, 0.438], "at": [384, 194, 0], "length": "z", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Sheathing east j", "material": "osb", "size": [1.125, 6, 0.438], "at": [384, 194, 96], "length": "z", "tag": "Sheathing", "called": "Sheathing"},
+    {"name": "Rafter", "material": "fir", "size": [174.413, 7.25, 1.5], "at": [0, -12, 91.125], "length": "y", "width": "z", "tag": "Roof framing", "turn": {"axis": "x", "degrees": 26.565}, "copies": [
+      {"name": "Rafter 2", "at": [16, -15.242, 91.125]},
+      {"name": "Rafter 3", "at": [32, -15.242, 91.125]},
+      {"name": "Rafter 4", "at": [48, -15.242, 91.125]},
+      {"name": "Rafter 5", "at": [64, -15.242, 91.125]},
+      {"name": "Rafter 6", "at": [80, -15.242, 91.125]},
+      {"name": "Rafter 7", "at": [96, -15.242, 91.125]},
+      {"name": "Rafter 8", "at": [112, -15.242, 91.125]},
+      {"name": "Rafter 9", "at": [128, -15.242, 91.125]},
+      {"name": "Rafter 10", "at": [144, -15.242, 91.125]},
+      {"name": "Rafter 11", "at": [160, -15.242, 91.125]},
+      {"name": "Rafter 12", "at": [176, -15.242, 91.125]},
+      {"name": "Rafter 13", "at": [192, -15.242, 91.125]},
+      {"name": "Rafter 14", "at": [208, -15.242, 91.125]},
+      {"name": "Rafter 15", "at": [224, -15.242, 91.125]},
+      {"name": "Rafter 16", "at": [240, -15.242, 91.125]},
+      {"name": "Rafter 17", "at": [256, -15.242, 91.125]},
+      {"name": "Rafter 18", "at": [272, -15.242, 91.125]},
+      {"name": "Rafter 19", "at": [288, -15.242, 91.125]},
+      {"name": "Rafter 20", "at": [304, -15.242, 91.125]},
+      {"name": "Rafter 21", "at": [320, -15.242, 91.125]},
+      {"name": "Rafter 22", "at": [336, -15.242, 91.125]},
+      {"name": "Rafter 23", "at": [352, -15.242, 91.125]},
+      {"name": "Rafter 24", "at": [368, -15.242, 91.125]}
+    ]},
+    {"name": "Rafter north", "material": "fir", "size": [174.413, 7.25, 1.5], "at": [0, 144, 169.125], "length": "y", "width": "z", "tag": "Roof framing", "called": "Rafter", "turn": {"axis": "x", "degrees": -26.565}, "copies": [
+      {"name": "Rafter north 2", "at": [16, 144, 91.125]},
+      {"name": "Rafter north 3", "at": [32, 144, 91.125]},
+      {"name": "Rafter north 4", "at": [48, 144, 91.125]},
+      {"name": "Rafter north 5", "at": [64, 144, 91.125]},
+      {"name": "Rafter north 6", "at": [80, 144, 91.125]},
+      {"name": "Rafter north 7", "at": [96, 144, 91.125]},
+      {"name": "Rafter north 8", "at": [112, 144, 91.125]},
+      {"name": "Rafter north 9", "at": [128, 144, 91.125]},
+      {"name": "Rafter north 10", "at": [144, 144, 91.125]},
+      {"name": "Rafter north 11", "at": [160, 144, 91.125]},
+      {"name": "Rafter north 12", "at": [176, 144, 91.125]},
+      {"name": "Rafter north 13", "at": [192, 144, 91.125]},
+      {"name": "Rafter north 14", "at": [208, 144, 91.125]},
+      {"name": "Rafter north 15", "at": [224, 144, 91.125]},
+      {"name": "Rafter north 16", "at": [240, 144, 91.125]},
+      {"name": "Rafter north 17", "at": [256, 144, 91.125]},
+      {"name": "Rafter north 18", "at": [272, 144, 91.125]},
+      {"name": "Rafter north 19", "at": [288, 144, 91.125]},
+      {"name": "Rafter north 20", "at": [304, 144, 91.125]},
+      {"name": "Rafter north 21", "at": [320, 144, 91.125]},
+      {"name": "Rafter north 22", "at": [336, 144, 91.125]},
+      {"name": "Rafter north 23", "at": [352, 144, 91.125]},
+      {"name": "Rafter north 24", "at": [368, 144, 91.125]}
+    ]},
+    {"name": "Ridge board", "material": "fir", "size": [192, 9.25, 1.5], "at": [0, 143.25, 159.875], "width": "z", "tag": "Roof framing", "free_to_move": true, "copies": [
+      {"name": "Ridge board 2", "at": [192, 143.25, 159.875]}
+    ]},
+    {"name": "Ceiling joist front", "material": "fir", "size": [166, 7.25, 1.5], "at": [0, 5.5, 97.125], "length": "y", "width": "z", "tag": "Roof framing", "called": "Ceiling joist", "free_to_move": true, "copies": [
+      {"name": "Ceiling joist front 2", "at": [16, 5.5, 97.125]},
+      {"name": "Ceiling joist front 3", "at": [32, 5.5, 97.125]},
+      {"name": "Ceiling joist front 4", "at": [48, 5.5, 97.125]},
+      {"name": "Ceiling joist front 5", "at": [64, 5.5, 97.125]},
+      {"name": "Ceiling joist front 6", "at": [80, 5.5, 97.125]},
+      {"name": "Ceiling joist front 7", "at": [96, 5.5, 97.125]},
+      {"name": "Ceiling joist front 8", "at": [112, 5.5, 97.125]},
+      {"name": "Ceiling joist front 9", "at": [128, 5.5, 97.125]},
+      {"name": "Ceiling joist front 10", "at": [144, 5.5, 97.125]},
+      {"name": "Ceiling joist front 11", "at": [160, 5.5, 97.125]},
+      {"name": "Ceiling joist front 12", "at": [176, 5.5, 97.125]},
+      {"name": "Ceiling joist front 13", "at": [192, 5.5, 97.125]},
+      {"name": "Ceiling joist front 14", "at": [208, 5.5, 97.125]},
+      {"name": "Ceiling joist front 15", "at": [224, 5.5, 97.125]},
+      {"name": "Ceiling joist front 16", "at": [240, 5.5, 97.125]},
+      {"name": "Ceiling joist front 17", "at": [256, 5.5, 97.125]},
+      {"name": "Ceiling joist front 18", "at": [272, 5.5, 97.125]},
+      {"name": "Ceiling joist front 19", "at": [288, 5.5, 97.125]},
+      {"name": "Ceiling joist front 20", "at": [304, 5.5, 97.125]},
+      {"name": "Ceiling joist front 21", "at": [320, 5.5, 97.125]},
+      {"name": "Ceiling joist front 22", "at": [336, 5.5, 97.125]},
+      {"name": "Ceiling joist front 23", "at": [352, 5.5, 97.125]},
+      {"name": "Ceiling joist front 24", "at": [368, 5.5, 97.125]}
+    ]},
+    {"name": "Ceiling joist back", "material": "fir", "size": [114.5, 7.25, 1.5], "at": [0, 168, 97.125], "length": "y", "width": "z", "tag": "Roof framing", "called": "Ceiling joist", "free_to_move": true, "copies": [
+      {"name": "Ceiling joist back 2", "at": [16, 168, 97.125]},
+      {"name": "Ceiling joist back 3", "at": [32, 168, 97.125]},
+      {"name": "Ceiling joist back 4", "at": [48, 168, 97.125]},
+      {"name": "Ceiling joist back 5", "at": [64, 168, 97.125]},
+      {"name": "Ceiling joist back 6", "at": [80, 168, 97.125]},
+      {"name": "Ceiling joist back 7", "at": [96, 168, 97.125]},
+      {"name": "Ceiling joist back 8", "at": [112, 168, 97.125]},
+      {"name": "Ceiling joist back 9", "at": [128, 168, 97.125]},
+      {"name": "Ceiling joist back 10", "at": [144, 168, 97.125]},
+      {"name": "Ceiling joist back 11", "at": [160, 168, 97.125]},
+      {"name": "Ceiling joist back 12", "at": [176, 168, 97.125]},
+      {"name": "Ceiling joist back 13", "at": [192, 168, 97.125]},
+      {"name": "Ceiling joist back 14", "at": [208, 168, 97.125]},
+      {"name": "Ceiling joist back 15", "at": [224, 168, 97.125]},
+      {"name": "Ceiling joist back 16", "at": [240, 168, 97.125]},
+      {"name": "Ceiling joist back 17", "at": [256, 168, 97.125]},
+      {"name": "Ceiling joist back 18", "at": [272, 168, 97.125]},
+      {"name": "Ceiling joist back 19", "at": [288, 168, 97.125]},
+      {"name": "Ceiling joist back 20", "at": [304, 168, 97.125]},
+      {"name": "Ceiling joist back 21", "at": [320, 168, 97.125]},
+      {"name": "Ceiling joist back 22", "at": [336, 168, 97.125]},
+      {"name": "Ceiling joist back 23", "at": [352, 168, 97.125]},
+      {"name": "Ceiling joist back 24", "at": [368, 168, 97.125]}
+    ]},
+    {"name": "Gable stud 1", "material": "fir", "size": [72, 5.5, 1.5], "at": [0, 143.25, 97.125], "length": "z", "tag": "Wall framing", "called": "Gable stud", "copies": [
+      {"name": "Gable stud 1 2", "at": [378.5, 143.25, 97.125]}
+    ]},
+    {"name": "Gable stud 2", "material": "fir", "size": [64, 5.5, 1.5], "at": [0, 127.25, 97.125], "length": "z", "tag": "Wall framing", "called": "Gable stud", "copies": [
+      {"name": "Gable stud 2 2", "at": [378.5, 127.25, 97.125]},
+      {"name": "Gable stud 2 3", "at": [0, 159.25, 97.125]},
+      {"name": "Gable stud 2 4", "at": [378.5, 159.25, 97.125]}
+    ]},
+    {"name": "Gable stud 3", "material": "fir", "size": [56, 5.5, 1.5], "at": [0, 111.25, 97.125], "length": "z", "tag": "Wall framing", "called": "Gable stud", "copies": [
+      {"name": "Gable stud 3 2", "at": [378.5, 111.25, 97.125]},
+      {"name": "Gable stud 3 3", "at": [0, 175.25, 97.125]},
+      {"name": "Gable stud 3 4", "at": [378.5, 175.25, 97.125]}
+    ]},
+    {"name": "Gable stud 4", "material": "fir", "size": [48, 5.5, 1.5], "at": [0, 95.25, 97.125], "length": "z", "tag": "Wall framing", "called": "Gable stud", "copies": [
+      {"name": "Gable stud 4 2", "at": [378.5, 95.25, 97.125]},
+      {"name": "Gable stud 4 3", "at": [0, 191.25, 97.125]},
+      {"name": "Gable stud 4 4", "at": [378.5, 191.25, 97.125]}
+    ]},
+    {"name": "Gable stud 5", "material": "fir", "size": [40, 5.5, 1.5], "at": [0, 79.25, 97.125], "length": "z", "tag": "Wall framing", "called": "Gable stud", "copies": [
+      {"name": "Gable stud 5 2", "at": [378.5, 79.25, 97.125]},
+      {"name": "Gable stud 5 3", "at": [0, 207.25, 97.125]},
+      {"name": "Gable stud 5 4", "at": [378.5, 207.25, 97.125]}
+    ]},
+    {"name": "Gable stud 6", "material": "fir", "size": [32, 5.5, 1.5], "at": [0, 63.25, 97.125], "length": "z", "tag": "Wall framing", "called": "Gable stud", "copies": [
+      {"name": "Gable stud 6 2", "at": [378.5, 63.25, 97.125]},
+      {"name": "Gable stud 6 3", "at": [0, 223.25, 97.125]},
+      {"name": "Gable stud 6 4", "at": [378.5, 223.25, 97.125]}
+    ]},
+    {"name": "Gable stud 7", "material": "fir", "size": [24, 5.5, 1.5], "at": [0, 47.25, 97.125], "length": "z", "tag": "Wall framing", "called": "Gable stud", "copies": [
+      {"name": "Gable stud 7 2", "at": [378.5, 47.25, 97.125]},
+      {"name": "Gable stud 7 3", "at": [0, 239.25, 97.125]},
+      {"name": "Gable stud 7 4", "at": [378.5, 239.25, 97.125]}
+    ]},
+    {"name": "Gable stud 8", "material": "fir", "size": [16, 5.5, 1.5], "at": [0, 31.25, 97.125], "length": "z", "tag": "Wall framing", "called": "Gable stud", "copies": [
+      {"name": "Gable stud 8 2", "at": [378.5, 31.25, 97.125]},
+      {"name": "Gable stud 8 3", "at": [0, 255.25, 97.125]},
+      {"name": "Gable stud 8 4", "at": [378.5, 255.25, 97.125]}
+    ]},
+    {"name": "Gable stud 9", "material": "fir", "size": [8, 5.5, 1.5], "at": [0, 15.25, 97.125], "length": "z", "tag": "Wall framing", "called": "Gable stud", "copies": [
+      {"name": "Gable stud 9 2", "at": [378.5, 15.25, 97.125]},
+      {"name": "Gable stud 9 3", "at": [0, 271.25, 97.125]},
+      {"name": "Gable stud 9 4", "at": [378.5, 271.25, 97.125]}
+    ]},
+    {"name": "Gable sheathing", "material": "osb", "size": [288, 72, 0.438], "at": [-0.438, 0, 97.125], "length": "y", "width": "z", "tag": "Sheathing", "called": "Gable sheathing", "outline": [[0, 0], [288.0, 0], [144.0, 72.0]], "copies": [
+      {"name": "Gable sheathing 2", "at": [384, 0, 97.125]}
+    ]},
+    {"name": "Roof sheathing", "material": "ply", "size": [48, 96, 0.5], "at": [-12, -12, 98.375], "length": "y", "width": "x", "tag": "Roof sheathing", "called": "Roof sheathing", "turn": {"axis": "x", "degrees": 26.565}, "copies": [
+      {"name": "Roof sheathing 2", "at": [84, -12.224, 98.375]},
+      {"name": "Roof sheathing 3", "at": [180, -12.224, 98.375]},
+      {"name": "Roof sheathing 4", "at": [276, -12.224, 98.375]},
+      {"name": "Roof sheathing 5", "at": [-12, 30.709, 119.841]},
+      {"name": "Roof sheathing 6", "at": [84, 30.709, 119.841]},
+      {"name": "Roof sheathing 7", "at": [180, 30.709, 119.841]},
+      {"name": "Roof sheathing 8", "at": [276, 30.709, 119.841]},
+      {"name": "Roof sheathing 9", "at": [-12, 73.641, 141.308]},
+      {"name": "Roof sheathing 10", "at": [84, 73.641, 141.308]},
+      {"name": "Roof sheathing 11", "at": [180, 73.641, 141.308]},
+      {"name": "Roof sheathing 12", "at": [276, 73.641, 141.308]}
+    ]},
+    {"name": "Roof sheathing b", "material": "ply", "size": [30.413, 96, 0.5], "at": [-12, 116.798, 162.774], "length": "y", "width": "x", "tag": "Roof sheathing", "called": "Roof sheathing", "turn": {"axis": "x", "degrees": 26.565}, "copies": [
+      {"name": "Roof sheathing b 2", "at": [84, 116.574, 162.774]},
+      {"name": "Roof sheathing b 3", "at": [180, 116.574, 162.774]},
+      {"name": "Roof sheathing b 4", "at": [276, 116.574, 162.774]}
+    ]},
+    {"name": "Roof sheathing c", "material": "ply", "size": [48, 24, 0.5], "at": [372, -12, 98.375], "length": "y", "width": "x", "tag": "Roof sheathing", "called": "Roof sheathing", "turn": {"axis": "x", "degrees": 26.565}, "copies": [
+      {"name": "Roof sheathing c 2", "at": [372, 30.709, 119.841]},
+      {"name": "Roof sheathing c 3", "at": [372, 73.641, 141.308]}
+    ]},
+    {"name": "Roof sheathing d", "material": "ply", "size": [30.413, 24, 0.5], "at": [372, 116.798, 162.774], "length": "y", "width": "x", "tag": "Roof sheathing", "called": "Roof sheathing", "turn": {"axis": "x", "degrees": 26.565}},
+    {"name": "Shingles", "material": "shingle", "size": [36, 144, 0.25], "at": [-12, -12, 98.875], "length": "y", "width": "x", "tag": "Roofing", "called": "Shingles", "turn": {"axis": "x", "degrees": 26.565}, "copies": [
+      {"name": "Shingles 2", "at": [132, -12.112, 98.875]},
+      {"name": "Shingles 3", "at": [-12, 20.088, 114.975]},
+      {"name": "Shingles 4", "at": [132, 20.088, 114.975]},
+      {"name": "Shingles 5", "at": [-12, 52.287, 131.074]},
+      {"name": "Shingles 6", "at": [132, 52.287, 131.074]},
+      {"name": "Shingles 7", "at": [-12, 84.486, 147.174]},
+      {"name": "Shingles 8", "at": [132, 84.486, 147.174]}
+    ]},
+    {"name": "Shingles b", "material": "shingle", "size": [36, 120, 0.25], "at": [276, -12, 98.875], "length": "y", "width": "x", "tag": "Roofing", "called": "Shingles", "turn": {"axis": "x", "degrees": 26.565}, "copies": [
+      {"name": "Shingles b 2", "at": [276, 20.088, 114.975]},
+      {"name": "Shingles b 3", "at": [276, 52.287, 131.074]},
+      {"name": "Shingles b 4", "at": [276, 84.486, 147.174]}
+    ]},
+    {"name": "Shingles c", "material": "shingle", "size": [30.413, 144, 0.25], "at": [-12, 116.798, 163.274], "length": "y", "width": "x", "tag": "Roofing", "called": "Shingles", "turn": {"axis": "x", "degrees": 26.565}, "copies": [
+      {"name": "Shingles c 2", "at": [132, 116.686, 163.274]}
+    ]},
+    {"name": "Shingles d", "material": "shingle", "size": [30.413, 120, 0.25], "at": [276, 116.798, 163.274], "length": "y", "width": "x", "tag": "Roofing", "called": "Shingles", "turn": {"axis": "x", "degrees": 26.565}},
+    {"name": "Roof sheathing north", "material": "ply", "size": [48, 96, 0.5], "at": [-12, 144, 176.375], "length": "y", "width": "x", "tag": "Roof sheathing", "called": "Roof sheathing", "turn": {"axis": "x", "degrees": -26.565}, "copies": [
+      {"name": "Roof sheathing north 2", "at": [84, 144, 154.909]},
+      {"name": "Roof sheathing north 3", "at": [180, 144, 154.909]},
+      {"name": "Roof sheathing north 4", "at": [276, 144, 154.909]},
+      {"name": "Roof sheathing north 5", "at": [-12, 186.933, 133.442]},
+      {"name": "Roof sheathing north 6", "at": [84, 186.933, 133.442]},
+      {"name": "Roof sheathing north 7", "at": [180, 186.933, 133.442]},
+      {"name": "Roof sheathing north 8", "at": [276, 186.933, 133.442]},
+      {"name": "Roof sheathing north 9", "at": [-12, 229.865, 111.976]},
+      {"name": "Roof sheathing north 10", "at": [84, 229.865, 111.976]},
+      {"name": "Roof sheathing north 11", "at": [180, 229.865, 111.976]},
+      {"name": "Roof sheathing north 12", "at": [276, 229.865, 111.976]}
+    ]},
+    {"name": "Roof sheathing north b", "material": "ply", "size": [30.413, 96, 0.5], "at": [-12, 272.798, 111.976], "length": "y", "width": "x", "tag": "Roof sheathing", "called": "Roof sheathing", "turn": {"axis": "x", "degrees": -26.565}, "copies": [
+      {"name": "Roof sheathing north b 2", "at": [84, 272.798, 98.375]},
+      {"name": "Roof sheathing north b 3", "at": [180, 272.798, 98.375]},
+      {"name": "Roof sheathing north b 4", "at": [276, 272.798, 98.375]}
+    ]},
+    {"name": "Roof sheathing north c", "material": "ply", "size": [48, 24, 0.5], "at": [372, 144, 176.375], "length": "y", "width": "x", "tag": "Roof sheathing", "called": "Roof sheathing", "turn": {"axis": "x", "degrees": -26.565}, "copies": [
+      {"name": "Roof sheathing north c 2", "at": [372, 186.933, 133.442]},
+      {"name": "Roof sheathing north c 3", "at": [372, 229.865, 111.976]}
+    ]},
+    {"name": "Roof sheathing north d", "material": "ply", "size": [30.413, 24, 0.5], "at": [372, 272.798, 111.976], "length": "y", "width": "x", "tag": "Roof sheathing", "called": "Roof sheathing", "turn": {"axis": "x", "degrees": -26.565}},
+    {"name": "Shingles north", "material": "shingle", "size": [36, 144, 0.25], "at": [-12, 144, 176.875], "length": "y", "width": "x", "tag": "Roofing", "called": "Shingles", "turn": {"axis": "x", "degrees": -26.565}, "copies": [
+      {"name": "Shingles north 2", "at": [132, 144, 160.775]},
+      {"name": "Shingles north 3", "at": [-12, 176.199, 144.676]},
+      {"name": "Shingles north 4", "at": [132, 176.199, 144.676]},
+      {"name": "Shingles north 5", "at": [-12, 208.399, 128.576]},
+      {"name": "Shingles north 6", "at": [132, 208.399, 128.576]},
+      {"name": "Shingles north 7", "at": [-12, 240.598, 112.476]},
+      {"name": "Shingles north 8", "at": [132, 240.598, 112.476]}
+    ]},
+    {"name": "Shingles north b", "material": "shingle", "size": [36, 120, 0.25], "at": [276, 144, 176.875], "length": "y", "width": "x", "tag": "Roofing", "called": "Shingles", "turn": {"axis": "x", "degrees": -26.565}, "copies": [
+      {"name": "Shingles north b 2", "at": [276, 176.199, 144.676]},
+      {"name": "Shingles north b 3", "at": [276, 208.399, 128.576]},
+      {"name": "Shingles north b 4", "at": [276, 240.598, 112.476]}
+    ]},
+    {"name": "Shingles north c", "material": "shingle", "size": [30.413, 144, 0.25], "at": [-12, 272.798, 112.476], "length": "y", "width": "x", "tag": "Roofing", "called": "Shingles", "turn": {"axis": "x", "degrees": -26.565}, "copies": [
+      {"name": "Shingles north c 2", "at": [132, 272.798, 98.875]}
+    ]},
+    {"name": "Shingles north d", "material": "shingle", "size": [30.413, 120, 0.25], "at": [276, 272.798, 112.476], "length": "y", "width": "x", "tag": "Roofing", "called": "Shingles", "turn": {"axis": "x", "degrees": -26.565}},
+    {"name": "Porch shingles", "material": "shingle", "size": [144, 78, 0.25], "at": [96, -72, 85.625], "tag": "Roofing", "called": "Shingles", "turn": {"axis": "x", "degrees": 14.0}},
+    {"name": "Porch pier", "material": "pt", "size": [12, 5.5, 5.5], "at": [98, -70, -20.75], "length": "z", "width": "x", "tag": "Porch", "copies": [
+      {"name": "Porch pier 2", "at": [165.25, -70, -20.75]},
+      {"name": "Porch pier 3", "at": [232.5, -70, -20.75]}
+    ]},
+    {"name": "Porch beam", "material": "pt", "size": [144, 7.25, 3], "at": [96, -70, -8.75], "width": "z", "tag": "Porch", "free_to_move": true},
+    {"name": "Porch ledger", "material": "pt", "size": [144, 7.25, 1.5], "at": [96, 0, -8.75], "width": "z", "tag": "Porch"},
+    {"name": "Porch joist", "material": "pt", "size": [70, 7.25, 1.5], "at": [96, -70, -8.75], "length": "y", "width": "z", "tag": "Porch", "copies": [
+      {"name": "Porch joist 2", "at": [112, -70, -8.75]},
+      {"name": "Porch joist 3", "at": [128, -70, -8.75]},
+      {"name": "Porch joist 4", "at": [144, -70, -8.75]},
+      {"name": "Porch joist 5", "at": [160, -70, -8.75]},
+      {"name": "Porch joist 6", "at": [176, -70, -8.75]},
+      {"name": "Porch joist 7", "at": [192, -70, -8.75]},
+      {"name": "Porch joist 8", "at": [208, -70, -8.75]},
+      {"name": "Porch joist 9", "at": [224, -70, -8.75]}
+    ]},
+    {"name": "Decking", "material": "cedar", "size": [144, 5.5, 1.5], "at": [96, -70, -1.5], "tag": "Porch", "copies": [
+      {"name": "Decking 2", "at": [96, -64, -1.5]},
+      {"name": "Decking 3", "at": [96, -58, -1.5]},
+      {"name": "Decking 4", "at": [96, -52, -1.5]},
+      {"name": "Decking 5", "at": [96, -46, -1.5]},
+      {"name": "Decking 6", "at": [96, -40, -1.5]},
+      {"name": "Decking 7", "at": [96, -34, -1.5]},
+      {"name": "Decking 8", "at": [96, -28, -1.5]},
+      {"name": "Decking 9", "at": [96, -22, -1.5]},
+      {"name": "Decking 10", "at": [96, -16, -1.5]},
+      {"name": "Decking 11", "at": [96, -10, -1.5]},
+      {"name": "Decking 12", "at": [96, -4, -1.5]}
+    ]},
+    {"name": "Porch post", "material": "cedar", "size": [72.375, 5.5, 5.5], "at": [98, -70, 0], "length": "z", "width": "x", "tag": "Porch", "copies": [
+      {"name": "Porch post 2", "at": [232.5, -70, 0]}
+    ]},
+    {"name": "Porch header", "material": "fir", "size": [144, 7.25, 3], "at": [96, -70, 72.375], "width": "z", "tag": "Porch"},
+    {"name": "Porch rafter", "material": "fir", "size": [78, 5.5, 1.5], "at": [96, -72, 79.625], "length": "y", "width": "z", "tag": "Porch", "turn": {"axis": "x", "degrees": 14.0}, "copies": [
+      {"name": "Porch rafter 2", "at": [120, -73.331, 79.625]},
+      {"name": "Porch rafter 3", "at": [144, -73.331, 79.625]},
+      {"name": "Porch rafter 4", "at": [168, -73.331, 79.625]},
+      {"name": "Porch rafter 5", "at": [192, -73.331, 79.625]},
+      {"name": "Porch rafter 6", "at": [216, -73.331, 79.625]}
+    ]},
+    {"name": "Porch roof deck", "material": "ply", "size": [144, 78, 0.5], "at": [96, -72, 85.125], "tag": "Porch", "turn": {"axis": "x", "degrees": 14.0}},
+    {"name": "Front door", "material": "fir", "size": [82, 38, 1.75], "at": [96, 1.875, 0], "length": "z", "width": "x", "tag": "Doors", "free_to_move": true},
+    {"name": "Door", "material": "ply", "size": [82, 34, 1.375], "at": [40, 169, 0], "length": "z", "width": "x", "tag": "Doors", "copies": [
+      {"name": "Door 2", "at": [150, 169, 0]},
+      {"name": "Door 3", "at": [290, 169, 0]}
+    ]},
+    {"name": "Door side", "material": "ply", "size": [82, 34, 1.375], "at": [253, 200, 0], "length": "z", "tag": "Doors", "called": "Door"},
+    {"name": "Window", "material": "glass", "size": [38, 48, 0.25], "at": [30, 0, 36], "width": "z", "tag": "Windows", "copies": [
+      {"name": "Window 2", "at": [160, 0, 36]},
+      {"name": "Window 3", "at": [250, 0, 36]},
+      {"name": "Window 4", "at": [320, 0, 36]},
+      {"name": "Window 5", "at": [50, 287.75, 36]},
+      {"name": "Window 6", "at": [296, 287.75, 36]}
+    ]},
+    {"name": "Window side", "material": "glass", "size": [38, 48, 0.25], "at": [0, 60, 36], "length": "y", "width": "z", "tag": "Windows", "called": "Window", "copies": [
+      {"name": "Window side 2", "at": [0, 200, 36]},
+      {"name": "Window side 3", "at": [383.75, 60, 36]},
+      {"name": "Window side 4", "at": [383.75, 200, 36]}
+    ]},
+    {"name": "Drywall Living S", "material": "board", "size": [36, 38, 0.5], "at": [30, 5.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Living S 2", "at": [160, 5.5, 0]}
+    ]},
+    {"name": "Drywall Living S b", "material": "board", "size": [12, 38, 0.5], "at": [30, 5.5, 84], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Living S b 2", "at": [160, 5.5, 84]}
+    ]},
+    {"name": "Drywall Living S c", "material": "board", "size": [48, 28, 0.5], "at": [68, 5.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Living S c 2", "at": [68, 5.5, 48]}
+    ]},
+    {"name": "Drywall Living S d", "material": "board", "size": [48, 26, 0.5], "at": [134, 5.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Living S d 2", "at": [134, 5.5, 48]}
+    ]},
+    {"name": "Drywall Living S e", "material": "board", "size": [48, 24.5, 0.5], "at": [5.5, 5.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Living S e 2", "at": [5.5, 5.5, 48]}
+    ]},
+    {"name": "Drywall Living S f", "material": "board", "size": [48, 18, 0.5], "at": [198, 5.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Living S f 2", "at": [198, 5.5, 48]}
+    ]},
+    {"name": "Drywall Living S g", "material": "board", "size": [14, 38, 0.5], "at": [96, 5.5, 82], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Living N", "material": "board", "size": [48, 76, 0.5], "at": [74, 167.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Living N 2", "at": [74, 167.5, 48]}
+    ]},
+    {"name": "Drywall Living N b", "material": "board", "size": [48, 34.5, 0.5], "at": [5.5, 167.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Living N b 2", "at": [5.5, 167.5, 48]}
+    ]},
+    {"name": "Drywall Living N c", "material": "board", "size": [14, 34, 0.5], "at": [40, 167.5, 82], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Living N c 2", "at": [150, 167.5, 82]}
+    ]},
+    {"name": "Drywall Living N d", "material": "board", "size": [48, 32, 0.5], "at": [184, 167.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Living N d 2", "at": [184, 167.5, 48]}
+    ]},
+    {"name": "Drywall Living W", "material": "board", "size": [48, 70, 0.5], "at": [5.5, 98, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Living W 2", "at": [5.5, 98, 48]}
+    ]},
+    {"name": "Drywall Living W b", "material": "board", "size": [48, 54.5, 0.5], "at": [5.5, 5.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Living W b 2", "at": [5.5, 5.5, 48]}
+    ]},
+    {"name": "Drywall Living W c", "material": "board", "size": [36, 38, 0.5], "at": [5.5, 60, 0], "length": "z", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Living W d", "material": "board", "size": [12, 38, 0.5], "at": [5.5, 60, 84], "length": "z", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Living E", "material": "board", "size": [48, 54.5, 0.5], "at": [215.5, 5.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Living E 2", "at": [215.5, 5.5, 48]}
+    ]},
+    {"name": "Drywall Living E b", "material": "board", "size": [48, 48, 0.5], "at": [215.5, 120, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Living E b 2", "at": [215.5, 120, 48]}
+    ]},
+    {"name": "Drywall Living E c", "material": "board", "size": [14, 60, 0.5], "at": [215.5, 60, 82], "length": "z", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Ceiling Living", "material": "board", "size": [48, 96, 0.5], "at": [5.5, 5.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Ceiling Living 2", "at": [101.5, 5.5, 96.625]},
+      {"name": "Ceiling Living 3", "at": [5.5, 53.5, 96.625]},
+      {"name": "Ceiling Living 4", "at": [101.5, 53.5, 96.625]},
+      {"name": "Ceiling Living 5", "at": [5.5, 101.5, 96.625]},
+      {"name": "Ceiling Living 6", "at": [101.5, 101.5, 96.625]}
+    ]},
+    {"name": "Ceiling Living b", "material": "board", "size": [48, 18.5, 0.5], "at": [197.5, 5.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Ceiling Living b 2", "at": [197.5, 53.5, 96.625]},
+      {"name": "Ceiling Living b 3", "at": [197.5, 101.5, 96.625]}
+    ]},
+    {"name": "Ceiling Living c", "material": "board", "size": [18.5, 96, 0.5], "at": [5.5, 149.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Ceiling Living c 2", "at": [101.5, 149.5, 96.625]}
+    ]},
+    {"name": "Ceiling Living d", "material": "board", "size": [18.5, 18.5, 0.5], "at": [197.5, 149.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Kitchen S", "material": "board", "size": [36, 38, 0.5], "at": [250, 5.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Kitchen S 2", "at": [320, 5.5, 0]}
+    ]},
+    {"name": "Drywall Kitchen S b", "material": "board", "size": [12, 38, 0.5], "at": [250, 5.5, 84], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Kitchen S b 2", "at": [320, 5.5, 84]}
+    ]},
+    {"name": "Drywall Kitchen S c", "material": "board", "size": [48, 32, 0.5], "at": [288, 5.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Kitchen S c 2", "at": [288, 5.5, 48]}
+    ]},
+    {"name": "Drywall Kitchen S d", "material": "board", "size": [48, 30.5, 0.5], "at": [219.5, 5.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Kitchen S d 2", "at": [219.5, 5.5, 48]}
+    ]},
+    {"name": "Drywall Kitchen S e", "material": "board", "size": [48, 20.5, 0.5], "at": [358, 5.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Kitchen S e 2", "at": [358, 5.5, 48]}
+    ]},
+    {"name": "Drywall Kitchen N", "material": "board", "size": [48, 70.5, 0.5], "at": [219.5, 167.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Kitchen N 2", "at": [219.5, 167.5, 48]}
+    ]},
+    {"name": "Drywall Kitchen N b", "material": "board", "size": [48, 54.5, 0.5], "at": [324, 167.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Kitchen N b 2", "at": [324, 167.5, 48]}
+    ]},
+    {"name": "Drywall Kitchen N c", "material": "board", "size": [14, 34, 0.5], "at": [290, 167.5, 82], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Kitchen W", "material": "board", "size": [48, 54.5, 0.5], "at": [219.5, 5.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Kitchen W 2", "at": [219.5, 5.5, 48]}
+    ]},
+    {"name": "Drywall Kitchen W b", "material": "board", "size": [48, 48, 0.5], "at": [219.5, 120, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Kitchen W b 2", "at": [219.5, 120, 48]}
+    ]},
+    {"name": "Drywall Kitchen W c", "material": "board", "size": [14, 60, 0.5], "at": [219.5, 60, 82], "length": "z", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Kitchen E", "material": "board", "size": [48, 70, 0.5], "at": [378, 98, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Kitchen E 2", "at": [378, 98, 48]}
+    ]},
+    {"name": "Drywall Kitchen E b", "material": "board", "size": [48, 54.5, 0.5], "at": [378, 5.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Kitchen E b 2", "at": [378, 5.5, 48]}
+    ]},
+    {"name": "Drywall Kitchen E c", "material": "board", "size": [36, 38, 0.5], "at": [378, 60, 0], "length": "z", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Kitchen E d", "material": "board", "size": [12, 38, 0.5], "at": [378, 60, 84], "length": "z", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Ceiling Kitchen", "material": "board", "size": [48, 96, 0.5], "at": [219.5, 5.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Ceiling Kitchen 2", "at": [219.5, 53.5, 96.625]},
+      {"name": "Ceiling Kitchen 3", "at": [219.5, 101.5, 96.625]}
+    ]},
+    {"name": "Ceiling Kitchen b", "material": "board", "size": [48, 63, 0.5], "at": [315.5, 5.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Ceiling Kitchen b 2", "at": [315.5, 53.5, 96.625]},
+      {"name": "Ceiling Kitchen b 3", "at": [315.5, 101.5, 96.625]}
+    ]},
+    {"name": "Ceiling Kitchen c", "material": "board", "size": [18.5, 96, 0.5], "at": [219.5, 149.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Ceiling Kitchen d", "material": "board", "size": [18.5, 63, 0.5], "at": [315.5, 149.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bedroom 1 S", "material": "board", "size": [48, 58, 0.5], "at": [74, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 1 S 2", "at": [74, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bedroom 1 S b", "material": "board", "size": [48, 34.5, 0.5], "at": [5.5, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 1 S b 2", "at": [5.5, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bedroom 1 S c", "material": "board", "size": [14, 34, 0.5], "at": [40, 171.5, 82], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bedroom 1 N", "material": "board", "size": [48, 44.5, 0.5], "at": [5.5, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 1 N 2", "at": [5.5, 282, 48]}
+    ]},
+    {"name": "Drywall Bedroom 1 N b", "material": "board", "size": [48, 44, 0.5], "at": [88, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 1 N b 2", "at": [88, 282, 48]}
+    ]},
+    {"name": "Drywall Bedroom 1 N c", "material": "board", "size": [36, 38, 0.5], "at": [50, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bedroom 1 N d", "material": "board", "size": [12, 38, 0.5], "at": [50, 282, 84], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bedroom 1 W", "material": "board", "size": [48, 44.5, 0.5], "at": [5.5, 238, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 1 W 2", "at": [5.5, 238, 48]}
+    ]},
+    {"name": "Drywall Bedroom 1 W b", "material": "board", "size": [48, 28.5, 0.5], "at": [5.5, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 1 W b 2", "at": [5.5, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bedroom 1 W c", "material": "board", "size": [36, 38, 0.5], "at": [5.5, 200, 0], "length": "z", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bedroom 1 W d", "material": "board", "size": [12, 38, 0.5], "at": [5.5, 200, 84], "length": "z", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bedroom 1 E", "material": "board", "size": [48, 96, 0.5], "at": [131.5, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 1 E 2", "at": [131.5, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bedroom 1 E b", "material": "board", "size": [48, 15, 0.5], "at": [131.5, 267.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 1 E b 2", "at": [131.5, 267.5, 48]}
+    ]},
+    {"name": "Ceiling Bedroom 1", "material": "board", "size": [48, 96, 0.5], "at": [5.5, 171.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Ceiling Bedroom 1 2", "at": [5.5, 219.5, 96.625]}
+    ]},
+    {"name": "Ceiling Bedroom 1 b", "material": "board", "size": [48, 30.5, 0.5], "at": [101.5, 171.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Ceiling Bedroom 1 b 2", "at": [101.5, 219.5, 96.625]}
+    ]},
+    {"name": "Ceiling Bedroom 1 c", "material": "board", "size": [15, 96, 0.5], "at": [5.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Ceiling Bedroom 1 d", "material": "board", "size": [15, 30.5, 0.5], "at": [101.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bath 1 S", "material": "board", "size": [48, 14.5, 0.5], "at": [135.5, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 1 S 2", "at": [135.5, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bath 1 S b", "material": "board", "size": [48, 8, 0.5], "at": [184, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 1 S b 2", "at": [184, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bath 1 S c", "material": "board", "size": [14, 34, 0.5], "at": [150, 171.5, 82], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bath 1 N", "material": "board", "size": [48, 56.5, 0.5], "at": [135.5, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 1 N 2", "at": [135.5, 282, 48]}
+    ]},
+    {"name": "Drywall Bath 1 W", "material": "board", "size": [48, 96, 0.5], "at": [135.5, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 1 W 2", "at": [135.5, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bath 1 W b", "material": "board", "size": [48, 15, 0.5], "at": [135.5, 267.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 1 W b 2", "at": [135.5, 267.5, 48]}
+    ]},
+    {"name": "Drywall Bath 1 E", "material": "board", "size": [48, 96, 0.5], "at": [191.5, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 1 E 2", "at": [191.5, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bath 1 E b", "material": "board", "size": [48, 15, 0.5], "at": [191.5, 267.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 1 E b 2", "at": [191.5, 267.5, 48]}
+    ]},
+    {"name": "Ceiling Bath 1", "material": "board", "size": [48, 56.5, 0.5], "at": [135.5, 171.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Ceiling Bath 1 2", "at": [135.5, 219.5, 96.625]}
+    ]},
+    {"name": "Ceiling Bath 1 b", "material": "board", "size": [15, 56.5, 0.5], "at": [135.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bath 2 S", "material": "board", "size": [48, 56.5, 0.5], "at": [195.5, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 2 S 2", "at": [195.5, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bath 2 N", "material": "board", "size": [48, 56.5, 0.5], "at": [195.5, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 2 N 2", "at": [195.5, 282, 48]}
+    ]},
+    {"name": "Drywall Bath 2 W", "material": "board", "size": [48, 96, 0.5], "at": [195.5, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 2 W 2", "at": [195.5, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bath 2 W b", "material": "board", "size": [48, 15, 0.5], "at": [195.5, 267.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 2 W b 2", "at": [195.5, 267.5, 48]}
+    ]},
+    {"name": "Drywall Bath 2 E", "material": "board", "size": [48, 48.5, 0.5], "at": [251.5, 234, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 2 E 2", "at": [251.5, 234, 48]}
+    ]},
+    {"name": "Drywall Bath 2 E b", "material": "board", "size": [48, 28.5, 0.5], "at": [251.5, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 2 E b 2", "at": [251.5, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bath 2 E c", "material": "board", "size": [14, 34, 0.5], "at": [251.5, 200, 82], "length": "z", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Ceiling Bath 2", "material": "board", "size": [48, 56.5, 0.5], "at": [195.5, 171.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Ceiling Bath 2 2", "at": [195.5, 219.5, 96.625]}
+    ]},
+    {"name": "Ceiling Bath 2 b", "material": "board", "size": [15, 56.5, 0.5], "at": [195.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bedroom 2 S", "material": "board", "size": [48, 54.5, 0.5], "at": [324, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 2 S 2", "at": [324, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bedroom 2 S b", "material": "board", "size": [48, 34.5, 0.5], "at": [255.5, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 2 S b 2", "at": [255.5, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bedroom 2 S c", "material": "board", "size": [14, 34, 0.5], "at": [290, 171.5, 82], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bedroom 2 N", "material": "board", "size": [48, 44.5, 0.5], "at": [334, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 2 N 2", "at": [334, 282, 48]}
+    ]},
+    {"name": "Drywall Bedroom 2 N b", "material": "board", "size": [48, 40.5, 0.5], "at": [255.5, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 2 N b 2", "at": [255.5, 282, 48]}
+    ]},
+    {"name": "Drywall Bedroom 2 N c", "material": "board", "size": [36, 38, 0.5], "at": [296, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bedroom 2 N d", "material": "board", "size": [12, 38, 0.5], "at": [296, 282, 84], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bedroom 2 W", "material": "board", "size": [48, 48.5, 0.5], "at": [255.5, 234, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 2 W 2", "at": [255.5, 234, 48]}
+    ]},
+    {"name": "Drywall Bedroom 2 W b", "material": "board", "size": [48, 28.5, 0.5], "at": [255.5, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 2 W b 2", "at": [255.5, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bedroom 2 W c", "material": "board", "size": [14, 34, 0.5], "at": [255.5, 200, 82], "length": "z", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bedroom 2 E", "material": "board", "size": [48, 44.5, 0.5], "at": [378, 238, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 2 E 2", "at": [378, 238, 48]}
+    ]},
+    {"name": "Drywall Bedroom 2 E b", "material": "board", "size": [48, 28.5, 0.5], "at": [378, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 2 E b 2", "at": [378, 171.5, 48]}
+    ]},
+    {"name": "Drywall Bedroom 2 E c", "material": "board", "size": [36, 38, 0.5], "at": [378, 200, 0], "length": "z", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bedroom 2 E d", "material": "board", "size": [12, 38, 0.5], "at": [378, 200, 84], "length": "z", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Ceiling Bedroom 2", "material": "board", "size": [48, 96, 0.5], "at": [255.5, 171.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Ceiling Bedroom 2 2", "at": [255.5, 219.5, 96.625]}
+    ]},
+    {"name": "Ceiling Bedroom 2 b", "material": "board", "size": [48, 27, 0.5], "at": [351.5, 171.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Ceiling Bedroom 2 b 2", "at": [351.5, 219.5, 96.625]}
+    ]},
+    {"name": "Ceiling Bedroom 2 c", "material": "board", "size": [15, 96, 0.5], "at": [255.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Ceiling Bedroom 2 d", "material": "board", "size": [15, 27, 0.5], "at": [351.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Countertop", "material": "stone", "size": [96, 25.5, 1.5], "at": [222, 5.5, 34.5], "tag": "Kitchen"},
+    {"name": "Vanity", "material": "maple", "size": [36, 21, 34], "at": [137.5, 261.5, 0], "tag": "Bathrooms", "free_to_move": true, "copies": [
+      {"name": "Vanity 2", "at": [197.5, 261.5, 0]}
+    ]},
+    {"name": "Tub", "material": "china", "size": [60, 30, 20], "at": [135.5, 171.5, 0], "tag": "Bathrooms", "copies": [
+      {"name": "Tub 2", "at": [195.5, 171.5, 0]}
+    ]},
+    {"name": "Toilet", "material": "china", "size": [20, 28, 30], "at": [176, 207.5, 0], "length": "y", "width": "x", "tag": "Bathrooms", "copies": [
+      {"name": "Toilet 2", "at": [236, 207.5, 0]}
+    ]}
+  ],
+  "templates": [
+    {"kind": "cabinet", "name": "Base cabinet 1", "at": [222, 5.5, 0], "wood": "cabply", "tag": "Kitchen", "sizes": {"width": 24, "height": 34.5, "depth": 24, "shelves": 1, "back": true, "joints": "Dados", "fronts": "Overlay", "doors": "Slab", "drawer_joints": "Rabbets", "pulls": "Bar", "fills": ["Drawer", "Doors"]}},
+    {"kind": "cabinet", "name": "Base cabinet 2", "at": [246, 5.5, 0], "wood": "cabply", "tag": "Kitchen", "sizes": {"width": 24, "height": 34.5, "depth": 24, "shelves": 1, "back": true, "joints": "Dados", "fronts": "Overlay", "doors": "Slab", "drawer_joints": "Rabbets", "pulls": "Bar", "fills": ["Drawer", "Drawer"]}},
+    {"kind": "cabinet", "name": "Base cabinet 3", "at": [270, 5.5, 0], "wood": "cabply", "tag": "Kitchen", "sizes": {"width": 24, "height": 34.5, "depth": 24, "shelves": 1, "back": true, "joints": "Dados", "fronts": "Overlay", "doors": "Slab", "drawer_joints": "Rabbets", "pulls": "Bar", "fills": ["Drawer", "Doors"]}},
+    {"kind": "cabinet", "name": "Base cabinet 4", "at": [294, 5.5, 0], "wood": "cabply", "tag": "Kitchen", "sizes": {"width": 24, "height": 34.5, "depth": 24, "shelves": 1, "back": true, "joints": "Dados", "fronts": "Overlay", "doors": "Slab", "drawer_joints": "Rabbets", "pulls": "Bar", "fills": ["Drawer", "Drawer"]}}
+  ]
+}

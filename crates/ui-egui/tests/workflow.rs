@@ -2571,6 +2571,18 @@ fn dimension_a_board_and_add_a_note() {
     snapshot(&mut harness, "dimension_and_text");
 }
 
+/// Click a sample on the Start page and wait for it. Samples are built on a thread (the house
+/// takes a couple of seconds), so the drawing arrives some frames after the click, not on it.
+fn build_sample(harness: &mut App, name: &str) {
+    use egui_kittest::kittest::Queryable;
+    harness.get_by_label_contains(name).click();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    while harness.state().document().bounds().is_none() {
+        assert!(std::time::Instant::now() < deadline, "{name} was never built");
+        harness.run();
+    }
+}
+
 /// The Start page: open it, see every sample offered, build one, and come back out. Tests run
 /// with no settings storage, so the page starts closed and File > Start Page opens it.
 #[test]
@@ -2588,9 +2600,10 @@ fn the_start_page_offers_the_samples_and_builds_one() {
     }
 
     // Each card asks for its picture the first time it's drawn, and a thread builds the sample
-    // and draws it. Wait for them: three builds and three renders, about a second in all.
+    // and draws it. Wait for them: a build and a render each, and the house takes a couple of
+    // seconds on its own.
     let wanted: Vec<_> = (0..woodsketch_doc::samples::SAMPLES.len()).map(woodsketch_ui_egui::thumbs::Of::Sample).collect();
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(90);
     while !wanted.iter().all(|of| harness.state().thumbnails().has(of)) {
         assert!(std::time::Instant::now() < deadline, "the sample thumbnails were never drawn");
         harness.run();
@@ -2605,9 +2618,7 @@ fn the_start_page_offers_the_samples_and_builds_one() {
     // Building a sample puts it on screen, unsaved so Ctrl+S can't write over what shipped.
     harness.state_mut().show_start_page();
     harness.run();
-    harness.get_by_label_contains("Bookshelf").click();
-    harness.run();
-    harness.run();
+    build_sample(&mut harness, "Bookshelf");
     let (lo, hi) = harness.state().document().bounds().expect("the bookshelf was built");
     assert!((hi - lo).x > 30.0 && (hi - lo).z > 70.0, "a 32 x 72 bookshelf, got {:?}", hi - lo);
     let list = woodsketch_doc::cutlist::cut_list(harness.state().document().scene());
@@ -2616,11 +2627,39 @@ fn the_start_page_offers_the_samples_and_builds_one() {
     snapshot(&mut harness, "start_page_sample");
 }
 
+/// The house is the sample that made the thread necessary: about 750 parts and a couple of
+/// seconds. Check that the click doesn't build it, that the app keeps drawing frames and says
+/// what it's doing meanwhile, and that the whole house lands when it's done.
+#[test]
+fn the_house_is_built_on_a_thread_and_says_so() {
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    harness.state_mut().show_start_page();
+    harness.run();
+    harness.get_by_label_contains("Small house").click();
+    harness.run();
+
+    // Nothing on screen yet, a frame still drawn, and a bar saying why.
+    assert!(harness.state().document().bounds().is_none(), "the house isn't built on the click");
+    harness.get_by_label_contains("Building the small house");
+
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(120);
+    while harness.state().document().bounds().is_none() {
+        assert!(std::time::Instant::now() < deadline, "the house was never built");
+        harness.run();
+    }
+    let list = woodsketch_doc::cutlist::cut_list(harness.state().document().scene());
+    let parts: usize = list.materials.iter().flat_map(|m| &m.parts).map(|p| p.count).sum();
+    assert_eq!(parts, 807, "the whole house arrived");
+    let (lo, hi) = harness.state().document().bounds().unwrap();
+    assert!((hi - lo).x > 400.0 && (hi - lo).z > 190.0, "a 34' house, got {:?}", hi - lo);
+    snapshot(&mut harness, "start_page_house");
+}
+
 /// A new drawing carries the units it was started in, and the drawing on screen decides what
 /// View > Units shows, rather than a setting that outlives it.
 #[test]
 fn a_new_drawing_keeps_the_units_it_was_started_in() {
-    use egui_kittest::kittest::Queryable;
     use woodsketch_doc::units::Units;
     let mut harness = app();
     harness.state_mut().new_document_in(Units::Millimeters);
@@ -2631,9 +2670,7 @@ fn a_new_drawing_keeps_the_units_it_was_started_in() {
     // Opening a sample, which is in inches, changes what's shown back without being asked.
     harness.state_mut().show_start_page();
     harness.run();
-    harness.get_by_label_contains("Bookshelf").click();
-    harness.run();
-    harness.run();
+    build_sample(&mut harness, "Bookshelf");
     assert_eq!(harness.state().document().units(), Units::Inches);
     assert_eq!(woodsketch_doc::units::units(), Units::Inches);
 }
