@@ -128,9 +128,11 @@ impl StartPage {
         if import {
             picked = Some(Picked::Import);
         }
-        if picked.is_some() {
-            self.open = false;
-        }
+        // The page does *not* close here, on the click. Opening and importing put up a file
+        // dialog that can be cancelled, and closing first meant cancelling dropped you onto the
+        // empty drawing underneath, which reads as "it made me a new document". New drawings
+        // and samples can be interrupted too, by "Save changes?". The page closes when a
+        // drawing actually arrives (`replace_document`), or when an import lands.
         picked
     }
 }

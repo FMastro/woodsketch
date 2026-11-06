@@ -325,7 +325,14 @@ The app opens on a Start page (`ui-egui::start`) over an empty drawing, not in f
 and Esc or "Back to <drawing>" leaves without making anything. File > Start Page opens it again. Its block in `App::ui` returns before
 `status_bar`, so anything the status bar would say is lost while it is open: `chrome::start_update_banner`
 puts the update offer (downloading, ready to restart, just updated) across the top instead, since
-an update that arrives while nobody has opened a drawing would otherwise never be offered.
+an update that arrives while nobody has opened a drawing would otherwise never be offered. The
+floating windows (About, What's New, feedback, Cut List) are drawn in that block too, for the same
+reason: they are areas and float over the page, but the early return meant they were never drawn
+at all and Help's items did nothing. The menu bar keeps only File and Help while the page is up
+(`menu_bar` checks `start.open`); the rest act on the drawing behind it. The page closes when a
+drawing actually arrives (`replace_document`), never on the click, so cancelling the Open or
+Import dialog leaves you on it rather than on the empty drawing underneath; `Picked::Import`
+closes it by hand, since importing pastes rather than replacing.
 It offers New in either unit, Open, Import, the recent list and the samples. Each card is one
 painted widget that names itself (`WidgetInfo::labeled`), because labels inside a frame would
 each be a separate thing to stop on.

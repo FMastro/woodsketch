@@ -222,6 +222,12 @@ impl WoodSketchApp {
         self.start.open = true;
     }
 
+    /// Whether the Start page is up. For tests: that it stays up when a pick opens nothing is
+    /// the whole of the behaviour, and no widget says so by itself.
+    pub fn start_page_open(&self) -> bool {
+        self.start.open
+    }
+
     /// Fit the whole drawing in the view (Zoom Extents).
     pub fn zoom_extents(&mut self) {
         self.viewport.request_zoom_extents();
@@ -786,13 +792,31 @@ impl eframe::App for WoodSketchApp {
             match self.start.show(ui, &drawing, &self.recent, &mut self.thumbs) {
                 Some(start::Picked::Instead(action)) => self.request(&ctx, action),
                 Some(start::Picked::Import) => {
-                    if let Some(path) = files::import_dialog(self.files.path.as_deref())
-                        && let Err(error) = self.import_sketchup(&path)
-                    {
-                        self.files.show_error(error);
+                    // Importing pastes into the drawing underneath rather than replacing it, so
+                    // nothing else closes the page: it closes here, and only once a model has
+                    // actually been read. Cancelling the dialog leaves you where you were.
+                    if let Some(path) = files::import_dialog(self.files.path.as_deref()) {
+                        match self.import_sketchup(&path) {
+                            Ok(()) => self.start.open = false,
+                            Err(error) => self.files.show_error(error),
+                        }
                     }
                 }
                 None => {}
+            }
+            // The floating windows, which are drawn below for a drawing and were not drawn at
+            // all here: the menu item set its flag, this function had already returned, and
+            // nothing appeared. Help's items looked broken from the one page every run starts
+            // on. They are areas, so they float above the page rather than behind it.
+            self.about_window(&ctx);
+            self.changes_window(&ctx);
+            self.feedback.show(&ctx, &self.doc, &self.graphics, self.files.last_error.as_deref());
+            // A Cut List left open stays open: it is about the drawing underneath, which is
+            // still there, and having it vanish on opening the Start page would be its own
+            // small mystery.
+            if let Some(material) = self.cut_list.show(&ctx, &mut self.doc) {
+                self.materials.editing = Some(material);
+                self.show_tray = true;
             }
             // `handle_files` draws "save changes?" at the top of the next frame.
             return;

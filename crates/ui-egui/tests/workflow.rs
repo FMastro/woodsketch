@@ -1994,6 +1994,71 @@ fn the_start_page_offers_the_restart_too() {
 }
 
 #[test]
+fn the_start_pages_menus_are_the_ones_that_work_there() {
+    // Every menu but File and Help acts on the drawing under the page, which nobody can see;
+    // and the windows Help opens were drawn after the Start page's early return, so they were
+    // never drawn at all. Clicking About did nothing, on the one page every run starts on.
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    harness.state_mut().show_start_page();
+    harness.run();
+
+    harness.get_by_label("File");
+    harness.get_by_label("Help");
+    for gone in ["Edit", "Camera", "Draw", "Tools", "Window"] {
+        assert!(harness.query_by_label(gone).is_none(), "{gone} acts on a drawing you can't see from here");
+    }
+
+    // The whole bar comes back on leaving the page.
+    harness.get_by_label_contains("Back to").click();
+    harness.run();
+    for back in ["Edit", "Camera", "Draw", "Tools", "Window"] {
+        harness.get_by_label(back);
+    }
+
+    // Back on the page: Help > About actually opens, rather than setting a flag nothing reads.
+    harness.state_mut().show_start_page();
+    harness.run();
+    harness.get_by_label("Help").click();
+    harness.run();
+    harness.get_by_label_contains("About WoodSketch").click();
+    harness.run();
+    assert!(harness.query_by_label_contains("A lightweight 3D modeler").is_some(), "the About window opens over the Start page");
+}
+
+#[test]
+fn a_start_page_pick_that_opens_nothing_leaves_the_page_up() {
+    // Open and Import put a file dialog up, and the page used to close on the click rather than
+    // on a drawing arriving -- so cancelling the dialog dropped you onto the empty drawing
+    // behind it, which reads as "it made me a new document".
+    //
+    // The native dialog can't be driven from a test. A recent drawing whose file has since gone
+    // takes the same path and is the part that matters: an action is picked, nothing opens, and
+    // the page has to still be there.
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    let dir = std::env::temp_dir().join(format!("woodsketch-gone-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("Vanished.woodsketch");
+    add_board(harness.state_mut().document_mut(), glam::DVec3::ZERO, 24.0, 3.5, 1.5);
+    harness.run();
+    harness.state_mut().save_to(&path).expect("save the drawing");
+    harness.run();
+    // Gone from under it, the way a drawing on a drive that isn't plugged in would be.
+    std::fs::remove_file(&path).unwrap();
+
+    harness.state_mut().show_start_page();
+    harness.run();
+    // "Vanished" also names the "Back to" button, so pick the card: it reads "<name>. <folder>".
+    harness.get_all_by_label_contains("Vanished").last().expect("the recent card").click();
+    harness.run();
+    harness.run();
+    harness.get_by_label("Start");
+    assert!(harness.state().start_page_open(), "nothing opened, so the page stays");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn tags_go_in_folders_and_a_hidden_folder_hides_them() {
     use egui_kittest::kittest::Queryable;
     use egui_phosphor::regular as ph;

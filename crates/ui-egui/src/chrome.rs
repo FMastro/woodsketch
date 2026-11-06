@@ -115,6 +115,14 @@ impl WoodSketchApp {
         egui::Panel::top("menu bar").show(ui, |ui| {
             egui::MenuBar::new().ui(ui, |ui| {
                 self.file_menu(ui);
+                // On the Start page, only File and Help mean anything. The rest act on the
+                // drawing underneath, which nobody can see from here: undoing, painting or
+                // zooming something out of sight is not a thing anyone meant to do, and a menu
+                // whose items appear to do nothing reads as a broken program.
+                if self.start.open {
+                    self.help_menu(ui);
+                    return;
+                }
                 self.edit_menu(ui);
                 self.view_menu(ui);
                 self.camera_menu(ui);

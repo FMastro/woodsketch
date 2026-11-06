@@ -3,6 +3,22 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.69
+
+- Fixed: on the Start page, Help's windows didn't open. About, What's New and the two feedback
+  forms were drawn only once a drawing was on screen, so from the page every run starts on, the
+  menu item did nothing at all. Same for a Cut List left open: it vanished when the Start page
+  came up. They all show over the page now.
+- The Start page's menu bar is down to File and Help, the two that mean anything there. Edit,
+  View, Camera, Draw, Tools and Window all act on the drawing behind the page, which you can't
+  see — undoing or painting something out of sight isn't what anyone meant to do, and a menu
+  whose items appear to do nothing reads as a broken program. They come back on leaving the page.
+- Fixed: Open or Import from the Start page, then cancel the file dialog, and you were left on
+  an empty drawing as though you'd asked for a new one. The page closed on the click rather than
+  when a drawing arrived. It now stays until something actually opens, so cancelling leaves you
+  where you were — and "Save changes?" for a new drawing or a sample now appears over the page
+  rather than behind it.
+
 ## 0.1.68
 
 - Fixed: an update that downloaded while the Start page was open never offered to install itself.
