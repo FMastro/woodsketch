@@ -86,6 +86,12 @@ impl From<u32> for Arg<'_> {
     }
 }
 
+impl From<u64> for Arg<'_> {
+    fn from(value: u64) -> Self {
+        Self::Count(i64::try_from(value).unwrap_or(i64::MAX))
+    }
+}
+
 impl From<u8> for Arg<'_> {
     fn from(value: u8) -> Self {
         Self::Count(i64::from(value))

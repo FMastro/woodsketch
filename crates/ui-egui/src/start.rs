@@ -6,6 +6,7 @@
 //! has to be cleared before the app can be tried, and leaving the page costs one key.
 
 use eframe::egui;
+use woodsketch_i18n::t;
 use woodsketch_doc::samples::SAMPLES;
 use woodsketch_doc::units::Units;
 
@@ -52,7 +53,7 @@ impl StartPage {
         egui::CentralPanel::default().show(ui, |ui| {
             // "Back to <drawing>" first: the way out is visible before anything on the page.
             ui.horizontal(|ui| {
-                if ui.button(format!("‹  Back to {drawing}")).on_hover_text("Esc").clicked() {
+                if ui.button(t!("start-back-to", "drawing" => drawing)).on_hover_text(t!("start-back-to-hint")).clicked() {
                     self.open = false;
                 }
                 ui.weak("Esc");
@@ -60,33 +61,33 @@ impl StartPage {
             ui.add_space(12.0);
 
             egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-                ui.heading("Start");
-                ui.label("Make a drawing, open one you were working on, or take a sample apart.");
+                ui.heading(t!("start-title"));
+                ui.label(t!("start-intro"));
                 ui.add_space(18.0);
 
                 ui.strong("New");
                 ui.add_space(6.0);
                 ui.horizontal_wrapped(|ui| {
                     // Inches first: WoodSketch's model unit, and what its users measure in.
-                    if card(ui, CARD_WIDTH, CARD_HEIGHT, "New drawing", "Inches", None, Picture::None) {
+                    if card(ui, CARD_WIDTH, CARD_HEIGHT, &t!("start-new-drawing"), &t!("start-inches"), None, Picture::None) {
                         picked = Some(Picked::Instead(Discard::NewIn(Units::Inches)));
                     }
-                    if card(ui, CARD_WIDTH, CARD_HEIGHT, "New drawing", "Millimeters", None, Picture::None) {
+                    if card(ui, CARD_WIDTH, CARD_HEIGHT, &t!("start-new-drawing"), &t!("start-millimeters"), None, Picture::None) {
                         picked = Some(Picked::Instead(Discard::NewIn(Units::Millimeters)));
                     }
-                    if card(ui, CARD_WIDTH, CARD_HEIGHT, "Open...", "A drawing or a SketchUp model (Ctrl+O)", None, Picture::None) {
+                    if card(ui, CARD_WIDTH, CARD_HEIGHT, &t!("start-open"), &t!("start-open-under"), None, Picture::None) {
                         picked = Some(Picked::Instead(Discard::Open));
                     }
-                    if card(ui, CARD_WIDTH, CARD_HEIGHT, "Import...", "A SketchUp model, into the drawing that's open", None, Picture::None) {
+                    if card(ui, CARD_WIDTH, CARD_HEIGHT, &t!("start-import"), &t!("start-import-under"), None, Picture::None) {
                         import = true;
                     }
                 });
                 ui.add_space(22.0);
 
-                ui.strong("Recent");
+                ui.strong(t!("start-recent"));
                 ui.add_space(6.0);
                 if recent.is_empty() {
-                    ui.weak("Drawings you open or save appear here.");
+                    ui.weak(t!("start-recent-empty"));
                 } else {
                     ui.horizontal_wrapped(|ui| {
                         for (i, path) in recent.iter().enumerate() {
@@ -102,9 +103,9 @@ impl StartPage {
                 }
                 ui.add_space(22.0);
 
-                ui.strong("Samples");
+                ui.strong(t!("start-samples"));
                 ui.add_space(2.0);
-                ui.weak("Finished pieces, built fresh each time you open one. Change anything: they aren't files, so nothing here can be written over.");
+                ui.weak(t!("start-samples-note"));
                 ui.add_space(8.0);
                 ui.horizontal_wrapped(|ui| {
                     for (i, sample) in SAMPLES.iter().enumerate() {
@@ -167,7 +168,7 @@ fn card(
     };
     let size = egui::vec2(width, height + picture_height) + egui::Vec2::splat(2.0 * MARGIN);
     let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
-    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), format!("{title}. {under}")));
+    response.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), t!("start-card-label", "title" => title, "under" => under)));
 
     if ui.is_rect_visible(rect) {
         let visuals = ui.visuals();

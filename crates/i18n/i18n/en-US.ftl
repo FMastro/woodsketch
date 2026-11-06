@@ -424,3 +424,341 @@ template-note-cabinet = Sides, top, bottom and shelves of the stock; outside siz
 template-note-drawer = A box with a 1/4" plywood bottom in grooves; outside sizes.
 template-note-face-frame = Stiles full height, rails between them.
 template-note-table = Square legs, 3/4" thick aprons, a top overhanging 1"; height to the top of the top.
+
+## The Joinery panel: the joint between two selected parts
+##
+## $part and $into are the parts' own names, as the drawing calls them, and $kind and $detail
+## are the joinery's own words. They arrive as they are.
+
+joinery-kind-let-in = Dado, groove or rabbet
+joinery-kind-overlap = Cut where they overlap
+joinery-kind-mortise-tenon = Mortise and tenon
+joinery-kind-dowels = Dowels
+joinery-kind-biscuits = Biscuits
+joinery-kind-loose-tenons = Loose tenons (Domino style)
+joinery-kind-pocket-screws = Pocket screws
+joinery-kind-dovetails = Dovetails
+joinery-kind-splines = Spline
+joinery-kind-box-joint = Box joint
+joinery-kind-half-lap = Half-lap
+
+# How the two parts have to be sitting before each joint can be made.
+joinery-how-let-in = Butt one part's end or edge against the other (a shelf against a side, a panel against a post). It's let in by the depth: a dado across the grain, a groove along it, a rabbet at an edge.
+joinery-how-mortise-tenon = Butt the rail's end against the other part (a rail against a leg or stile).
+joinery-how-butt = Butt one part's end or edge against the other.
+joinery-how-dovetails = Butt one board's end against the inside of the other at its end, like a drawer's side against its front. The butting board gets the tails.
+joinery-how-box-joint = Put the two parts' ends together at a corner (a drawer's front and side), butted or overlapping.
+joinery-how-half-lap = Cross the two boards so they overlap through their whole thickness.
+joinery-how-overlap = Move one part into the other by the joint's depth (a shelf 1/4" into the side).
+
+joinery-elsewhere = Other copies of these parts are joined ({ $joints }) where they meet elsewhere; not here yet.
+joinery-already = Already joined:
+joinery-change = Change
+joinery-change-hint = Take it out and set it up again from its sizes
+joinery-remove = Remove
+joinery-remove-hint = Take this joint out of both parts
+joinery-removed = Joint removed.
+joinery-set-up-again = Set it up again, then make it.
+joinery-add-another = Add another joint
+# What an unnamed part is called while describing a joint.
+joinery-part-default = Part
+joinery-joint = Joint
+joinery-place-first = { $joint } (place the parts first)
+joinery-joints = Joints
+joinery-at = (at the { $at })
+joinery-row = { $kind } with { $other }{ $at }, { $detail }
+
+joinery-cut-into = Cut { $cut } into { $into }
+joinery-cut-into-hint = { $cut } keeps its size; { $into } gets the cut
+joinery-cut-in = { $kind } cut in { $into }.
+joinery-make-half-lap = Make the half-lap
+joinery-half-lap-made = Half-lap made.
+joinery-finger-width = Finger width
+joinery-finger-width-hint = Rounded so there's an odd number of fingers
+joinery-make-box-joint = Make the box joint
+joinery-box-joint-made = Box joint made.
+joinery-end-meets = { $part }'s end meets { $into }.
+
+joinery-depth = Depth
+joinery-depth-hint = How far it's let in; it grows by this
+joinery-let-into = Let { $part } into { $into }
+joinery-let-in-done = { $kind } cut in { $into }; { $part } is { $length } longer.
+
+joinery-through = Through
+joinery-through-hint = The tails show on both faces of the corner
+joinery-half-blind = Half-blind
+joinery-half-blind-hint = Hidden from the front, as on a drawer front
+joinery-tails = Tails
+joinery-tails-hint = How many tails across the width
+joinery-pins = Pins
+joinery-pins-hint = Each pin's width where it shows: narrow (1/8") for a hand-cut look, wider for a machine-cut one
+joinery-half-pins = Half pins
+joinery-half-pins-hint = The pins at each edge; the tails share the rest
+joinery-dovetail-note = { $part } gets the tails, { $into } the pins (1:8 slope).
+joinery-cut-dovetails = Cut the dovetails
+joinery-dovetails-done = Dovetails cut; { $part } is longer by the tails.
+
+joinery-spline-note = A { $piece } along the whole joint, glued into a groove in each part.
+joinery-cut-spline = Cut the spline groove
+joinery-spline-done = Spline groove cut in both parts.
+
+joinery-size = Size
+joinery-count = Count
+joinery-count-hint-slots = Spread evenly across the joint
+joinery-fit = Fit
+joinery-fit-hint-slots = How much roomier the slots are than the pieces (thicker, longer, deeper); 0 for a tight fit
+joinery-cut-biscuit-slots = Cut biscuit slots
+joinery-cut-loose-tenon-mortises = Cut loose tenon mortises
+joinery-slots-done = { $count } slots cut in each part, for { $count } x { $piece }.
+
+joinery-count-hint-pocket = About one every 4"
+joinery-screw = Screw
+joinery-screw-hint = Length, for the thickness of the part they go through
+joinery-pocket-note = Drilled from the hidden face of { $part }; the holes aren't drawn.
+joinery-add-pocket-screws = Add pocket screws
+joinery-pocket-done = { $count } pocket screws added.
+
+joinery-through-tenon = Through tenon ({ $length } long, shows on the far side)
+joinery-haunch = Haunch (fills a panel groove at the end)
+joinery-length = Length
+joinery-length-hint = How far the tenon goes into the mortise
+joinery-thickness = Thickness
+joinery-thickness-hint = About a third of the rail is usual
+joinery-shoulders = Shoulders
+joinery-shoulders-hint = Set in from the rail's edges, each side
+joinery-fit-hint-mortise = How much bigger the mortise is than the tenon (wider, thicker, deeper); 0 for a tight fit
+joinery-tenon-mortise = Tenon on { $part }, mortise in { $into }
+joinery-mortise-tenon-done = Mortise and tenon made; { $part } is { $length } longer in the cut list.
+
+joinery-count-hint-dowels = Spread evenly across the width
+joinery-diameter = Diameter
+joinery-diameter-hint = 3/8" for 3/4" stock is usual
+joinery-depth-hint-dowels = Hole depth in each part
+joinery-fit-hint-dowels = How much bigger the holes are than the dowels; 0 for a tight fit
+joinery-drill-dowels = Drill for dowels
+joinery-dowels-done = { $count } dowel holes drilled in each part.
+
+## Angled joints, where two parts meet at something other than a right angle
+
+joinery-meet-angle = They meet at { $angle }°.
+joinery-draw-into = Draw one part's end into the other where the joint goes: the overlap sets how deep it is.
+joinery-angled-mortise-tenon-hint = A tenon through the middle, into a mortise of its shape
+joinery-housing = Housing
+joinery-housing-hint = The whole end let into the other part
+joinery-every-copy = Cut every copy
+joinery-every-copy-hint = These are copies of a shared component: cut every copy alike, or only this one (it becomes a component of its own)
+joinery-let-into-done = { $part } let into { $into }.
+joinery-angled-thickness-hint = Through the middle of the tenoned part; about a third
+joinery-angled-shoulders-hint = Set in from its edges, each side
+joinery-angled-fit-hint = How much smaller the tenon is than its mortise (thinner, narrower, shorter); 0 for a tight fit
+joinery-angled-done = Angled mortise and tenon made: { $part }'s end is trimmed to { $into }'s face, with its tenon in.
+
+## The Cut List window
+
+cutlist-title = Cut List
+cutlist-tab-parts = Parts
+cutlist-tab-diagrams = Cutting diagrams
+cutlist-tab-movement = Wood movement
+cutlist-tab-settings = Saw kerf
+cutlist-print-cut-sheet = Print cut sheet...
+cutlist-print-cut-sheet-hint = Save the parts and cutting diagrams as a page to print, or save as PDF, from your browser
+cutlist-print-build-sheets = Print build sheets...
+cutlist-export-csv = Export CSV...
+cutlist-save-failed = Couldn't save { $path }: { $error }
+cutlist-saved-not-opened = Saved, but couldn't open it: { $error }
+cutlist-kerf-note = The saw kerf every cut takes, saved with the drawing.
+cutlist-stock-note = Stock sizes (thicknesses, sheet sizes, lumber sections and lengths) are set for each material in the Materials panel.
+cutlist-saw-kerf = Saw kerf
+cutlist-kerf-unreadable = The kerf doesn't read as a length; the last good one is used.
+
+cutlist-no-parts = No parts yet. Each group or component is a part: boards made with Push/Pull count automatically.
+# How many parts still have no material. The verb agrees with the number in English, which is
+# why this is one message and not a sentence glued together from three.
+cutlist-needs-material =
+    { $count ->
+        [one] { $warning } { $count } part needs a material (listed first). Paint each one, or paint the group around them.
+       *[other] { $warning } { $count } parts need a material (listed first). Paint each one, or paint the group around them.
+    }
+cutlist-loose-faces = { $count } loose faces aren't in any group, so they aren't parts. Group them (Ctrl+G) to list them.
+cutlist-needs-a-material = Needs a material
+cutlist-parts-count =
+    { $count ->
+        [one] { $count } part
+       *[other] { $count } parts
+    }
+cutlist-material-line = { $kind }  ·  { $parts }  ·  { $amount }
+cutlist-edit-material = Edit material
+cutlist-square-feet = { $amount } sq ft
+cutlist-linear-feet = { $amount } linear ft
+cutlist-board-feet = { $amount } board ft
+cutlist-pieces = { $count } pieces
+
+# The parts table's column headings.
+cutlist-column-name = Name
+cutlist-column-qty = Qty
+cutlist-column-length = Length
+cutlist-column-width = Width
+cutlist-column-thickness = Thickness
+cutlist-column-stock = Stock
+cutlist-glued-up = { $stock }, glued up from { $boards }
+cutlist-glued-up-hint = { $boards } boards about { $width } x { $length }, edges jointed and glued, then cut to size
+cutlist-no-stock = none
+cutlist-hardware = Hardware
+
+cutlist-nothing-to-cut = No parts to cut yet.
+cutlist-hardware-not-cut = Hardware isn't cut from stock.
+cutlist-paint-to-plan = Paint these parts with a material (and set its type) to plan the cuts.
+cutlist-type-not-cut = This material type isn't cut from stock. Set it to sheet good, solid wood or dimensional lumber.
+cutlist-buy = Buy:
+cutlist-buy-line = { $count } × { $what }
+cutlist-used = ({ $percent }% used)
+cutlist-part-problem = Part { $label }: { $reason }
+cutlist-stock-line = { $n }. { $description }  ·  { $percent }% used
+cutlist-not-from-stock = Not cut from stock (material type Other): { $materials }.
+
+## The Wood movement tab
+
+movement-intro = Solid wood swells and shrinks across its grain as the seasons change. Plywood and MDF don't.
+movement-swing = Moisture swing
+movement-swing-hint = How much the wood's moisture content changes over a year: about 4% indoors (6% in a dry winter to 10% in a humid summer); more in a shed or an unheated room
+movement-unknown = { $info } No movement data for { $materials }: set "Moves like" on it in the Materials panel to check its parts.
+movement-none-known = No solid-wood parts with a known species yet. Paint parts with a wood from the library, like Cherry or Red Oak.
+movement-no-conflicts = { $check } No parts fight each other's movement.
+movement-watch = Watch these joints
+movement-fastened-note = If a part is fastened so it can move (tabletop buttons, figure-8s, slotted screw holes), tick "Fastened so it can move" for it in Entity Info.
+movement-allowed = Allowed for
+movement-how-much = How much each part moves across its grain
+movement-column-part = Part
+movement-column-wood = Wood
+movement-column-width = Width
+movement-column-moves = Moves about
+movement-assumed-flat-hint = Its cut is "Not sure", so it's figured as flat-sawn, which moves the most. Set the cut in Entity Info.
+
+## The Start page
+
+start-back-to = ‹  Back to { $drawing }
+start-back-to-hint = Esc
+start-title = Start
+start-intro = Make a drawing, open one you were working on, or take a sample apart.
+start-new-drawing = New drawing
+start-inches = Inches
+start-millimeters = Millimeters
+start-open = Open...
+start-open-under = A drawing or a SketchUp model (Ctrl+O)
+start-import = Import...
+start-import-under = A SketchUp model, into the drawing that's open
+start-recent = Recent
+start-recent-empty = Drawings you open or save appear here.
+start-samples = Samples
+start-samples-note = Finished pieces, built fresh each time you open one. Change anything: they aren't files, so nothing here can be written over.
+# How a card reads out to a screen reader: its title, then the line under it.
+start-card-label = { $title }. { $under }
+
+## Opening, saving and the title bar
+
+files-untitled = Untitled
+files-save-failed = Couldn't save { $path }: { $error }
+files-open-failed = Couldn't open { $path }: { $error }
+files-export-failed = Couldn't export { $path }: { $error }
+# The window's title: the drawing's name, a star if there are unsaved changes, then the app.
+files-window-title = { $name }{ $dirty } - WoodSketch
+files-save-changes = Save changes?
+files-save-changes-question = Do you want to save the changes to { $name }?
+files-save = Save
+files-dont-save = Don't Save
+files-cancel = Cancel
+# The named kinds of file in the system Open and Save dialogs.
+files-filter-drawing = WoodSketch drawing
+files-filter-drawings-and-skp = Drawings and SketchUp models
+files-filter-sketchup = SketchUp model (2021 and later)
+files-filter-web-page = Web page
+
+## Report a Problem and Send Feedback
+
+feedback-problem-title = Report a Problem
+feedback-idea-title = Send Feedback
+feedback-unreachable = Couldn't reach woodsketch.net ({ $error }). Check your connection, or use Open on GitHub.
+feedback-after-crash = WoodSketch closed unexpectedly. What I was doing:
+feedback-thanks = { $check } Thank you! It's issue #{ $number } on GitHub:
+feedback-follow-email = Follow it there to see replies. If there are questions, you'll get an email.
+feedback-follow = Follow it there to see replies (no account needed to read it).
+feedback-close = Close
+feedback-kind-problem = Something went wrong
+feedback-kind-idea = An idea or other feedback
+feedback-title-label = Title
+feedback-what-happened = What happened? (what you did, what you expected)
+feedback-your-idea = Your idea
+feedback-email = Your email (optional)
+feedback-email-hint = Only if you'd like to be asked about it
+feedback-email-note = Only the developer sees it, to ask about this report. It isn't posted anywhere.
+feedback-include-counts = Include counts from the open drawing (no names)
+feedback-include-counts-hint = How many parts, faces, joints and materials of each kind: helps reproduce a problem
+feedback-sent-with = Sent with it:
+feedback-public-note = It becomes a public issue on GitHub, where you can follow it. No account needed to send it.
+feedback-bad-email = That email address doesn't look right.
+feedback-send = Send
+feedback-sending = Sending...
+feedback-open-github = Open on GitHub instead
+feedback-open-github-hint = Submit it yourself on GitHub (needs a free account); your email isn't included
+feedback-cancel = Cancel
+
+## Checking for updates (Help > Check for Updates)
+
+updates-checking = Checking for updates...
+updates-not-installed = This copy wasn't installed with the WoodSketch installer, so it can't update itself. Download the latest from woodsketch.net.
+updates-up-to-date = WoodSketch { $version } is up to date.
+updates-downloading = WoodSketch { $version } is downloading in the background (shown at the bottom right). When it's ready, a green "Restart to update" button appears there.
+updates-ready = WoodSketch { $version } is ready: restart to update.
+updates-failed = Couldn't check for updates: { $error }
+
+## While a sample is being built
+
+building-title = Building
+building-what = Building the { $sample }
+building-note = It's built from a recipe each time, by the joinery the app has now.
+
+## Opening and importing, crash reports, recovery, and the file-changed question
+
+app-opened-skipped = Opened, but { $count } faces couldn't be read and were left out.
+app-imported-skipped = Imported, but { $count } faces couldn't be read and were left out.
+app-skp-empty = That SketchUp model is empty.
+app-crash-title = WoodSketch ran into a problem
+app-crash-note = It closed unexpectedly last time ({ $version }). A report helps get it fixed: it says what went wrong and where in WoodSketch's code, and you'll see all of it before it's sent.
+app-crash-report = Report it...
+app-crash-not-now = Not now
+# What a drawing with no file of its own is called in the question below.
+app-the-drawing = The drawing
+app-file-changed-title = The file changed outside WoodSketch
+app-file-changed = { $name } was changed by something else, and this drawing has changes that aren't saved. Only one of the two can be kept.
+app-reload = Reload from the file
+app-reload-hint = Take the file as it is now, losing the unsaved changes here (Ctrl+Z brings them back)
+app-keep-mine = Keep mine
+app-keep-mine-hint = Leave this drawing as it is; saving will write over the file
+app-recover-title = Recover unsaved work?
+app-recover-note = WoodSketch didn't close properly last time. It kept a copy of your unsaved changes:
+app-recover-minutes = , { $minutes } minutes ago
+app-recover-hours = , { $hours } hours ago
+app-recover-line = { $name }{ $when }
+app-recover = Recover
+app-discard = Discard
+app-discard-all = Discard all
+app-build-sheets-title = { $name } build sheets
+app-autosave-failed = Couldn't autosave: { $error }
+# The headings on the printable pages, which open in a browser.
+cutlist-sheet-title = Cut list
+cutlist-build-sheets-title = Build sheets
+
+## The viewport: what is drawn over the drawing, and the right-click menu
+
+viewport-editing = Editing  { $path }    Esc or click outside to close
+viewport-walk-speed = Walking speed: { $speed } a second
+viewport-flying = Flying: nothing holds you up. E and Q go up and down; F walks again.
+viewport-walking = Walking: back on the floor.
+viewport-grain = Grain
+viewport-reference-face = Reference face
+viewport-reference-edge = Reference edge
+viewport-from-point = From Point
+viewport-make-unique = Make Unique
+viewport-make-unique-hint = Its own copy, so changing it leaves the other copies alone
+viewport-reverse-faces = Reverse Faces
+viewport-reverse-faces-hint = Turn the selected faces over, front to back

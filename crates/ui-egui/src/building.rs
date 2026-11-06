@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{Receiver, channel};
 
 use eframe::egui;
+use woodsketch_i18n::t;
 use woodsketch_doc::Document;
 use woodsketch_doc::samples::Sample;
 
@@ -69,7 +70,7 @@ impl Building {
 
     /// Say what's happening, over the empty drawing the sample is about to replace.
     pub fn show(&self, ctx: &egui::Context) {
-        egui::Window::new("Building")
+        egui::Window::new(t!("building-title"))
             .title_bar(false)
             .resizable(false)
             .collapsible(false)
@@ -77,11 +78,11 @@ impl Building {
             .show(ctx, |ui| {
                 ui.set_width(260.0);
                 ui.add_space(4.0);
-                ui.strong(format!("Building the {}", self.name.to_lowercase()));
+                ui.strong(t!("building-what", "sample" => self.name.to_lowercase()));
                 ui.add_space(6.0);
                 ui.add(egui::ProgressBar::new(self.how_far()).desired_height(8.0));
                 ui.add_space(6.0);
-                ui.weak("It's built from a recipe each time, by the joinery the app has now.");
+                ui.weak(t!("building-note"));
                 ui.add_space(4.0);
             });
     }

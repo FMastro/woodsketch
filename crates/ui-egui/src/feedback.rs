@@ -6,6 +6,7 @@
 use std::sync::{Arc, Mutex};
 
 use eframe::egui;
+use woodsketch_i18n::t;
 use woodsketch_doc::Document;
 use woodsketch_doc::feedback::{Crash, Drawing, Kind, RELAY, Sent, System, details, issue_url, reply, request, scrub, valid_email};
 
@@ -28,7 +29,7 @@ fn post_to_relay() -> Post {
             .header("User-Agent", &format!("WoodSketch/{}", crate::updates::VERSION))
             .header("Content-Type", "application/json")
             .send(body)
-            .map_err(|e| format!("Couldn't reach woodsketch.net ({e}). Check your connection, or use Open on GitHub."))?;
+            .map_err(|e| t!("feedback-unreachable", "error" => e.to_string()))?;
         let status = response.status().as_u16();
         let text = response.body_mut().read_to_string().unwrap_or_default();
         Ok((status, text))
@@ -88,7 +89,7 @@ impl FeedbackWindow {
     pub fn start_crash(&mut self, crash: Crash) {
         self.start(Kind::Problem);
         self.title = crash.title();
-        self.what = "WoodSketch closed unexpectedly. What I was doing: ".to_owned();
+        self.what = format!("{} ", t!("feedback-after-crash"));
         self.focus_title = false;
         self.crash = Some(crash);
     }
@@ -106,21 +107,17 @@ impl FeedbackWindow {
         let mut open = true;
         let mut close = false;
         let heading = match self.kind {
-            Kind::Problem => "Report a Problem",
-            Kind::Idea => "Send Feedback",
+            Kind::Problem => t!("feedback-problem-title"),
+            Kind::Idea => t!("feedback-idea-title"),
         };
         let sending = self.sending.lock().map(|s| s.clone()).unwrap_or_default();
         egui::Window::new(heading).open(&mut open).collapsible(false).resizable(false).default_width(460.0).show(ctx, |ui| {
             // Sent: the issue it made, and nothing else to do.
             if let Sending::Done(sent) = &sending {
-                ui.label(format!("{} Thank you! It's issue #{} on GitHub:", egui_phosphor::regular::CHECK_CIRCLE, sent.number));
+                ui.label(t!("feedback-thanks", "check" => egui_phosphor::regular::CHECK_CIRCLE, "number" => sent.number));
                 ui.hyperlink_to(&sent.url, &sent.url);
-                ui.weak(if sent.emailed {
-                    "Follow it there to see replies. If there are questions, you'll get an email."
-                } else {
-                    "Follow it there to see replies (no account needed to read it)."
-                });
-                if ui.button("Close").clicked() {
+                ui.weak(if sent.emailed { t!("feedback-follow-email") } else { t!("feedback-follow") });
+                if ui.button(t!("feedback-close")).clicked() {
                     close = true;
                 }
                 return;
@@ -128,11 +125,11 @@ impl FeedbackWindow {
             let busy = matches!(sending, Sending::Waiting);
             ui.add_enabled_ui(!busy, |ui| {
                 ui.horizontal(|ui| {
-                    ui.selectable_value(&mut self.kind, Kind::Problem, "Something went wrong");
-                    ui.selectable_value(&mut self.kind, Kind::Idea, "An idea or other feedback");
+                    ui.selectable_value(&mut self.kind, Kind::Problem, t!("feedback-kind-problem"));
+                    ui.selectable_value(&mut self.kind, Kind::Idea, t!("feedback-kind-idea"));
                 });
                 ui.add_space(4.0);
-                ui.label("Title");
+                ui.label(t!("feedback-title-label"));
                 // Tab and Shift+Tab move between the title and the description (left to egui, Tab
                 // would go to the toolbar behind the window). Taken before the fields see it.
                 let (title_id, what_id) = (ui.make_persistent_id("feedback_title"), ui.make_persistent_id("feedback_what"));
@@ -150,16 +147,16 @@ impl FeedbackWindow {
                     ui.memory_mut(|m| m.request_focus(what_id));
                 }
                 ui.label(match self.kind {
-                    Kind::Problem => "What happened? (what you did, what you expected)",
-                    Kind::Idea => "Your idea",
+                    Kind::Problem => t!("feedback-what-happened"),
+                    Kind::Idea => t!("feedback-your-idea"),
                 });
                 ui.add(egui::TextEdit::multiline(&mut self.what).id(what_id).lock_focus(true).desired_width(f32::INFINITY).desired_rows(5));
-                ui.label("Your email (optional)");
-                ui.add(egui::TextEdit::singleline(&mut self.email).desired_width(f32::INFINITY).hint_text("Only if you'd like to be asked about it"));
-                ui.weak("Only the developer sees it, to ask about this report. It isn't posted anywhere.");
+                ui.label(t!("feedback-email"));
+                ui.add(egui::TextEdit::singleline(&mut self.email).desired_width(f32::INFINITY).hint_text(t!("feedback-email-hint")));
+                ui.weak(t!("feedback-email-note"));
                 let mut with_drawing = !self.skip_drawing;
-                ui.checkbox(&mut with_drawing, "Include counts from the open drawing (no names)")
-                    .on_hover_text("How many parts, faces, joints and materials of each kind: helps reproduce a problem");
+                ui.checkbox(&mut with_drawing, t!("feedback-include-counts"))
+                    .on_hover_text(t!("feedback-include-counts-hint"));
                 self.skip_drawing = !with_drawing;
             });
 
@@ -171,11 +168,11 @@ impl FeedbackWindow {
             let crash = self.crash.as_ref().filter(|_| self.kind == Kind::Problem);
             let text = details(&system, drawing.as_ref(), error.as_deref(), crash);
             ui.add_space(4.0);
-            ui.label("Sent with it:");
+            ui.label(t!("feedback-sent-with"));
             egui::Frame::group(ui.style()).show(ui, |ui| {
                 ui.add(egui::Label::new(egui::RichText::new(&text).monospace().small()).wrap());
             });
-            ui.weak("It becomes a public issue on GitHub, where you can follow it. No account needed to send it.");
+            ui.weak(t!("feedback-public-note"));
             if let Sending::Failed(why) = &sending {
                 ui.colored_label(ui.visuals().warn_fg_color, why);
             }
@@ -183,13 +180,13 @@ impl FeedbackWindow {
             let email = self.email.trim();
             let email_ok = email.is_empty() || valid_email(email);
             if !email_ok {
-                ui.colored_label(ui.visuals().warn_fg_color, "That email address doesn't look right.");
+                ui.colored_label(ui.visuals().warn_fg_color, t!("feedback-bad-email"));
             }
             ui.horizontal(|ui| {
                 let ready = !self.what.trim().is_empty() && email_ok && !busy;
                 let title = scrub(self.title.trim(), home.as_deref(), user.as_deref());
                 let what = scrub(self.what.trim(), home.as_deref(), user.as_deref());
-                if ui.add_enabled(ready, egui::Button::new(format!("{} Send", egui_phosphor::regular::PAPER_PLANE_TILT))).clicked() {
+                if ui.add_enabled(ready, egui::Button::new(format!("{} {}", egui_phosphor::regular::PAPER_PLANE_TILT, t!("feedback-send")))).clicked() {
                     let body = request(self.kind, &title, &what, &text, (!email.is_empty()).then_some(email));
                     let (post, state, ctx) = (self.post.clone(), self.sending.clone(), ui.ctx().clone());
                     if let Ok(mut s) = state.lock() {
@@ -208,18 +205,18 @@ impl FeedbackWindow {
                 }
                 if busy {
                     ui.spinner();
-                    ui.label("Sending...");
+                    ui.label(t!("feedback-sending"));
                 }
                 // Or submit it on GitHub (an account is needed there; the email doesn't go).
                 if ui
-                    .add_enabled(ready, egui::Button::new("Open on GitHub instead"))
-                    .on_hover_text("Submit it yourself on GitHub (needs a free account); your email isn't included")
+                    .add_enabled(ready, egui::Button::new(t!("feedback-open-github")))
+                    .on_hover_text(t!("feedback-open-github-hint"))
                     .clicked()
                 {
                     ui.ctx().open_url(egui::OpenUrl::new_tab(issue_url(REPO, self.kind, &title, &what, &text)));
                     close = true;
                 }
-                if ui.add_enabled(!busy, egui::Button::new("Cancel")).clicked() {
+                if ui.add_enabled(!busy, egui::Button::new(t!("feedback-cancel"))).clicked() {
                     close = true;
                 }
             });

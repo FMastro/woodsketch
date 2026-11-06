@@ -3,6 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use eframe::egui;
+use woodsketch_i18n::t;
 use woodsketch_doc::Document;
 use woodsketch_doc::export::{self, ExportUnits};
 use woodsketch_doc::flat;
@@ -63,12 +64,12 @@ impl Files {
             .and_then(Path::file_stem)
             .map(|s| s.to_string_lossy().into_owned())
             .or_else(|| self.name_hint.clone())
-            .unwrap_or_else(|| "Untitled".to_owned())
+            .unwrap_or_else(|| t!("files-untitled"))
     }
 
     /// Write the drawing to `path` and remember it as the drawing's file.
     pub fn save_to(&mut self, doc: &Document, path: &Path) -> Result<(), String> {
-        crate::autosave::write_safely(path, file::to_string(doc.scene())).map_err(|e| format!("Couldn't save {}: {e}", path.display()))?;
+        crate::autosave::write_safely(path, file::to_string(doc.scene())).map_err(|e| t!("files-save-failed", "path" => path.display().to_string(), "error" => e.to_string()))?;
         self.path = Some(path.to_owned());
         self.mark_saved(doc);
         Ok(())
@@ -76,14 +77,14 @@ impl Files {
 
     /// Read a SketchUp model (`.skp`) as a new drawing; also says how many faces were left out.
     pub fn read_sketchup(path: &Path) -> Result<(Document, usize), String> {
-        let bytes = std::fs::read(path).map_err(|e| format!("Couldn't open {}: {e}", path.display()))?;
+        let bytes = std::fs::read(path).map_err(|e| t!("files-open-failed", "path" => path.display().to_string(), "error" => e.to_string()))?;
         let imported = woodsketch_doc::skp::read(&bytes).map_err(|e| e.to_string())?;
         Ok((Document::from_scene(imported.scene), imported.skipped_faces))
     }
 
     /// Read a drawing from `path`.
     pub fn read(path: &Path) -> Result<Document, String> {
-        let text = std::fs::read_to_string(path).map_err(|e| format!("Couldn't open {}: {e}", path.display()))?;
+        let text = std::fs::read_to_string(path).map_err(|e| t!("files-open-failed", "path" => path.display().to_string(), "error" => e.to_string()))?;
         let scene = file::from_str(&text).map_err(|e| e.to_string())?;
         Ok(Document::from_scene(scene))
     }
@@ -113,7 +114,7 @@ impl Files {
     /// Keep the window title as "Name* - WoodSketch".
     pub fn update_title(&mut self, ctx: &egui::Context, doc: &Document) {
         let dirty = if self.is_dirty(doc) { "*" } else { "" };
-        let title = format!("{}{dirty} - WoodSketch", self.name());
+        let title = t!("files-window-title", "name" => self.name(), "dirty" => dirty);
         if title != self.title {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
             self.title = title;
@@ -135,19 +136,19 @@ impl Files {
         if let Some(pending) = self.pending {
             egui::Modal::new(egui::Id::new("save_changes")).show(ctx, |ui| {
                 ui.set_max_width(320.0);
-                ui.heading("Save changes?");
-                ui.label(format!("Do you want to save the changes to {}?", self.name()));
+                ui.heading(t!("files-save-changes"));
+                ui.label(t!("files-save-changes-question", "name" => self.name()));
                 ui.add_space(8.0);
                 ui.horizontal(|ui| {
-                    if ui.button("Save").clicked() {
+                    if ui.button(t!("files-save")).clicked() {
                         action = Some(FileAction::SaveThen(pending));
                         self.pending = None;
                     }
-                    if ui.button("Don't Save").clicked() {
+                    if ui.button(t!("files-dont-save")).clicked() {
                         action = Some(FileAction::Discard(pending));
                         self.pending = None;
                     }
-                    if ui.button("Cancel").clicked() {
+                    if ui.button(t!("files-cancel")).clicked() {
                         self.pending = None;
                     }
                 });
@@ -177,8 +178,8 @@ pub enum FileAction {
 
 /// The native dialog for choosing where to save.
 pub fn save_dialog(current: Option<&Path>) -> Option<PathBuf> {
-    let name = current.and_then(Path::file_name).map_or_else(|| format!("Untitled.{EXTENSION}"), |n| n.to_string_lossy().into_owned());
-    let mut dialog = rfd::FileDialog::new().add_filter("WoodSketch drawing", &[EXTENSION]).set_file_name(name);
+    let name = current.and_then(Path::file_name).map_or_else(|| format!("{}.{EXTENSION}", t!("files-untitled")), |n| n.to_string_lossy().into_owned());
+    let mut dialog = rfd::FileDialog::new().add_filter(t!("files-filter-drawing"), &[EXTENSION]).set_file_name(name);
     if let Some(dir) = current.and_then(Path::parent) {
         dialog = dialog.set_directory(dir);
     }
@@ -188,9 +189,9 @@ pub fn save_dialog(current: Option<&Path>) -> Option<PathBuf> {
 /// The native dialog for choosing a drawing to open.
 pub fn open_dialog(current: Option<&Path>) -> Option<PathBuf> {
     let mut dialog = rfd::FileDialog::new()
-        .add_filter("Drawings and SketchUp models", &[EXTENSION, OLD_EXTENSION, SKETCHUP])
-        .add_filter("WoodSketch drawing", &[EXTENSION, OLD_EXTENSION])
-        .add_filter("SketchUp model (2021 and later)", &[SKETCHUP]);
+        .add_filter(t!("files-filter-drawings-and-skp"), &[EXTENSION, OLD_EXTENSION, SKETCHUP])
+        .add_filter(t!("files-filter-drawing"), &[EXTENSION, OLD_EXTENSION])
+        .add_filter(t!("files-filter-sketchup"), &[SKETCHUP]);
     if let Some(dir) = current.and_then(Path::parent) {
         dialog = dialog.set_directory(dir);
     }
@@ -219,7 +220,7 @@ impl ExportFormat {
 
 /// Write the drawing to `path` (an OBJ also gets its `.mtl` alongside).
 pub fn export_to(doc: &Document, path: &Path, format: ExportFormat, units: ExportUnits) -> Result<(), String> {
-    let fail = |e: std::io::Error| format!("Couldn't export {}: {e}", path.display());
+    let fail = |e: std::io::Error| t!("files-export-failed", "path" => path.display().to_string(), "error" => e.to_string());
     match format {
         ExportFormat::Stl => std::fs::write(path, export::to_stl(doc.scene(), units)).map_err(fail),
         ExportFormat::Dxf => std::fs::write(path, flat::to_dxf(&flat::flat_parts(doc.scene()), units)).map_err(fail),
@@ -237,7 +238,7 @@ pub fn export_to(doc: &Document, path: &Path, format: ExportFormat, units: Expor
 /// The native dialog for choosing where to export, named after the drawing.
 pub fn export_dialog(current: Option<&Path>, format: ExportFormat) -> Option<PathBuf> {
     let ext = format.extension();
-    let stem = current.and_then(Path::file_stem).map_or_else(|| "Untitled".into(), |s| s.to_string_lossy().into_owned());
+    let stem = current.and_then(Path::file_stem).map_or_else(|| t!("files-untitled"), |s| s.to_string_lossy().into_owned());
     let label = match format {
         ExportFormat::Obj => "OBJ model",
         ExportFormat::Stl => "STL model",
@@ -272,7 +273,7 @@ pub fn is_sketchup(path: &Path) -> bool {
 
 /// The native dialog for choosing a SketchUp model to import.
 pub fn import_dialog(current: Option<&Path>) -> Option<PathBuf> {
-    let mut dialog = rfd::FileDialog::new().add_filter("SketchUp model (2021 and later)", &[SKETCHUP]);
+    let mut dialog = rfd::FileDialog::new().add_filter(t!("files-filter-sketchup"), &[SKETCHUP]);
     if let Some(dir) = current.and_then(Path::parent) {
         dialog = dialog.set_directory(dir);
     }

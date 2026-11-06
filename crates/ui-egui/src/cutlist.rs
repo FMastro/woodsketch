@@ -3,6 +3,7 @@
 //! Materials panel). Exports a CSV, or a cut sheet to print.
 
 use eframe::egui;
+use woodsketch_i18n::t;
 use egui_phosphor::regular as ph;
 use woodsketch_doc::cutlist::{self, CutList, MaterialParts};
 use woodsketch_doc::cutplan::{self, Plan, Settings, match_stock};
@@ -54,32 +55,37 @@ impl CutListWindow {
         }
         let mut edit = None;
         let mut open = self.open;
-        egui::Window::new(format!("{} Cut List", ph::TABLE))
+        egui::Window::new(format!("{} {}", ph::TABLE, t!("cutlist-title")))
             .id(egui::Id::new("cut_list"))
             .open(&mut open)
             .default_size([760.0, 540.0])
             .resizable(true)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    for (tab, label) in [(Tab::Parts, "Parts"), (Tab::Diagrams, "Cutting diagrams"), (Tab::Movement, "Wood movement"), (Tab::Settings, "Saw kerf")] {
+                    for (tab, label) in [
+                        (Tab::Parts, t!("cutlist-tab-parts")),
+                        (Tab::Diagrams, t!("cutlist-tab-diagrams")),
+                        (Tab::Movement, t!("cutlist-tab-movement")),
+                        (Tab::Settings, t!("cutlist-tab-settings")),
+                    ] {
                         if ui.selectable_label(self.tab == tab, label).clicked() {
                             self.tab = tab;
                         }
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let print = ui
-                            .button(format!("{} Print cut sheet...", ph::PRINTER))
-                            .on_hover_text("Save the parts and cutting diagrams as a page to print, or save as PDF, from your browser");
+                            .button(format!("{} {}", ph::PRINTER, t!("cutlist-print-cut-sheet")))
+                            .on_hover_text(t!("cutlist-print-cut-sheet-hint"));
                         if print.clicked() {
                             self.export_sheet(doc);
                         }
                         let build = ui
-                            .button(format!("{} Print build sheets...", ph::NOTEBOOK))
+                            .button(format!("{} {}", ph::NOTEBOOK, t!("cutlist-print-build-sheets")))
                             .on_hover_text("A page per part for the shop: its size, drawings, joints and profiles, in order");
                         if build.clicked() {
                             self.export_build_sheets(doc);
                         }
-                        if ui.button(format!("{} Export CSV...", ph::FILE_CSV)).clicked() {
+                        if ui.button(format!("{} {}", ph::FILE_CSV, t!("cutlist-export-csv"))).clicked() {
                             self.export_csv(doc);
                         }
                     });
@@ -113,30 +119,30 @@ impl CutListWindow {
         };
         self.message = match std::fs::write(&path, csv) {
             Ok(()) => None,
-            Err(e) => Some(format!("Couldn't save {}: {e}", path.display())),
+            Err(e) => Some(t!("cutlist-save-failed", "path" => path.display().to_string(), "error" => e.to_string())),
         };
     }
 
     /// Save the printable cut sheet and open it in the browser to print.
     fn export_sheet(&mut self, doc: &Document) {
-        let html = self.cut_sheet(doc, "Cut list");
+        let html = self.cut_sheet(doc, &t!("cutlist-sheet-title"));
         let Some(path) = rfd::FileDialog::new().add_filter("Web page", &["html"]).set_file_name("cut sheet.html").save_file() else {
             return;
         };
         self.message = match std::fs::write(&path, html) {
-            Ok(()) => open_with_system(&path).err().map(|e| format!("Saved, but couldn't open it: {e}")),
-            Err(e) => Some(format!("Couldn't save {}: {e}", path.display())),
+            Ok(()) => open_with_system(&path).err().map(|e| t!("cutlist-saved-not-opened", "error" => e.to_string())),
+            Err(e) => Some(t!("cutlist-save-failed", "path" => path.display().to_string(), "error" => e.to_string())),
         };
     }
 
     pub fn export_build_sheets(&mut self, doc: &Document) {
-        let html = self.build_sheets(doc, "Build sheets");
+        let html = self.build_sheets(doc, &t!("cutlist-build-sheets-title"));
         let Some(path) = rfd::FileDialog::new().add_filter("Web page", &["html"]).set_file_name("build sheets.html").save_file() else {
             return;
         };
         self.message = match std::fs::write(&path, html) {
-            Ok(()) => open_with_system(&path).err().map(|e| format!("Saved, but couldn't open it: {e}")),
-            Err(e) => Some(format!("Couldn't save {}: {e}", path.display())),
+            Ok(()) => open_with_system(&path).err().map(|e| t!("cutlist-saved-not-opened", "error" => e.to_string())),
+            Err(e) => Some(t!("cutlist-save-failed", "path" => path.display().to_string(), "error" => e.to_string())),
         };
     }
 
@@ -159,12 +165,12 @@ impl CutListWindow {
             self.kerf_text = Some((version, format_length(doc.scene().cut_settings.kerf)));
         }
         let (_, text) = self.kerf_text.as_mut().expect("just filled");
-        ui.label("The saw kerf every cut takes, saved with the drawing.");
-        ui.weak("Stock sizes (thicknesses, sheet sizes, lumber sections and lengths) are set for each material in the Materials panel.");
+        ui.label(t!("cutlist-kerf-note"));
+        ui.weak(t!("cutlist-stock-note"));
         ui.add_space(6.0);
         let changed = ui
             .horizontal(|ui| {
-                ui.label("Saw kerf");
+                ui.label(t!("cutlist-saw-kerf"));
                 ui.add(egui::TextEdit::singleline(text).desired_width(100.0).hint_text("1/8\"")).changed()
             })
             .inner;
@@ -174,7 +180,7 @@ impl CutListWindow {
                     doc.set_cut_settings(Settings { kerf });
                     self.message = None;
                 }
-                None => self.message = Some("The kerf doesn't read as a length; the last good one is used.".into()),
+                None => self.message = Some(t!("cutlist-kerf-unreadable")),
             }
             // Keep what's typed: this edit isn't a change from elsewhere.
             if let Some((v, _)) = &mut self.kerf_text {
@@ -214,10 +220,10 @@ fn kind_name(material: &MaterialParts) -> &'static str {
 /// The total that fits the material: board feet, square feet or linear feet.
 fn amount(material: &MaterialParts) -> String {
     match material.kind {
-        Some(MaterialKind::SheetGood) => format!("{:.1} sq ft", material.square_feet()),
-        Some(MaterialKind::DimensionalLumber) => format!("{:.1} linear ft", material.linear_feet()),
-        Some(MaterialKind::SolidWood) => format!("{:.2} board ft", material.board_feet()),
-        _ => format!("{} pieces", material.part_count()),
+        Some(MaterialKind::SheetGood) => t!("cutlist-square-feet", "amount" => format!("{:.1}", material.square_feet())),
+        Some(MaterialKind::DimensionalLumber) => t!("cutlist-linear-feet", "amount" => format!("{:.1}", material.linear_feet())),
+        Some(MaterialKind::SolidWood) => t!("cutlist-board-feet", "amount" => format!("{:.2}", material.board_feet())),
+        _ => t!("cutlist-pieces", "count" => material.part_count()),
     }
 }
 
@@ -228,24 +234,19 @@ fn color32(doc: &Document, material: &MaterialParts) -> egui::Color32 {
 
 fn parts_tab(ui: &mut egui::Ui, list: &CutList, doc: &Document, edit: &mut Option<woodsketch_doc::MaterialId>) {
     if list.materials.is_empty() {
-        ui.label("No parts yet. Each group or component is a part: boards made with Push/Pull count automatically.");
+        ui.label(t!("cutlist-no-parts"));
     }
     let needs = list.needs_material();
     if needs > 0 {
         ui.colored_label(
             ui.visuals().warn_fg_color,
-            format!(
-                "{} {needs} part{} need{} a material (listed first). Paint each one, or paint the group around them.",
-                ph::WARNING,
-                if needs == 1 { "" } else { "s" },
-                if needs == 1 { "s" } else { "" },
-            ),
+            t!("cutlist-needs-material", "count" => needs, "warning" => ph::WARNING),
         );
     }
     if list.loose_faces > 0 {
         ui.colored_label(
             ui.visuals().warn_fg_color,
-            format!("{} loose faces aren't in any group, so they aren't parts. Group them (Ctrl+G) to list them.", list.loose_faces),
+            t!("cutlist-loose-faces", "count" => list.loose_faces),
         );
     }
     // What still needs a material first: that's what to fix.
@@ -257,20 +258,31 @@ fn parts_tab(ui: &mut egui::Ui, list: &CutList, doc: &Document, edit: &mut Optio
             ui.painter().rect_filled(rect, 2.0, color32(doc, material));
             match material.material {
                 None => {
-                    ui.colored_label(ui.visuals().warn_fg_color, egui::RichText::new("Needs a material").strong());
-                    ui.weak(plural(material.part_count(), "part"));
+                    ui.colored_label(ui.visuals().warn_fg_color, egui::RichText::new(t!("cutlist-needs-a-material")).strong());
+                    ui.weak(t!("cutlist-parts-count", "count" => material.part_count()));
                 }
                 Some(id) => {
                     ui.strong(&material.name);
-                    ui.weak(format!("{}  ·  {}  ·  {}", kind_name(material), plural(material.part_count(), "part"), amount(material)));
-                    if ui.small_button(format!("{} Edit material", ph::PENCIL_SIMPLE)).clicked() {
+                    ui.weak(t!("cutlist-material-line",
+                        "kind" => kind_name(material),
+                        "parts" => t!("cutlist-parts-count", "count" => material.part_count()),
+                        "amount" => amount(material)));
+                    if ui.small_button(format!("{} {}", ph::PENCIL_SIMPLE, t!("cutlist-edit-material"))).clicked() {
                         *edit = Some(id);
                     }
                 }
             }
         });
         egui::Grid::new(("parts", &material.name)).striped(true).num_columns(7).spacing([16.0, 4.0]).show(ui, |ui| {
-            for heading in ["", "Name", "Qty", "Length", "Width", "Thickness", "Stock"] {
+            for heading in [
+                String::new(),
+                t!("cutlist-column-name"),
+                t!("cutlist-column-qty"),
+                t!("cutlist-column-length"),
+                t!("cutlist-column-width"),
+                t!("cutlist-column-thickness"),
+                t!("cutlist-column-stock"),
+            ] {
                 ui.strong(heading);
             }
             ui.end_row();
@@ -286,10 +298,11 @@ fn parts_tab(ui: &mut egui::Ui, list: &CutList, doc: &Document, edit: &mut Optio
                     Some(Ok(stock)) => match (material.kind, cutplan::glue_up(part, &material.standard)) {
                         (Some(MaterialKind::SolidWood), Some(boards)) => {
                             let (length, width) = cutplan::glue_up_board(part, boards);
-                            ui.label(format!("{}, glued up from {boards}", stock.name)).on_hover_text(format!(
-                                "{boards} boards about {} x {}, edges jointed and glued, then cut to size",
-                                format_length(width),
-                                format_length(length)
+                            ui.label(t!("cutlist-glued-up", "stock" => stock.name, "boards" => boards)).on_hover_text(t!(
+                                "cutlist-glued-up-hint",
+                                "boards" => boards,
+                                "width" => format_length(width),
+                                "length" => format_length(length)
                             ));
                         }
                         _ => {
@@ -297,7 +310,7 @@ fn parts_tab(ui: &mut egui::Ui, list: &CutList, doc: &Document, edit: &mut Optio
                         }
                     },
                     Some(Err(reason)) if material.kind.is_some_and(|k| !matches!(k, MaterialKind::Hardware | MaterialKind::Other)) => {
-                        ui.colored_label(ui.visuals().warn_fg_color, format!("{} none", ph::WARNING)).on_hover_text(reason);
+                        ui.colored_label(ui.visuals().warn_fg_color, format!("{} {}", ph::WARNING, t!("cutlist-no-stock"))).on_hover_text(reason);
                     }
                     _ => {
                         ui.weak("—");
@@ -311,7 +324,7 @@ fn parts_tab(ui: &mut egui::Ui, list: &CutList, doc: &Document, edit: &mut Optio
     let hardware = list.hardware(doc.scene());
     if !hardware.is_empty() {
         ui.add_space(8.0);
-        ui.strong(format!("{} Hardware", ph::NUT));
+        ui.strong(format!("{} {}", ph::NUT, t!("cutlist-hardware")));
         egui::Grid::new("hardware").striped(true).num_columns(2).spacing([16.0, 4.0]).show(ui, |ui| {
             for (piece, count) in hardware {
                 ui.label(piece);
@@ -324,7 +337,7 @@ fn parts_tab(ui: &mut egui::Ui, list: &CutList, doc: &Document, edit: &mut Optio
 
 fn diagrams_tab(ui: &mut egui::Ui, list: &CutList, plans: &[Option<Plan>], doc: &Document) {
     if list.materials.is_empty() {
-        ui.label("No parts to cut yet.");
+        ui.label(t!("cutlist-nothing-to-cut"));
     }
     // Metal, glass and such (type Other) aren't cut from stock: one line for all of them.
     let not_wood: Vec<&str> =
@@ -337,31 +350,31 @@ fn diagrams_tab(ui: &mut egui::Ui, list: &CutList, plans: &[Option<Plan>], doc: 
         ui.heading(&material.name);
         let Some(plan) = plan else {
             ui.weak(match material.kind {
-                Some(MaterialKind::Hardware) => "Hardware isn't cut from stock.",
-                None => "Paint these parts with a material (and set its type) to plan the cuts.",
-                _ => "This material type isn't cut from stock. Set it to sheet good, solid wood or dimensional lumber.",
+                Some(MaterialKind::Hardware) => t!("cutlist-hardware-not-cut"),
+                None => t!("cutlist-paint-to-plan"),
+                _ => t!("cutlist-type-not-cut"),
             });
             continue;
         };
-        let buy: Vec<String> = plan.shopping_list().into_iter().map(|(what, n)| format!("{n} × {what}")).collect();
+        let buy: Vec<String> = plan.shopping_list().into_iter().map(|(what, n)| t!("cutlist-buy-line", "count" => n, "what" => what)).collect();
         ui.horizontal_wrapped(|ui| {
-            ui.label(format!("{} Buy:", ph::SHOPPING_CART));
+            ui.label(format!("{} {}", ph::SHOPPING_CART, t!("cutlist-buy")));
             ui.strong(buy.join(",  "));
-            ui.weak(format!("({:.0}% used)", plan.yield_fraction() * 100.0));
+            ui.weak(t!("cutlist-used", "percent" => format!("{:.0}", plan.yield_fraction() * 100.0)));
         });
         for (label, reason) in &plan.unplaced {
-            ui.colored_label(ui.visuals().warn_fg_color, format!("Part {label}: {reason}"));
+            ui.colored_label(ui.visuals().warn_fg_color, t!("cutlist-part-problem", "label" => label.as_str(), "reason" => reason.as_str()));
         }
         let color = color32(doc, material);
         for (i, stock) in plan.stocks.iter().enumerate() {
             ui.add_space(4.0);
-            ui.label(format!("{}. {}  ·  {:.0}% used", i + 1, stock.description, stock.used() * 100.0));
+            ui.label(t!("cutlist-stock-line", "n" => i + 1, "description" => stock.description.as_str(), "percent" => format!("{:.0}", stock.used() * 100.0)));
             draw_stock(ui, stock, color);
         }
     }
     if !not_wood.is_empty() {
         ui.add_space(8.0);
-        ui.weak(format!("Not cut from stock (material type Other): {}.", not_wood.join(", ")));
+        ui.weak(t!("cutlist-not-from-stock", "materials" => not_wood.join(", ")));
     }
 }
 
@@ -391,21 +404,17 @@ fn draw_stock(ui: &mut egui::Ui, stock: &cutplan::Stock, color: egui::Color32) {
 }
 
 /// `1 part`, `3 parts`.
-fn plural(count: usize, noun: &str) -> String {
-    if count == 1 { format!("1 {noun}") } else { format!("{count} {noun}s") }
-}
-
 /// Seasonal wood movement: the moisture swing to plan for, where parts will fight each other,
 /// and how much each solid-wood part moves across its grain.
 fn movement_tab(ui: &mut egui::Ui, doc: &mut Document) {
     use woodsketch_doc::movement;
-    ui.label("Solid wood swells and shrinks across its grain as the seasons change. Plywood and MDF don't.");
+    ui.label(t!("movement-intro"));
     let mut swing = doc.scene().moisture_swing();
     ui.horizontal(|ui| {
-        ui.label("Moisture swing");
+        ui.label(t!("movement-swing"));
         let changed = ui
             .add(egui::DragValue::new(&mut swing).range(1.0..=12.0).speed(0.1).suffix("%"))
-            .on_hover_text("How much the wood's moisture content changes over a year: about 4% indoors (6% in a dry winter to 10% in a humid summer); more in a shed or an unheated room")
+            .on_hover_text(t!("movement-swing-hint"))
             .changed();
         if changed {
             doc.edit_scene_merging("moisture swing", |scene, _| scene.moisture_swing = Some(swing));
@@ -417,35 +426,35 @@ fn movement_tab(ui: &mut egui::Ui, doc: &mut Document) {
     if !report.unknown.is_empty() {
         ui.colored_label(
             ui.visuals().warn_fg_color,
-            format!("{} No movement data for {}: set \"Moves like\" on it in the Materials panel to check its parts.", ph::INFO, report.unknown.join(", ")),
+            t!("movement-unknown", "info" => ph::INFO, "materials" => report.unknown.join(", ")),
         );
     }
     if report.parts.is_empty() {
-        ui.weak("No solid-wood parts with a known species yet. Paint parts with a wood from the library, like Cherry or Red Oak.");
+        ui.weak(t!("movement-none-known"));
         return;
     }
     if report.conflicts.is_empty() {
-        ui.label(format!("{} No parts fight each other's movement.", ph::CHECK_CIRCLE));
+        ui.label(t!("movement-no-conflicts", "check" => ph::CHECK_CIRCLE));
     } else {
-        ui.strong(format!("{} Watch these joints", ph::WARNING));
+        ui.strong(format!("{} {}", ph::WARNING, t!("movement-watch")));
         for conflict in &report.conflicts {
             ui.colored_label(ui.visuals().warn_fg_color, format!("{} {}", ph::DOT_OUTLINE, conflict.describe()));
         }
-        ui.weak("If a part is fastened so it can move (tabletop buttons, figure-8s, slotted screw holes), tick \"Fastened so it can move\" for it in Entity Info.");
+        ui.weak(t!("movement-fastened-note"));
     }
     // Meetings that would fight but are free to move.
     if !report.allowed.is_empty() {
         ui.add_space(6.0);
-        ui.strong(format!("{} Allowed for", ph::CHECK_CIRCLE));
+        ui.strong(format!("{} {}", ph::CHECK_CIRCLE, t!("movement-allowed")));
         let green = if ui.visuals().dark_mode { egui::Color32::from_rgb(110, 200, 130) } else { egui::Color32::from_rgb(40, 130, 60) };
         for allowed in &report.allowed {
             ui.colored_label(green, format!("{} {}", ph::DOT_OUTLINE, allowed.describe()));
         }
     }
     ui.add_space(8.0);
-    ui.strong("How much each part moves across its grain");
+    ui.strong(t!("movement-how-much"));
     egui::Grid::new("movement_parts").striped(true).num_columns(4).spacing([16.0, 4.0]).show(ui, |ui| {
-        for heading in ["Part", "Wood", "Width", "Moves about"] {
+        for heading in [t!("movement-column-part"), t!("movement-column-wood"), t!("movement-column-width"), t!("movement-column-moves")] {
             ui.strong(heading);
         }
         ui.end_row();
@@ -455,7 +464,7 @@ fn movement_tab(ui: &mut egui::Ui, doc: &mut Document) {
             ui.label(format_length(part.width));
             let moves = ui.label(format_length(part.movement));
             if part.assumed_flat {
-                moves.on_hover_text("Its cut is \"Not sure\", so it's figured as flat-sawn, which moves the most. Set the cut in Entity Info.");
+                moves.on_hover_text(t!("movement-assumed-flat-hint"));
             }
             ui.end_row();
         }

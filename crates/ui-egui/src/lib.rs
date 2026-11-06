@@ -26,6 +26,7 @@ mod viewport;
 use std::path::{Path, PathBuf};
 
 use eframe::egui;
+use woodsketch_i18n::t;
 use woodsketch_doc::Document;
 use woodsketch_tools::Tools;
 use viewport::Viewport;
@@ -248,7 +249,7 @@ impl WoodSketchApp {
             self.viewport.request_zoom_extents();
             files::remember(&mut self.recent, path);
             if skipped > 0 {
-                self.files.show_error(format!("Opened, but {skipped} faces couldn't be read and were left out."));
+                self.files.show_error(t!("app-opened-skipped", "count" => skipped));
             }
             return Ok(());
         }
@@ -261,12 +262,12 @@ impl WoodSketchApp {
     /// Add a SketchUp model to the drawing, where it was in its own file, selected; one undo step.
     pub fn import_sketchup(&mut self, path: &Path) -> Result<(), String> {
         let (imported, skipped) = files::Files::read_sketchup(path)?;
-        let clip = woodsketch_doc::clipboard::Clip::from_scene(imported.scene().clone()).ok_or("That SketchUp model is empty.")?;
+        let clip = woodsketch_doc::clipboard::Clip::from_scene(imported.scene().clone()).ok_or_else(|| t!("app-skp-empty"))?;
         self.tools.cancel();
         self.doc.paste(&clip, glam::DVec3::ZERO);
         self.viewport.request_zoom_extents();
         if skipped > 0 {
-            self.files.show_error(format!("Imported, but {skipped} faces couldn't be read and were left out."));
+            self.files.show_error(t!("app-imported-skipped", "count" => skipped));
         }
         Ok(())
     }
@@ -349,12 +350,12 @@ impl WoodSketchApp {
         let (mut report, mut skip) = (false, false);
         egui::Modal::new(egui::Id::new("crash")).show(ctx, |ui| {
             ui.set_max_width(400.0);
-            ui.heading("WoodSketch ran into a problem");
-            ui.label(format!("It closed unexpectedly last time ({}). A report helps get it fixed: it says what went wrong and where in WoodSketch's code, and you'll see all of it before it's sent.", crash.version));
+            ui.heading(t!("app-crash-title"));
+            ui.label(t!("app-crash-note", "version" => crash.version.as_str()));
             ui.add_space(6.0);
             ui.horizontal(|ui| {
-                report = ui.button("Report it...").clicked();
-                skip = ui.button("Not now").clicked();
+                report = ui.button(t!("app-crash-report")).clicked();
+                skip = ui.button(t!("app-crash-not-now")).clicked();
             });
         });
         if report || skip {
@@ -415,16 +416,16 @@ impl WoodSketchApp {
         if !self.reload_asking {
             return;
         }
-        let name = self.files.path.as_deref().and_then(Path::file_name).map_or_else(|| "The drawing".to_owned(), |n| n.to_string_lossy().into_owned());
+        let name = self.files.path.as_deref().and_then(Path::file_name).map_or_else(|| t!("app-the-drawing"), |n| n.to_string_lossy().into_owned());
         let (mut reload, mut keep) = (false, false);
         egui::Modal::new(egui::Id::new("reload")).show(ctx, |ui| {
             ui.set_max_width(400.0);
-            ui.heading("The file changed outside WoodSketch");
-            ui.label(format!("{name} was changed by something else, and this drawing has changes that aren't saved. Only one of the two can be kept."));
+            ui.heading(t!("app-file-changed-title"));
+            ui.label(t!("app-file-changed", "name" => name.as_str()));
             ui.add_space(8.0);
             ui.horizontal(|ui| {
-                reload = ui.button("Reload from the file").on_hover_text("Take the file as it is now, losing the unsaved changes here (Ctrl+Z brings them back)").clicked();
-                keep = ui.button("Keep mine").on_hover_text("Leave this drawing as it is; saving will write over the file").clicked();
+                reload = ui.button(t!("app-reload")).on_hover_text(t!("app-reload-hint")).clicked();
+                keep = ui.button(t!("app-keep-mine")).on_hover_text(t!("app-keep-mine-hint")).clicked();
             });
         });
         if reload {
@@ -453,25 +454,25 @@ impl WoodSketchApp {
         let mut discard = false;
         egui::Modal::new(egui::Id::new("recover")).show(ctx, |ui| {
             ui.set_max_width(380.0);
-            ui.heading("Recover unsaved work?");
-            ui.label("WoodSketch didn't close properly last time. It kept a copy of your unsaved changes:");
+            ui.heading(t!("app-recover-title"));
+            ui.label(t!("app-recover-note"));
             for leftover in &self.leftovers {
                 let when = match leftover.when.elapsed().map(|d| d.as_secs() / 60) {
                     Ok(0) => ", just now".to_owned(),
                     Ok(1) => ", a minute ago".to_owned(),
-                    Ok(m) if m < 120 => format!(", {m} minutes ago"),
-                    Ok(m) => format!(", {} hours ago", m / 60),
+                    Ok(m) if m < 120 => t!("app-recover-minutes", "minutes" => m),
+                    Ok(m) => t!("app-recover-hours", "hours" => m / 60),
                     Err(_) => String::new(),
                 };
                 ui.horizontal(|ui| {
-                    ui.label(format!("{}{when}", leftover.name()));
-                    if ui.button("Recover").clicked() {
+                    ui.label(t!("app-recover-line", "name" => leftover.name(), "when" => when.as_str()));
+                    if ui.button(t!("app-recover")).clicked() {
                         recover = Some(leftover.clone());
                     }
                 });
             }
             ui.add_space(6.0);
-            if ui.button(if self.leftovers.len() > 1 { "Discard all" } else { "Discard" }).clicked() {
+            if ui.button(if self.leftovers.len() > 1 { t!("app-discard-all") } else { t!("app-discard") }).clicked() {
                 discard = true;
             }
         });
@@ -502,7 +503,7 @@ impl WoodSketchApp {
 
     /// The build sheets for the drawing, as a web page (what File > Print build sheets saves).
     pub fn build_sheets_html(&mut self) -> String {
-        let title = format!("{} build sheets", self.files.name());
+        let title = t!("app-build-sheets-title", "name" => self.files.name());
         self.cut_list.build_sheets(&self.doc, &title)
     }
 

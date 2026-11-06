@@ -2,6 +2,7 @@
 //! image, feeds pointer input to the tools, and draws their overlays.
 
 use eframe::egui;
+use woodsketch_i18n::t;
 use glam::{DVec3, Vec2};
 use woodsketch_doc::Document;
 use woodsketch_render::{Scene, ViewportRenderer};
@@ -446,7 +447,7 @@ fn editing_badge(painter: &egui::Painter, rect: egui::Rect, doc: &Document) {
     if names.is_empty() {
         return;
     }
-    let text = format!("Editing  {}    Esc or click outside to close", names.join(" › "));
+    let text = t!("viewport-editing", "path" => names.join(" › "));
     let galley = painter.layout_no_wrap(text, egui::FontId::proportional(13.0), gray(painter, 30));
     let badge = egui::Rect::from_min_size(rect.min + egui::vec2(10.0, 10.0), galley.size()).expand2(egui::vec2(8.0, 5.0));
     painter.rect(
@@ -532,7 +533,7 @@ impl Viewport {
         });
         if scroll != 0.0 {
             self.walk_speed = (self.walk_speed * 1.25f32.powf(scroll / POINTS_PER_ZOOM_STEP)).clamp(6.0, 1200.0);
-            tools.set_message(format!("Walking speed: {} a second", woodsketch_doc::units::format_length(f64::from(self.walk_speed))));
+            tools.set_message(t!("viewport-walk-speed", "speed" => woodsketch_doc::units::format_length(f64::from(self.walk_speed))));
         }
         // Raw motion when the system gives it (and then the cursor goes back to the middle);
         // else how far the pointer moved.
@@ -554,7 +555,7 @@ impl Viewport {
                 self.stand_on_floor(doc);
             }
             tools.set_message(
-                if self.flying { "Flying: nothing holds you up. E and Q go up and down; F walks again." } else { "Walking: back on the floor." }.into(),
+                if self.flying { t!("viewport-flying") } else { t!("viewport-walking") },
             );
         }
         if forward != 0.0 || across != 0.0 {
@@ -645,7 +646,7 @@ fn draw_overlay(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera,
             painter.line_segment([tip, tip + (back - side * 0.6) * 9.0], stroke);
         }
         let mid = a + (b - a) * 0.5;
-        let galley = painter.layout_no_wrap("Grain".into(), egui::FontId::proportional(12.0), color);
+        let galley = painter.layout_no_wrap(t!("viewport-grain"), egui::FontId::proportional(12.0), color);
         let label = egui::Rect::from_center_size(mid + side * 14.0, galley.size()).expand(3.0);
         painter.rect_filled(label, 3.0, paper(painter, 220));
         painter.galley(label.min + egui::vec2(3.0, 3.0), galley, color);
@@ -667,13 +668,13 @@ fn draw_overlay(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera,
         // Toward one end, clear of the grain arrow's label in the middle.
         let toward_end = points[0] + (points[3] - points[0]) * 0.5;
         let middle = points.iter().fold(egui::Vec2::ZERO, |sum, p| sum + p.to_vec2()) / points.len() as f32;
-        tag(painter, middle.to_pos2() + (toward_end - middle.to_pos2()) * 0.6, "Reference face");
+        tag(painter, middle.to_pos2() + (toward_end - middle.to_pos2()) * 0.6, &t!("viewport-reference-face"));
     }
     if let Some([a, b]) = overlay.reference_edge
         && let (Some(a), Some(b)) = (screen(a), screen(b))
     {
         painter.line_segment([a, b], egui::Stroke::new(3.0, mark));
-        tag(painter, a + (b - a) * 0.8 + egui::vec2(0.0, 14.0), "Reference edge");
+        tag(painter, a + (b - a) * 0.8 + egui::vec2(0.0, 14.0), &t!("viewport-reference-edge"));
     }
     for symbol in &overlay.reference_symbols {
         if let Some(points) = symbol.iter().map(|p| screen(*p)).collect::<Option<Vec<_>>>() {
@@ -730,7 +731,9 @@ fn draw_overlay(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera,
                     Along::Parallel | Along::Perpendicular => egui::Color32::from_rgb(200, 0, 200),
                 };
                 painter.line_segment([from, to], egui::Stroke::new(2.0, color));
-                axis_label = Some((to, along.label()));
+                // Owned, because the label beside it comes from the catalog rather than
+                // from a `'static` name on the axis.
+                axis_label = Some((to, along.label().to_owned()));
             }
             None => {
                 let stroke = egui::Stroke::new(1.0, gray(painter, 80));
@@ -753,7 +756,7 @@ fn draw_overlay(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera,
     {
         painter.extend(egui::Shape::dotted_line(&[a, b], axis_color(axis), 4.0, 1.2));
         if axis_label.is_none() {
-            axis_label = Some((b, "From Point"));
+            axis_label = Some((b, t!("viewport-from-point")));
         }
     }
 
@@ -780,7 +783,7 @@ fn draw_overlay(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera,
         }
     }
     if let Some((pos, label)) = axis_label {
-        tooltip(painter, pos, label);
+        tooltip(painter, pos, &label);
     }
 
     if let Some(window) = &overlay.window {
@@ -861,48 +864,48 @@ fn context_menu(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) -> boo
     let any = !selected.is_empty();
     let item = |ui: &mut egui::Ui, enabled: bool, text: &str, keys: &str| ui.add_enabled(enabled, egui::Button::new(text).shortcut_text(keys)).clicked();
     let mut zoom = false;
-    if item(ui, any, "Cut", "Ctrl+X") {
+    if item(ui, any, &t!("edit-cut"), "Ctrl+X") {
         tools.cut(doc);
         crate::keys::note_copy(ui.ctx(), tools);
         ui.close();
     }
-    if item(ui, any, "Copy", "Ctrl+C") {
+    if item(ui, any, &t!("edit-copy"), "Ctrl+C") {
         tools.copy(doc);
         crate::keys::note_copy(ui.ctx(), tools);
         ui.close();
     }
-    if item(ui, tools.can_paste(), "Paste", "Ctrl+V") {
+    if item(ui, tools.can_paste(), &t!("edit-paste"), "Ctrl+V") {
         tools.paste(doc);
         ui.close();
     }
-    if item(ui, any, "Delete", "Delete") {
+    if item(ui, any, &t!("edit-delete"), "Delete") {
         tools.cancel();
         doc.erase_selection();
         ui.close();
     }
     ui.separator();
-    if item(ui, any, "Make Group", "Ctrl+G") {
+    if item(ui, any, &t!("edit-make-group"), "Ctrl+G") {
         tools.make_group(doc, DefinitionKind::Group);
         ui.close();
     }
-    if item(ui, any, "Make Component", "G") {
+    if item(ui, any, &t!("edit-make-component"), "G") {
         tools.make_group(doc, DefinitionKind::Component);
         ui.close();
     }
-    if instances > 0 && item(ui, true, "Explode", "") {
+    if instances > 0 && item(ui, true, &t!("edit-explode"), "") {
         tools.explode(doc);
         ui.close();
     }
-    if shared && ui.button("Make Unique").on_hover_text("Its own copy, so changing it leaves the other copies alone").clicked() {
+    if shared && ui.button(t!("viewport-make-unique")).on_hover_text(t!("viewport-make-unique-hint")).clicked() {
         doc.make_selection_unique();
         ui.close();
     }
-    if faces > 0 && ui.button("Reverse Faces").on_hover_text("Turn the selected faces over, front to back").clicked() {
+    if faces > 0 && ui.button(t!("viewport-reverse-faces")).on_hover_text(t!("viewport-reverse-faces-hint")).clicked() {
         doc.reverse_selected_faces();
         ui.close();
     }
     ui.separator();
-    if item(ui, true, "Zoom Extents", "Shift+Z") {
+    if item(ui, true, &t!("camera-zoom-extents"), "Shift+Z") {
         zoom = true;
         ui.close();
     }

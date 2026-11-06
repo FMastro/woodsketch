@@ -4,6 +4,7 @@
 //! for Updates to ask on demand.
 
 use std::sync::{Arc, Mutex};
+use woodsketch_i18n::t;
 
 /// What the updater is doing, or found.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
@@ -47,12 +48,12 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// when an update is ready).
 pub fn describe(state: &UpdateState) -> String {
     match state {
-        UpdateState::Idle | UpdateState::Checking => "Checking for updates...".into(),
-        UpdateState::NotInstalled => "This copy wasn't installed with the WoodSketch installer, so it can't update itself. Download the latest from woodsketch.net.".into(),
-        UpdateState::UpToDate => format!("WoodSketch {VERSION} is up to date."),
-        UpdateState::Downloading(v) => format!("WoodSketch {v} is downloading in the background (shown at the bottom right). When it's ready, a green \"Restart to update\" button appears there."),
-        UpdateState::Ready(v) => format!("WoodSketch {v} is ready: restart to update."),
-        UpdateState::Failed(e) => format!("Couldn't check for updates: {e}"),
+        UpdateState::Idle | UpdateState::Checking => t!("updates-checking"),
+        UpdateState::NotInstalled => t!("updates-not-installed"),
+        UpdateState::UpToDate => t!("updates-up-to-date", "version" => VERSION),
+        UpdateState::Downloading(v) => t!("updates-downloading", "version" => v.as_str()),
+        UpdateState::Ready(v) => t!("updates-ready", "version" => v.as_str()),
+        UpdateState::Failed(e) => t!("updates-failed", "error" => e.as_str()),
     }
 }
 

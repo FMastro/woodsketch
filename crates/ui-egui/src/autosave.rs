@@ -9,6 +9,7 @@ use std::time::{Duration, Instant, SystemTime};
 
 use woodsketch_doc::Document;
 use woodsketch_doc::file;
+use woodsketch_i18n::t;
 
 /// How often unsaved changes are written.
 pub const INTERVAL: Duration = Duration::from_secs(120);
@@ -29,7 +30,7 @@ impl Leftover {
         self.original
             .as_deref()
             .and_then(Path::file_stem)
-            .map_or_else(|| "Untitled".to_owned(), |s| s.to_string_lossy().into_owned())
+            .map_or_else(|| t!("files-untitled"), |s| s.to_string_lossy().into_owned())
     }
 
     /// Delete the autosaved copy (recovered or not wanted).
@@ -76,10 +77,10 @@ impl Autosave {
     pub fn write(&mut self, doc: &Document, original: Option<&Path>) -> Result<(), String> {
         let Some(path) = self.file() else { return Ok(()) };
         let dir = self.dir.as_ref().expect("a file needs a folder");
-        std::fs::create_dir_all(dir).map_err(|e| format!("Couldn't autosave: {e}"))?;
-        write_safely(&path, file::to_string(doc.scene())).map_err(|e| format!("Couldn't autosave: {e}"))?;
+        std::fs::create_dir_all(dir).map_err(|e| t!("app-autosave-failed", "error" => e.to_string()))?;
+        write_safely(&path, file::to_string(doc.scene())).map_err(|e| t!("app-autosave-failed", "error" => e.to_string()))?;
         let note = original.map_or_else(String::new, |p| p.to_string_lossy().into_owned());
-        write_safely(&path.with_extension("path"), &note).map_err(|e| format!("Couldn't autosave: {e}"))?;
+        write_safely(&path.with_extension("path"), &note).map_err(|e| t!("app-autosave-failed", "error" => e.to_string()))?;
         self.written_version = Some(doc.model_version());
         Ok(())
     }
