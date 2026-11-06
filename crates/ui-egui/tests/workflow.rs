@@ -2016,9 +2016,15 @@ fn the_start_pages_menus_are_the_ones_that_work_there() {
         harness.get_by_label(back);
     }
 
-    // Back on the page: Help > About actually opens, rather than setting a flag nothing reads.
+    // Back on the page a second time -- leave it and return, which is what anyone does -- the
+    // trimming has to hold rather than being a first-frame effect.
     harness.state_mut().show_start_page();
     harness.run();
+    for gone in ["Edit", "Camera", "Draw", "Tools", "Window"] {
+        assert!(harness.query_by_label(gone).is_none(), "{gone} came back on returning to the page");
+    }
+
+    // Help > About actually opens, rather than setting a flag nothing reads.
     harness.get_by_label("Help").click();
     harness.run();
     harness.get_by_label_contains("About WoodSketch").click();
@@ -2056,6 +2062,29 @@ fn a_start_page_pick_that_opens_nothing_leaves_the_page_up() {
     harness.get_by_label("Start");
     assert!(harness.state().start_page_open(), "nothing opened, so the page stays");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn an_update_offer_doesnt_bring_the_other_menus_back() {
+    // The banner and the trimmed menu bar are separate changes that land on the same page, so
+    // check them together in the state someone actually meets: a drawing open, the Start page
+    // over it, and an update waiting to be installed.
+    use egui_kittest::kittest::Queryable;
+    use std::sync::{Arc, Mutex};
+    use woodsketch_ui_egui::updates::{UpdateState, Updater};
+    let mut harness = app();
+    add_board(harness.state_mut().document_mut(), glam::DVec3::ZERO, 24.0, 3.5, 1.5);
+    let state = Arc::new(Mutex::new(UpdateState::Ready("9.9.9".into())));
+    harness.state_mut().set_updater(Updater { state, check: Box::new(|| {}), restart: Box::new(|_| {}) });
+    harness.state_mut().show_start_page();
+    harness.run();
+
+    harness.get_by_label_contains("Restart to update to 9.9.9");
+    harness.get_by_label("File");
+    harness.get_by_label("Help");
+    for gone in ["Edit", "Camera", "Draw", "Tools", "Window"] {
+        assert!(harness.query_by_label(gone).is_none(), "{gone} is back with an update waiting");
+    }
 }
 
 #[test]
