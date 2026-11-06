@@ -13,6 +13,7 @@
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS, Guide};
+use woodsketch_i18n::t;
 
 use crate::infer::{self, Direction, Hints, Query, Target};
 use crate::move_tool::parse_offset;
@@ -39,11 +40,11 @@ impl TapeMode {
     }
 
     /// Beside the pointer (SketchUp shows a cursor for each mode).
-    pub fn cursor_note(self) -> &'static str {
+    pub fn cursor_note(self) -> String {
         match self {
-            Self::GuideLine => "+ Guide Line",
-            Self::GuidePoint => "+ Guide Point",
-            Self::Measure => "Measure",
+            Self::GuideLine => t!("tape-note-guide-line"),
+            Self::GuidePoint => t!("tape-note-guide-point"),
+            Self::Measure => t!("tape-note-measure"),
         }
     }
 }
@@ -200,7 +201,7 @@ impl TapeTool {
             let offset = parse_offset(typed, self.direction(), start.point)?;
             let offset = Self::project(start, offset);
             if offset.length() < EPS {
-                return Err("Move the mouse to show the direction, then type the distance".into());
+                return Err(t!("tool-tape-show-direction"));
             }
             self.start = None;
             self.end = None;
@@ -215,7 +216,7 @@ impl TapeTool {
             let length = parse_length(typed).map_err(|e| e.to_string())?;
             let measured = last.offset.length();
             if measured < EPS || length <= EPS {
-                return Err("Measure a distance, then type the length it should be".into());
+                return Err(t!("tool-tape-measure-first"));
             }
             doc.resize(length / measured).map_err(|e| e.to_string())?;
             self.last = None;
@@ -234,7 +235,7 @@ impl TapeTool {
             Some(last) if last.model_version.is_some_and(|v| v == doc.model_version()) => {
                 let offset = Self::project(last.start, parse_offset(typed, last.offset, last.start.point)?);
                 if offset.length() < EPS {
-                    return Err("Distance must be greater than zero".into());
+                    return Err(t!("tool-tape-distance-positive"));
                 }
                 doc.undo();
                 let mode = std::mem::replace(&mut self.mode, last.mode);
@@ -242,21 +243,20 @@ impl TapeTool {
                 self.mode = mode;
                 Ok(())
             }
-            _ => Err("Click where to measure from, then type the distance".into()),
+            _ => Err(t!("tool-tape-click-from")),
         }
     }
 
     pub fn status(&self) -> String {
-        let cycle = " Tap Ctrl to change mode.";
         match (self.mode, self.start) {
             (TapeMode::GuideLine, None) => {
-                format!("Create Guide Lines: click an edge to offset a guide from it, or a point.{cycle}")
+                t!("tool-tape-guide-lines")
             }
-            (TapeMode::GuidePoint, None) => format!("Create Guide Points: click where to measure from.{cycle}"),
-            (TapeMode::Measure, None) => format!("Measure: click where to measure from, or hover an edge. Type a length after measuring to resize the model.{cycle}"),
-            (_, Some(Start { line: Some(_), .. })) => "Move away from the edge; click or type the guide's offset.".into(),
-            (TapeMode::Measure, Some(_)) => "Click the point to measure to.".into(),
-            (_, Some(_)) => "Click the point to measure to, or type the distance.".into(),
+            (TapeMode::GuidePoint, None) => t!("tool-tape-guide-points"),
+            (TapeMode::Measure, None) => t!("tool-tape-measure-mode"),
+            (_, Some(Start { line: Some(_), .. })) => t!("tool-tape-move-away"),
+            (TapeMode::Measure, Some(_)) => t!("tool-tape-click-to"),
+            (_, Some(_)) => t!("tool-tape-click-to-or-type"),
         }
     }
 
@@ -456,7 +456,7 @@ mod tests {
             tool.overlay(&mut overlay);
             overlay.cursor_note
         };
-        assert_eq!(note(&tool), Some("+ Guide Line"));
+        assert_eq!(note(&tool).as_deref(), Some("+ Guide Line"));
 
         // Guide line from a corner: through both points.
         tool.click(&mut doc, screen, at(screen, 10.0, 10.0)).unwrap();
@@ -468,7 +468,7 @@ mod tests {
 
         // Guide point.
         tool.cycle_mode();
-        assert_eq!(note(&tool), Some("+ Guide Point"));
+        assert_eq!(note(&tool).as_deref(), Some("+ Guide Point"));
         tool.click(&mut doc, screen, at(screen, 10.0, 10.0)).unwrap();
         tool.hover(&doc, screen, at(screen, 14.0, 10.0));
         tool.enter(&mut doc, "24").unwrap();
@@ -476,7 +476,7 @@ mod tests {
 
         // Measure: nothing added; hovering an edge reads its length.
         tool.cycle_mode();
-        assert_eq!(note(&tool), Some("Measure"));
+        assert_eq!(note(&tool).as_deref(), Some("Measure"));
         let before = doc.model_version();
         tool.click(&mut doc, screen, at(screen, 0.0, 0.0)).unwrap();
         tool.click(&mut doc, screen, at(screen, 10.0, 0.0)).unwrap();

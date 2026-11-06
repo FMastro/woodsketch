@@ -76,12 +76,21 @@ that isn't built in, for tests and for a translator previewing their own file.
   direction marks, which would sit inside a label and break `get_by_label`.
 - The language is **global**, and `workflow.rs` runs in parallel threads matching English labels,
   so anything that switches language lives in `tests/language.rs` — its own process, one test.
-- `chrome.rs` is fully converted; a `tray_section` keeps an English `salt` beside its translated
-  title, because egui remembers a fold by its id and a translated id would forget every fold on
-  switching language. Other `id_salt`s stay English for the same reason.
+- **`ui-egui` and `tools` are fully converted** (763 keys). Where a string was also doing a job
+  besides being read, the two are now separate: a `tray_section` and the Templates and Joinery
+  size fields keep an English `salt` beside the translated label (egui remembers a fold or a
+  typed field by its id, and a translated id would forget it on switching language);
+  `joinery::fields` reads its salt to ask whether a field is the "Count" or the "Fit" one;
+  `profile::facing` stays English because the code asks whether a face is the "Top", with
+  `facing_name`/`facing_lower` for the screen. Other `id_salt`s stay English for the same reason.
+- A tool's `status()`, `measurement_label()`, `cursor_note()` and `SnapKind::label()` return
+  `String`, not `&'static str`: a translation can't be a literal in the binary.
+- Sentences are whole messages, never built from fragments — no `format!("Hide {what}")`, no
+  `" (copying)"` dropped into the middle, no `+ "s"` for a plural. Fluent plurals where the
+  number changes the wording (`cutlist-needs-material`, `entity-loose`).
 - Left in English on purpose: `woodsketch-cli` and the MCP server (read by programs and agents),
-  and so far tool names, material/species names and what is *inside* the tray panels.
-  `docs/TRANSLATING.md` is the contributor-facing guide and says why.
+  and the names of tools, materials, species and templates, which reach the catalog as
+  placeables. `docs/TRANSLATING.md` is the contributor-facing guide and says why.
 
 ## Conventions
 - Z up; red = X, green = Y, blue = Z (SketchUp). Model units are **inches**.

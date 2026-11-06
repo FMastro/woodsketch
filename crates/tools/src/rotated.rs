@@ -4,6 +4,7 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
+use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS};
 
 use crate::infer::{self, Hints, Query, Target};
@@ -93,7 +94,7 @@ impl RotatedRectangleTool {
 
     fn set_side(&mut self, a: DVec3, normal: DVec3, b: DVec3) -> Result<(), String> {
         if a.distance(b) < EPS {
-            return Err("Pick the second corner away from the first".into());
+            return Err(t!("tool-rotrect-second-away"));
         }
         self.stage = Stage::Across { a, b, normal, height: 0.0 };
         Ok(())
@@ -103,7 +104,7 @@ impl RotatedRectangleTool {
     /// second corner; then the other side's length.
     pub fn enter(&mut self, doc: &mut Document, typed: &str) -> Result<(), String> {
         match self.stage {
-            Stage::First => Err("Click the first corner".into()),
+            Stage::First => Err(t!("tool-rotrect-click-first")),
             Stage::Side { a, normal, b } => {
                 let offset = parse_offset(typed, b - a, a)?;
                 let b = a + offset - normal * offset.dot(normal);
@@ -119,7 +120,7 @@ impl RotatedRectangleTool {
 
     fn draw(&mut self, doc: &mut Document, a: DVec3, b: DVec3, normal: DVec3, height: f64) -> Result<(), String> {
         if height.abs() < EPS {
-            return Err("Move across the first side to give the rectangle its width".into());
+            return Err(t!("tool-rotrect-move-across"));
         }
         let points = corners(a, b, normal, height);
         let facing = if normal.z.abs() > 1e-9 { normal * normal.z.signum() } else { normal };
@@ -128,11 +129,11 @@ impl RotatedRectangleTool {
         Ok(())
     }
 
-    pub fn status(&self) -> &'static str {
+    pub fn status(&self) -> String {
         match self.stage {
-            Stage::First => "Select the first corner.",
-            Stage::Side { .. } => "Select the second corner (the first side), or type its length.",
-            Stage::Across { .. } => "Move across and click, or type the other side's length.",
+            Stage::First => t!("tool-rotrect-first"),
+            Stage::Side { .. } => t!("tool-rotrect-side"),
+            Stage::Across { .. } => t!("tool-rotrect-across"),
         }
     }
 

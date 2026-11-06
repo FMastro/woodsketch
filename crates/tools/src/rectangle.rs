@@ -3,6 +3,7 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_lengths};
+use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS};
 
 use crate::infer::Hints;
@@ -24,7 +25,8 @@ struct Sizing {
     /// Signed extents along `u` and `v` under the cursor.
     extents: (f64, f64),
     /// Snapped to a square or a golden rectangle: its name, for the note by the cursor.
-    proportion: Option<&'static str>,
+    /// Owned: the name of the proportion comes from the catalog.
+    proportion: Option<String>,
     /// The far corner lined up with a remembered point: (that point, the corner, along).
     aligned: Option<(DVec3, DVec3, Axis)>,
     /// Started by press-and-drag; finishes on release.
@@ -92,7 +94,7 @@ impl RectangleTool {
             if free && sizing.aligned.is_none() {
                 let (w, h) = sizing.extents;
                 let golden = (1.0 + 5f64.sqrt()) / 2.0;
-                for (ratio, name) in [(1.0, "Square"), (golden, "Golden section"), (1.0 / golden, "Golden section")] {
+                for (ratio, name) in [(1.0, t!("tool-rect-square")), (golden, t!("tool-rect-golden")), (1.0 / golden, t!("tool-rect-golden"))] {
                     let snapped = w.abs() / ratio;
                     if w.abs() > EPS && (h.abs() - snapped).abs() < 0.03 * w.abs().max(h.abs()) {
                         sizing.extents.1 = snapped * h.signum();
@@ -147,7 +149,7 @@ impl RectangleTool {
         }
         let values = parse_lengths(typed).map_err(|e| e.to_string())?;
         let [width, height] = values[..] else {
-            return Err("Enter width and height, like 1.5\",3.5\"".into());
+            return Err(t!("tool-rect-enter-wh"));
         };
         // Typed values take their direction from the mouse; negative values flip it.
         let apply = |typed: Option<f64>, current: f64| match typed {
@@ -164,21 +166,21 @@ impl RectangleTool {
                 let extents = (apply(width, last.extents.0), apply(height, last.extents.1));
                 if extents.0.abs() < EPS || extents.1.abs() < EPS {
                     self.last = Some(last);
-                    return Err("Dimensions must be greater than zero".into());
+                    return Err(t!("tool-rect-dims-positive"));
                 }
                 doc.undo();
                 self.draw(doc, last.frame, extents);
                 Ok(())
             }
-            _ => Err("Click the first corner, then type the size".into()),
+            _ => Err(t!("tool-rect-click-first")),
         }
     }
 
-    pub fn status(&self) -> &'static str {
+    pub fn status(&self) -> String {
         if self.sizing.is_some() {
-            "Select opposite corner or enter value."
+            t!("tool-rect-opposite")
         } else {
-            "Select first corner, or type [x,y,z]."
+            t!("tool-rect-first")
         }
     }
 
@@ -202,9 +204,9 @@ impl RectangleTool {
                 overlay.lines.push([corners[i], corners[(i + 1) % 4]]);
             }
             // A square or golden rectangle: its diagonal and its name.
-            if let Some(name) = sizing.proportion {
+            if let Some(name) = &sizing.proportion {
                 overlay.lines.push([corners[0], corners[2]]);
-                overlay.cursor_note = Some(name);
+                overlay.cursor_note = Some(name.clone());
             }
             overlay.alignment = sizing.aligned;
         }
@@ -226,7 +228,7 @@ impl RectangleTool {
     fn finish(&mut self, doc: &mut Document, extents: (f64, f64)) -> Result<(), String> {
         let Some(sizing) = &self.sizing else { return Ok(()) };
         if extents.0.abs() < EPS || extents.1.abs() < EPS {
-            return Err("Dimensions must be greater than zero".into());
+            return Err(t!("tool-rect-dims-positive"));
         }
         let frame = sizing.frame;
         self.sizing = None;
@@ -305,7 +307,7 @@ mod tests {
         tool.hover(&doc, screen, at(screen, 5.0, 5.08));
         let mut overlay = Overlay::default();
         tool.overlay(&mut overlay);
-        assert_eq!(overlay.cursor_note, Some("Square"));
+        assert_eq!(overlay.cursor_note.as_deref(), Some("Square"));
         tool.click(&mut doc, screen, at(screen, 5.0, 5.08)).unwrap();
         let (w, h) = face_size(&doc);
         assert!((w - h).abs() < 1e-9, "a square: {w} x {h}");

@@ -14,6 +14,7 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::{EPS, Model, VertexId};
+use woodsketch_i18n::t;
 
 use crate::Axis;
 use crate::pick::{AXIS_RADIUS, Ray, Screen, Snap, SnapKind, closest_on_line, snap_feature};
@@ -30,11 +31,11 @@ pub enum Along {
 
 impl Along {
     /// SketchUp-style inference tooltip.
-    pub fn label(self) -> &'static str {
+    pub fn label(self) -> String {
         match self {
             Self::Axis(axis) => axis.label(),
-            Self::Parallel => "Parallel to Edge",
-            Self::Perpendicular => "Perpendicular to Edge",
+            Self::Parallel => t!("infer-parallel"),
+            Self::Perpendicular => t!("infer-perpendicular"),
         }
     }
 }

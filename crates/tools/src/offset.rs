@@ -5,6 +5,7 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
+use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS, Entity, FaceId};
 
 use crate::pick::{Screen, Snap, snap_feature};
@@ -88,7 +89,7 @@ impl OffsetTool {
         }
         if self.op.is_none() {
             let Some(face) = target(doc, screen, cursor) else {
-                return Err("Click a face to offset its outline".into());
+                return Err(t!("tool-offset-click-face"));
             };
             self.last = None;
             self.op = Some(Op { face, distance: 0.0, preview: Vec::new() });
@@ -114,15 +115,15 @@ impl OffsetTool {
                 doc.undo();
                 self.apply(doc, last.face, distance)
             }
-            _ => Err("Click a face, then type the offset".into()),
+            _ => Err(t!("tool-offset-click-then-type")),
         }
     }
 
-    pub fn status(&self) -> &'static str {
+    pub fn status(&self) -> String {
         if self.op.is_some() {
-            "Move in or out and click, or enter the offset distance."
+            t!("tool-offset-move")
         } else {
-            "Click a face to offset its outline (or select a face first)."
+            t!("tool-offset-pick")
         }
     }
 
@@ -152,7 +153,7 @@ impl OffsetTool {
 
     fn apply(&mut self, doc: &mut Document, face: FaceId, distance: f64) -> Result<(), String> {
         if distance.abs() < EPS {
-            return Err("Move the mouse in or out of the face first".into());
+            return Err(t!("tool-offset-move-first"));
         }
         // Check before editing, so a refused offset leaves no empty undo step.
         doc.model().offset_outline(face, distance).map_err(|e| e.to_string())?;

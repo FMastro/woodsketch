@@ -11,6 +11,7 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
+use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS};
 
 use crate::infer::{self, Direction, Hints, Query, Target};
@@ -164,7 +165,7 @@ impl LineTool {
         {
             let length = parse_length(typed).map_err(|e| e.to_string())?;
             if length.abs() < EPS {
-                return Err("Length must be greater than zero".into());
+                return Err(t!("tool-line-length-positive"));
             }
             doc.undo();
             self.start = Some(last.start);
@@ -179,7 +180,7 @@ impl LineTool {
                 self.start = Some(Start { point, normal: DVec3::Z, dragging: false });
                 return Ok(());
             }
-            return Err("Click the start point (or type [x,y,z]), then type the length".into());
+            return Err(t!("tool-line-click-start"));
         };
         // Along an inferred direction, use it exactly so typed lengths come out exact.
         let direction = match self.end {
@@ -190,7 +191,7 @@ impl LineTool {
         };
         let offset = parse_offset(typed, direction, start.point)?;
         if offset.length() < EPS {
-            return Err("Length must be greater than zero".into());
+            return Err(t!("tool-line-length-positive"));
         }
         self.draw(doc, start.point + offset);
         if plain {
@@ -199,11 +200,11 @@ impl LineTool {
         Ok(())
     }
 
-    pub fn status(&self) -> &'static str {
+    pub fn status(&self) -> String {
         if self.start.is_some() {
-            "Select end point or enter value. Hold Shift or press an arrow key to lock a direction; Esc ends the line."
+            t!("tool-line-end")
         } else {
-            "Select start point, or type [x,y,z]."
+            t!("tool-line-start")
         }
     }
 

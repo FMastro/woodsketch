@@ -7,6 +7,7 @@ use glam::{DVec3, Vec2};
 use woodsketch_doc::curves::{ARC_SEGMENTS, arc_points};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS};
+use woodsketch_i18n::t;
 
 use crate::circle::parse_segments;
 use crate::move_tool::parse_offset;
@@ -141,7 +142,7 @@ impl ArcTool {
                     doc.undo();
                     self.draw(doc, l.a, l.b, l.normal, bulge)
                 }
-                _ => Err("Click the arc's start, then its end".into()),
+                _ => Err(t!("tool-arc-click-start-end")),
             },
             Stage::End { a, normal, end } => {
                 let offset = parse_offset(typed, end - a, a)?;
@@ -162,7 +163,7 @@ impl ArcTool {
             let radius = parse_length(radius).map_err(|e| e.to_string())?.abs();
             let half = a.distance(b) * 0.5;
             if radius < half - EPS {
-                return Err(format!("The radius must be at least half the chord ({})", format_length(half)));
+                return Err(t!("tool-arc-radius-min", "half" => format_length(half)));
             }
             return Ok(sign * (radius - (radius * radius - half * half).max(0.0).sqrt()));
         }
@@ -172,16 +173,16 @@ impl ArcTool {
     pub fn status(&self) -> String {
         let sides = self.segments;
         match self.stage {
-            Stage::Start => format!("Select start point (or type [x,y,z]). Sides: {sides} (type 24s to change)."),
-            Stage::End { .. } => "Select end point or enter the chord length.".into(),
-            Stage::Bulge { .. } => "Select bulge, or enter it (5r for a radius).".into(),
+            Stage::Start => t!("tool-arc-start", "sides" => sides),
+            Stage::End { .. } => t!("tool-arc-end"),
+            Stage::Bulge { .. } => t!("tool-arc-bulge"),
         }
     }
 
-    pub fn measurement_label(&self) -> &'static str {
+    pub fn measurement_label(&self) -> String {
         match self.stage {
-            Stage::End { .. } => "Length",
-            _ => "Bulge",
+            Stage::End { .. } => t!("measure-length"),
+            _ => t!("measure-bulge"),
         }
     }
 
@@ -213,7 +214,7 @@ impl ArcTool {
 
     fn set_end(&mut self, a: DVec3, normal: DVec3, b: DVec3) -> Result<(), String> {
         if a.distance(b) < EPS {
-            return Err("Pick an end point away from the start".into());
+            return Err(t!("tool-arc-end-away"));
         }
         self.stage = Stage::Bulge { a, b, normal, bulge: 0.0 };
         Ok(())

@@ -4,6 +4,7 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::curves::{CIRCLE_SEGMENTS, circle_points};
+use woodsketch_i18n::t;
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS};
 
@@ -50,7 +51,7 @@ pub(crate) fn parse_segments(typed: &str) -> Option<Result<u32, String>> {
     let number = typed.trim().strip_suffix(['s', 'S'])?;
     Some(match number.trim().parse::<u32>() {
         Ok(n) if (3..=999).contains(&n) => Ok(n),
-        _ => Err("Sides must be a whole number from 3 to 999, like 24s".into()),
+        _ => Err(t!("tool-circle-sides")),
     })
 }
 
@@ -149,22 +150,22 @@ impl CircleTool {
         }
         match self.last {
             Some(last) if last.model_version == doc.model_version() => self.redraw(doc, last, radius),
-            _ => Err("Click the center, then type the radius".into()),
+            _ => Err(t!("tool-circle-center-then-radius")),
         }
     }
 
     pub fn status(&self) -> String {
         let sides = self.segments;
         if self.center.is_some() {
-            let what = if self.polygon { "polygon" } else { "circle" };
-            format!("Select a corner of the {what} or enter its radius. Sides: {sides} (type 8s to change).")
+            if self.polygon { t!("tool-polygon-corner", "sides" => sides) } else { t!("tool-circle-corner", "sides" => sides) }
         } else {
-            let ctrl = match (self.polygon, self.circumscribed) {
-                (false, _) => "",
-                (true, false) => " Radius to a corner (tap Ctrl: to a side).",
-                (true, true) => " Radius to a side's middle (tap Ctrl: to a corner).",
-            };
-            format!("Select center point (or type [x,y,z]). Sides: {sides} (type {}s to change). Arrow keys face it along an axis.{ctrl}", if self.polygon { 8 } else { 32 })
+            // Whole sentences rather than one with a tail stuck on: where the note about Ctrl
+            // belongs in the sentence is the translation's business.
+            match (self.polygon, self.circumscribed) {
+                (false, _) => t!("tool-circle-center", "sides" => sides),
+                (true, false) => t!("tool-polygon-center-to-corner", "sides" => sides),
+                (true, true) => t!("tool-polygon-center-to-side", "sides" => sides),
+            }
         }
     }
 
@@ -189,7 +190,7 @@ impl CircleTool {
             }
             if let Some((anchor, rim)) = self.through {
                 overlay.dashed.push([rim, anchor]);
-                overlay.cursor_note = Some("Through point");
+                overlay.cursor_note = Some(t!("tool-circle-through-point"));
             }
         }
     }
@@ -197,7 +198,7 @@ impl CircleTool {
     fn draw(&mut self, doc: &mut Document, radius: f64) -> Result<(), String> {
         let Some((center, normal)) = self.center else { return Ok(()) };
         if radius < EPS {
-            return Err("Move away from the center, or type the radius".into());
+            return Err(t!("tool-circle-move-away"));
         }
         let corner = self.corner_radius(radius);
         doc.edit(|m| m.draw_circle(center, normal, corner, self.segments));
@@ -208,7 +209,7 @@ impl CircleTool {
 
     fn redraw(&mut self, doc: &mut Document, last: Drawn, radius: f64) -> Result<(), String> {
         if radius < EPS {
-            return Err("Radius must be greater than zero".into());
+            return Err(t!("tool-circle-radius-positive"));
         }
         doc.undo();
         self.center = Some((last.center, last.normal));

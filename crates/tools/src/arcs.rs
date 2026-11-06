@@ -9,6 +9,7 @@ use glam::{DVec3, Vec2};
 use woodsketch_doc::curves::{ARC_SEGMENTS, angle_about, circle_through, sweep_points};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS};
+use woodsketch_i18n::t;
 
 use crate::circle::parse_segments;
 use crate::pick::{Screen, Snap, snap};
@@ -102,7 +103,7 @@ impl CenterArcTool {
         // In the plane: off it, the start counts where it projects.
         let start = start - normal * (start - center).dot(normal);
         if start.distance(center) < EPS {
-            return Err("Pick a start point away from the center".into());
+            return Err(t!("tool-arc-start-away"));
         }
         self.stage = CenterStage::Sweep { center, normal, start, angle: 0.0 };
         Ok(())
@@ -115,7 +116,7 @@ impl CenterArcTool {
             return Ok(());
         }
         match self.stage {
-            CenterStage::Center => Err("Click the center first".into()),
+            CenterStage::Center => Err(t!("tool-arc-click-center-first")),
             CenterStage::Start { center, normal, start } => {
                 let radius = parse_length(typed).map_err(|e| e.to_string())?.abs();
                 let toward = (start - center - normal * (start - center).dot(normal)).try_normalize().unwrap_or_else(|| woodsketch_doc::curves::plane_axes(normal).0);
@@ -131,7 +132,7 @@ impl CenterArcTool {
 
     fn draw(&mut self, doc: &mut Document, center: DVec3, normal: DVec3, start: DVec3, angle: f64) -> Result<(), String> {
         if angle.abs() < 1e-6 {
-            return Err("Turn away from the start to sweep the arc".into());
+            return Err(t!("tool-arc-turn-away"));
         }
         let points = self.points(center, normal, start, angle);
         doc.edit(|m| m.draw_polyline(&points, normal));
@@ -156,16 +157,16 @@ impl CenterArcTool {
     pub fn status(&self) -> String {
         let sides = self.segments;
         match self.stage {
-            CenterStage::Center => format!("Select the center. Sides: {sides} (type 24s to change). Arrow keys lay it across an axis."),
-            CenterStage::Start { .. } => "Select where the arc starts, or type the radius.".into(),
-            CenterStage::Sweep { .. } => "Turn and click where it ends, or type the angle.".into(),
+            CenterStage::Center => t!("tool-arc-center", "sides" => sides),
+            CenterStage::Start { .. } => t!("tool-arc-where-starts"),
+            CenterStage::Sweep { .. } => t!("tool-arc-turn-and-click"),
         }
     }
 
-    pub fn measurement_label(&self) -> &'static str {
+    pub fn measurement_label(&self) -> String {
         match self.stage {
-            CenterStage::Sweep { .. } => "Angle",
-            _ => "Radius",
+            CenterStage::Sweep { .. } => t!("measure-angle"),
+            _ => t!("measure-radius"),
         }
     }
 
@@ -247,14 +248,14 @@ impl ThreePointArcTool {
             }
             ThreeStage::Second { a, b, .. } => {
                 if a.distance(b) < EPS {
-                    return Err("Pick a second point away from the first".into());
+                    return Err(t!("tool-arc-second-away"));
                 }
                 self.stage = ThreeStage::Third { a, b, c: None };
                 Ok(())
             }
             ThreeStage::Third { a, b, c } => {
                 let Some(points) = c.and_then(|c| self.points(a, b, c)) else {
-                    return Err("The three points are in a line: pick an end off it".into());
+                    return Err(t!("tool-arc-in-a-line"));
                 };
                 let normal = circle_through(a, b, c.expect("checked")).expect("checked").1;
                 doc.edit(|m| m.draw_polyline(&points, normal));
@@ -270,7 +271,7 @@ impl ThreePointArcTool {
                 self.segments = segments?;
                 Ok(())
             }
-            None => Err("Click three points: the start, one on the arc, the end. Type 24s for 24 sides.".into()),
+            None => Err(t!("tool-arc-three-points")),
         }
     }
 
@@ -286,9 +287,9 @@ impl ThreePointArcTool {
 
     pub fn status(&self) -> String {
         match self.stage {
-            ThreeStage::First => format!("Select the arc's start. Sides: {} (type 24s to change).", self.segments),
-            ThreeStage::Second { .. } => "Select a point the arc passes through.".into(),
-            ThreeStage::Third { .. } => "Select the arc's end.".into(),
+            ThreeStage::First => t!("tool-arc-three-first", "sides" => self.segments),
+            ThreeStage::Second { .. } => t!("tool-arc-three-second"),
+            ThreeStage::Third { .. } => t!("tool-arc-three-third"),
         }
     }
 

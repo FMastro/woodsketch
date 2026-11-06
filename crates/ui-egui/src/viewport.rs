@@ -778,7 +778,7 @@ fn draw_overlay(painter: &egui::Painter, rect: egui::Rect, camera: &OrbitCamera,
         let radius = if matches!(snap.kind, SnapKind::OnPlane | SnapKind::OnGround) { 2.5 } else { 5.0 };
         painter.circle(pos, radius, color, egui::Stroke::new(1.0, egui::Color32::WHITE));
         if let Some(label) = snap.kind.label() {
-            tooltip(painter, pos, label);
+            tooltip(painter, pos, &label);
             axis_label = None;
         }
     }

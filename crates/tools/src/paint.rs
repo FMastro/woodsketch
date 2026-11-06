@@ -5,6 +5,7 @@
 
 use glam::Vec2;
 use woodsketch_doc::{Document, Entity, MaterialId};
+use woodsketch_i18n::t;
 
 use crate::pick::Screen;
 use crate::{Modifiers, Overlay, highlight_entity, pick_resolved};
@@ -30,7 +31,7 @@ impl PaintTool {
     ) -> Result<(), String> {
         self.hover(doc, screen, cursor);
         let Some(target) = self.hover else {
-            return Err("Click a group, component or face to paint it.".into());
+            return Err(t!("tool-paint-click"));
         };
         if mods.alt {
             *material = doc.material_of(target);
@@ -45,8 +46,8 @@ impl PaintTool {
         Ok(())
     }
 
-    pub fn status(&self) -> &'static str {
-        "Click a board to paint all of it with the material picked in the Materials panel. Ctrl-click: one face; Alt-click: sample."
+    pub fn status(&self) -> String {
+        t!("tool-paint-status")
     }
 
     pub fn overlay(&self, doc: &Document, overlay: &mut Overlay) {

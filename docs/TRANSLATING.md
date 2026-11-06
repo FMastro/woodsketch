@@ -104,18 +104,21 @@ If you don't have Rust, open the pull request anyway and CI will run both for yo
 
 - **The command line tool and the MCP server** (`woodsketch-cli`) stay in English. They are read
   by programs and by people working with AI assistants, and English is the lingua franca there.
-- **Material and species names** — Cherry, Baltic Birch Ply, 2x4 — are mostly not translated yet.
-  Some are closer to product names than words, and getting them right needs someone who buys
-  timber in that language, not just someone who speaks it.
-- **Tool names** (Push/Pull, Offset) are not translated yet either. They are deliberately the
-  names SketchUp uses, and a SketchUp user switching over looks for the name they know. Whether
-  that means keeping the English or matching SketchUp's own translation is a judgement for each
-  language, and worth asking about in the pull request.
+- **Material and species names** — Cherry, Baltic Birch Ply, 2x4 — are not translated. Some are
+  closer to product names than words, and getting them right needs someone who buys timber in
+  that language, not just someone who speaks it. Where one appears inside a sentence you are
+  translating it arrives as `{ $material }` or similar, so you can put it wherever your language
+  needs it.
+- **Tool names** (Push/Pull, Offset) and **template names** (Cabinet, Drawer) are not translated
+  either. They are deliberately the names SketchUp uses, and a SketchUp user switching over looks
+  for the name they know. Whether that means keeping the English or matching SketchUp's own
+  translation is a judgement for each language, and worth asking about in the pull request.
 - **Typed measurements.** `3/4"`, `2'6`, `38mm` are parsed, not displayed, and don't go through
   translation. A language that writes decimals with a comma — `38,5` — has a real problem here,
   because a comma already means something in the Measurements box (`x,y,z`). That's a design
   question rather than a translation one, and it is open: say so in your pull request if it
   affects your language and it will be taken seriously.
 
-Anything else that is still in English is simply not converted yet. The catalog grows a screen at
-a time; if a window you care about is missing from it, say which one.
+Everything else a woodworker reads is in the catalog, including the line at the bottom of the
+window that tells you what the tool in your hand is waiting for. If you find something that isn't,
+that's a bug worth reporting — say where you saw it.

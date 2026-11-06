@@ -3,6 +3,20 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.67
+
+- The translation now covers the whole program. Every panel in the tray, the Cut List window and
+  its four tabs, the Start page, the file dialogs, Report a Problem, the update messages, crash
+  recovery, and the line at the bottom of the window telling you what the tool in your hand is
+  waiting for. 763 phrases, up from 132, and nothing a woodworker reads is left hard coded.
+- Two small English faults fixed on the way, both of the kind a catalog is there to prevent:
+  selecting a single loose edge said "1 loose entities", and the Cut List said "1 parts need a
+  material" rather than "1 part needs".
+- Still in English, and not by oversight: the command line tool and the MCP server, which are
+  read by programs; and the names of tools, materials and templates. Whether a SketchUp user
+  hunting for *Push/Pull* wants it in their own language is a question for the people who use it,
+  and worth asking before answering.
+
 ## 0.1.66
 
 - WoodSketch can be translated. Every word it says now comes from a language file rather than

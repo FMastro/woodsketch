@@ -13,6 +13,7 @@ use std::collections::BTreeSet;
 use glam::{DAffine3, DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length, parse_lengths};
 use woodsketch_doc::{Document, EPS, Entity, Model, VertexId};
+use woodsketch_i18n::t;
 
 use crate::infer::{self, Direction, Hints, Query, Target};
 use crate::pick::{Screen, Snap};
@@ -213,11 +214,11 @@ impl MoveTool {
         let typed = typed.trim();
         if let Some(array) = parse_array(typed) {
             let Some(last) = self.last.take().filter(|l| l.model_version == doc.model_version()) else {
-                return Err("Copy something first (tap Ctrl while moving), then type 3x or /3".into());
+                return Err(t!("tool-move-copy-first"));
             };
             if last.copy.is_none() {
                 self.last = Some(last);
-                return Err("Arrays need a copy: tap Ctrl while moving".into());
+                return Err(t!("tool-move-arrays-need-copy"));
             }
             return self.redo_last(doc, last, |done| done.copy = Some(array));
         }
@@ -248,19 +249,20 @@ impl MoveTool {
                 let offset = parse_offset(typed, last.offset, DVec3::ZERO)?;
                 self.redo_last(doc, last, |done| done.offset = offset)
             }
-            None => Err("Click a base point, then type the distance".into()),
+            None => Err(t!("tool-move-click-base")),
         }
     }
 
     pub fn status(&self) -> String {
-        let copy = if self.copy { " (copying)" } else { "" };
         if self.is_pasting() {
-            return "Click to put down what was pasted (it snaps to points), or type a distance. Esc takes it out.".into();
+            return t!("tool-move-pasting");
         }
         if self.op.is_some() {
-            format!("Pick the destination, or enter a distance{copy}. Arrow keys lock an axis; tap Ctrl to copy.")
+            if self.copy { t!("tool-move-destination-copying") } else { t!("tool-move-destination") }
+        } else if self.copy {
+            t!("tool-move-base-copying")
         } else {
-            format!("Pick a base point to move{copy} (or type [x,y,z]). Tap Ctrl to copy; type 3x or /3 after a copy for an array.")
+            t!("tool-move-base")
         }
     }
 
@@ -324,7 +326,7 @@ impl MoveTool {
                     .chain(model.face_edges(id).into_iter().map(Entity::Edge))
                     .collect(),
                 Some(entity) => vec![entity],
-                None => return Err("Select something to move, or start on it".into()),
+                None => return Err(t!("tool-move-select")),
             }
         } else {
             doc.selection().iter().collect()
@@ -362,7 +364,7 @@ impl MoveTool {
         let Some(op) = &self.op else { return Ok(()) };
         let offset = typed.unwrap_or(op.offset);
         if offset.length() < EPS {
-            return Err("Move the mouse away from the base point first".into());
+            return Err(t!("tool-move-away-from-base"));
         }
         let done = Done {
             entities: op.entities.clone(),
@@ -526,7 +528,7 @@ pub(crate) fn parse_offset(typed: &str, current: DVec3, base: DVec3) -> Result<D
     let t = typed.trim();
     let vector = |inner: &str| -> Result<DVec3, String> {
         let values = parse_lengths(inner).map_err(|e| e.to_string())?;
-        let [x, y, z] = values[..] else { return Err("Enter a vector as x,y,z".into()) };
+        let [x, y, z] = values[..] else { return Err(t!("tool-move-vector")) };
         Ok(DVec3::new(x.unwrap_or(0.0), y.unwrap_or(0.0), z.unwrap_or(0.0)))
     };
     if let Some(inner) = t.strip_prefix('[').and_then(|r| r.strip_suffix(']')) {
@@ -540,7 +542,7 @@ pub(crate) fn parse_offset(typed: &str, current: DVec3, base: DVec3) -> Result<D
     }
     let length = parse_length(t).map_err(|e| e.to_string())?;
     if current.length() < EPS {
-        return Err("Move the mouse to show the direction, then type the distance".into());
+        return Err(t!("tool-move-show-direction"));
     }
     Ok(current.normalize() * length)
 }

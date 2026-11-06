@@ -25,11 +25,11 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 12 | Parts and boards | 11 | Small drawing conveniences |
 | 13 | Modeling tools | 121 | SketchUp parity for general modeling |
 | 14 | Groups, components and tags | 63 | Organizing bigger projects |
-| 15 | UI | 110 | Comfort and polish |
+| 15 | UI | 105 | Comfort and polish |
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1419** | |
+| | **All** | **1414** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -350,19 +350,16 @@ circle or polygon's rim goes through a point passed over.
 ## 15. UI
 Done: View > Theme (Light, Dark, Follow System), remembered; the viewport's sky and overlays follow it.
 Done: translations (`crates/i18n`, Fluent, View > Language, `docs/TRANSLATING.md`) — all of
-`chrome.rs`: the menus, the toolbar tooltips, the tray's panel headings, the status bar, About and
-What's New (132 keys).
-1. [8] The rest of the strings into the catalog: what's *inside* the tray panels (Entity Info,
-   Materials, Tags, Outliner, Board, Joinery, Edge profile, Templates — their headings are done),
-   the Cut List window and its tabs, the Start page, the file and feedback dialogs, and `tools`'
-   status-bar lines. Mechanical but large; do it a window at a time, each its own commit, and let
-   `every_key_the_code_asks_for_exists` catch what's missed. A translation (#10) can land against
-   any part of it, since the gaps show in English.
-2. [5] Tool names and material/species names: whether to translate them at all is a judgement
-   per language (a SketchUp user hunting for "Push/Pull" may want the English, or may want
-   SketchUp's own translation of it). Ask on #10 before doing it.
-3. [3] Decimal commas in the Measurements box: `38,5` is how much of the world writes it, but a
+`ui-egui` and all of `tools`, 763 keys. Nothing a woodworker reads is hard coded any more.
+1. [5] Tool, material, species and template names: whether to translate them at all is a
+   judgement per language (a SketchUp user hunting for "Push/Pull" may want the English, or may
+   want SketchUp's own translation of it). They reach the catalog as placeables today, so the
+   English shows through wherever they appear. Ask on #10 before doing it.
+2. [3] Decimal commas in the Measurements box: `38,5` is how much of the world writes it, but a
    comma already means `x,y,z` there. Needs a decision in `doc::units`, not a translation.
+3. [3] The printable cut sheet and build sheets (`doc::cutsheet`, `doc::buildsheet`) are still
+   English: their headings and step wording live in `doc`, which has no catalog yet. The pages
+   open in a browser, so they are the most shareable thing WoodSketch makes.
 4. [2] Eraser: erase a face by itself (select it and press Delete now).
 5. [3] Standard views: Back, Left, Bottom; a Parallel Projection toggle.
 6. [3] Units: centimeters, decimal inches, feet and inches.

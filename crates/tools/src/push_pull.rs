@@ -4,6 +4,7 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
+use woodsketch_i18n::t;
 use woodsketch_doc::{Document, Entity, FaceId, Model, Owner};
 
 use crate::Overlay;
@@ -155,16 +156,16 @@ impl PushPullTool {
                 }
                 result
             }
-            _ => Err("Click a face, then type the distance".into()),
+            _ => Err(t!("tool-pushpull-click-then-type")),
         }
     }
 
-    pub fn status(&self) -> &'static str {
+    pub fn status(&self) -> String {
         match (self.op.is_some(), self.copy) {
-            (true, false) => "Move to set the distance, then click, or enter a value. Ctrl keeps the face.",
-            (true, true) => "Keeping the face: a new face and walls. Move to set the distance, then click, or enter a value.",
-            (false, false) => "Pick a face to push or pull. Ctrl keeps the face. Double-click a face to repeat the last distance.",
-            (false, true) => "Keeping the face (Ctrl): pick a face; a new face and walls go from it.",
+            (true, false) => t!("tool-pushpull-move"),
+            (true, true) => t!("tool-pushpull-keeping"),
+            (false, false) => t!("tool-pushpull-pick"),
+            (false, true) => t!("tool-pushpull-keeping-pick"),
         }
     }
 
@@ -179,10 +180,10 @@ impl PushPullTool {
     pub fn overlay(&self, model: &Model, overlay: &mut Overlay) {
         overlay.snap = self.snap;
         if self.copy {
-            overlay.cursor_note = Some("+");
+            overlay.cursor_note = Some("+".to_owned());
         }
         if self.op.as_ref().is_some_and(|op| op.on_standard) {
-            overlay.cursor_note = Some("Standard thickness");
+            overlay.cursor_note = Some(t!("tool-pushpull-standard-thickness"));
         }
         let face_id = self.op.as_ref().map(|op| op.face).or(self.hover);
         let Some(face) = face_id.and_then(|id| model.face(id)) else { return };
@@ -280,7 +281,7 @@ fn active_face(doc: &Document, screen: Screen<'_>, cursor: Vec2) -> Result<Optio
         None => Ok(None),
         Some((face, point)) => match view.owner(Entity::Face(face)) {
             Owner::Active => Ok(Some((face, point))),
-            _ => Err("That face is part of a group. Double-click the group to edit inside it, then push/pull.".into()),
+            _ => Err(t!("tool-pushpull-in-group")),
         },
     }
 }

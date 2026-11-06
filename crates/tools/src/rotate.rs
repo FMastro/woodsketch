@@ -13,6 +13,7 @@ use std::collections::BTreeSet;
 
 use glam::{DAffine3, DVec3, Vec2};
 use woodsketch_doc::{Document, EPS, Entity, Model, VertexId, rotation};
+use woodsketch_i18n::t;
 
 use crate::pick::{Screen, Snap, hit_face, snap, snap_feature};
 use crate::{Array, Axis, Overlay, Protractor, highlight_entity, parse_array, pick_resolved};
@@ -163,7 +164,7 @@ impl RotateTool {
         match op.stage {
             Stage::Start(start) => {
                 let Some(start) = start.filter(|s| (*s - op.center).length() > EPS) else {
-                    return Err("Pick a point away from the center".into());
+                    return Err(t!("tool-rotate-away-from-center"));
                 };
                 op.reach = (start - op.center).length();
                 op.stage = Stage::Rotate { from: (start - op.center).normalize(), angle: 0.0 };
@@ -193,11 +194,11 @@ impl RotateTool {
         let typed = typed.trim();
         if let Some(array) = parse_array(typed) {
             let Some(last) = self.last.take().filter(|l| l.model_version == doc.model_version()) else {
-                return Err("Rotate a copy first (tap Ctrl while rotating), then type 3x or /3".into());
+                return Err(t!("tool-rotate-copy-first"));
             };
             if last.copy.is_none() {
                 self.last = Some(last);
-                return Err("Arrays need a copy: tap Ctrl while rotating".into());
+                return Err(t!("tool-rotate-arrays-need-copy"));
             }
             return self.redo_last(doc, last, |done| done.copy = Some(array));
         }
@@ -207,7 +208,7 @@ impl RotateTool {
         if let Some(op) = &self.op {
             return match op.stage {
                 Stage::Rotate { angle, .. } => self.finish(doc, directed(angle)),
-                Stage::Start(_) => Err("Pick the starting direction, then type the angle".into()),
+                Stage::Start(_) => Err(t!("tool-rotate-pick-start-dir")),
             };
         }
         match self.last.take().filter(|l| l.model_version == doc.model_version()) {
@@ -215,26 +216,25 @@ impl RotateTool {
                 let angle = directed(last.angle);
                 self.redo_last(doc, last, |done| done.angle = angle)
             }
-            None => Err("Pick a center and a starting direction, then type the angle".into()),
+            None => Err(t!("tool-rotate-pick-center-dir")),
         }
     }
 
     pub fn status(&self) -> String {
         if self.guides {
             return match self.op.as_ref().map(|op| &op.stage) {
-                None => "Pick the protractor's center (a guide line goes through it). Arrow keys lock it (Right red, Left green, Up blue).".into(),
-                Some(Stage::Start(_)) => "Pick a point for the starting direction.".into(),
-                Some(Stage::Rotate { .. }) => "Pick the guide's direction, or enter an angle.".into(),
+                None => t!("tool-protractor-center"),
+                Some(Stage::Start(_)) => t!("tool-protractor-start"),
+                Some(Stage::Rotate { .. }) => t!("tool-protractor-direction"),
             };
         }
-        let copy = if self.copy { " (copying)" } else { "" };
         match self.op.as_ref().map(|op| &op.stage) {
-            None => format!(
-                "Pick the center of rotation{copy}. Arrow keys lock the protractor (Right red, Left green, \
-                 Up blue); tap Ctrl to copy."
-            ),
-            Some(Stage::Start(_)) => format!("Pick a point to start the rotation{copy}."),
-            Some(Stage::Rotate { .. }) => format!("Pick the end of the rotation, or enter an angle{copy}."),
+            None if self.copy => t!("tool-rotate-center-copying"),
+            None => t!("tool-rotate-center"),
+            Some(Stage::Start(_)) if self.copy => t!("tool-rotate-start-copying"),
+            Some(Stage::Start(_)) => t!("tool-rotate-start"),
+            Some(Stage::Rotate { .. }) if self.copy => t!("tool-rotate-end-copying"),
+            Some(Stage::Rotate { .. }) => t!("tool-rotate-end"),
         }
     }
 
@@ -308,7 +308,7 @@ impl RotateTool {
                     .chain(model.face_edges(id).into_iter().map(Entity::Edge))
                     .collect(),
                 Some(entity) => vec![entity],
-                None => return Err("Select something to rotate, or start on it".into()),
+                None => return Err(t!("tool-rotate-select")),
             }
         } else {
             doc.selection().iter().collect()
@@ -336,7 +336,7 @@ impl RotateTool {
             return Ok(());
         }
         if angle.abs() < 1e-9 {
-            return Err("Turn away from the starting direction first".into());
+            return Err(t!("tool-rotate-turn-away"));
         }
         let done = Done {
             entities: op.entities.clone(),
@@ -447,7 +447,7 @@ fn parse_degrees(typed: &str) -> Result<f64, String> {
     let number = typed.trim().trim_end_matches('°').trim_end_matches("deg").trim();
     match number.parse::<f64>() {
         Ok(d) if d.is_finite() => Ok(d),
-        _ => Err(format!("Invalid angle: \"{}\"", typed.trim())),
+        _ => Err(t!("tool-rotate-invalid-angle", "typed" => typed.trim())),
     }
 }
 

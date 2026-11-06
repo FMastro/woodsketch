@@ -748,6 +748,224 @@ app-autosave-failed = Couldn't autosave: { $error }
 cutlist-sheet-title = Cut list
 cutlist-build-sheets-title = Build sheets
 
+## The status bar's left-hand side: what the tool in your hand is waiting for.
+##
+## These are read while working, so they are terse on purpose, and they name keys (Ctrl, Esc,
+## W A S D) that are the same on every keyboard. Keep the key, translate around it.
+
+status-pick-reference = Click the part's reference face (a wide face), edge (a long edge) or end. Esc stops.
+status-select = Select objects. Ctrl adds, Shift toggles, Ctrl+Shift removes. Drag right for window, left for crossing selection.
+status-orbit = Drag to orbit.
+status-pan = Drag to pan.
+status-zoom = Drag up to zoom in, down to zoom out.
+status-walk = Walking: move the mouse to look; W A S D or the arrows walk (Shift: faster), E and Q go up and down, F flies, the wheel sets the speed; type an eye height. Walls don't stop you; the floor holds you up. Esc stops.
+
+# What the Measurements box at the bottom right is asking for.
+measure-dimensions = Dimensions
+measure-angle = Angle
+measure-length = Length
+measure-radius = Radius
+measure-bulge = Bulge
+measure-scale = Scale
+measure-distance = Distance
+measure-text = Text
+measure-eye-height = Eye height
+measure-measurements = Measurements
+
+# Inference: which axis the cursor has lined up with. The colors are the drawing's own -- red is
+# X, green is Y, blue is Z, as in SketchUp -- so they are names here, not just colors.
+infer-on-red = On Red Axis
+infer-on-green = On Green Axis
+infer-on-blue = On Blue Axis
+infer-parallel = Parallel to Edge
+infer-perpendicular = Perpendicular to Edge
+
+tools-part-gone = That part is gone.
+tools-click-part = Click on the part itself.
+tools-click-part-reference = Click on the part itself to pick its reference face or edge.
+tools-opened-group = Opened { $name } to work on it. Esc or click outside closes it.
+tools-select-to-group = Select something to make a { $noun }.
+tools-noun-group = group
+tools-noun-component = component
+tools-no-guides = There are no guides to delete.
+tools-select-to-explode = Select a group or component to explode.
+tools-select-to-copy = Select something to copy
+tools-nothing-to-paste = Nothing to paste: copy something first
+
+## What each tool says while you use it, and what it says when it can't do what was asked.
+##
+## `[x,y,z]`, `3x`, `/3`, `24s` and `5r` are typed into the Measurements box and are the same in
+## every language: keep them exactly, and translate the words around them.
+
+# Snapping: what the point under the cursor is.
+snap-endpoint = Endpoint
+snap-origin = Origin
+snap-guide-point = Guide Point
+snap-intersection = Intersection
+snap-midpoint = Midpoint
+snap-on-edge = On Edge
+snap-on-guide = On Guide
+snap-on-face = On Face
+
+# Arc (two points and a bulge)
+tool-arc-start = Select start point (or type [x,y,z]). Sides: { $sides } (type 24s to change).
+tool-arc-end = Select end point or enter the chord length.
+tool-arc-bulge = Select bulge, or enter it (5r for a radius).
+tool-arc-click-start-end = Click the arc's start, then its end
+tool-arc-radius-min = The radius must be at least half the chord ({ $half })
+tool-arc-end-away = Pick an end point away from the start
+
+# Center arc, and the three-point arc
+tool-arc-center = Select the center. Sides: { $sides } (type 24s to change). Arrow keys lay it across an axis.
+tool-arc-where-starts = Select where the arc starts, or type the radius.
+tool-arc-turn-and-click = Turn and click where it ends, or type the angle.
+tool-arc-start-away = Pick a start point away from the center
+tool-arc-click-center-first = Click the center first
+tool-arc-turn-away = Turn away from the start to sweep the arc
+tool-arc-three-first = Select the arc's start. Sides: { $sides } (type 24s to change).
+tool-arc-three-second = Select a point the arc passes through.
+tool-arc-three-third = Select the arc's end.
+tool-arc-second-away = Pick a second point away from the first
+tool-arc-in-a-line = The three points are in a line: pick an end off it
+tool-arc-three-points = Click three points: the start, one on the arc, the end. Type 24s for 24 sides.
+
+# Circle and Polygon
+tool-circle-sides = Sides must be a whole number from 3 to 999, like 24s
+tool-circle-center-then-radius = Click the center, then type the radius
+tool-circle-corner = Select a corner of the circle or enter its radius. Sides: { $sides } (type 8s to change).
+tool-polygon-corner = Select a corner of the polygon or enter its radius. Sides: { $sides } (type 8s to change).
+tool-circle-center = Select center point (or type [x,y,z]). Sides: { $sides } (type 32s to change). Arrow keys face it along an axis.
+tool-polygon-center-to-corner = Select center point (or type [x,y,z]). Sides: { $sides } (type 8s to change). Arrow keys face it along an axis. Radius to a corner (tap Ctrl: to a side).
+tool-polygon-center-to-side = Select center point (or type [x,y,z]). Sides: { $sides } (type 8s to change). Arrow keys face it along an axis. Radius to a side's middle (tap Ctrl: to a corner).
+tool-circle-through-point = Through point
+tool-circle-move-away = Move away from the center, or type the radius
+tool-circle-radius-positive = Radius must be greater than zero
+
+# Eraser, Line, Offset, Paint Bucket
+tool-eraser-status = Click or drag over edges, guides or groups to erase them.
+tool-eraser-click = Click an edge, guide, group or component to erase it
+tool-line-start = Select start point, or type [x,y,z].
+tool-line-end = Select end point or enter value. Hold Shift or press an arrow key to lock a direction; Esc ends the line.
+tool-line-length-positive = Length must be greater than zero
+tool-line-click-start = Click the start point (or type [x,y,z]), then type the length
+tool-offset-pick = Click a face to offset its outline (or select a face first).
+tool-offset-move = Move in or out and click, or enter the offset distance.
+tool-offset-click-face = Click a face to offset its outline
+tool-offset-click-then-type = Click a face, then type the offset
+tool-offset-move-first = Move the mouse in or out of the face first
+tool-paint-status = Click a board to paint all of it with the material picked in the Materials panel. Ctrl-click: one face; Alt-click: sample.
+tool-paint-click = Click a group, component or face to paint it.
+
+# Push/Pull
+tool-pushpull-pick = Pick a face to push or pull. Ctrl keeps the face. Double-click a face to repeat the last distance.
+tool-pushpull-keeping-pick = Keeping the face (Ctrl): pick a face; a new face and walls go from it.
+tool-pushpull-move = Move to set the distance, then click, or enter a value. Ctrl keeps the face.
+tool-pushpull-keeping = Keeping the face: a new face and walls. Move to set the distance, then click, or enter a value.
+tool-pushpull-click-then-type = Click a face, then type the distance
+tool-pushpull-standard-thickness = Standard thickness
+tool-pushpull-in-group = That face is part of a group. Double-click the group to edit inside it, then push/pull.
+
+# Rectangle, and the rotated rectangle
+tool-rect-first = Select first corner, or type [x,y,z].
+tool-rect-opposite = Select opposite corner or enter value.
+tool-rect-square = Square
+tool-rect-golden = Golden section
+tool-rect-enter-wh = Enter width and height, like 1.5",3.5"
+tool-rect-dims-positive = Dimensions must be greater than zero
+tool-rect-click-first = Click the first corner, then type the size
+tool-rotrect-first = Select the first corner.
+tool-rotrect-side = Select the second corner (the first side), or type its length.
+tool-rotrect-across = Move across and click, or type the other side's length.
+tool-rotrect-second-away = Pick the second corner away from the first
+tool-rotrect-click-first = Click the first corner
+tool-rotrect-move-across = Move across the first side to give the rectangle its width
+
+# Scale
+tool-scale-pick-grip = Click a grip: corners scale evenly, edges two ways, faces one way.
+tool-scale-move-center = Move to scale, or type a factor (2, 0.5) or a size (36"). About the center (tap Ctrl to anchor the opposite side). Hold Shift to switch even and stretched.
+tool-scale-move-opposite = Move to scale, or type a factor (2, 0.5) or a size (36"). Tap Ctrl to scale about the center. Hold Shift to switch even and stretched.
+tool-scale-click-grip = Click a scale grip, then type the scale
+tool-scale-hover-grips = Click one of the scale grips (hover something to see them)
+tool-scale-positive = Scale must be greater than zero (mirroring isn't supported yet)
+tool-scale-one-or-n = Enter one value, or { $count } separated by commas
+
+# Tape Measure
+tape-note-guide-line = + Guide Line
+tape-note-guide-point = + Guide Point
+tape-note-measure = Measure
+tool-tape-guide-lines = Create Guide Lines: click an edge to offset a guide from it, or a point. Tap Ctrl to change mode.
+tool-tape-guide-points = Create Guide Points: click where to measure from. Tap Ctrl to change mode.
+tool-tape-measure-mode = Measure: click where to measure from, or hover an edge. Type a length after measuring to resize the model. Tap Ctrl to change mode.
+tool-tape-move-away = Move away from the edge; click or type the guide's offset.
+tool-tape-click-to = Click the point to measure to.
+tool-tape-click-to-or-type = Click the point to measure to, or type the distance.
+tool-tape-show-direction = Move the mouse to show the direction, then type the distance
+tool-tape-measure-first = Measure a distance, then type the length it should be
+tool-tape-distance-positive = Distance must be greater than zero
+tool-tape-click-from = Click where to measure from, then type the distance
+
+# Dimensions and text notes
+tool-dim-first = Pick the first point to measure from, or click an edge to dimension it.
+tool-dim-second = Pick the second point.
+tool-dim-place = Move out to place the dimension, then click, or type how far out.
+tool-dim-second-away = Pick a second point away from the first
+tool-dim-two-points = Pick two points, then type how far out the dimension goes
+tool-note-pick-point = Pick the point the note is about.
+tool-note-where-words = Click where the words go (the same spot: no leader line).
+tool-note-type-words = Type the note's words and press Enter, or pick a point for another note.
+tool-note-place-first = Place a note (click a point, then where the words go), then type its words
+
+# Move. The copying ones are whole sentences rather than a sentence with "(copying)" dropped
+# into it, because where that note belongs is a question about the language.
+tool-move-base = Pick a base point to move (or type [x,y,z]). Tap Ctrl to copy; type 3x or /3 after a copy for an array.
+tool-move-base-copying = Pick a base point to move (copying) (or type [x,y,z]). Tap Ctrl to copy; type 3x or /3 after a copy for an array.
+tool-move-destination = Pick the destination, or enter a distance. Arrow keys lock an axis; tap Ctrl to copy.
+tool-move-destination-copying = Pick the destination, or enter a distance (copying). Arrow keys lock an axis; tap Ctrl to copy.
+tool-move-pasting = Click to put down what was pasted (it snaps to points), or type a distance. Esc takes it out.
+tool-move-copy-first = Copy something first (tap Ctrl while moving), then type 3x or /3
+tool-move-arrays-need-copy = Arrays need a copy: tap Ctrl while moving
+tool-move-click-base = Click a base point, then type the distance
+tool-move-select = Select something to move, or start on it
+tool-move-away-from-base = Move the mouse away from the base point first
+tool-move-vector = Enter a vector as x,y,z
+tool-move-show-direction = Move the mouse to show the direction, then type the distance
+
+# Rotate, and the Protractor
+tool-rotate-center = Pick the center of rotation. Arrow keys lock the protractor (Right red, Left green, Up blue); tap Ctrl to copy.
+tool-rotate-center-copying = Pick the center of rotation (copying). Arrow keys lock the protractor (Right red, Left green, Up blue); tap Ctrl to copy.
+tool-rotate-start = Pick a point to start the rotation.
+tool-rotate-start-copying = Pick a point to start the rotation (copying).
+tool-rotate-end = Pick the end of the rotation, or enter an angle.
+tool-rotate-end-copying = Pick the end of the rotation, or enter an angle (copying).
+tool-protractor-center = Pick the protractor's center (a guide line goes through it). Arrow keys lock it (Right red, Left green, Up blue).
+tool-protractor-start = Pick a point for the starting direction.
+tool-protractor-direction = Pick the guide's direction, or enter an angle.
+tool-rotate-away-from-center = Pick a point away from the center
+tool-rotate-copy-first = Rotate a copy first (tap Ctrl while rotating), then type 3x or /3
+tool-rotate-arrays-need-copy = Arrays need a copy: tap Ctrl while rotating
+tool-rotate-pick-start-dir = Pick the starting direction, then type the angle
+tool-rotate-pick-center-dir = Pick a center and a starting direction, then type the angle
+tool-rotate-select = Select something to rotate, or start on it
+tool-rotate-turn-away = Turn away from the starting direction first
+tool-rotate-invalid-angle = Invalid angle: "{ $typed }"
+
+# The Board tool. $stock is the material and size picked in the Board panel ("Pine Lumber 2x4").
+tool-board-no-material = Board: add a wood material (Materials panel, +) to draw boards from its stock.
+tool-board-lumber-start = { $stock }: click where the board starts. Type 2x4x96, or 3,6 1/2 for a custom size. Ctrl stands it on edge.
+tool-board-sheet-start = { $stock }: click a corner of the board.
+tool-board-lumber-end = Click where it ends, or type the length. Arrows lock an axis. W mirrors the board.
+tool-board-sheet-end = Click the opposite corner, or type length,width. W mirrors the board.
+tool-board-add-material = Add a wood material first (Materials panel, +), then pick its stock in the Board panel.
+tool-board-length-first = Pick a length first: move away from the start.
+tool-board-no-size = That board has no size.
+tool-board-pick-stock = Pick stock in the Board panel first.
+tool-board-click-start = Click where the board starts, then type its length (or type 2x4x96).
+tool-board-length-positive = The length must be greater than zero.
+tool-board-show-direction = Move the mouse the way the board should run, then type its length.
+tool-board-length-width = Type length and width, like 30,11 1/4
+tool-board-no-thickness = That size has no thickness or width.
+tool-board-pick-sheet = Pick a sheet or solid-wood material in the Board panel first.
+
 ## The viewport: what is drawn over the drawing, and the right-click menu
 
 viewport-editing = Editing  { $path }    Esc or click outside to close

@@ -2,6 +2,7 @@
 
 use glam::{DAffine3, DVec3, Vec2};
 use woodsketch_doc::{EdgeId, Entity, FaceId, Guide, GuideId, Model, VertexId};
+use woodsketch_i18n::t;
 use woodsketch_view::OrbitCamera;
 
 use crate::Axis;
@@ -165,16 +166,16 @@ pub enum SnapKind {
 
 impl SnapKind {
     /// SketchUp-style inference tooltip.
-    pub fn label(self) -> Option<&'static str> {
+    pub fn label(self) -> Option<String> {
         match self {
-            Self::Endpoint => Some("Endpoint"),
-            Self::Origin => Some("Origin"),
-            Self::GuidePoint => Some("Guide Point"),
-            Self::Intersection => Some("Intersection"),
-            Self::Midpoint => Some("Midpoint"),
-            Self::OnEdge => Some("On Edge"),
-            Self::OnGuide => Some("On Guide"),
-            Self::OnFace => Some("On Face"),
+            Self::Endpoint => Some(t!("snap-endpoint")),
+            Self::Origin => Some(t!("snap-origin")),
+            Self::GuidePoint => Some(t!("snap-guide-point")),
+            Self::Intersection => Some(t!("snap-intersection")),
+            Self::Midpoint => Some(t!("snap-midpoint")),
+            Self::OnEdge => Some(t!("snap-on-edge")),
+            Self::OnGuide => Some(t!("snap-on-guide")),
+            Self::OnFace => Some(t!("snap-on-face")),
             Self::OnPlane | Self::OnGround => None,
         }
     }

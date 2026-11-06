@@ -7,6 +7,7 @@ use std::collections::BTreeSet;
 
 use glam::Vec2;
 use woodsketch_doc::{Document, Entity};
+use woodsketch_i18n::t;
 
 use crate::pick::Screen;
 use crate::{Overlay, highlight_entity, pick_resolved};
@@ -45,7 +46,7 @@ impl EraserTool {
                 self.hover = None;
                 Ok(())
             }
-            None => Err("Click an edge, guide, group or component to erase it".into()),
+            None => Err(t!("tool-eraser-click")),
         }
     }
 
@@ -65,8 +66,8 @@ impl EraserTool {
         self.hover = None;
     }
 
-    pub fn status(&self) -> &'static str {
-        "Click or drag over edges, guides or groups to erase them."
+    pub fn status(&self) -> String {
+        t!("tool-eraser-status")
     }
 
     pub fn overlay(&self, doc: &Document, overlay: &mut Overlay) {

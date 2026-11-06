@@ -23,6 +23,7 @@ mod tape;
 
 use glam::{DAffine3, DVec3, Vec2};
 use woodsketch_doc::{Document, units};
+use woodsketch_i18n::t;
 use woodsketch_view::OrbitCamera;
 
 pub use pick::{Snap, SnapKind};
@@ -224,7 +225,8 @@ pub struct Overlay {
     /// The inference point under the cursor.
     pub snap: Option<Snap>,
     /// A short note shown beside the mouse pointer, like SketchUp's "+" on the Tape Measure.
-    pub cursor_note: Option<&'static str>,
+    /// Owned, because what it says comes from the catalog rather than from a literal.
+    pub cursor_note: Option<String>,
     /// "From Point": a dotted line from the remembered point to where the cursor lines up with
     /// it, in the axis color.
     pub alignment: Option<(DVec3, DVec3, Axis)>,
@@ -265,11 +267,11 @@ impl Axis {
     }
 
     /// SketchUp-style inference tooltip.
-    pub fn label(self) -> &'static str {
+    pub fn label(self) -> String {
         match self {
-            Self::X => "On Red Axis",
-            Self::Y => "On Green Axis",
-            Self::Z => "On Blue Axis",
+            Self::X => t!("infer-on-red"),
+            Self::Y => t!("infer-on-green"),
+            Self::Z => t!("infer-on-blue"),
         }
     }
 }
@@ -487,16 +489,16 @@ impl Default for Tools {
 }
 
 /// The reference face or edge of `part` from a click on it: the side of it under the cursor.
-fn pick_reference(doc: &mut Document, screen: Screen<'_>, part: woodsketch_doc::InstanceId, pos: Vec2) -> Result<&'static str, &'static str> {
-    let instance = *doc.container().instance(part).ok_or("That part is gone.")?;
-    let model = &doc.scene().definition(instance.definition).ok_or("That part is gone.")?.container.model;
+fn pick_reference(doc: &mut Document, screen: Screen<'_>, part: woodsketch_doc::InstanceId, pos: Vec2) -> Result<String, String> {
+    let instance = *doc.container().instance(part).ok_or_else(|| t!("tools-part-gone"))?;
+    let model = &doc.scene().definition(instance.definition).ok_or_else(|| t!("tools-part-gone"))?.container.model;
     // The click as a ray in the part's own coordinates.
     let ray = screen.ray(pos);
     let to_part = instance.transform.inverse();
     let local = pick::Ray { origin: to_part.transform_point3(ray.origin), dir: to_part.transform_vector3(ray.dir).normalize() };
-    let (face, _) = pick::hit_face(model, &local).ok_or("Click on the part itself to pick its reference face or edge.")?;
-    let normal = model.face(face).ok_or("Click on the part itself.")?.normal;
-    doc.set_reference(part, normal)
+    let (face, _) = pick::hit_face(model, &local).ok_or_else(|| t!("tools-click-part-reference"))?;
+    let normal = model.face(face).ok_or_else(|| t!("tools-click-part"))?.normal;
+    doc.set_reference(part, normal).map(str::to_owned).map_err(str::to_owned)
 }
 
 impl Tools {
@@ -628,7 +630,7 @@ impl Tools {
         {
             self.picking_reference = None;
             let said = pick_reference(doc, Screen::in_context(camera, size, doc.context_transform()), part, pos);
-            self.message = Some(said.unwrap_or_else(|e| e).to_owned());
+            self.message = Some(said.unwrap_or_else(|e| e));
             return;
         }
         if let PointerEvent::Click { pos, .. } | PointerEvent::DragStart { origin: pos } = event {
@@ -908,7 +910,7 @@ impl Tools {
             if !doc.enter(instance) {
                 return;
             }
-            self.message = Some(format!("Opened {name} to work on it. Esc or click outside closes it."));
+            self.message = Some(t!("tools-opened-group", "name" => name.as_str()));
         }
     }
 
@@ -1090,11 +1092,11 @@ impl Tools {
     pub fn make_group(&mut self, doc: &mut Document, kind: woodsketch_doc::DefinitionKind) {
         self.cancel();
         let noun = match kind {
-            woodsketch_doc::DefinitionKind::Group => "group",
-            woodsketch_doc::DefinitionKind::Component => "component",
+            woodsketch_doc::DefinitionKind::Group => t!("tools-noun-group"),
+            woodsketch_doc::DefinitionKind::Component => t!("tools-noun-component"),
         };
         if doc.group_selection(kind).is_none() {
-            self.message = Some(format!("Select something to make a {noun}."));
+            self.message = Some(t!("tools-select-to-group", "noun" => noun));
         }
     }
 
@@ -1102,7 +1104,7 @@ impl Tools {
     pub fn delete_guides(&mut self, doc: &mut Document) {
         self.cancel();
         if doc.model().guides().next().is_none() {
-            self.message = Some("There are no guides to delete.".into());
+            self.message = Some(t!("tools-no-guides"));
             return;
         }
         doc.edit(|m| m.delete_guides());
@@ -1112,70 +1114,68 @@ impl Tools {
     pub fn explode(&mut self, doc: &mut Document) {
         self.cancel();
         if !doc.explode_selection() {
-            self.message = Some("Select a group or component to explode.".into());
+            self.message = Some(t!("tools-select-to-explode"));
         }
     }
 
     pub fn status(&self) -> String {
         if self.picking_reference.is_some() && self.message.is_none() {
-            return "Click the part's reference face (a wide face), edge (a long edge) or end. Esc stops.".into();
+            return t!("status-pick-reference");
         }
         if let Some(message) = &self.message {
             return message.clone();
         }
         match self.active {
-            ToolId::Select => "Select objects. Ctrl adds, Shift toggles, Ctrl+Shift removes. \
-                               Drag right for window, left for crossing selection."
-                .into(),
-            ToolId::Line => self.line.status().into(),
+            ToolId::Select => t!("status-select"),
+            ToolId::Line => self.line.status(),
             ToolId::TapeMeasure => self.tape.status(),
-            ToolId::Offset => self.offset.status().into(),
+            ToolId::Offset => self.offset.status(),
             ToolId::Arc => self.arc.status(),
             ToolId::Circle => self.circle.status(),
             ToolId::Polygon => self.polygon.status(),
             ToolId::CenterArc => self.center_arc.status(),
             ToolId::ThreePointArc => self.three_point_arc.status(),
             ToolId::Pie => self.pie.status(),
-            ToolId::RotatedRectangle => self.rotated_rectangle.status().into(),
+            ToolId::RotatedRectangle => self.rotated_rectangle.status(),
             ToolId::Board => self.board.status(),
             ToolId::Scale => self.scale.status(),
-            ToolId::Eraser => self.eraser.status().into(),
-            ToolId::Rectangle => self.rectangle.status().into(),
-            ToolId::PushPull => self.push_pull.status().into(),
+            ToolId::Eraser => self.eraser.status(),
+            ToolId::Rectangle => self.rectangle.status(),
+            ToolId::PushPull => self.push_pull.status(),
             ToolId::Move if self.rotate.is_busy() => self.rotate.status(),
             ToolId::Move => self.move_tool.status(),
             ToolId::Rotate => self.rotate.status(),
             ToolId::Protractor => self.protractor.status(),
-            ToolId::Dimension => self.dimension.status().into(),
-            ToolId::Text => self.text.status().into(),
-            ToolId::PaintBucket => self.paint.status().into(),
-            ToolId::Orbit => "Drag to orbit.".into(),
-            ToolId::Pan => "Drag to pan.".into(),
-            ToolId::Zoom => "Drag up to zoom in, down to zoom out.".into(),
-            ToolId::Walk => "Walking: move the mouse to look; W A S D or the arrows walk (Shift: faster), E and Q go up and down, F flies, the wheel sets the speed; type an eye height. Walls don't stop you; the floor holds you up. Esc stops.".into(),
+            ToolId::Dimension => self.dimension.status(),
+            ToolId::Text => self.text.status(),
+            ToolId::PaintBucket => self.paint.status(),
+            ToolId::Orbit => t!("status-orbit"),
+            ToolId::Pan => t!("status-pan"),
+            ToolId::Zoom => t!("status-zoom"),
+            ToolId::Walk => t!("status-walk"),
         }
     }
 
-    pub fn measurement_label(&self) -> &'static str {
+    pub fn measurement_label(&self) -> String {
         match self.active {
-            ToolId::Rectangle => "Dimensions",
-            ToolId::Move if self.grip_active() => "Angle",
-            ToolId::Line | ToolId::TapeMeasure => "Length",
+            ToolId::Rectangle => t!("measure-dimensions"),
+            ToolId::Move if self.grip_active() => t!("measure-angle"),
+            ToolId::Line | ToolId::TapeMeasure => t!("measure-length"),
             ToolId::Arc => self.arc.measurement_label(),
-            ToolId::Circle => "Radius",
-            ToolId::Polygon => "Radius",
+            ToolId::Circle => t!("measure-radius"),
+            ToolId::Polygon => t!("measure-radius"),
             ToolId::CenterArc => self.center_arc.measurement_label(),
             ToolId::Pie => self.pie.measurement_label(),
-            ToolId::RotatedRectangle => "Length",
+            ToolId::RotatedRectangle => t!("measure-length"),
             ToolId::Board => self.board.measurement_label(),
-            ToolId::Scale => "Scale",
-            ToolId::PushPull | ToolId::Move | ToolId::Offset => "Distance",
-            ToolId::Rotate => "Angle",
-            ToolId::Protractor => "Angle",
-            ToolId::Dimension => "Length",
-            ToolId::Text => "Text",
-            ToolId::Walk => "Eye height",
-            _ => "Measurements",
+            ToolId::Scale => t!("measure-scale"),
+            ToolId::PushPull | ToolId::Move | ToolId::Offset => t!("measure-distance"),
+            ToolId::Rotate => t!("measure-angle"),
+            ToolId::Protractor => t!("measure-angle"),
+            ToolId::Dimension => t!("measure-length"),
+            ToolId::Text => t!("measure-text"),
+            ToolId::Walk => t!("measure-eye-height"),
+            _ => t!("measure-measurements"),
         }
     }
 
@@ -1266,7 +1266,7 @@ impl Tools {
     pub fn copy(&mut self, doc: &Document) {
         match doc.copy_selection() {
             Some(clip) => self.clip = Some(clip),
-            None => self.message = Some("Select something to copy".into()),
+            None => self.message = Some(t!("tools-select-to-copy")),
         }
     }
 
@@ -1287,7 +1287,7 @@ impl Tools {
     /// (as in SketchUp).
     pub fn paste(&mut self, doc: &mut Document) {
         let Some(clip) = self.clip.clone() else {
-            self.message = Some("Nothing to paste: copy something first".into());
+            self.message = Some(t!("tools-nothing-to-paste"));
             return;
         };
         self.cancel();
@@ -1299,7 +1299,7 @@ impl Tools {
     /// Paste where it was copied from.
     pub fn paste_in_place(&mut self, doc: &mut Document) {
         let Some(clip) = self.clip.clone() else {
-            self.message = Some("Nothing to paste: copy something first".into());
+            self.message = Some(t!("tools-nothing-to-paste"));
             return;
         };
         self.cancel();

@@ -17,6 +17,7 @@ use glam::{DVec3, Vec2};
 use woodsketch_doc::board::{Board, Stock, TypedBoard, default_stock, parse_board, stock_options};
 use woodsketch_doc::units::{format_length, parse_length, parse_lengths};
 use woodsketch_doc::{Document, EPS, MaterialId};
+use woodsketch_i18n::t;
 
 use crate::infer::{self, Direction, Hints, Query, Target};
 use crate::pick::{Screen, Snap, snap};
@@ -162,7 +163,7 @@ impl BoardTool {
     pub fn click(&mut self, doc: &mut Document, screen: Screen<'_>, cursor: Vec2) -> Result<(), String> {
         self.ensure_stock(doc);
         if self.picked.is_none() {
-            return Err("Add a wood material first (Materials panel, +), then pick its stock in the Board panel.".into());
+            return Err(t!("tool-board-add-material"));
         }
         self.hover(doc, screen, cursor);
         match self.start {
@@ -191,10 +192,10 @@ impl BoardTool {
                 (DVec3::ZERO, (reach.dot(u), reach.dot(v)))
             }
         };
-        let board = self.board(start, dir, extents, picked.stock).ok_or("Pick a length first: move away from the start.")?;
+        let board = self.board(start, dir, extents, picked.stock).ok_or_else(|| t!("tool-board-length-first"))?;
         self.start = None;
         self.end = None;
-        doc.add_board(&board, Some(picked.material)).ok_or("That board has no size.")?;
+        doc.add_board(&board, Some(picked.material)).ok_or_else(|| t!("tool-board-no-size"))?;
         self.last = Some(Last {
             start,
             dir,
@@ -275,7 +276,7 @@ impl BoardTool {
         {
             return self.pick_matching(doc, Stock::Section { thickness, width });
         }
-        let stock = self.picked.as_ref().map(|p| p.stock).ok_or("Pick stock in the Board panel first.")?;
+        let stock = self.picked.as_ref().map(|p| p.stock).ok_or_else(|| t!("tool-board-pick-stock"))?;
         // The board being drawn, else the one just drawn (redrawn in place, one undo step).
         let (start, dir, extents, redo) = match (self.start, self.last.as_ref()) {
             (Some(start), _) => {
@@ -286,22 +287,22 @@ impl BoardTool {
             (None, Some(last)) if last.model_version == doc.model_version() && last.stock == stock => {
                 (last.start, last.dir, last.extents, true)
             }
-            _ => return Err("Click where the board starts, then type its length (or type 2x4x96).".into()),
+            _ => return Err(t!("tool-board-click-start")),
         };
         let reach = match stock {
             Stock::Section { .. } => {
                 let length = parse_length(typed).map_err(|e| e.to_string())?;
                 if length <= EPS {
-                    return Err("The length must be greater than zero.".into());
+                    return Err(t!("tool-board-length-positive"));
                 }
                 if dir.length() < 0.5 {
-                    return Err("Move the mouse the way the board should run, then type its length.".into());
+                    return Err(t!("tool-board-show-direction"));
                 }
                 dir * length
             }
             Stock::Thickness(_) => {
                 let values = parse_lengths(typed).map_err(|e| e.to_string())?;
-                let [a, b] = values[..] else { return Err("Type length and width, like 30,11 1/4".into()) };
+                let [a, b] = values[..] else { return Err(t!("tool-board-length-width")) };
                 // Each keeps the mouse's direction; the longer one is the length either way.
                 let signed = |typed: Option<f64>, current: f64| typed.map_or(current, |t| if current < 0.0 { -t } else { t });
                 let (u, v) = plane_axes(start.normal);
@@ -388,7 +389,7 @@ impl BoardTool {
                     None => {
                         let Stock::Section { thickness, width } = stock else { unreachable!() };
                         if thickness <= EPS || width <= EPS {
-                            return Err("That size has no thickness or width.".into());
+                            return Err(t!("tool-board-no-thickness"));
                         }
                         // Thinner side first, as sections are listed.
                         let (t, w) = (thickness.min(width), thickness.max(width));
@@ -402,7 +403,7 @@ impl BoardTool {
             Stock::Thickness(t) => {
                 let picked = self.picked.as_mut().filter(|p| matches!(p.stock, Stock::Thickness(_)));
                 let Some(picked) = picked else {
-                    return Err("Pick a sheet or solid-wood material in the Board panel first.".into());
+                    return Err(t!("tool-board-pick-sheet"));
                 };
                 picked.stock = stock;
                 picked.name = format!("{} (custom)", format_length(t));
@@ -413,20 +414,20 @@ impl BoardTool {
 
     pub fn status(&self) -> String {
         let Some(picked) = &self.picked else {
-            return "Board: add a wood material (Materials panel, +) to draw boards from its stock.".into();
+            return t!("tool-board-no-material");
         };
         match (self.start, picked.stock) {
             (None, Stock::Section { .. }) => {
-                format!("{}: click where the board starts. Type 2x4x96, or 3,6 1/2 for a custom size. Ctrl stands it on edge.", picked.name)
+                t!("tool-board-lumber-start", "stock" => picked.name.as_str())
             }
-            (None, Stock::Thickness(_)) => format!("{}: click a corner of the board.", picked.name),
-            (Some(_), Stock::Section { .. }) => "Click where it ends, or type the length. Arrows lock an axis. W mirrors the board.".into(),
-            (Some(_), Stock::Thickness(_)) => "Click the opposite corner, or type length,width. W mirrors the board.".into(),
+            (None, Stock::Thickness(_)) => t!("tool-board-sheet-start", "stock" => picked.name.as_str()),
+            (Some(_), Stock::Section { .. }) => t!("tool-board-lumber-end"),
+            (Some(_), Stock::Thickness(_)) => t!("tool-board-sheet-end"),
         }
     }
 
-    pub fn measurement_label(&self) -> &'static str {
-        if self.is_lumber() { "Length" } else { "Dimensions" }
+    pub fn measurement_label(&self) -> String {
+        if self.is_lumber() { t!("measure-length") } else { t!("measure-dimensions") }
     }
 
     pub fn measurement(&self) -> String {

@@ -7,6 +7,7 @@
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS, Entity, Guide};
+use woodsketch_i18n::t;
 
 use crate::Overlay;
 use crate::pick::{Screen, Snap, SnapKind, pick_entity, snap};
@@ -69,7 +70,7 @@ impl DimensionTool {
             }
             DimensionStage::Second { a, b } => {
                 let Some(b) = b.filter(|b| b.distance(a) > EPS) else {
-                    return Err("Pick a second point away from the first".into());
+                    return Err(t!("tool-dim-second-away"));
                 };
                 let offset = place_offset(screen, cursor, a, b).unwrap_or(DVec3::ZERO);
                 self.stage = DimensionStage::Place { a, b, offset };
@@ -82,7 +83,7 @@ impl DimensionTool {
     /// Typed while placing: how far out the dimension line goes (the way the mouse is).
     pub fn enter(&mut self, doc: &mut Document, typed: &str) -> Result<(), String> {
         let DimensionStage::Place { a, b, offset } = self.stage else {
-            return Err("Pick two points, then type how far out the dimension goes".into());
+            return Err(t!("tool-dim-two-points"));
         };
         let distance = parse_length(typed).map_err(|e| e.to_string())?;
         let out = if offset.length() > EPS { offset.normalize() } else { DVec3::Z };
@@ -95,11 +96,11 @@ impl DimensionTool {
         Ok(())
     }
 
-    pub fn status(&self) -> &'static str {
+    pub fn status(&self) -> String {
         match self.stage {
-            DimensionStage::First => "Pick the first point to measure from, or click an edge to dimension it.",
-            DimensionStage::Second { .. } => "Pick the second point.",
-            DimensionStage::Place { .. } => "Move out to place the dimension, then click, or type how far out.",
+            DimensionStage::First => t!("tool-dim-first"),
+            DimensionStage::Second { .. } => t!("tool-dim-second"),
+            DimensionStage::Place { .. } => t!("tool-dim-place"),
         }
     }
 
@@ -207,7 +208,7 @@ impl TextTool {
     /// Typed right after placing a note: its words, instead.
     pub fn enter(&mut self, doc: &mut Document, typed: &str) -> Result<(), String> {
         let Some(last) = self.last.take().filter(|l| l.model_version == doc.model_version()) else {
-            return Err("Place a note (click a point, then where the words go), then type its words".into());
+            return Err(t!("tool-note-place-first"));
         };
         doc.undo();
         doc.add_note(Guide::Text { at: last.at, offset: last.offset, text: typed.trim().to_owned() });
@@ -215,11 +216,11 @@ impl TextTool {
         Ok(())
     }
 
-    pub fn status(&self) -> &'static str {
+    pub fn status(&self) -> String {
         match (&self.at, &self.last) {
-            (Some(_), _) => "Click where the words go (the same spot: no leader line).",
-            (None, Some(_)) => "Type the note's words and press Enter, or pick a point for another note.",
-            (None, None) => "Pick the point the note is about.",
+            (Some(_), _) => t!("tool-note-where-words"),
+            (None, Some(_)) => t!("tool-note-type-words"),
+            (None, None) => t!("tool-note-pick-point"),
         }
     }
 

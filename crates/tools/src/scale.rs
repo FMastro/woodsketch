@@ -11,6 +11,7 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::parse_lengths;
+use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS, Entity, scaling};
 
 use crate::pick::{Screen, Snap, closest_on_line, snap_feature};
@@ -213,16 +214,16 @@ impl ScaleTool {
                 self.op = Some(Op { target: last.target, grip: last.grip, anchor: last.anchor, factors, dragging: false });
                 self.apply(doc, factors)
             }
-            _ => Err("Click a scale grip, then type the scale".into()),
+            _ => Err(t!("tool-scale-click-grip")),
         }
     }
 
     pub fn status(&self) -> String {
-        let center = if self.about_center { " About the center (tap Ctrl to anchor the opposite side)." } else { " Tap Ctrl to scale about the center." };
+
         if self.op.is_some() {
-            format!("Move to scale, or type a factor (2, 0.5) or a size (36\").{center} Hold Shift to switch even and stretched.")
+            if self.about_center { t!("tool-scale-move-center") } else { t!("tool-scale-move-opposite") }
         } else {
-            "Click a grip: corners scale evenly, edges two ways, faces one way.".into()
+            t!("tool-scale-pick-grip")
         }
     }
 
@@ -254,7 +255,7 @@ impl ScaleTool {
     fn start(&mut self, doc: &Document, screen: Screen<'_>, cursor: Vec2, dragging: bool) -> Result<(), String> {
         self.hover(doc, screen, cursor);
         let (Some(target), Some(grip)) = (self.target.clone(), self.hovered) else {
-            return Err("Click one of the scale grips (hover something to see them)".into());
+            return Err(t!("tool-scale-hover-grips"));
         };
         self.last = None;
         let anchor = anchor(&target, grip, self.about_center);
@@ -265,7 +266,7 @@ impl ScaleTool {
     fn apply(&mut self, doc: &mut Document, factors: DVec3) -> Result<(), String> {
         let Some(op) = &self.op else { return Ok(()) };
         if factors.min_element() < 1e-6 {
-            return Err("Scale must be greater than zero (mirroring isn't supported yet)".into());
+            return Err(t!("tool-scale-positive"));
         }
         let transform = scaling(op.target.axes, op.anchor, factors);
         doc.transform_entities(&op.target.entities, &[transform], false).map_err(|e| e.to_string())?;
@@ -305,7 +306,7 @@ fn typed_factors(typed: &str, target: &Target, active: &[usize]) -> Result<DVec3
     let per_axis: Vec<f64> = match values.len() {
         1 => vec![values[0]; active.len()],
         n if n == active.len() => values,
-        _ => return Err(format!("Enter one value, or {} separated by commas", active.len())),
+        _ => return Err(t!("tool-scale-one-or-n", "count" => active.len())),
     };
     let mut factors = DVec3::ONE;
     for (&i, &v) in active.iter().zip(&per_axis) {
