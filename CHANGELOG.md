@@ -3,6 +3,21 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.66
+
+- WoodSketch can be translated. Every word it says now comes from a language file rather than
+  being built into the program, so a translation is one text file and needs no programming —
+  `docs/TRANSLATING.md` says how, and the format is Fluent, which Mozilla's own software uses.
+  The window around the drawing is done — every menu, the toolbar's tooltips, the tray's panel
+  headings, the status bar, About and What's New. The panels' own contents follow.
+- Every language ships in the one program, and **View > Language** switches between them without
+  a restart. WoodSketch opens in whatever your computer is set to, if it knows that language, and
+  remembers what you choose instead. There are no separate downloads per language, and your
+  drawings are untouched either way.
+- A translation that only covers part of the app is worth having: anything it hasn't got shows in
+  English rather than blank. English is still the only language built in — the groundwork landed
+  first so the first translation has somewhere to land. Thanks to @jmartsdesign for asking (#10).
+
 ## 0.1.65
 
 - Walk goes where you point it. Walls, shut doors and worktops no longer stop you: a drawing is

@@ -25,11 +25,11 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 12 | Parts and boards | 11 | Small drawing conveniences |
 | 13 | Modeling tools | 121 | SketchUp parity for general modeling |
 | 14 | Groups, components and tags | 63 | Organizing bigger projects |
-| 15 | UI | 94 | Comfort and polish |
+| 15 | UI | 110 | Comfort and polish |
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1403** | |
+| | **All** | **1419** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -349,23 +349,37 @@ circle or polygon's rim goes through a point passed over.
 
 ## 15. UI
 Done: View > Theme (Light, Dark, Follow System), remembered; the viewport's sky and overlays follow it.
-1. [2] Eraser: erase a face by itself (select it and press Delete now).
-2. [3] Standard views: Back, Left, Bottom; a Parallel Projection toggle.
-3. [3] Units: centimeters, decimal inches, feet and inches.
-4. [2] Joint descriptions follow the units (they keep the ones they were made in). Units saved
+Done: translations (`crates/i18n`, Fluent, View > Language, `docs/TRANSLATING.md`) — all of
+`chrome.rs`: the menus, the toolbar tooltips, the tray's panel headings, the status bar, About and
+What's New (132 keys).
+1. [8] The rest of the strings into the catalog: what's *inside* the tray panels (Entity Info,
+   Materials, Tags, Outliner, Board, Joinery, Edge profile, Templates — their headings are done),
+   the Cut List window and its tabs, the Start page, the file and feedback dialogs, and `tools`'
+   status-bar lines. Mechanical but large; do it a window at a time, each its own commit, and let
+   `every_key_the_code_asks_for_exists` catch what's missed. A translation (#10) can land against
+   any part of it, since the gaps show in English.
+2. [5] Tool names and material/species names: whether to translate them at all is a judgement
+   per language (a SketchUp user hunting for "Push/Pull" may want the English, or may want
+   SketchUp's own translation of it). Ask on #10 before doing it.
+3. [3] Decimal commas in the Measurements box: `38,5` is how much of the world writes it, but a
+   comma already means `x,y,z` there. Needs a decision in `doc::units`, not a translation.
+4. [2] Eraser: erase a face by itself (select it and press Delete now).
+5. [3] Standard views: Back, Left, Bottom; a Parallel Projection toggle.
+6. [3] Units: centimeters, decimal inches, feet and inches.
+7. [2] Joint descriptions follow the units (they keep the ones they were made in). Units saved
    with the drawing is 7.1.
-5. [3] Sky and ground colors of your own (light and dark presets now).
-6. [5] Eraser: Shift hides, Ctrl softens/smooths.
-7. [5] Right-click menu: Hide, Entity Info, Intersect Faces and per-tool menus.
-8. [5] Per-tool cursors (the system arrow now).
-9. [5] File dialogs that don't block the window (rfd's synchronous API).
-10. [8] Tab moves between widgets (focus never stays on buttons now, so shortcuts and
+8. [3] Sky and ground colors of your own (light and dark presets now).
+9. [5] Eraser: Shift hides, Ctrl softens/smooths.
+10. [5] Right-click menu: Hide, Entity Info, Intersect Faces and per-tool menus.
+11. [5] Per-tool cursors (the system arrow now).
+12. [5] File dialogs that don't block the window (rfd's synchronous API).
+13. [8] Tab moves between widgets (focus never stays on buttons now, so shortcuts and
     Space/Enter aren't swallowed).
-11. [21] Components, Styles and Scenes panels.
-12. [21] Movable, customizable toolbars; tray panels reordered and undocked.
-13. [3] Updating reopens the drawing only if it has a file: a never-saved drawing (or a `.skp`
+14. [21] Components, Styles and Scenes panels.
+15. [21] Movable, customizable toolbars; tray panels reordered and undocked.
+16. [3] Updating reopens the drawing only if it has a file: a never-saved drawing (or a `.skp`
     opened and not saved) isn't brought back after the restart (carry it over through autosave).
-14. [8] Our own toolbar icons, drawn for WoodSketch with the second color only where it matters
+17. [8] Our own toolbar icons, drawn for WoodSketch with the second color only where it matters
     (Move's arrows, a line's end points, as SketchUp's are): Phosphor's are two-toned by
     filling the whole shape now. Panel buttons and menus are still one color.
 

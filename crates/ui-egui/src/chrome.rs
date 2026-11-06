@@ -9,6 +9,8 @@ use woodsketch_doc::export::ExportUnits;
 use woodsketch_tools::{ToolId, Tools};
 use woodsketch_view::StandardView;
 
+use woodsketch_i18n::t;
+
 use crate::{WoodSketchApp, files, icons, outliner, tags};
 
 const BUTTON_SIZE: f32 = 32.0;
@@ -33,12 +35,18 @@ const TOOL_SET: &[&[ToolId]] = &[
     &[ToolId::Orbit, ToolId::Pan, ToolId::Zoom, ToolId::Walk],
 ];
 
-const VIEWS: [(&str, StandardView); 4] = [
-    ("Iso", StandardView::Iso),
-    ("Top", StandardView::Top),
-    ("Front", StandardView::Front),
-    ("Right", StandardView::Right),
-];
+const VIEWS: [StandardView; 4] = [StandardView::Iso, StandardView::Top, StandardView::Front, StandardView::Right];
+
+/// What a standard view is called. A match rather than a string beside each view, so every key
+/// stays a literal where `t!` can see it and the test that checks the catalog can find it.
+fn view_name(view: StandardView) -> String {
+    match view {
+        StandardView::Iso => t!("camera-view-iso"),
+        StandardView::Top => t!("camera-view-top"),
+        StandardView::Front => t!("camera-view-front"),
+        StandardView::Right => t!("camera-view-right"),
+    }
+}
 
 /// A light theme in the spirit of SketchUp's Windows interface: pale grey chrome, white fields,
 /// a soft blue selection.
@@ -67,11 +75,40 @@ pub fn visuals(dark: bool) -> egui::Visuals {
 }
 
 /// View > Theme's choices: the preference, its name, and how it's saved.
-pub const THEMES: [(egui::ThemePreference, &str, &str); 3] = [
-    (egui::ThemePreference::Light, "Light", "light"),
-    (egui::ThemePreference::Dark, "Dark", "dark"),
-    (egui::ThemePreference::System, "Follow System", "system"),
+pub const THEMES: [(egui::ThemePreference, &str); 3] = [
+    (egui::ThemePreference::Light, "light"),
+    (egui::ThemePreference::Dark, "dark"),
+    (egui::ThemePreference::System, "system"),
 ];
+
+/// Which language the app speaks. Only shown once there is a choice: with English alone it would
+/// be a menu with one answer, and it appears by itself the day a translation is added. The choice
+/// is written to the settings by `WoodSketchApp::save`, which reads it back from here.
+fn language_menu(ui: &mut egui::Ui) {
+    if woodsketch_i18n::languages().count() < 2 {
+        return;
+    }
+    ui.menu_button(t!("view-language"), |ui| {
+        let current = woodsketch_i18n::language();
+        for (tag, endonym) in woodsketch_i18n::languages() {
+            // Each named in its own language, so a reader looking for theirs recognises it
+            // without being able to read the one it would otherwise be listed under.
+            if ui.radio(current == tag, endonym).on_hover_text(t!("view-language-hint")).clicked() {
+                woodsketch_i18n::set_language(tag);
+                ui.close();
+            }
+        }
+    });
+}
+
+/// What a theme is called on screen, by the same reasoning as `view_name`.
+fn theme_name(theme: egui::ThemePreference) -> String {
+    match theme {
+        egui::ThemePreference::Light => t!("view-theme-light"),
+        egui::ThemePreference::Dark => t!("view-theme-dark"),
+        egui::ThemePreference::System => t!("view-theme-system"),
+    }
+}
 
 impl WoodSketchApp {
     pub(crate) fn menu_bar(&mut self, ui: &mut egui::Ui) {
@@ -81,7 +118,7 @@ impl WoodSketchApp {
                 self.edit_menu(ui);
                 self.view_menu(ui);
                 self.camera_menu(ui);
-                tool_menu(ui, &mut self.tools, "Draw", &[ToolId::Line, ToolId::Arc, ToolId::CenterArc, ToolId::ThreePointArc, ToolId::Pie, ToolId::Rectangle, ToolId::RotatedRectangle, ToolId::Circle, ToolId::Polygon, ToolId::Board]);
+                tool_menu(ui, &mut self.tools, &t!("menu-draw"), &[ToolId::Line, ToolId::Arc, ToolId::CenterArc, ToolId::ThreePointArc, ToolId::Pie, ToolId::Rectangle, ToolId::RotatedRectangle, ToolId::Circle, ToolId::Polygon, ToolId::Board]);
                 self.tools_menu(ui);
                 self.window_menu(ui);
                 self.help_menu(ui);
@@ -91,22 +128,22 @@ impl WoodSketchApp {
 
     fn file_menu(&mut self, ui: &mut egui::Ui) {
         let ctx = ui.ctx().clone();
-        ui.menu_button("File", |ui| {
-            if ui.button("Start Page").on_hover_text("New, Open, Recent and the samples; Esc comes back here").clicked() {
+        ui.menu_button(t!("menu-file"), |ui| {
+            if ui.button(t!("file-start-page")).on_hover_text(t!("file-start-page-hint")).clicked() {
                 ui.close();
                 self.show_start_page();
             }
             ui.separator();
-            if ui.add(egui::Button::new("New").shortcut_text("Ctrl+N")).clicked() {
+            if ui.add(egui::Button::new(t!("file-new")).shortcut_text("Ctrl+N")).clicked() {
                 ui.close();
                 self.request(&ctx, files::Discard::New);
             }
-            if ui.add(egui::Button::new("Open...").shortcut_text("Ctrl+O")).clicked() {
+            if ui.add(egui::Button::new(t!("file-open")).shortcut_text("Ctrl+O")).clicked() {
                 ui.close();
                 self.request(&ctx, files::Discard::Open);
             }
             ui.add_enabled_ui(!self.recent.is_empty(), |ui| {
-                ui.menu_button("Open Recent", |ui| {
+                ui.menu_button(t!("file-open-recent"), |ui| {
                     let mut open = None;
                     for (i, path) in self.recent.iter().enumerate() {
                         let name = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
@@ -121,16 +158,16 @@ impl WoodSketchApp {
                 });
             });
             ui.separator();
-            if ui.add(egui::Button::new("Save").shortcut_text("Ctrl+S")).clicked() {
+            if ui.add(egui::Button::new(t!("file-save")).shortcut_text("Ctrl+S")).clicked() {
                 ui.close();
                 self.save(false);
             }
-            if ui.add(egui::Button::new("Save As...").shortcut_text("Ctrl+Shift+S")).clicked() {
+            if ui.add(egui::Button::new(t!("file-save-as")).shortcut_text("Ctrl+Shift+S")).clicked() {
                 ui.close();
                 self.save(true);
             }
             ui.separator();
-            if ui.button("Import SketchUp Model...").on_hover_text("Adds a .skp (SketchUp 2021 or later) to this drawing").clicked() {
+            if ui.button(t!("file-import-skp")).on_hover_text(t!("file-import-skp-hint")).clicked() {
                 ui.close();
                 if let Some(path) = files::import_dialog(self.files.path.as_deref())
                     && let Err(e) = self.import_sketchup(&path)
@@ -138,16 +175,18 @@ impl WoodSketchApp {
                     self.files.show_error(e);
                 }
             }
-            if ui.button("Print Build Sheets...").on_hover_text("A page per part with its steps, then how it all goes together, with exploded drawings; opens in your browser to print").clicked() {
+            if ui.button(t!("file-print-build-sheets")).on_hover_text(t!("file-print-build-sheets-hint")).clicked() {
                 ui.close();
                 self.cut_list.export_build_sheets(&self.doc);
             }
-            ui.menu_button("Export", |ui| {
+            ui.menu_button(t!("file-export"), |ui| {
+                // Built here rather than as a const, so each label is a `t!` the catalog test
+                // can see, and so the menu is in the language being spoken now.
                 let formats = [
-                    ("OBJ...", files::ExportFormat::Obj, "The 3D model with its material colors, for renderers and other modelers"),
-                    ("STL...", files::ExportFormat::Stl, "The 3D model, for 3D printing"),
-                    ("DXF for CNC...", files::ExportFormat::Dxf, "Each part flat, seen from its face: the outline, through holes, and pockets on layers by depth"),
-                    ("SVG for CNC...", files::ExportFormat::Svg, "Each part flat, seen from its face: the outline black, holes white, pockets grey"),
+                    (t!("file-export-obj"), files::ExportFormat::Obj, t!("file-export-obj-hint")),
+                    (t!("file-export-stl"), files::ExportFormat::Stl, t!("file-export-stl-hint")),
+                    (t!("file-export-dxf"), files::ExportFormat::Dxf, t!("file-export-dxf-hint")),
+                    (t!("file-export-svg"), files::ExportFormat::Svg, t!("file-export-svg-hint")),
                 ];
                 for (label, format, hint) in formats {
                     if format == files::ExportFormat::Dxf {
@@ -163,12 +202,12 @@ impl WoodSketchApp {
                     }
                 }
                 ui.separator();
-                ui.label("Units");
-                ui.radio_value(&mut self.export_units, ExportUnits::Inches, "Inches");
-                ui.radio_value(&mut self.export_units, ExportUnits::Millimeters, "Millimeters");
+                ui.label(t!("file-export-units"));
+                ui.radio_value(&mut self.export_units, ExportUnits::Inches, t!("file-export-inches"));
+                ui.radio_value(&mut self.export_units, ExportUnits::Millimeters, t!("file-export-millimeters"));
             });
             ui.separator();
-            if ui.button("Exit").clicked() {
+            if ui.button(t!("file-exit")).clicked() {
                 ui.close();
                 self.request(&ctx, files::Discard::Close);
             }
@@ -176,69 +215,69 @@ impl WoodSketchApp {
     }
 
     fn edit_menu(&mut self, ui: &mut egui::Ui) {
-        ui.menu_button("Edit", |ui| {
-            if ui.add(egui::Button::new("Undo").shortcut_text("Ctrl+Z")).clicked() {
+        ui.menu_button(t!("menu-edit"), |ui| {
+            if ui.add(egui::Button::new(t!("edit-undo")).shortcut_text("Ctrl+Z")).clicked() {
                 ui.close();
                 self.undo();
             }
-            if ui.add(egui::Button::new("Redo").shortcut_text("Ctrl+Y")).clicked() {
+            if ui.add(egui::Button::new(t!("edit-redo")).shortcut_text("Ctrl+Y")).clicked() {
                 ui.close();
                 self.redo();
             }
             ui.separator();
             let selected = !self.doc.selection().is_empty();
-            if ui.add_enabled(selected, egui::Button::new("Cut").shortcut_text("Ctrl+X")).clicked() {
+            if ui.add_enabled(selected, egui::Button::new(t!("edit-cut")).shortcut_text("Ctrl+X")).clicked() {
                 ui.close();
                 self.tools.cut(&mut self.doc);
                 crate::keys::note_copy(ui.ctx(), &self.tools);
             }
-            if ui.add_enabled(selected, egui::Button::new("Copy").shortcut_text("Ctrl+C")).clicked() {
+            if ui.add_enabled(selected, egui::Button::new(t!("edit-copy")).shortcut_text("Ctrl+C")).clicked() {
                 ui.close();
                 self.tools.copy(&self.doc);
                 crate::keys::note_copy(ui.ctx(), &self.tools);
             }
             let can_paste = self.tools.can_paste();
-            if ui.add_enabled(can_paste, egui::Button::new("Paste").shortcut_text("Ctrl+V")).on_hover_text("Follows the mouse; click to put it down").clicked() {
+            if ui.add_enabled(can_paste, egui::Button::new(t!("edit-paste")).shortcut_text("Ctrl+V")).on_hover_text(t!("edit-paste-hint")).clicked() {
                 ui.close();
                 self.tools.paste(&mut self.doc);
             }
-            if ui.add_enabled(can_paste, egui::Button::new("Paste in Place").shortcut_text("Ctrl+Shift+V")).clicked() {
+            if ui.add_enabled(can_paste, egui::Button::new(t!("edit-paste-in-place")).shortcut_text("Ctrl+Shift+V")).clicked() {
                 ui.close();
                 self.tools.paste_in_place(&mut self.doc);
             }
-            if ui.add_enabled(selected, egui::Button::new("Duplicate").shortcut_text("Ctrl+D")).on_hover_text("A copy right beside it").clicked() {
+            if ui.add_enabled(selected, egui::Button::new(t!("edit-duplicate")).shortcut_text("Ctrl+D")).on_hover_text(t!("edit-duplicate-hint")).clicked() {
                 ui.close();
                 self.tools.duplicate(&mut self.doc);
             }
             ui.separator();
-            if ui.add(egui::Button::new("Delete").shortcut_text("Delete")).clicked() {
+            if ui.add(egui::Button::new(t!("edit-delete")).shortcut_text("Delete")).clicked() {
                 ui.close();
                 self.tools.cancel();
                 self.doc.erase_selection();
             }
-            if ui.button("Delete Guides").clicked() {
+            if ui.button(t!("edit-delete-guides")).clicked() {
                 ui.close();
                 self.tools.delete_guides(&mut self.doc);
             }
             ui.separator();
-            if ui.add(egui::Button::new("Select All").shortcut_text("Ctrl+A")).clicked() {
+            if ui.add(egui::Button::new(t!("edit-select-all")).shortcut_text("Ctrl+A")).clicked() {
                 ui.close();
                 self.doc.select_all();
             }
-            if ui.button("Select None").clicked() {
+            if ui.button(t!("edit-select-none")).clicked() {
                 ui.close();
                 self.doc.selection_mut().clear();
             }
             ui.separator();
-            if ui.add(egui::Button::new("Make Group").shortcut_text("Ctrl+G")).clicked() {
+            if ui.add(egui::Button::new(t!("edit-make-group")).shortcut_text("Ctrl+G")).clicked() {
                 ui.close();
                 self.tools.make_group(&mut self.doc, DefinitionKind::Group);
             }
-            if ui.add(egui::Button::new("Make Component...").shortcut_text("G")).clicked() {
+            if ui.add(egui::Button::new(t!("edit-make-component")).shortcut_text("G")).clicked() {
                 ui.close();
                 self.tools.make_group(&mut self.doc, DefinitionKind::Component);
             }
-            if ui.button("Explode").clicked() {
+            if ui.button(t!("edit-explode")).clicked() {
                 ui.close();
                 self.tools.explode(&mut self.doc);
             }
@@ -246,50 +285,50 @@ impl WoodSketchApp {
     }
 
     fn view_menu(&mut self, ui: &mut egui::Ui) {
-        ui.menu_button("View", |ui| {
-            ui.checkbox(&mut self.viewport.show_grid, "Grid");
-            ui.checkbox(&mut self.viewport.show_movement, "Wood Movement")
-                .on_hover_text("How much each solid-wood part moves across its grain: red where a part it meets holds it, green where it's free");
-            ui.menu_button("Theme", |ui| {
+        ui.menu_button(t!("menu-view"), |ui| {
+            ui.checkbox(&mut self.viewport.show_grid, t!("view-grid"));
+            ui.checkbox(&mut self.viewport.show_movement, t!("view-wood-movement")).on_hover_text(t!("view-wood-movement-hint"));
+            ui.menu_button(t!("view-theme"), |ui| {
                 let current = ui.ctx().options(|o| o.theme_preference);
-                for (theme, name, _) in THEMES {
-                    if ui.radio(current == theme, name).on_hover_text("Dark is easier on the eyes at night; Follow System matches your computer").clicked() {
+                for (theme, _) in THEMES {
+                    if ui.radio(current == theme, theme_name(theme)).on_hover_text(t!("view-theme-hint")).clicked() {
                         ui.ctx().set_theme(theme);
                         ui.close();
                     }
                 }
             });
-            ui.menu_button("Units", |ui| {
+            ui.menu_button(t!("view-units"), |ui| {
                 use woodsketch_doc::units::Units;
                 let current = self.doc.units();
                 for choice in Units::ALL {
-                    if ui.radio(current == choice, choice.name()).on_hover_text("How lengths are shown, and what a number typed without a unit means; saved with the drawing").clicked() {
+                    if ui.radio(current == choice, choice.name()).on_hover_text(t!("view-units-hint")).clicked() {
                         self.doc.set_units(choice);
                         ui.close();
                     }
                 }
             });
             let mut guides = !self.doc.scene().guides_hidden;
-            if ui.checkbox(&mut guides, "Guides").on_hover_text("Show or hide every guide (hidden ones aren't snapped to)").changed() {
+            if ui.checkbox(&mut guides, t!("view-guides")).on_hover_text(t!("view-guides-hint")).changed() {
                 self.doc.set_guides_hidden(!guides);
             }
             let mut dimensions = !self.doc.scene().dimensions_hidden;
-            if ui.checkbox(&mut dimensions, "Dimensions").on_hover_text("Show or hide every dimension").changed() {
+            if ui.checkbox(&mut dimensions, t!("view-dimensions")).on_hover_text(t!("view-dimensions-hint")).changed() {
                 self.doc.set_dimensions_hidden(!dimensions);
             }
             let mut text = !self.doc.scene().text_hidden;
-            if ui.checkbox(&mut text, "Text").on_hover_text("Show or hide every text note").changed() {
+            if ui.checkbox(&mut text, t!("view-text")).on_hover_text(t!("view-text-hint")).changed() {
                 self.doc.set_text_hidden(!text);
             }
-            ui.checkbox(&mut self.show_tray, "Default Tray");
+            ui.checkbox(&mut self.show_tray, t!("view-default-tray"));
+            language_menu(ui);
         });
     }
 
     fn camera_menu(&mut self, ui: &mut egui::Ui) {
-        ui.menu_button("Camera", |ui| {
-            ui.menu_button("Standard Views", |ui| {
-                for (name, view) in VIEWS {
-                    if ui.button(name).clicked() {
+        ui.menu_button(t!("menu-camera"), |ui| {
+            ui.menu_button(t!("camera-standard-views"), |ui| {
+                for view in VIEWS {
+                    if ui.button(view_name(view)).clicked() {
                         ui.close();
                         self.viewport.camera.set_view(view);
                     }
@@ -299,7 +338,7 @@ impl WoodSketchApp {
             for tool in [ToolId::Orbit, ToolId::Pan, ToolId::Zoom, ToolId::Walk] {
                 tool_item(ui, &mut self.tools, tool);
             }
-            if ui.add(egui::Button::new("Zoom Extents").shortcut_text("Shift+Z")).clicked() {
+            if ui.add(egui::Button::new(t!("camera-zoom-extents")).shortcut_text("Shift+Z")).clicked() {
                 ui.close();
                 self.viewport.request_zoom_extents();
             }
@@ -307,7 +346,7 @@ impl WoodSketchApp {
     }
 
     fn tools_menu(&mut self, ui: &mut egui::Ui) {
-        ui.menu_button("Tools", |ui| {
+        ui.menu_button(t!("menu-tools"), |ui| {
             for tool in [ToolId::Select, ToolId::Eraser, ToolId::PaintBucket] {
                 tool_item(ui, &mut self.tools, tool);
             }
@@ -321,7 +360,7 @@ impl WoodSketchApp {
             tool_item(ui, &mut self.tools, ToolId::Dimension);
             tool_item(ui, &mut self.tools, ToolId::Text);
             ui.separator();
-            if ui.button("Cut List...").clicked() {
+            if ui.button(t!("tools-cut-list")).clicked() {
                 ui.close();
                 self.cut_list.open = true;
             }
@@ -329,49 +368,48 @@ impl WoodSketchApp {
     }
 
     fn window_menu(&mut self, ui: &mut egui::Ui) {
-        ui.menu_button("Window", |ui| {
-            ui.checkbox(&mut self.show_tray, "Default Tray");
-            ui.checkbox(&mut self.cut_list.open, "Cut List");
+        ui.menu_button(t!("menu-window"), |ui| {
+            ui.checkbox(&mut self.show_tray, t!("window-default-tray"));
+            ui.checkbox(&mut self.cut_list.open, t!("window-cut-list"));
         });
     }
 
     fn help_menu(&mut self, ui: &mut egui::Ui) {
-        ui.menu_button("Help", |ui| {
-            if ui.button("Check for Updates...").clicked() {
+        ui.menu_button(t!("menu-help"), |ui| {
+            if ui.button(t!("help-check-for-updates")).clicked() {
                 ui.close();
                 self.check_for_updates();
             }
-            ui.checkbox(&mut self.check_updates, "Check for updates at startup")
-                .on_hover_text("A quick look at WoodSketch's releases on GitHub when it opens; new versions download in the background");
+            ui.checkbox(&mut self.check_updates, t!("help-check-at-startup")).on_hover_text(t!("help-check-at-startup-hint"));
             ui.separator();
-            if ui.button("What's New...").on_hover_text("What the last few updates brought, newest first").clicked() {
+            if ui.button(t!("help-whats-new")).on_hover_text(t!("help-whats-new-hint")).clicked() {
                 ui.close();
                 self.read_the_changes();
             }
-            if ui.button("Release Notes").on_hover_text("Every version's notes, on GitHub").clicked() {
+            if ui.button(t!("help-release-notes")).on_hover_text(t!("help-release-notes-hint")).clicked() {
                 ui.close();
                 ui.ctx().open_url(egui::OpenUrl::new_tab(crate::updates::RELEASES_URL));
             }
             ui.separator();
-            if ui.button("Report a Problem...").on_hover_text("Tell us what went wrong: opens a GitHub issue with details that help, nothing private").clicked() {
+            if ui.button(t!("help-report-problem")).on_hover_text(t!("help-report-problem-hint")).clicked() {
                 ui.close();
                 self.feedback.start(woodsketch_doc::feedback::Kind::Problem);
             }
-            if ui.button("Send Feedback...").on_hover_text("An idea or anything else: opens a GitHub issue").clicked() {
+            if ui.button(t!("help-send-feedback")).on_hover_text(t!("help-send-feedback-hint")).clicked() {
                 ui.close();
                 self.feedback.start(woodsketch_doc::feedback::Kind::Idea);
             }
             ui.separator();
-            if ui.button("Problems and Ideas").on_hover_text("Everything people have reported or suggested, and what's been fixed, on GitHub").clicked() {
+            if ui.button(t!("help-problems-and-ideas")).on_hover_text(t!("help-problems-and-ideas-hint")).clicked() {
                 ui.close();
                 ui.ctx().open_url(egui::OpenUrl::new_tab(crate::updates::ISSUES_URL));
             }
-            if ui.button("Discussions").on_hover_text("Ask how to do something, say what WoodSketch should handle next, or show a piece you've made").clicked() {
+            if ui.button(t!("help-discussions")).on_hover_text(t!("help-discussions-hint")).clicked() {
                 ui.close();
                 ui.ctx().open_url(egui::OpenUrl::new_tab(crate::updates::DISCUSSIONS_URL));
             }
             ui.separator();
-            if ui.button("About WoodSketch").clicked() {
+            if ui.button(t!("help-about")).clicked() {
                 ui.close();
                 self.show_about = true;
             }
@@ -382,17 +420,17 @@ impl WoodSketchApp {
         // `open` holds a borrow of the flag, so What's New is asked for through a local.
         let mut show_about = self.show_about;
         let mut changes = false;
-        egui::Window::new("About WoodSketch")
+        egui::Window::new(t!("about-title"))
             .open(&mut show_about)
             .collapsible(false)
             .resizable(false)
             .show(ctx, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label(format!("WoodSketch {}", crate::updates::VERSION));
-                    changes = ui.link("What's new").clicked();
+                    ui.label(t!("about-version", "version" => crate::updates::VERSION));
+                    changes = ui.link(t!("about-whats-new")).clicked();
                 });
-                ui.label("A lightweight 3D modeler for woodworking, in the spirit of SketchUp.");
-                ui.label("Not affiliated with or endorsed by Trimble.");
+                ui.label(t!("about-what-it-is"));
+                ui.label(t!("about-not-affiliated"));
             });
         self.show_about = show_about;
         if changes {
@@ -411,16 +449,16 @@ impl WoodSketchApp {
         let since = self.updated_from.clone();
         let mut open = true;
         let mut read = false;
-        egui::Window::new("What's New in WoodSketch")
+        egui::Window::new(t!("whats-new-title"))
             .open(&mut open)
             .collapsible(false)
             .default_width(520.0)
             .default_height(440.0)
             .show(ctx, |ui| {
                 match (&since, releases.len()) {
-                    (Some(from), 1) => ui.label(format!("One update since {from}:")),
-                    (Some(from), n) => ui.label(format!("{n} updates since {from}:")),
-                    (None, _) => ui.label("The most recent updates:"),
+                    (Some(from), 1) => ui.label(t!("whats-new-one-since", "from" => from.as_str())),
+                    (Some(from), n) => ui.label(t!("whats-new-many-since", "count" => n, "from" => from.as_str())),
+                    (None, _) => ui.label(t!("whats-new-recent")),
                 };
                 ui.separator();
                 // Leave room for the buttons below: an unbounded scroll area takes the whole
@@ -444,8 +482,8 @@ impl WoodSketchApp {
                 ui.horizontal(|ui| {
                     // "Done" rather than "Close": it marks the notes read, which is why the
                     // status bar stops offering them afterwards.
-                    read = ui.button("Done").on_hover_text("Marks these as read").clicked();
-                    ui.hyperlink_to("Every version on GitHub", crate::updates::RELEASES_URL);
+                    read = ui.button(t!("whats-new-done")).on_hover_text(t!("whats-new-done-hint")).clicked();
+                    ui.hyperlink_to(t!("whats-new-every-version"), crate::updates::RELEASES_URL);
                 });
             });
         if read || !open {
@@ -461,31 +499,32 @@ impl WoodSketchApp {
             ui.horizontal_wrapped(|ui| {
                 ui.spacing_mut().item_spacing.x = 2.0;
                 let ctx = ui.ctx().clone();
-                if icon_button(ui, icons::NEW, false, true, "New (Ctrl+N)") {
+                if icon_button(ui, icons::NEW, false, true, &t!("toolbar-new-hint")) {
                     self.request(&ctx, files::Discard::New);
                 }
-                if icon_button(ui, icons::OPEN, false, true, "Open (Ctrl+O)") {
+                if icon_button(ui, icons::OPEN, false, true, &t!("toolbar-open-hint")) {
                     self.request(&ctx, files::Discard::Open);
                 }
-                if icon_button(ui, icons::SAVE, false, true, "Save (Ctrl+S)") {
+                if icon_button(ui, icons::SAVE, false, true, &t!("toolbar-save-hint")) {
                     self.save(false);
                 }
                 ui.separator();
-                if icon_button(ui, icons::UNDO, false, true, "Undo (Ctrl+Z)") {
+                if icon_button(ui, icons::UNDO, false, true, &t!("toolbar-undo-hint")) {
                     self.undo();
                 }
-                if icon_button(ui, icons::REDO, false, true, "Redo (Ctrl+Y)") {
+                if icon_button(ui, icons::REDO, false, true, &t!("toolbar-redo-hint")) {
                     self.redo();
                 }
                 ui.separator();
-                if icon_button(ui, icons::ZOOM_EXTENTS, false, true, "Zoom Extents (Shift+Z)") {
+                if icon_button(ui, icons::ZOOM_EXTENTS, false, true, &t!("toolbar-zoom-extents-hint")) {
                     self.viewport.request_zoom_extents();
                 }
-                for (name, view) in VIEWS {
-                    let label = if view == StandardView::Iso { format!("{} {name}", icons::ISO) } else { name.into() };
+                for view in VIEWS {
+                    let name = view_name(view);
+                    let label = if view == StandardView::Iso { format!("{} {name}", icons::ISO) } else { name.clone() };
                     let response = ui
                         .add(egui::Button::selectable(false, label).min_size(egui::vec2(0.0, BUTTON_SIZE)))
-                        .on_hover_text(format!("{name} view"));
+                        .on_hover_text(t!("camera-view-hint", "view" => name.as_str()));
                     if response.clicked() {
                         response.surrender_focus();
                         self.viewport.camera.set_view(view);
@@ -493,7 +532,7 @@ impl WoodSketchApp {
                 }
                 ui.separator();
                 let open = self.cut_list.open;
-                if icon_button(ui, icons::CUT_LIST, open, true, "Cut List: parts and cutting diagrams") {
+                if icon_button(ui, icons::CUT_LIST, open, true, &t!("toolbar-cut-list-hint")) {
                     self.cut_list.open = !open;
                 }
             });
@@ -538,9 +577,9 @@ impl WoodSketchApp {
         }
         egui::Panel::right("default tray").default_size(250.0).show(ui, |ui| {
             ui.horizontal(|ui| {
-                ui.strong("Default Tray");
+                ui.strong(t!("tray-title"));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.small_button(icons::CLOSE).on_hover_text("Hide the tray (Window > Default Tray)").clicked() {
+                    if ui.small_button(icons::CLOSE).on_hover_text(t!("tray-hide-hint")).clicked() {
                         self.show_tray = false;
                     }
                 });
@@ -548,20 +587,22 @@ impl WoodSketchApp {
             ui.separator();
             egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
                 if self.tools.active() == ToolId::Board {
-                    tray_section(ui, "Board", |ui| crate::board::show(ui, &mut self.doc, &mut self.tools));
+                    tray_section(ui, "Board", &t!("tray-board"), |ui| crate::board::show(ui, &mut self.doc, &mut self.tools));
                 }
-                tray_section(ui, "Entity Info", |ui| tags::entity_info(ui, &mut self.doc, &mut self.tools));
+                tray_section(ui, "Entity Info", &t!("tray-entity-info"), |ui| tags::entity_info(ui, &mut self.doc, &mut self.tools));
                 if let Some(pair) = crate::joinery::selected_pair(&self.doc) {
-                    tray_section(ui, "Joinery", |ui| crate::joinery::show(ui, &mut self.doc, pair));
+                    tray_section(ui, "Joinery", &t!("tray-joinery"), |ui| crate::joinery::show(ui, &mut self.doc, pair));
                 }
                 if let [woodsketch_doc::Entity::Instance(part)] = self.doc.selection().iter().collect::<Vec<_>>()[..] {
                     if let Some(made) = self.doc.template_of(part) {
-                        tray_section(ui, &format!("{} sizes", made.template.name()), |ui| crate::template::change(ui, &mut self.doc, part, made));
+                        tray_section(ui, "Template sizes", &t!("tray-template-sizes", "template" => made.template.name()), |ui| {
+                            crate::template::change(ui, &mut self.doc, part, made)
+                        });
                     }
-                    tray_section(ui, "Edge profile", |ui| crate::profile::show(ui, &mut self.doc, part));
+                    tray_section(ui, "Edge profile", &t!("tray-edge-profile"), |ui| crate::profile::show(ui, &mut self.doc, part));
                 }
                 // Folded until wanted: making a new cabinet, drawer, face frame or table.
-                egui::CollapsingHeader::new(egui::RichText::new("Templates").strong())
+                egui::CollapsingHeader::new(egui::RichText::new(t!("tray-templates")).strong())
                     .id_salt("Templates")
                     .default_open(false)
                     .show(ui, |ui| {
@@ -569,9 +610,9 @@ impl WoodSketchApp {
                             self.viewport.request_zoom_extents();
                         }
                     });
-                tray_section(ui, "Materials", |ui| self.materials.show(ui, &mut self.doc, &mut self.tools));
-                tray_section(ui, "Tags", |ui| self.tags.show(ui, &mut self.doc));
-                tray_section(ui, "Outliner", |ui| outliner::show(ui, &mut self.doc, &mut self.tools));
+                tray_section(ui, "Materials", &t!("tray-materials"), |ui| self.materials.show(ui, &mut self.doc, &mut self.tools));
+                tray_section(ui, "Tags", &t!("tray-tags"), |ui| self.tags.show(ui, &mut self.doc));
+                tray_section(ui, "Outliner", &t!("tray-outliner"), |ui| outliner::show(ui, &mut self.doc, &mut self.tools));
             });
         });
     }
@@ -586,33 +627,33 @@ impl WoodSketchApp {
                     // Reloaded because the file changed outside (an assistant working through
                     // woodsketch-cli, a synced folder): say so briefly, so it isn't a mystery.
                     if self.reloaded_recently() {
-                        ui.label(format!("{} Reloaded: the file changed outside WoodSketch", egui_phosphor::regular::ARROWS_CLOCKWISE))
-                            .on_hover_text("Ctrl+Z goes back to the drawing as it was before the reload");
+                        ui.label(format!("{} {}", egui_phosphor::regular::ARROWS_CLOCKWISE, t!("status-reloaded")))
+                            .on_hover_text(t!("status-reloaded-hint"));
                         ui.separator();
                     }
                     // Just updated: say so once, with everything the update brought.
                     if self.updated() {
-                        if ui.small_button(egui_phosphor::regular::X).on_hover_text("Dismiss").clicked() {
+                        if ui.small_button(egui_phosphor::regular::X).on_hover_text(t!("status-dismiss")).clicked() {
                             self.updated_from = None;
                         }
-                        if ui.link("What's new").on_hover_text("What came in this update, and in any you skipped").clicked() {
+                        if ui.link(t!("status-whats-new")).on_hover_text(t!("status-whats-new-hint")).clicked() {
                             self.read_the_changes();
                         }
-                        ui.label(format!("{} Updated to {}", egui_phosphor::regular::CHECK_CIRCLE, crate::updates::VERSION));
+                        ui.label(format!("{} {}", egui_phosphor::regular::CHECK_CIRCLE, t!("status-updated", "version" => crate::updates::VERSION)));
                         ui.separator();
                     }
                     // A new version downloading, then downloaded: offer the restart (green, so it's seen),
                     // never force it.
                     if let Some(crate::updates::UpdateState::Downloading(version)) = self.update_state() {
-                        ui.label(format!("Downloading WoodSketch {version}..."));
+                        ui.label(t!("status-downloading", "version" => version.as_str()));
                         ui.add(egui::Spinner::new());
                         ui.separator();
                     }
                     if let Some(crate::updates::UpdateState::Ready(version)) = self.update_state() {
-                        let label = egui::RichText::new(format!("{} Restart to update to {version}", egui_phosphor::regular::ARROW_CIRCLE_UP)).color(egui::Color32::WHITE).strong();
+                        let label = egui::RichText::new(format!("{} {}", egui_phosphor::regular::ARROW_CIRCLE_UP, t!("status-restart-to-update", "version" => version.as_str()))).color(egui::Color32::WHITE).strong();
                         let restart = ui
                             .add(egui::Button::new(label).fill(egui::Color32::from_rgb(34, 139, 34)))
-                            .on_hover_text("Installs the new version and reopens WoodSketch (you'll be asked to save first)");
+                            .on_hover_text(t!("status-restart-to-update-hint"));
                         if restart.clicked() {
                             let ctx = ui.ctx().clone();
                             self.restart_to_update(&ctx);
@@ -663,9 +704,11 @@ fn notes_items(notes: &str) -> Vec<String> {
     items
 }
 
-fn tray_section(ui: &mut egui::Ui, title: &str, contents: impl FnOnce(&mut egui::Ui)) {
+/// One folding panel of the tray. `salt` is what egui remembers the fold by, so it stays the
+/// same in every language: keyed on the title, switching language would forget every fold.
+fn tray_section(ui: &mut egui::Ui, salt: &str, title: &str, contents: impl FnOnce(&mut egui::Ui)) {
     egui::CollapsingHeader::new(egui::RichText::new(title).strong())
-        .id_salt(title)
+        .id_salt(salt)
         .default_open(true)
         .show(ui, contents);
 }

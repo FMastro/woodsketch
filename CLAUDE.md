@@ -15,6 +15,7 @@ reading (`doc::skp`) was worked out from `.skp` files only, without the SDK; kee
   components: definitions + instances), `View` (whole drawing flattened for picking/drawing),
   `Document` (scene + editing path, selection, snapshot undo/redo, version counters), `units` (Measurements-box parsing and
   fractional-inch formatting).
+- `crates/i18n`: what the app says, per language (`i18n/<tag>.ftl`, Fluent). See "Languages".
 - `crates/tools`: toolkit-independent tools (`Tools`, `ToolId` with SketchUp shortcuts),
   picking, snapping and axis inference (`pick`), and one state machine per tool. The UI sends
   `PointerEvent`s and keystrokes; tools return an `Overlay` to draw.
@@ -55,6 +56,32 @@ ground floor and nothing is left to tune; with nothing below, the ground holds. 
 step, and a typed length changes the height and lands you. E or Q takes off, since otherwise the
 floor would pull the eye straight back and they'd do nothing. While walking, `keys.rs` swallows
 `wasdqef` so they don't fire tool shortcuts.
+
+## Languages (View > Language)
+User-facing text comes from `doc`-free `crates/i18n`: a key per string in `i18n/<tag>.ftl`
+(Fluent), asked for with `t!("menu-file")` or `t!("status-updated", "version" => v)`. English
+(`BASE`, `en-US`) is what the code is written against and what every other language falls back
+to key by key, so a part-finished translation shows English in its gaps rather than blanks. Every
+catalog is `include_str!`d into the one binary — no per-language build, no loose files — and
+`set_language` switches live, with no restart, because text is read each frame. `system_language`
+picks the closest built-in to the OS locale (same tongue counts: `pt-PT` → `pt-BR`), used only
+until someone chooses; the choice is kept under `LANGUAGE_KEY`. `speak_source` speaks a `.ftl`
+that isn't built in, for tests and for a translator previewing their own file.
+- **Keys must be literals in `t!`.** `i18n::tests::every_key_the_code_asks_for_exists` reads every
+  `.rs` in the workspace (skipping comments and strings) and looks each key up in English, which
+  is what stands in for the compiler; a key built at runtime is invisible to it. So a `const`
+  array of labels becomes either `t!` calls built at use (`file_menu`'s `formats`) or a `match`
+  returning them (`chrome::view_name`, `theme_name`), never a key passed as a variable.
+- `bundle.set_use_isolating(false)`: Fluent otherwise wraps inserted values in invisible
+  direction marks, which would sit inside a label and break `get_by_label`.
+- The language is **global**, and `workflow.rs` runs in parallel threads matching English labels,
+  so anything that switches language lives in `tests/language.rs` — its own process, one test.
+- `chrome.rs` is fully converted; a `tray_section` keeps an English `salt` beside its translated
+  title, because egui remembers a fold by its id and a translated id would forget every fold on
+  switching language. Other `id_salt`s stay English for the same reason.
+- Left in English on purpose: `woodsketch-cli` and the MCP server (read by programs and agents),
+  and so far tool names, material/species names and what is *inside* the tray panels.
+  `docs/TRANSLATING.md` is the contributor-facing guide and says why.
 
 ## Conventions
 - Z up; red = X, green = Y, blue = Z (SketchUp). Model units are **inches**.

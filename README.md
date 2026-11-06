@@ -125,6 +125,16 @@ broke, I'd like to hear it.
 Rough edges and half-finished corners are expected at this stage, so don't assume a problem is
 already known. Nothing is too small to mention.
 
+## Translating it
+
+WoodSketch is being translated, and it needs no programming: every word it says lives in one text
+file, and a translation is a copy of that file with the right-hand sides rewritten. Anything you
+leave in English stays in English, so a part-finished translation is worth having.
+
+**[docs/TRANSLATING.md](docs/TRANSLATING.md)** has the steps. Every language is built into the one
+program — *View > Language* switches between them, and WoodSketch opens in your computer's
+language if it knows it.
+
 ## Independent of SketchUp
 
 WoodSketch reimplements SketchUp's *behavior* from its public documentation and from using the

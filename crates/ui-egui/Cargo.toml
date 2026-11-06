@@ -8,6 +8,7 @@ rust-version.workspace = true
 
 [dependencies]
 woodsketch-doc.workspace = true
+woodsketch-i18n.workspace = true
 rfd.workspace = true
 woodsketch-tools.workspace = true
 woodsketch-view.workspace = true

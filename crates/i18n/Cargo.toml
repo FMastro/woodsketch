@@ -1,0 +1,22 @@
+[package]
+name = "woodsketch-i18n"
+description = "What WoodSketch says, in each language it has been taught"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Fluent is Mozilla's translation format. It is worth the dependency because plurals, genders and
+# word order belong to the translation rather than to the code: a language needs no permission from
+# `chrome.rs` to say a thing in a shape English has no name for.
+fluent-bundle = "0.16"
+# Named directly only to read a catalog's keys back out for the tests below; it is the same
+# parser fluent-bundle already uses, so the version has to stay the one it asks for.
+fluent-syntax = "0.12"
+unic-langid = { version = "0.9", features = ["macros"] }
+# What language the computer is set to, so the app opens in it without anyone being asked.
+sys-locale = "0.3"
+
+[lints]
+workspace = true

@@ -40,6 +40,10 @@ const LAST_VERSION_KEY: &str = "last_version";
 const UNITS_KEY: &str = "units";
 /// Settings key for View > Theme.
 const THEME_KEY: &str = "theme";
+/// Which language the interface is in (View > Language). Absent means nobody has chosen, so the
+/// computer's own language is followed; once chosen it is kept, because someone who picked English
+/// on a Portuguese computer meant it.
+const LANGUAGE_KEY: &str = "language";
 
 pub struct WoodSketchApp {
     doc: Document,
@@ -114,8 +118,24 @@ impl WoodSketchApp {
         cc.egui_ctx.set_visuals_of(egui::Theme::Light, chrome::visuals(false));
         cc.egui_ctx.set_visuals_of(egui::Theme::Dark, chrome::visuals(true));
         let theme = cc.storage.and_then(|s| eframe::get_value::<String>(s, THEME_KEY));
-        let theme = chrome::THEMES.iter().find(|(_, _, key)| Some(*key) == theme.as_deref()).map_or(egui::ThemePreference::Light, |(t, _, _)| *t);
+        let theme = chrome::THEMES.iter().find(|(_, key)| Some(*key) == theme.as_deref()).map_or(egui::ThemePreference::Light, |(t, _)| *t);
         cc.egui_ctx.set_theme(theme);
+        // The language last chosen, or the computer's own if nobody has chosen yet. A saved
+        // language that no longer exists falls back to English rather than to nothing, which is
+        // what `set_language` returning false is for.
+        match cc.storage.and_then(|s| eframe::get_value::<String>(s, LANGUAGE_KEY)) {
+            Some(chosen) => {
+                if !woodsketch_i18n::set_language(&chosen) {
+                    woodsketch_i18n::set_language(woodsketch_i18n::BASE);
+                }
+            }
+            // Tests have no storage, so they take this path: `system_language` is English unless
+            // the machine running them says otherwise, which is why the tests that care about a
+            // language set one themselves rather than trusting the default here.
+            None => {
+                woodsketch_i18n::set_language(woodsketch_i18n::system_language());
+            }
+        }
         // Autosave only for the real app (tests have no settings storage).
         let dir = cc.storage.is_some().then(|| eframe::storage_dir("WoodSketch")).flatten().map(|d| d.join("autosave"));
         let autosave = autosave::Autosave::new(dir);
@@ -727,9 +747,10 @@ impl eframe::App for WoodSketchApp {
         eframe::set_value(storage, LAST_VERSION_KEY, &updates::VERSION.to_owned());
         eframe::set_value(storage, UNITS_KEY, &woodsketch_doc::units::units());
         let theme = self.theme;
-        if let Some((_, _, key)) = chrome::THEMES.iter().find(|(t, _, _)| *t == theme) {
+        if let Some((_, key)) = chrome::THEMES.iter().find(|(t, _)| *t == theme) {
             eframe::set_value(storage, THEME_KEY, &key.to_string());
         }
+        eframe::set_value(storage, LANGUAGE_KEY, &woodsketch_i18n::language());
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {
