@@ -201,12 +201,16 @@ materials = [
 ]
 
 # Tag folders, so the Tags panel peels the house apart a layer at a time.
+# The doors start hidden: shut doors stand between you and every room, and the one thing you do
+# with a house on screen is look inside it. One click in the Tags panel brings them back, which
+# is also the point -- the panel is what this sample is for.
+HIDDEN = {"Doors"}
 for folder, inside in [("Shell", ["Slab", "Wall framing", "Sheathing"]),
                        ("Roof", ["Roof framing", "Roof sheathing", "Roofing", "Eaves"]),
                        ("Inside", ["Drywall", "Doors", "Windows", "Kitchen", "Bathrooms"]),
                        ("Outside", ["Porch"])]:
     tags.append({"name": folder, "folder": True})
-    tags += [{"name": t, "inside": folder} for t in inside]
+    tags += [{"name": t, "inside": folder, **({"hidden": True} if t in HIDDEN else {})} for t in inside]
 
 # ---------------------------------------------------------------- wall framing
 
@@ -542,12 +546,24 @@ for i, x in enumerate(spread(222.0, 222.0 + 4 * 24.0, 24.0)):
                                 "drawer_joints": "Rabbets", "pulls": "Bar",
                                 "fills": ["Drawer", "Doors"] if i % 2 == 0 else ["Drawer", "Drawer"]}})
 part("Countertop", "stone", [96, 25.5, 1.5], [222, EXT, 34.5], tag="Kitchen")
-part("Vanity", "maple", [36, 21, 34], [137.5, D - EXT - 21, 0], tag="Bathrooms", free_to_move=True,
-     copies=copies_at("Vanity", [(197.5, D - EXT - 21, 0)]))
-part("Tub", "china", [60, 30, 20], [135.5, Y1 + INT, 0], tag="Bathrooms",
-     copies=copies_at("Tub", [(195.5, Y1 + INT, 0)]))
-part("Toilet", "china", [20, 28, 30], [176, Y1 + INT + 36, 0], length="y", width="x", tag="Bathrooms",
-     copies=copies_at("Toilet", [(236, Y1 + INT + 36, 0)]))
+# Each bath is 56-1/2" clear between its walls and 111" deep, and every fixture sits against a
+# wall inside that, with the floor in front of each door left alone. The tub is a 54" alcove
+# tub rather than the usual 60", because 60" is what the room would be if the walls were 60" on
+# centre and they are not: the first draft put a 60" tub in and it ran through the wall into the
+# next bathroom and stood across the doorway.
+BATH1, BATH2 = 135.5, 195.5                      # the west face of each bath
+BATH_W, BATH_N = 56.5, D - EXT                   # clear width, and the wall at the back
+# Across the back wall of each, with the 2-1/2" over at the end a filler strip would take up.
+part("Tub", "china", [54, 30, 20], [BATH1, BATH_N - 30, 0], tag="Bathrooms",
+     copies=copies_at("Tub", [(BATH2 + BATH_W - 54, BATH_N - 30, 0)]))
+# Down the long wall each is entered along, ending where the tub starts.
+part("Vanity", "maple", [36, 21, 34], [BATH1, 216.5, 0], length="y", width="x", tag="Bathrooms",
+     free_to_move=True, copies=copies_at("Vanity", [(BATH2, 216.5, 0)]))
+# Bath 1 is entered from the hall through its south wall, so its toilet is up the other side and
+# 24-1/2" clear of the door; bath 2 is entered from the bedroom through its east wall, so its
+# toilet is on that wall but south of the opening.
+part("Toilet", "china", [20, 28, 30], [BATH1 + BATH_W - 28, 196, 0], length="y", width="x",
+     tag="Bathrooms", copies=copies_at("Toilet", [(BATH2 + BATH_W - 28, Y1 + INT, 0)]))
 
 # ---------------------------------------------------------------- out
 

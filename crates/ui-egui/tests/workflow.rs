@@ -1751,7 +1751,7 @@ fn joinery_panel_dovetails_a_drawer_corner_and_changes_and_removes_it() {
     harness.run();
     harness.get_by_label("Cut the dovetails").click();
     harness.run();
-    assert!(harness.query_by_label_contains("Dovetails, 2 tails, half-blind").is_some(), "listed as joined");
+    assert!(harness.query_by_label_contains("Dovetails, 4 tails, half-blind").is_some(), "listed as joined");
     assert_eq!(harness.state().document().part_size(side).unwrap()[0], 14.5);
     snapshot(&mut harness, "dovetails");
 
@@ -1764,7 +1764,7 @@ fn joinery_panel_dovetails_a_drawer_corner_and_changes_and_removes_it() {
     harness.run();
     harness.get_by_label("Cut the dovetails").click();
     harness.run();
-    assert!(harness.query_by_label_contains("2 tails, through").is_some());
+    assert!(harness.query_by_label_contains("4 tails, through").is_some());
 
     // Remove, from Entity Info with just the front selected.
     let doc = harness.state_mut().document_mut();
@@ -2880,7 +2880,8 @@ fn the_house_is_built_on_a_thread_and_says_so() {
     }
     let list = woodsketch_doc::cutlist::cut_list(harness.state().document().scene());
     let parts: usize = list.materials.iter().flat_map(|m| &m.parts).map(|p| p.count).sum();
-    assert_eq!(parts, 995, "the whole house arrived");
+    // 990, not 995: the five doors start hidden, and a hidden part is not a cut-list part.
+    assert_eq!(parts, 990, "the whole house arrived");
     let (lo, hi) = harness.state().document().bounds().unwrap();
     assert!((hi - lo).x > 400.0 && (hi - lo).z > 190.0, "a 34' house, got {:?}", hi - lo);
     snapshot(&mut harness, "start_page_house");

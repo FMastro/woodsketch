@@ -29,7 +29,7 @@
     {"name": "Eaves", "inside": "Roof"},
     {"name": "Inside", "folder": true},
     {"name": "Drywall", "inside": "Inside"},
-    {"name": "Doors", "inside": "Inside"},
+    {"name": "Doors", "inside": "Inside", "hidden": true},
     {"name": "Windows", "inside": "Inside"},
     {"name": "Kitchen", "inside": "Inside"},
     {"name": "Bathrooms", "inside": "Inside"},
@@ -1138,14 +1138,14 @@
     {"name": "Ceiling Bedroom 2 c", "material": "board", "size": [15, 96, 0.5], "at": [255.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
     {"name": "Ceiling Bedroom 2 d", "material": "board", "size": [15, 27, 0.5], "at": [351.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
     {"name": "Countertop", "material": "stone", "size": [96, 25.5, 1.5], "at": [222, 5.5, 34.5], "tag": "Kitchen"},
-    {"name": "Vanity", "material": "maple", "size": [36, 21, 34], "at": [137.5, 261.5, 0], "tag": "Bathrooms", "free_to_move": true, "copies": [
-      {"name": "Vanity 2", "at": [197.5, 261.5, 0]}
+    {"name": "Tub", "material": "china", "size": [54, 30, 20], "at": [135.5, 252.5, 0], "tag": "Bathrooms", "copies": [
+      {"name": "Tub 2", "at": [198, 252.5, 0]}
     ]},
-    {"name": "Tub", "material": "china", "size": [60, 30, 20], "at": [135.5, 171.5, 0], "tag": "Bathrooms", "copies": [
-      {"name": "Tub 2", "at": [195.5, 171.5, 0]}
+    {"name": "Vanity", "material": "maple", "size": [36, 21, 34], "at": [135.5, 216.5, 0], "length": "y", "width": "x", "tag": "Bathrooms", "free_to_move": true, "copies": [
+      {"name": "Vanity 2", "at": [195.5, 216.5, 0]}
     ]},
-    {"name": "Toilet", "material": "china", "size": [20, 28, 30], "at": [176, 207.5, 0], "length": "y", "width": "x", "tag": "Bathrooms", "copies": [
-      {"name": "Toilet 2", "at": [236, 207.5, 0]}
+    {"name": "Toilet", "material": "china", "size": [20, 28, 30], "at": [164, 196, 0], "length": "y", "width": "x", "tag": "Bathrooms", "copies": [
+      {"name": "Toilet 2", "at": [224, 171.5, 0]}
     ]}
   ],
   "templates": [

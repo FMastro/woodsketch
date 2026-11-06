@@ -536,11 +536,13 @@ joinery-through-hint = The tails show on both faces of the corner
 joinery-half-blind = Half-blind
 joinery-half-blind-hint = Hidden from the front, as on a drawer front
 joinery-tails = Tails
-joinery-tails-hint = How many tails across the width
+# The three dovetail hints say what the word means first: plenty of people meet these names
+# for the first time in this panel.
+joinery-tails-hint = How many tails to cut. The tails are the fan-shaped pieces on this board, the ones you see along a drawer's side; more of them, each narrower, is the hand-cut look.
 joinery-pins = Pins
-joinery-pins-hint = Each pin's width where it shows: narrow (1/8") for a hand-cut look, wider for a machine-cut one
+joinery-pins-hint = The pins are the wedges on the other board that fill the gaps between the tails. This is how wide each one is where it shows: narrow (1/8" to 1/4") is hand-cut, as wide as a tail is machine-cut.
 joinery-half-pins = Half pins
-joinery-half-pins-hint = The pins at each edge; the tails share the rest
+joinery-half-pins-hint = The half pins are the ones at the top and bottom edges, with a tail on one side only. They hold the corner together, so they are usually a little wider than the pins between the tails.
 joinery-dovetail-note = { $part } gets the tails, { $into } the pins (1:8 slope).
 joinery-cut-dovetails = Cut the dovetails
 joinery-dovetails-done = Dovetails cut; { $part } is longer by the tails.

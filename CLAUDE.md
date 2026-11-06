@@ -368,7 +368,12 @@ The Small house is the odd one out and is meant to be: ~750 parts of a stud-fram
 bath, mostly *not* wood (concrete, drywall, glass, asphalt as `MaterialKind::Other`; the door
 knobs are `hardware`, so they are bought rather than cut). It is
 there to answer "how big does this get?" and "is this only for woodworking?", not to produce a
-sensible cut list. It leans on three things being right — components placed many times
+sensible cut list. Its **Doors tag starts hidden** (`"hidden": true` in the recipe), because shut
+doors stand between you and every room; a hidden instance is not a cut-list part, so the five
+doors and their knobs are out of the counts until the tag is shown, which is why
+`the_houses_knobs_are_bought_not_cut` shows it first. Its bathroom fixtures are checked by
+`nothing_in_the_baths_stands_in_a_doorway`: each bath is 56-1/2" clear, not the 60" the fixtures
+were first sized for, and a tub ran through a wall into the next bath and stood behind the door. It leans on three things being right — components placed many times
 (everything repeated is `copies`, so the renderer draws one design per placement), tag folders
 (Shell / Roof / Inside / Outside, which is how you peel it apart), and `PartSpec::outline` for
 the gable ends. `samples::tests::the_house_comes_apart_by_tag` guards the tagging, which no

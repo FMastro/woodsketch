@@ -16,6 +16,14 @@ that belongs in the commit message, which is where it already is.
   own still separates, so `3,5` is two lengths. Thanks to @jmartsdesign for working it out.
 - Seven words that were still built into the program now come from the language file too: the
   Start page's New heading, a Change button in the Joinery panel and its tooltip, and four more.
+- Dovetails start with more, narrower tails -- about 1 1/8" each, so a 6" drawer side gets four
+  rather than two. Two tails 2" wide was the old suggestion and it looked like a jig set wrong.
+- Hovering Tails, Pins or Half pins now says what a tail, a pin and a half pin are, rather than
+  assuming you already know.
+- Small house: the baths are laid out properly. A tub ran through the wall into the next
+  bathroom and stood right behind the door, and a toilet poked out through the other doorway.
+- Small house: the doors start hidden, since they stand between you and every room. One click in
+  the Tags panel brings them back -- and with them, their five doors in the cut list.
 
 ## 0.1.69
 

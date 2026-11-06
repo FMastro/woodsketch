@@ -416,6 +416,8 @@ fn fields<const N: usize>(ui: &mut egui::Ui, key: (&str, InstanceId, InstanceId)
     });
     egui::Grid::new(id).num_columns(2).show(ui, |ui| {
         for (i, (_, label, _, hint)) in specs.iter().enumerate() {
+            // The hint hangs on the label, not on the box beside it: a tooltip over the box is
+            // over the thing you are about to type in, and it was tried.
             ui.label(*label).on_hover_text(*hint);
             ui.add(egui::TextEdit::singleline(&mut texts[i]).desired_width(70.0));
             ui.end_row();

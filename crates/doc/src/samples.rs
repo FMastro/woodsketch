@@ -104,7 +104,8 @@ mod tests {
             ("Workbench", 13, 16),
             ("Dining table", 9, 8),
             ("Kitchen run", 75, 86),
-            ("Small house", 995, 72),
+            // 990 rather than 995: the five doors start hidden, and a hidden part is not cut.
+            ("Small house", 990, 72),
         ];
         assert_eq!(expected.len(), SAMPLES.len(), "every sample needs its counts here");
         for (sample, (name, parts, joints)) in SAMPLES.iter().zip(expected) {
@@ -156,7 +157,11 @@ mod tests {
     /// sheet-goods layout, and no part count above would notice.
     #[test]
     fn the_houses_knobs_are_bought_not_cut() {
-        let doc = by_name("Small house").expect("the house is a sample").build().unwrap();
+        let mut doc = by_name("Small house").expect("the house is a sample").build().unwrap();
+        // The doors start hidden, and a hidden door's knobs are bought by nobody. Show them,
+        // which is what anyone pricing the job would do, and then count.
+        let doors = doc.scene().tags().find(|(_, t)| t.name == "Doors").expect("a Doors tag").0;
+        doc.edit_scene(|scene, _| scene.tag_mut(doors).unwrap().visible = true);
         let list = crate::cutlist::cut_list(doc.scene());
         let bought = list.hardware(doc.scene());
         for (piece, count) in [("Passage knob", 10), ("Knob rose", 10)] {
@@ -166,6 +171,74 @@ mod tests {
         }
         let cut: Vec<&String> = list.materials.iter().flat_map(|m| &m.parts).flat_map(|p| &p.names).collect();
         assert!(!cut.iter().any(|n| n.contains("knob") || n.contains("rose")), "no knob is cut from anything: {cut:?}");
+    }
+
+    /// The doors start hidden, and nothing else inside does.
+    ///
+    /// Shut doors stand between you and every room in the house, which is the one thing anyone
+    /// opens this sample to look at. They are a click away in the Tags panel, which is also the
+    /// first thing the sample is for. The cost is that a hidden part is not a cut-list part, so
+    /// the five doors are out of the counts above until the tag is shown.
+    #[test]
+    fn the_houses_doors_start_hidden() {
+        let doc = by_name("Small house").expect("the house is a sample").build().unwrap();
+        let scene = doc.scene();
+        let doors = scene.tags().find(|(_, t)| t.name == "Doors").expect("the house has a Doors tag");
+        assert!(!doors.1.visible, "the doors start hidden");
+        for (_, tag) in scene.tags().filter(|(_, t)| t.name != "Doors") {
+            assert!(tag.visible, "only the doors start hidden, not {}", tag.name);
+        }
+    }
+
+    /// Nothing in either bathroom crosses a wall or stands in its doorway.
+    ///
+    /// Reported from walking the house: a tub sat 3-1/2" behind a bathroom door and ran through
+    /// the wall into the next bathroom, and a toilet stood out through the other door into the
+    /// bedroom. The fixtures were sized for rooms 60" clear and the rooms are 56-1/2".
+    #[test]
+    fn nothing_in_the_baths_stands_in_a_doorway() {
+        // From `scripts/make-house-sample.py`: each bath's clear floor, and the floor just
+        // inside its door, which is the part of a room nothing is allowed to stand on.
+        const BATHS: [[f64; 4]; 2] = [[135.5, 171.5, 192.0, 282.5], [195.5, 171.5, 252.0, 282.5]];
+        // Bath 1 is entered through its south wall, bath 2 through its east wall; 24" deep.
+        const DOORWAYS: [[f64; 4]; 2] = [[150.0, 171.5, 184.0, 195.5], [228.0, 200.0, 252.0, 234.0]];
+        const EPS: f64 = 1e-6;
+
+        let doc = by_name("Small house").expect("the house is a sample").build().unwrap();
+        let scene = doc.scene();
+        let (bathrooms, _) = scene.tags().find(|(_, t)| t.name == "Bathrooms").expect("a Bathrooms tag");
+        let mut checked = 0;
+        for (_, instance) in scene.root.instances().filter(|(_, i)| i.tag == Some(bathrooms)) {
+            let Some((lo, hi)) = scene.definition_bounds(instance.definition) else { continue };
+            let corners = [
+                glam::DVec3::new(lo.x, lo.y, lo.z),
+                glam::DVec3::new(hi.x, lo.y, lo.z),
+                glam::DVec3::new(lo.x, hi.y, lo.z),
+                glam::DVec3::new(hi.x, hi.y, lo.z),
+                glam::DVec3::new(lo.x, lo.y, hi.z),
+                glam::DVec3::new(hi.x, lo.y, hi.z),
+                glam::DVec3::new(lo.x, hi.y, hi.z),
+                glam::DVec3::new(hi.x, hi.y, hi.z),
+            ];
+            let placed: Vec<glam::DVec3> = corners.iter().map(|c| instance.transform.transform_point3(*c)).collect();
+            let x0 = placed.iter().map(|p| p.x).fold(f64::INFINITY, f64::min);
+            let x1 = placed.iter().map(|p| p.x).fold(f64::NEG_INFINITY, f64::max);
+            let y0 = placed.iter().map(|p| p.y).fold(f64::INFINITY, f64::min);
+            let y1 = placed.iter().map(|p| p.y).fold(f64::NEG_INFINITY, f64::max);
+            let name = scene.definition(instance.definition).map_or("?", |d| d.name.as_str());
+            let box_ = format!("{name} at x {x0:.1}..{x1:.1}, y {y0:.1}..{y1:.1}");
+
+            let inside = BATHS.iter().any(|[bx0, by0, bx1, by1]| {
+                x0 >= bx0 - EPS && x1 <= bx1 + EPS && y0 >= by0 - EPS && y1 <= by1 + EPS
+            });
+            assert!(inside, "{box_} is not inside one bathroom's walls");
+            for [dx0, dy0, dx1, dy1] in DOORWAYS {
+                let overlaps = x0 < dx1 - EPS && x1 > dx0 + EPS && y0 < dy1 - EPS && y1 > dy0 + EPS;
+                assert!(!overlaps, "{box_} stands in the floor inside a bathroom door");
+            }
+            checked += 1;
+        }
+        assert_eq!(checked, 6, "two baths, three fixtures each");
     }
 
     /// Nothing about a sample should be a surprise to the wood: a sample that opens with a
