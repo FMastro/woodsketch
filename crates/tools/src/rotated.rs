@@ -2,7 +2,7 @@
 //! second (the first side: its direction and length, inferred like a line, or typed), then move
 //! across and click (or type) the other side.
 
-use glam::{DVec3, Vec2};
+use glam::{DAffine3, DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS};
@@ -47,6 +47,24 @@ impl RotatedRectangleTool {
 
     pub fn cancel(&mut self) {
         self.stage = Stage::First;
+    }
+
+    /// Carry the rectangle being sized out of the group being closed (`t` maps old to new
+    /// coordinates).
+    pub fn migrate_context(&mut self, t: DAffine3) {
+        match &mut self.stage {
+            Stage::First => {}
+            Stage::Side { a, normal, b } => {
+                *a = t.transform_point3(*a);
+                *b = t.transform_point3(*b);
+                *normal = t.transform_vector3(*normal);
+            }
+            Stage::Across { a, b, normal, .. } => {
+                *a = t.transform_point3(*a);
+                *b = t.transform_point3(*b);
+                *normal = t.transform_vector3(*normal);
+            }
+        }
     }
 
     pub fn hover(&mut self, doc: &Document, screen: Screen<'_>, cursor: Vec2) {
