@@ -322,7 +322,10 @@ add it there; when you finish an item, remove it.
 ## Start page and samples
 The app opens on a Start page (`ui-egui::start`) over an empty drawing, not in front of it:
 `StartPage::open` is set only when there's settings storage, so tests never have to clear it,
-and Esc or "Back to <drawing>" leaves without making anything. File > Start Page opens it again.
+and Esc or "Back to <drawing>" leaves without making anything. File > Start Page opens it again. Its block in `App::ui` returns before
+`status_bar`, so anything the status bar would say is lost while it is open: `chrome::start_update_banner`
+puts the update offer (downloading, ready to restart, just updated) across the top instead, since
+an update that arrives while nobody has opened a drawing would otherwise never be offered.
 It offers New in either unit, Open, Import, the recent list and the samples. Each card is one
 painted widget that names itself (`WidgetInfo::labeled`), because labels inside a frame would
 each be a separate thing to stop on.

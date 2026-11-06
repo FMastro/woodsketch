@@ -617,6 +617,53 @@ impl WoodSketchApp {
         });
     }
 
+    /// What the status bar would be saying about an update, for the Start page, which stands in
+    /// front of the status bar and so hid it: a drawing opened on a Start page left open would
+    /// download an update and never offer the restart, until you happened to leave the page.
+    ///
+    /// Across the top rather than the bottom, because the page has no bottom bar to sit in and
+    /// the restart is the one thing here worth interrupting for.
+    pub(crate) fn start_update_banner(&mut self, ui: &mut egui::Ui) {
+        let state = self.update_state();
+        let busy = matches!(state, Some(crate::updates::UpdateState::Downloading(_) | crate::updates::UpdateState::Ready(_)));
+        if !busy && !self.updated() {
+            return;
+        }
+        egui::Panel::top("start update").show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.add_space(4.0);
+                // Just updated: the same note the status bar gives, so arriving on the Start
+                // page after an update says as much as arriving in a drawing does.
+                if self.updated() {
+                    ui.label(format!("{} {}", egui_phosphor::regular::CHECK_CIRCLE, t!("status-updated", "version" => crate::updates::VERSION)));
+                    if ui.link(t!("status-whats-new")).on_hover_text(t!("status-whats-new-hint")).clicked() {
+                        self.read_the_changes();
+                    }
+                    if ui.small_button(egui_phosphor::regular::X).on_hover_text(t!("status-dismiss")).clicked() {
+                        self.updated_from = None;
+                    }
+                }
+                if let Some(crate::updates::UpdateState::Downloading(version)) = &state {
+                    ui.label(t!("status-downloading", "version" => version.as_str()));
+                    ui.add(egui::Spinner::new());
+                }
+                if let Some(crate::updates::UpdateState::Ready(version)) = &state {
+                    let label = egui::RichText::new(format!("{} {}", egui_phosphor::regular::ARROW_CIRCLE_UP, t!("status-restart-to-update", "version" => version.as_str())))
+                        .color(egui::Color32::WHITE)
+                        .strong();
+                    let restart = ui
+                        .add(egui::Button::new(label).fill(egui::Color32::from_rgb(34, 139, 34)))
+                        .on_hover_text(t!("status-restart-to-update-hint"));
+                    if restart.clicked() {
+                        let ctx = ui.ctx().clone();
+                        self.restart_to_update(&ctx);
+                    }
+                }
+            });
+            ui.add_space(2.0);
+        });
+    }
+
     pub(crate) fn status_bar(&mut self, ui: &mut egui::Ui) {
         egui::Panel::bottom("status").show(ui, |ui| {
             ui.horizontal(|ui| {

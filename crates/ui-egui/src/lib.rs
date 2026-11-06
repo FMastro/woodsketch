@@ -778,6 +778,9 @@ impl eframe::App for WoodSketchApp {
         if self.start.open {
             // The page stands in for the toolbars, tray and viewport; the menu bar stays, so
             // File and Help work from here. The drawing underneath is untouched.
+            // The status bar goes with them, so anything it would have said about an update is
+            // said across the top instead.
+            self.start_update_banner(ui);
             let drawing = self.files.name();
             self.thumbs.collect(&ctx);
             match self.start.show(ui, &drawing, &self.recent, &mut self.thumbs) {

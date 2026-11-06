@@ -1964,6 +1964,36 @@ fn the_status_bar_shows_an_update_downloading_then_ready() {
 }
 
 #[test]
+fn the_start_page_offers_the_restart_too() {
+    // The offer lives in the status bar, and the Start page stands in front of the status bar.
+    // Left on the Start page -- which is where the app opens -- an update could download and
+    // finish, and nothing would ever say so until you happened to open a drawing.
+    use egui_kittest::kittest::Queryable;
+    use std::sync::{Arc, Mutex};
+    use woodsketch_ui_egui::updates::{UpdateState, Updater};
+    let mut harness = app();
+    let state = Arc::new(Mutex::new(UpdateState::Downloading("9.9.9".into())));
+    let reopens = Arc::new(Mutex::new(None));
+    let restart = {
+        let reopens = reopens.clone();
+        move |open: Option<&std::path::Path>| *reopens.lock().unwrap() = Some(open.map(std::path::Path::to_path_buf))
+    };
+    harness.state_mut().set_updater(Updater { state: state.clone(), check: Box::new(|| {}), restart: Box::new(restart) });
+    harness.state_mut().show_start_page();
+    // The spinner keeps repainting, so step a few frames rather than run until still.
+    harness.run_steps(3);
+    harness.get_by_label("Start");
+    assert!(harness.query_by_label("Downloading WoodSketch 9.9.9...").is_some(), "the Start page says an update is on its way");
+
+    *state.lock().unwrap() = UpdateState::Ready("9.9.9".into());
+    harness.run();
+    snapshot(&mut harness, "start_page_update_ready");
+    harness.get_by_label_contains("Restart to update to 9.9.9").click();
+    harness.run();
+    assert_eq!(*reopens.lock().unwrap(), Some(None), "restarts with no drawing to reopen");
+}
+
+#[test]
 fn tags_go_in_folders_and_a_hidden_folder_hides_them() {
     use egui_kittest::kittest::Queryable;
     use egui_phosphor::regular as ph;

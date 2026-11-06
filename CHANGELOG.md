@@ -3,6 +3,14 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+## 0.1.68
+
+- Fixed: an update that downloaded while the Start page was open never offered to install itself.
+  The green "Restart to update" button lives in the status bar, and the Start page stands in
+  front of the status bar — so the app you opened and left on the Start page would quietly fetch
+  a new version and say nothing about it until you happened to open a drawing. The Start page
+  shows it now, across the top, along with "Updated to ..." and the progress while it downloads.
+
 ## 0.1.67
 
 - The translation now covers the whole program. Every panel in the tray, the Cut List window and
