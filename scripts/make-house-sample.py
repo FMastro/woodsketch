@@ -315,8 +315,8 @@ wall(EXT, Y1, W - EXT, Y1, INT, [("Door", 40.0, 74.0, 0.0, DOOR_H),
                                  ("Door", 290.0, 324.0, 0.0, DOOR_H)], True)
 wall(216.0, EXT, 216.0, Y1, INT, [("Opening", 60.0, 120.0, 0.0, DOOR_H)], True)   # living to kitchen
 wall(132.0, Y1 + INT, 132.0, D - EXT, INT, [], True)
-wall(192.0, Y1 + INT, 192.0, D - EXT, INT, [], True)
-wall(252.0, Y1 + INT, 252.0, D - EXT, INT, [("Door", 200.0, 234.0, 0.0, DOOR_H)], True)
+wall(195.5, Y1 + INT, 195.5, D - EXT, INT, [], True)
+wall(259.0, Y1 + INT, 259.0, D - EXT, INT, [("Door", 200.0, 234.0, 0.0, DOOR_H)], True)
 
 part("Slab", "slab", [W, D, 4], [0, 0, -4], tag="Slab")
 part("Exterior stud", "fir", [STUD_H, EXT, PLATE], [ext_studs[0][0], ext_studs[0][1], PLATE],
@@ -470,7 +470,7 @@ part("Front door", "fir", [82, 38, 1.75], [96, 1.875, 0], length="z", width="x",
 inside_doors = [(40.0, Y1 + 1.0, 0.0), (150.0, Y1 + 1.0, 0.0), (290.0, Y1 + 1.0, 0.0)]
 part("Door", "ply", [82, 34, 1.375], list(inside_doors[0]), length="z", width="x", tag="Doors",
      copies=copies_at("Door", inside_doors[1:]))
-part("Door side", "ply", [82, 34, 1.375], [253.0, 200.0, 0], length="z", width="y", called="Door", tag="Doors")
+part("Door side", "ply", [82, 34, 1.375], [260.0, 200.0, 0], length="z", width="y", called="Door", tag="Doors")
 
 front_windows = [(30.0, 0.0, SILL), (160.0, 0.0, SILL), (250.0, 0.0, SILL), (320.0, 0.0, SILL),
                  (50.0, D - 0.25, SILL), (296.0, D - 0.25, SILL)]
@@ -501,7 +501,7 @@ for across, near, far, axis in [(130.5, 1.875, 3.625, "y"),      # the front doo
                                 (70.5, 169.0, 170.375, "y"),     # three off the hall
                                 (180.5, 169.0, 170.375, "y"),
                                 (320.5, 169.0, 170.375, "y"),
-                                (230.5, 253.0, 254.375, "x")]:   # bath 2, off bedroom 2
+                                (230.5, 260.0, 261.375, "x")]:   # bath 2, off bedroom 2
     for face, outward in ((near, False), (far, True)):
         rose = face if outward else face - ROSE_T
         knob = face + ROSE_T if outward else face - ROSE_T - KNOB_P
@@ -525,8 +525,8 @@ for what, dia, thick, bought, held in [("knob", KNOB_D, KNOB_P, "Passage knob", 
 # sheathing is cut round the windows.
 
 rooms = [("Living", EXT, EXT, 216.0, Y1), ("Kitchen", 219.5, EXT, W - EXT, Y1),
-         ("Bedroom 1", EXT, Y1 + INT, 132.0, D - EXT), ("Bath 1", 135.5, Y1 + INT, 192.0, D - EXT),
-         ("Bath 2", 195.5, Y1 + INT, 252.0, D - EXT), ("Bedroom 2", 255.5, Y1 + INT, W - EXT, D - EXT)]
+         ("Bedroom 1", EXT, Y1 + INT, 132.0, D - EXT), ("Bath 1", 135.5, Y1 + INT, 195.5, D - EXT),
+         ("Bath 2", 199.0, Y1 + INT, 259.0, D - EXT), ("Bedroom 2", 262.5, Y1 + INT, W - EXT, D - EXT)]
 CEIL_Z = WALL_TOP - BOARD
 for name, x0, y0, x1, y1 in rooms:
     sheet_face(f"Drywall {name} S", "board", "Drywall", "y", y0, x0, x1, 0, 96.0, (96.0, 48.0), BOARD, called="Drywall")
@@ -546,22 +546,21 @@ for i, x in enumerate(spread(222.0, 222.0 + 4 * 24.0, 24.0)):
                                 "drawer_joints": "Rabbets", "pulls": "Bar",
                                 "fills": ["Drawer", "Doors"] if i % 2 == 0 else ["Drawer", "Drawer"]}})
 part("Countertop", "stone", [96, 25.5, 1.5], [222, EXT, 34.5], tag="Kitchen")
-# Each bath is 56-1/2" clear between its walls and 111" deep, and every fixture sits against a
-# wall inside that, with the floor in front of each door left alone. The tub is a 54" alcove
-# tub rather than the usual 60", because 60" is what the room would be if the walls were 60" on
-# centre and they are not: the first draft put a 60" tub in and it ran through the wall into the
-# next bathroom and stood across the doorway.
-BATH1, BATH2 = 135.5, 195.5                      # the west face of each bath
-BATH_W, BATH_N = 56.5, D - EXT                   # clear width, and the wall at the back
-# Across the back wall of each, with the 2-1/2" over at the end a filler strip would take up.
-part("Tub", "china", [54, 30, 20], [BATH1, BATH_N - 30, 0], tag="Bathrooms",
-     copies=copies_at("Tub", [(BATH2 + BATH_W - 54, BATH_N - 30, 0)]))
-# Down the long wall each is entered along, ending where the tub starts.
+# Each bath is 60" clear between its walls and 111" deep. The 60" is why the walls are where
+# they are: it is what an alcove tub is made to drop into, and a bathroom gets framed around
+# that. Every fixture sits against a wall inside it, with the floor in front of each door left
+# alone -- a tub used to stand 3-1/2" behind a door and run through the wall into the next bath.
+BATH1, BATH2 = 135.5, 199.0                      # the west face of each bath
+BATH_W, BATH_N = 60.0, D - EXT                   # clear width, and the wall at the back
+# Wall to wall across the back of each, which is the whole point of the 60".
+part("Tub", "china", [60, 30, 20], [BATH1, BATH_N - 30, 0], tag="Bathrooms",
+     copies=copies_at("Tub", [(BATH2, BATH_N - 30, 0)]))
+# Down the west wall of each, ending where the tub starts.
 part("Vanity", "maple", [36, 21, 34], [BATH1, 216.5, 0], length="y", width="x", tag="Bathrooms",
      free_to_move=True, copies=copies_at("Vanity", [(BATH2, 216.5, 0)]))
-# Bath 1 is entered from the hall through its south wall, so its toilet is up the other side and
-# 24-1/2" clear of the door; bath 2 is entered from the bedroom through its east wall, so its
-# toilet is on that wall but south of the opening.
+# Both against an east wall and both clear of a door: bath 1 is entered through its south wall,
+# so its toilet stands 24-1/2" up from the opening; bath 2 is entered through its east wall, so
+# its toilet goes on that wall but south of it.
 part("Toilet", "china", [20, 28, 30], [BATH1 + BATH_W - 28, 196, 0], length="y", width="x",
      tag="Bathrooms", copies=copies_at("Toilet", [(BATH2 + BATH_W - 28, Y1 + INT, 0)]))
 

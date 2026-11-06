@@ -372,8 +372,9 @@ sensible cut list. Its **Doors tag starts hidden** (`"hidden": true` in the reci
 doors stand between you and every room; a hidden instance is not a cut-list part, so the five
 doors and their knobs are out of the counts until the tag is shown, which is why
 `the_houses_knobs_are_bought_not_cut` shows it first. Its bathroom fixtures are checked by
-`nothing_in_the_baths_stands_in_a_doorway`: each bath is 56-1/2" clear, not the 60" the fixtures
-were first sized for, and a tub ran through a wall into the next bath and stood behind the door. It leans on three things being right — components placed many times
+`nothing_in_the_baths_stands_in_a_doorway`. Each bath is framed 60" clear, which is the width an
+alcove tub drops into and the reason the two dividing walls are where they are; a tub used to run
+through a wall into the next bath and stand 3-1/2" behind the door. It leans on three things being right — components placed many times
 (everything repeated is `copies`, so the renderer draws one design per placement), tag folders
 (Shell / Roof / Inside / Outside, which is how you peel it apart), and `PartSpec::outline` for
 the gable ends. `samples::tests::the_house_comes_apart_by_tag` guards the tagging, which no

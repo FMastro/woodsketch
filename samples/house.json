@@ -156,21 +156,21 @@
       {"name": "Interior stud 38", "at": [132, 250.75, 1.5]},
       {"name": "Interior stud 39", "at": [132, 266.75, 1.5]},
       {"name": "Interior stud 40", "at": [132, 281, 1.5]},
-      {"name": "Interior stud 41", "at": [192, 171.5, 1.5]},
-      {"name": "Interior stud 42", "at": [192, 186.75, 1.5]},
-      {"name": "Interior stud 43", "at": [192, 202.75, 1.5]},
-      {"name": "Interior stud 44", "at": [192, 218.75, 1.5]},
-      {"name": "Interior stud 45", "at": [192, 234.75, 1.5]},
-      {"name": "Interior stud 46", "at": [192, 250.75, 1.5]},
-      {"name": "Interior stud 47", "at": [192, 266.75, 1.5]},
-      {"name": "Interior stud 48", "at": [192, 281, 1.5]},
-      {"name": "Interior stud 49", "at": [252, 171.5, 1.5]},
-      {"name": "Interior stud 50", "at": [252, 186.75, 1.5]},
-      {"name": "Interior stud 51", "at": [252, 250.75, 1.5]},
-      {"name": "Interior stud 52", "at": [252, 266.75, 1.5]},
-      {"name": "Interior stud 53", "at": [252, 281, 1.5]},
-      {"name": "Interior stud 54", "at": [252, 198.5, 1.5]},
-      {"name": "Interior stud 55", "at": [252, 234, 1.5]}
+      {"name": "Interior stud 41", "at": [195.5, 171.5, 1.5]},
+      {"name": "Interior stud 42", "at": [195.5, 186.75, 1.5]},
+      {"name": "Interior stud 43", "at": [195.5, 202.75, 1.5]},
+      {"name": "Interior stud 44", "at": [195.5, 218.75, 1.5]},
+      {"name": "Interior stud 45", "at": [195.5, 234.75, 1.5]},
+      {"name": "Interior stud 46", "at": [195.5, 250.75, 1.5]},
+      {"name": "Interior stud 47", "at": [195.5, 266.75, 1.5]},
+      {"name": "Interior stud 48", "at": [195.5, 281, 1.5]},
+      {"name": "Interior stud 49", "at": [259, 171.5, 1.5]},
+      {"name": "Interior stud 50", "at": [259, 186.75, 1.5]},
+      {"name": "Interior stud 51", "at": [259, 250.75, 1.5]},
+      {"name": "Interior stud 52", "at": [259, 266.75, 1.5]},
+      {"name": "Interior stud 53", "at": [259, 281, 1.5]},
+      {"name": "Interior stud 54", "at": [259, 198.5, 1.5]},
+      {"name": "Interior stud 55", "at": [259, 234, 1.5]}
     ]},
     {"name": "Plate 1", "material": "fir", "size": [138.5, 5.5, 1.5], "at": [0, 5.5, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate", "copies": [
       {"name": "Plate 1 2", "at": [0, 144, 0]},
@@ -199,11 +199,11 @@
     {"name": "Plate 3", "material": "fir", "size": [111, 3.5, 1.5], "at": [132, 171.5, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate", "copies": [
       {"name": "Plate 3 2", "at": [132, 171.5, 94.125]},
       {"name": "Plate 3 3", "at": [132, 171.5, 95.625]},
-      {"name": "Plate 3 4", "at": [192, 171.5, 0]},
-      {"name": "Plate 3 5", "at": [192, 171.5, 94.125]},
-      {"name": "Plate 3 6", "at": [192, 171.5, 95.625]},
-      {"name": "Plate 3 7", "at": [252, 171.5, 94.125]},
-      {"name": "Plate 3 8", "at": [252, 171.5, 95.625]}
+      {"name": "Plate 3 4", "at": [195.5, 171.5, 0]},
+      {"name": "Plate 3 5", "at": [195.5, 171.5, 94.125]},
+      {"name": "Plate 3 6", "at": [195.5, 171.5, 95.625]},
+      {"name": "Plate 3 7", "at": [259, 171.5, 94.125]},
+      {"name": "Plate 3 8", "at": [259, 171.5, 95.625]}
     ]},
     {"name": "Plate 4", "material": "fir", "size": [186.5, 3.5, 1.5], "at": [5.5, 168, 94.125], "tag": "Wall framing", "called": "Plate", "copies": [
       {"name": "Plate 4 2", "at": [192, 168, 94.125]},
@@ -223,8 +223,8 @@
     {"name": "Plate 11", "material": "fir", "size": [54.5, 3.5, 1.5], "at": [324, 168, 0], "tag": "Wall framing", "called": "Plate"},
     {"name": "Plate 12", "material": "fir", "size": [54.5, 3.5, 1.5], "at": [216, 5.5, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate"},
     {"name": "Plate 13", "material": "fir", "size": [48, 3.5, 1.5], "at": [216, 120, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate"},
-    {"name": "Plate 14", "material": "fir", "size": [28.5, 3.5, 1.5], "at": [252, 171.5, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate"},
-    {"name": "Plate 15", "material": "fir", "size": [48.5, 3.5, 1.5], "at": [252, 234, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate"},
+    {"name": "Plate 14", "material": "fir", "size": [28.5, 3.5, 1.5], "at": [259, 171.5, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate"},
+    {"name": "Plate 15", "material": "fir", "size": [48.5, 3.5, 1.5], "at": [259, 234, 0], "length": "y", "width": "x", "tag": "Wall framing", "called": "Plate"},
     {"name": "Cripple 1", "material": "fir", "size": [8.625, 5.5, 1.5], "at": [30, 0, 85.5], "length": "z", "tag": "Wall framing", "called": "Cripple", "copies": [
       {"name": "Cripple 1 2", "at": [46, 0, 85.5]},
       {"name": "Cripple 1 3", "at": [62, 0, 85.5]},
@@ -342,9 +342,9 @@
       {"name": "Cripple 4 12", "at": [216, 92, 83.5]},
       {"name": "Cripple 4 13", "at": [216, 108, 83.5]},
       {"name": "Cripple 4 14", "at": [216, 118.5, 83.5]},
-      {"name": "Cripple 4 15", "at": [252, 200, 83.5]},
-      {"name": "Cripple 4 16", "at": [252, 216, 83.5]},
-      {"name": "Cripple 4 17", "at": [252, 232.5, 83.5]}
+      {"name": "Cripple 4 15", "at": [259, 200, 83.5]},
+      {"name": "Cripple 4 16", "at": [259, 216, 83.5]},
+      {"name": "Cripple 4 17", "at": [259, 232.5, 83.5]}
     ]},
     {"name": "Block 5", "material": "fir", "size": [14.5, 5.5, 1.5], "at": [208.75, 0, 47.25], "tag": "Wall framing", "called": "Block", "copies": [
       {"name": "Block 5 2", "at": [224.75, 0, 47.25]},
@@ -389,12 +389,12 @@
       {"name": "Block 7 7", "at": [132, 220.25, 47.25]},
       {"name": "Block 7 8", "at": [132, 236.25, 47.25]},
       {"name": "Block 7 9", "at": [132, 252.25, 47.25]},
-      {"name": "Block 7 10", "at": [192, 188.25, 47.25]},
-      {"name": "Block 7 11", "at": [192, 204.25, 47.25]},
-      {"name": "Block 7 12", "at": [192, 220.25, 47.25]},
-      {"name": "Block 7 13", "at": [192, 236.25, 47.25]},
-      {"name": "Block 7 14", "at": [192, 252.25, 47.25]},
-      {"name": "Block 7 15", "at": [252, 252.25, 47.25]}
+      {"name": "Block 7 10", "at": [195.5, 188.25, 47.25]},
+      {"name": "Block 7 11", "at": [195.5, 204.25, 47.25]},
+      {"name": "Block 7 12", "at": [195.5, 220.25, 47.25]},
+      {"name": "Block 7 13", "at": [195.5, 236.25, 47.25]},
+      {"name": "Block 7 14", "at": [195.5, 252.25, 47.25]},
+      {"name": "Block 7 15", "at": [259, 252.25, 47.25]}
     ]},
     {"name": "Jack 8", "material": "fir", "size": [80.5, 3.5, 1.5], "at": [40, 168, 1.5], "length": "z", "tag": "Wall framing", "called": "Jack", "copies": [
       {"name": "Jack 8 2", "at": [72.5, 168, 1.5]},
@@ -404,8 +404,8 @@
       {"name": "Jack 8 6", "at": [322.5, 168, 1.5]},
       {"name": "Jack 8 7", "at": [216, 60, 1.5]},
       {"name": "Jack 8 8", "at": [216, 118.5, 1.5]},
-      {"name": "Jack 8 9", "at": [252, 200, 1.5]},
-      {"name": "Jack 8 10", "at": [252, 232.5, 1.5]}
+      {"name": "Jack 8 9", "at": [259, 200, 1.5]},
+      {"name": "Jack 8 10", "at": [259, 232.5, 1.5]}
     ]},
     {"name": "Block 9", "material": "fir", "size": [14.5, 3.5, 1.5], "at": [86.25, 168, 47.25], "tag": "Wall framing", "called": "Block", "copies": [
       {"name": "Block 9 2", "at": [102.25, 168, 47.25]},
@@ -455,16 +455,16 @@
     ]},
     {"name": "Block 16", "material": "fir", "size": [13.75, 3.5, 1.5], "at": [216, 7, 47.25], "length": "y", "width": "x", "tag": "Wall framing", "called": "Block", "copies": [
       {"name": "Block 16 2", "at": [132, 173, 47.25]},
-      {"name": "Block 16 3", "at": [192, 173, 47.25]},
-      {"name": "Block 16 4", "at": [252, 173, 47.25]}
+      {"name": "Block 16 3", "at": [195.5, 173, 47.25]},
+      {"name": "Block 16 4", "at": [259, 173, 47.25]}
     ]},
     {"name": "Header 17", "material": "fir", "size": [37, 3.5, 1.5], "at": [38.5, 168, 82], "tag": "Wall framing", "called": "Header", "copies": [
       {"name": "Header 17 2", "at": [148.5, 168, 82]},
       {"name": "Header 17 3", "at": [288.5, 168, 82]}
     ]},
     {"name": "Block 18", "material": "fir", "size": [12.75, 3.5, 1.5], "at": [132, 268.25, 47.25], "length": "y", "width": "x", "tag": "Wall framing", "called": "Block", "copies": [
-      {"name": "Block 18 2", "at": [192, 268.25, 47.25]},
-      {"name": "Block 18 3", "at": [252, 268.25, 47.25]}
+      {"name": "Block 18 2", "at": [195.5, 268.25, 47.25]},
+      {"name": "Block 18 3", "at": [259, 268.25, 47.25]}
     ]},
     {"name": "Jack 19", "material": "fir", "size": [80.5, 5.5, 1.5], "at": [96, 0, 1.5], "length": "z", "tag": "Wall framing", "called": "Jack", "copies": [
       {"name": "Jack 19 2", "at": [132.5, 0, 1.5]}
@@ -474,7 +474,7 @@
     ]},
     {"name": "Block 21", "material": "fir", "size": [13.75, 3.5, 1.5], "at": [7, 168, 47.25], "tag": "Wall framing", "called": "Block"},
     {"name": "Header 22", "material": "fir", "size": [63, 3.5, 1.5], "at": [216, 58.5, 82], "length": "y", "width": "x", "tag": "Wall framing", "called": "Header"},
-    {"name": "Header 23", "material": "fir", "size": [37, 3.5, 1.5], "at": [252, 198.5, 82], "length": "y", "width": "x", "tag": "Wall framing", "called": "Header"},
+    {"name": "Header 23", "material": "fir", "size": [37, 3.5, 1.5], "at": [259, 198.5, 82], "length": "y", "width": "x", "tag": "Wall framing", "called": "Header"},
     {"name": "Sheathing", "material": "osb", "size": [36, 38, 0.438], "at": [30, -0.438, 0], "length": "z", "width": "x", "tag": "Sheathing", "called": "Sheathing", "copies": [
       {"name": "Sheathing 2", "at": [160, -0.438, 0]},
       {"name": "Sheathing 3", "at": [250, -0.438, 0]},
@@ -868,7 +868,7 @@
       {"name": "Door 2", "at": [150, 169, 0]},
       {"name": "Door 3", "at": [290, 169, 0]}
     ]},
-    {"name": "Door side", "material": "ply", "size": [82, 34, 1.375], "at": [253, 200, 0], "length": "z", "tag": "Doors", "called": "Door"},
+    {"name": "Door side", "material": "ply", "size": [82, 34, 1.375], "at": [260, 200, 0], "length": "z", "tag": "Doors", "called": "Door"},
     {"name": "Window", "material": "glass", "size": [38, 48, 0.25], "at": [30, 0, 36], "width": "z", "tag": "Windows", "copies": [
       {"name": "Window 2", "at": [160, 0, 36]},
       {"name": "Window 3", "at": [250, 0, 36]},
@@ -890,8 +890,8 @@
       {"name": "Door knob 7", "at": [319.375, 167.062, 34.875]},
       {"name": "Door knob 8", "at": [319.375, 170.562, 34.875]}
     ]},
-    {"name": "Door knob side", "material": "metal", "size": [2.25, 2.25, 1.75], "at": [251.062, 229.375, 34.875], "length": "y", "width": "z", "tag": "Doors", "called": "Door knob", "hardware": "Passage knob", "outline": [[0, 1.125], {"arc_to": [2.25, 1.125], "through": [1.125, 0]}, {"arc_to": [0, 1.125], "through": [1.125, 2.25]}], "copies": [
-      {"name": "Door knob side 2", "at": [254.562, 229.375, 34.875]}
+    {"name": "Door knob side", "material": "metal", "size": [2.25, 2.25, 1.75], "at": [258.062, 229.375, 34.875], "length": "y", "width": "z", "tag": "Doors", "called": "Door knob", "hardware": "Passage knob", "outline": [[0, 1.125], {"arc_to": [2.25, 1.125], "through": [1.125, 0]}, {"arc_to": [0, 1.125], "through": [1.125, 2.25]}], "copies": [
+      {"name": "Door knob side 2", "at": [261.562, 229.375, 34.875]}
     ]},
     {"name": "Door rose", "material": "metal", "size": [2.75, 2.75, 0.188], "at": [129.125, 1.688, 34.625], "width": "z", "tag": "Doors", "called": "Door rose", "hardware": "Knob rose", "outline": [[0, 1.375], {"arc_to": [2.75, 1.375], "through": [1.375, 0]}, {"arc_to": [0, 1.375], "through": [1.375, 2.75]}], "copies": [
       {"name": "Door rose 2", "at": [129.125, 3.625, 34.625]},
@@ -902,8 +902,8 @@
       {"name": "Door rose 7", "at": [319.125, 168.812, 34.625]},
       {"name": "Door rose 8", "at": [319.125, 170.375, 34.625]}
     ]},
-    {"name": "Door rose side", "material": "metal", "size": [2.75, 2.75, 0.188], "at": [252.812, 229.125, 34.625], "length": "y", "width": "z", "tag": "Doors", "called": "Door rose", "hardware": "Knob rose", "outline": [[0, 1.375], {"arc_to": [2.75, 1.375], "through": [1.375, 0]}, {"arc_to": [0, 1.375], "through": [1.375, 2.75]}], "copies": [
-      {"name": "Door rose side 2", "at": [254.375, 229.125, 34.625]}
+    {"name": "Door rose side", "material": "metal", "size": [2.75, 2.75, 0.188], "at": [259.812, 229.125, 34.625], "length": "y", "width": "z", "tag": "Doors", "called": "Door rose", "hardware": "Knob rose", "outline": [[0, 1.375], {"arc_to": [2.75, 1.375], "through": [1.375, 0]}, {"arc_to": [0, 1.375], "through": [1.375, 2.75]}], "copies": [
+      {"name": "Door rose side 2", "at": [261.375, 229.125, 34.625]}
     ]},
     {"name": "Drywall Living S", "material": "board", "size": [36, 38, 0.5], "at": [30, 5.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
       {"name": "Drywall Living S 2", "at": [160, 5.5, 0]}
@@ -1053,11 +1053,11 @@
     {"name": "Drywall Bath 1 S", "material": "board", "size": [48, 14.5, 0.5], "at": [135.5, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
       {"name": "Drywall Bath 1 S 2", "at": [135.5, 171.5, 48]}
     ]},
-    {"name": "Drywall Bath 1 S b", "material": "board", "size": [48, 8, 0.5], "at": [184, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+    {"name": "Drywall Bath 1 S b", "material": "board", "size": [48, 11.5, 0.5], "at": [184, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
       {"name": "Drywall Bath 1 S b 2", "at": [184, 171.5, 48]}
     ]},
     {"name": "Drywall Bath 1 S c", "material": "board", "size": [14, 34, 0.5], "at": [150, 171.5, 82], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall"},
-    {"name": "Drywall Bath 1 N", "material": "board", "size": [48, 56.5, 0.5], "at": [135.5, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+    {"name": "Drywall Bath 1 N", "material": "board", "size": [48, 60, 0.5], "at": [135.5, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
       {"name": "Drywall Bath 1 N 2", "at": [135.5, 282, 48]}
     ]},
     {"name": "Drywall Bath 1 W", "material": "board", "size": [48, 96, 0.5], "at": [135.5, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
@@ -1066,61 +1066,61 @@
     {"name": "Drywall Bath 1 W b", "material": "board", "size": [48, 15, 0.5], "at": [135.5, 267.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
       {"name": "Drywall Bath 1 W b 2", "at": [135.5, 267.5, 48]}
     ]},
-    {"name": "Drywall Bath 1 E", "material": "board", "size": [48, 96, 0.5], "at": [191.5, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Drywall Bath 1 E 2", "at": [191.5, 171.5, 48]}
+    {"name": "Drywall Bath 1 E", "material": "board", "size": [48, 96, 0.5], "at": [195, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 1 E 2", "at": [195, 171.5, 48]}
     ]},
-    {"name": "Drywall Bath 1 E b", "material": "board", "size": [48, 15, 0.5], "at": [191.5, 267.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Drywall Bath 1 E b 2", "at": [191.5, 267.5, 48]}
+    {"name": "Drywall Bath 1 E b", "material": "board", "size": [48, 15, 0.5], "at": [195, 267.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 1 E b 2", "at": [195, 267.5, 48]}
     ]},
-    {"name": "Ceiling Bath 1", "material": "board", "size": [48, 56.5, 0.5], "at": [135.5, 171.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+    {"name": "Ceiling Bath 1", "material": "board", "size": [48, 60, 0.5], "at": [135.5, 171.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
       {"name": "Ceiling Bath 1 2", "at": [135.5, 219.5, 96.625]}
     ]},
-    {"name": "Ceiling Bath 1 b", "material": "board", "size": [15, 56.5, 0.5], "at": [135.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
-    {"name": "Drywall Bath 2 S", "material": "board", "size": [48, 56.5, 0.5], "at": [195.5, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Drywall Bath 2 S 2", "at": [195.5, 171.5, 48]}
+    {"name": "Ceiling Bath 1 b", "material": "board", "size": [15, 60, 0.5], "at": [135.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bath 2 S", "material": "board", "size": [48, 60, 0.5], "at": [199, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 2 S 2", "at": [199, 171.5, 48]}
     ]},
-    {"name": "Drywall Bath 2 N", "material": "board", "size": [48, 56.5, 0.5], "at": [195.5, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Drywall Bath 2 N 2", "at": [195.5, 282, 48]}
+    {"name": "Drywall Bath 2 N", "material": "board", "size": [48, 60, 0.5], "at": [199, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 2 N 2", "at": [199, 282, 48]}
     ]},
-    {"name": "Drywall Bath 2 W", "material": "board", "size": [48, 96, 0.5], "at": [195.5, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Drywall Bath 2 W 2", "at": [195.5, 171.5, 48]}
+    {"name": "Drywall Bath 2 W", "material": "board", "size": [48, 96, 0.5], "at": [199, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 2 W 2", "at": [199, 171.5, 48]}
     ]},
-    {"name": "Drywall Bath 2 W b", "material": "board", "size": [48, 15, 0.5], "at": [195.5, 267.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Drywall Bath 2 W b 2", "at": [195.5, 267.5, 48]}
+    {"name": "Drywall Bath 2 W b", "material": "board", "size": [48, 15, 0.5], "at": [199, 267.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 2 W b 2", "at": [199, 267.5, 48]}
     ]},
-    {"name": "Drywall Bath 2 E", "material": "board", "size": [48, 48.5, 0.5], "at": [251.5, 234, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Drywall Bath 2 E 2", "at": [251.5, 234, 48]}
+    {"name": "Drywall Bath 2 E", "material": "board", "size": [48, 48.5, 0.5], "at": [258.5, 234, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 2 E 2", "at": [258.5, 234, 48]}
     ]},
-    {"name": "Drywall Bath 2 E b", "material": "board", "size": [48, 28.5, 0.5], "at": [251.5, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Drywall Bath 2 E b 2", "at": [251.5, 171.5, 48]}
+    {"name": "Drywall Bath 2 E b", "material": "board", "size": [48, 28.5, 0.5], "at": [258.5, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bath 2 E b 2", "at": [258.5, 171.5, 48]}
     ]},
-    {"name": "Drywall Bath 2 E c", "material": "board", "size": [14, 34, 0.5], "at": [251.5, 200, 82], "length": "z", "tag": "Drywall", "called": "Drywall"},
-    {"name": "Ceiling Bath 2", "material": "board", "size": [48, 56.5, 0.5], "at": [195.5, 171.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Ceiling Bath 2 2", "at": [195.5, 219.5, 96.625]}
+    {"name": "Drywall Bath 2 E c", "material": "board", "size": [14, 34, 0.5], "at": [258.5, 200, 82], "length": "z", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Ceiling Bath 2", "material": "board", "size": [48, 60, 0.5], "at": [199, 171.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Ceiling Bath 2 2", "at": [199, 219.5, 96.625]}
     ]},
-    {"name": "Ceiling Bath 2 b", "material": "board", "size": [15, 56.5, 0.5], "at": [195.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Ceiling Bath 2 b", "material": "board", "size": [15, 60, 0.5], "at": [199, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
     {"name": "Drywall Bedroom 2 S", "material": "board", "size": [48, 54.5, 0.5], "at": [324, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
       {"name": "Drywall Bedroom 2 S 2", "at": [324, 171.5, 48]}
     ]},
-    {"name": "Drywall Bedroom 2 S b", "material": "board", "size": [48, 34.5, 0.5], "at": [255.5, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Drywall Bedroom 2 S b 2", "at": [255.5, 171.5, 48]}
+    {"name": "Drywall Bedroom 2 S b", "material": "board", "size": [48, 27.5, 0.5], "at": [262.5, 171.5, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 2 S b 2", "at": [262.5, 171.5, 48]}
     ]},
     {"name": "Drywall Bedroom 2 S c", "material": "board", "size": [14, 34, 0.5], "at": [290, 171.5, 82], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall"},
     {"name": "Drywall Bedroom 2 N", "material": "board", "size": [48, 44.5, 0.5], "at": [334, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
       {"name": "Drywall Bedroom 2 N 2", "at": [334, 282, 48]}
     ]},
-    {"name": "Drywall Bedroom 2 N b", "material": "board", "size": [48, 40.5, 0.5], "at": [255.5, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Drywall Bedroom 2 N b 2", "at": [255.5, 282, 48]}
+    {"name": "Drywall Bedroom 2 N b", "material": "board", "size": [48, 33.5, 0.5], "at": [262.5, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 2 N b 2", "at": [262.5, 282, 48]}
     ]},
     {"name": "Drywall Bedroom 2 N c", "material": "board", "size": [36, 38, 0.5], "at": [296, 282, 0], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall"},
     {"name": "Drywall Bedroom 2 N d", "material": "board", "size": [12, 38, 0.5], "at": [296, 282, 84], "length": "z", "width": "x", "tag": "Drywall", "called": "Drywall"},
-    {"name": "Drywall Bedroom 2 W", "material": "board", "size": [48, 48.5, 0.5], "at": [255.5, 234, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Drywall Bedroom 2 W 2", "at": [255.5, 234, 48]}
+    {"name": "Drywall Bedroom 2 W", "material": "board", "size": [48, 48.5, 0.5], "at": [262.5, 234, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 2 W 2", "at": [262.5, 234, 48]}
     ]},
-    {"name": "Drywall Bedroom 2 W b", "material": "board", "size": [48, 28.5, 0.5], "at": [255.5, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Drywall Bedroom 2 W b 2", "at": [255.5, 171.5, 48]}
+    {"name": "Drywall Bedroom 2 W b", "material": "board", "size": [48, 28.5, 0.5], "at": [262.5, 171.5, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Drywall Bedroom 2 W b 2", "at": [262.5, 171.5, 48]}
     ]},
-    {"name": "Drywall Bedroom 2 W c", "material": "board", "size": [14, 34, 0.5], "at": [255.5, 200, 82], "length": "z", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Drywall Bedroom 2 W c", "material": "board", "size": [14, 34, 0.5], "at": [262.5, 200, 82], "length": "z", "tag": "Drywall", "called": "Drywall"},
     {"name": "Drywall Bedroom 2 E", "material": "board", "size": [48, 44.5, 0.5], "at": [378, 238, 0], "length": "z", "tag": "Drywall", "called": "Drywall", "copies": [
       {"name": "Drywall Bedroom 2 E 2", "at": [378, 238, 48]}
     ]},
@@ -1129,23 +1129,23 @@
     ]},
     {"name": "Drywall Bedroom 2 E c", "material": "board", "size": [36, 38, 0.5], "at": [378, 200, 0], "length": "z", "tag": "Drywall", "called": "Drywall"},
     {"name": "Drywall Bedroom 2 E d", "material": "board", "size": [12, 38, 0.5], "at": [378, 200, 84], "length": "z", "tag": "Drywall", "called": "Drywall"},
-    {"name": "Ceiling Bedroom 2", "material": "board", "size": [48, 96, 0.5], "at": [255.5, 171.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Ceiling Bedroom 2 2", "at": [255.5, 219.5, 96.625]}
+    {"name": "Ceiling Bedroom 2", "material": "board", "size": [48, 96, 0.5], "at": [262.5, 171.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Ceiling Bedroom 2 2", "at": [262.5, 219.5, 96.625]}
     ]},
-    {"name": "Ceiling Bedroom 2 b", "material": "board", "size": [48, 27, 0.5], "at": [351.5, 171.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
-      {"name": "Ceiling Bedroom 2 b 2", "at": [351.5, 219.5, 96.625]}
+    {"name": "Ceiling Bedroom 2 b", "material": "board", "size": [48, 20, 0.5], "at": [358.5, 171.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall", "copies": [
+      {"name": "Ceiling Bedroom 2 b 2", "at": [358.5, 219.5, 96.625]}
     ]},
-    {"name": "Ceiling Bedroom 2 c", "material": "board", "size": [15, 96, 0.5], "at": [255.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
-    {"name": "Ceiling Bedroom 2 d", "material": "board", "size": [15, 27, 0.5], "at": [351.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Ceiling Bedroom 2 c", "material": "board", "size": [15, 96, 0.5], "at": [262.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
+    {"name": "Ceiling Bedroom 2 d", "material": "board", "size": [15, 20, 0.5], "at": [358.5, 267.5, 96.625], "length": "y", "width": "x", "tag": "Drywall", "called": "Drywall"},
     {"name": "Countertop", "material": "stone", "size": [96, 25.5, 1.5], "at": [222, 5.5, 34.5], "tag": "Kitchen"},
-    {"name": "Tub", "material": "china", "size": [54, 30, 20], "at": [135.5, 252.5, 0], "tag": "Bathrooms", "copies": [
-      {"name": "Tub 2", "at": [198, 252.5, 0]}
+    {"name": "Tub", "material": "china", "size": [60, 30, 20], "at": [135.5, 252.5, 0], "tag": "Bathrooms", "copies": [
+      {"name": "Tub 2", "at": [199, 252.5, 0]}
     ]},
     {"name": "Vanity", "material": "maple", "size": [36, 21, 34], "at": [135.5, 216.5, 0], "length": "y", "width": "x", "tag": "Bathrooms", "free_to_move": true, "copies": [
-      {"name": "Vanity 2", "at": [195.5, 216.5, 0]}
+      {"name": "Vanity 2", "at": [199, 216.5, 0]}
     ]},
-    {"name": "Toilet", "material": "china", "size": [20, 28, 30], "at": [164, 196, 0], "length": "y", "width": "x", "tag": "Bathrooms", "copies": [
-      {"name": "Toilet 2", "at": [224, 171.5, 0]}
+    {"name": "Toilet", "material": "china", "size": [20, 28, 30], "at": [167.5, 196, 0], "length": "y", "width": "x", "tag": "Bathrooms", "copies": [
+      {"name": "Toilet 2", "at": [231, 171.5, 0]}
     ]}
   ],
   "templates": [

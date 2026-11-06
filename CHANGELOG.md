@@ -20,8 +20,9 @@ that belongs in the commit message, which is where it already is.
   rather than two. Two tails 2" wide was the old suggestion and it looked like a jig set wrong.
 - Hovering Tails, Pins or Half pins now says what a tail, a pin and a half pin are, rather than
   assuming you already know.
-- Small house: the baths are laid out properly. A tub ran through the wall into the next
-  bathroom and stood right behind the door, and a toilet poked out through the other doorway.
+- Small house: both baths are framed 60" clear, the width an alcove tub drops into, and laid out
+  around their doors. A tub used to run through the wall into the next bathroom and stand right
+  behind the door, and a toilet poked out through the other doorway into the bedroom.
 - Small house: the doors start hidden, since they stand between you and every room. One click in
   the Tags panel brings them back -- and with them, their five doors in the cut list.
 

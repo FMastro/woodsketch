@@ -199,9 +199,9 @@ mod tests {
     fn nothing_in_the_baths_stands_in_a_doorway() {
         // From `scripts/make-house-sample.py`: each bath's clear floor, and the floor just
         // inside its door, which is the part of a room nothing is allowed to stand on.
-        const BATHS: [[f64; 4]; 2] = [[135.5, 171.5, 192.0, 282.5], [195.5, 171.5, 252.0, 282.5]];
+        const BATHS: [[f64; 4]; 2] = [[135.5, 171.5, 195.5, 282.5], [199.0, 171.5, 259.0, 282.5]];
         // Bath 1 is entered through its south wall, bath 2 through its east wall; 24" deep.
-        const DOORWAYS: [[f64; 4]; 2] = [[150.0, 171.5, 184.0, 195.5], [228.0, 200.0, 252.0, 234.0]];
+        const DOORWAYS: [[f64; 4]; 2] = [[150.0, 171.5, 184.0, 195.5], [235.0, 200.0, 259.0, 234.0]];
         const EPS: f64 = 1e-6;
 
         let doc = by_name("Small house").expect("the house is a sample").build().unwrap();
