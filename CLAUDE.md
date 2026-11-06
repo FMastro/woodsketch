@@ -433,7 +433,9 @@ points); keep general modeling working alongside it.
    them back; a shared component's copy is made unique (`Scene::make_unique`) first. The Joinery
    panel offers them when parts aren't square (`JoineryError::NotSquare`).
 35. Release notes: `CHANGELOG.md` (a `## <version>` section per release; add to it with every change
-   that ships). `release.yml` puts the version's section into the GitHub release, then the nine
+   that ships). **Keep each note to a line, a sentence or two at most: what changed, from the
+   reader's side.** Not why it broke, not what the code does now, not the reasoning -- that is the
+   commit message's job, and writing it twice makes a release read like a postmortem. `release.yml` puts the version's section into the GitHub release, then the nine
    before it in a folded "Also in recent updates" block, since releases are small and frequent and
    one alone reads like nothing happened. The file is also built into the app
    (`updates::CHANGES`, parsed by `updates::releases` / `updates::since`): Help > What's New shows

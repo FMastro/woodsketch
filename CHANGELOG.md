@@ -3,58 +3,39 @@
 Each version's notes, newest first. The release workflow puts a version's section into its
 GitHub release; keep a `## <version>` heading for every release.
 
+Write them short. One line per change, a sentence or two at most: what changed, from the
+reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
+that belongs in the commit message, which is where it already is.
+
 ## 0.1.69
 
-- Fixed: on the Start page, Help's windows didn't open. About, What's New and the two feedback
-  forms were drawn only once a drawing was on screen, so from the page every run starts on, the
-  menu item did nothing at all. Same for a Cut List left open: it vanished when the Start page
-  came up. They all show over the page now.
-- The Start page's menu bar is down to File and Help, the two that mean anything there. Edit,
-  View, Camera, Draw, Tools and Window all act on the drawing behind the page, which you can't
-  see — undoing or painting something out of sight isn't what anyone meant to do, and a menu
-  whose items appear to do nothing reads as a broken program. They come back on leaving the page.
-- Fixed: Open or Import from the Start page, then cancel the file dialog, and you were left on
-  an empty drawing as though you'd asked for a new one. The page closed on the click rather than
-  when a drawing arrived. It now stays until something actually opens, so cancelling leaves you
-  where you were — and "Save changes?" for a new drawing or a sample now appears over the page
-  rather than behind it.
+- Fixed: the Start page hid windows that opened behind it. About, What's New, the feedback forms
+  and the Cut List now show over it.
+- The Start page's menu bar keeps only File and Help. The rest act on the drawing behind the
+  page, and come back on leaving it.
+- Fixed: cancelling the Open or Import dialog from the Start page dropped you onto an empty
+  drawing. It stays on the page now.
 
 ## 0.1.68
 
-- Fixed: an update that downloaded while the Start page was open never offered to install itself.
-  The green "Restart to update" button lives in the status bar, and the Start page stands in
-  front of the status bar — so the app you opened and left on the Start page would quietly fetch
-  a new version and say nothing about it until you happened to open a drawing. The Start page
-  shows it now, across the top, along with "Updated to ..." and the progress while it downloads.
+- Fixed: an update that downloaded while the Start page was open never offered to install.
+  "Restart to update" now shows across the top of the page.
 
 ## 0.1.67
 
-- The translation now covers the whole program. Every panel in the tray, the Cut List window and
-  its four tabs, the Start page, the file dialogs, Report a Problem, the update messages, crash
-  recovery, and the line at the bottom of the window telling you what the tool in your hand is
-  waiting for. 763 phrases, up from 132, and nothing a woodworker reads is left hard coded.
-- Two small English faults fixed on the way, both of the kind a catalog is there to prevent:
-  selecting a single loose edge said "1 loose entities", and the Cut List said "1 parts need a
-  material" rather than "1 part needs".
-- Still in English, and not by oversight: the command line tool and the MCP server, which are
-  read by programs; and the names of tools, materials and templates. Whether a SketchUp user
-  hunting for *Push/Pull* wants it in their own language is a question for the people who use it,
-  and worth asking before answering.
+- The translation now covers the whole program -- every panel, window, dialog and status line.
+  763 phrases, up from 132.
+- Fixed two English slips: "1 loose entities" and "1 parts need a material".
+- Still English on purpose: the command line and MCP server, and the names of tools, materials
+  and templates.
 
 ## 0.1.66
 
-- WoodSketch can be translated. Every word it says now comes from a language file rather than
-  being built into the program, so a translation is one text file and needs no programming —
-  `docs/TRANSLATING.md` says how, and the format is Fluent, which Mozilla's own software uses.
-  The window around the drawing is done — every menu, the toolbar's tooltips, the tray's panel
-  headings, the status bar, About and What's New. The panels' own contents follow.
+- WoodSketch can be translated. Every word it says comes from a language file, so a translation
+  is one text file and needs no programming (`docs/TRANSLATING.md` says how).
 - Every language ships in the one program, and **View > Language** switches between them without
-  a restart. WoodSketch opens in whatever your computer is set to, if it knows that language, and
-  remembers what you choose instead. There are no separate downloads per language, and your
-  drawings are untouched either way.
-- A translation that only covers part of the app is worth having: anything it hasn't got shows in
-  English rather than blank. English is still the only language built in — the groundwork landed
-  first so the first translation has somewhere to land. Thanks to @jmartsdesign for asking (#10).
+  a restart. It opens in your computer's language if it knows it.
+- A part-finished translation shows English in its gaps. Thanks to @jmartsdesign for asking (#10).
 
 ## 0.1.65
 
