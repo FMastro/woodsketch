@@ -1071,6 +1071,37 @@ fn line_infers_parallel_to_a_hovered_edge() {
 }
 
 #[test]
+fn rectangle_on_a_closed_board_opens_and_escapes_with_esc() {
+    use glam::DVec3;
+    let mut harness = app();
+    let board = {
+        let doc = harness.state_mut().document_mut();
+        let face = doc.edit(|m| m.add_rectangle(DVec3::ZERO, DVec3::X * 12.0, DVec3::Y * 8.0, DVec3::Z)).unwrap();
+        doc.push_pull(face, 0.75, true).unwrap().unwrap()
+    };
+    harness.run();
+    type_text(&mut harness, "Z");
+
+    // Drawing a rectangle on the closed board's top opens the group as a double-click would.
+    type_text(&mut harness, "r");
+    let top = harness.state().to_window(DVec3::new(6.0, 4.0, 0.75)).unwrap();
+    click(&mut harness, top);
+    assert_eq!(harness.state().document().path(), [board], "the board opened");
+    // Esc steps out of the auto-opened group, and the drawing continues outside it.
+    harness.key_press(Key::Escape);
+    harness.run();
+    assert!(harness.state().document().path().is_empty(), "Esc leaves the group mid-drawing");
+    click(&mut harness, top + egui::vec2(70.0, 50.0));
+    let doc = harness.state().document();
+    assert_eq!(doc.model().faces().count(), 1, "the rectangle finished outside, loose at the top level");
+    // Esc again cancels the drawing for good; the rectangle outside stays.
+    harness.key_press(Key::Escape);
+    harness.run();
+    let doc = harness.state().document();
+    assert_eq!(doc.model().faces().count(), 1, "the outside rectangle stays");
+}
+
+#[test]
 fn push_pull_and_offset_open_a_closed_board() {
     use glam::DVec3;
     let mut harness = app();

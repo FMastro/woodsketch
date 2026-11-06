@@ -9,6 +9,8 @@ that belongs in the commit message, which is where it already is.
 
 ## 0.1.69
 
+- Esc now undoes the auto-open of a group you drew on, instead of cancelling the drawing: the
+drawn-so-far corner stays put and the draw continues outside the group.
 - Fixed: the Start page hid windows that opened behind it. About, What's New, the feedback forms
   and the Cut List now show over it.
 - The Start page's menu bar keeps only File and Help. The rest act on the drawing behind the

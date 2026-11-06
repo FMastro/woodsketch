@@ -5,7 +5,7 @@
 
 use std::f64::consts::TAU;
 
-use glam::{DVec3, Vec2};
+use glam::{DAffine3, DVec3, Vec2};
 use woodsketch_doc::curves::{ARC_SEGMENTS, angle_about, circle_through, sweep_points};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS};
@@ -56,6 +56,18 @@ impl CenterArcTool {
 
     pub fn cancel(&mut self) {
         self.stage = CenterStage::Center;
+    }
+
+    /// Carry the arc being sized out of the group being closed (`t` maps old to new coordinates).
+    pub fn migrate_context(&mut self, t: DAffine3) {
+        match &mut self.stage {
+            CenterStage::Center => {}
+            CenterStage::Start { center, normal, start } | CenterStage::Sweep { center, normal, start, .. } => {
+                *center = t.transform_point3(*center);
+                *start = t.transform_point3(*start);
+                *normal = t.transform_vector3(*normal);
+            }
+        }
     }
 
     /// Arrow keys: lay it in the plane across red, green or blue; again to unlock.
@@ -221,6 +233,25 @@ impl ThreePointArcTool {
 
     pub fn cancel(&mut self) {
         self.stage = ThreeStage::First;
+    }
+
+    /// Carry the arc being sized out of the group being closed (`t` maps old to new coordinates).
+    pub fn migrate_context(&mut self, t: DAffine3) {
+        match &mut self.stage {
+            ThreeStage::First => {}
+            ThreeStage::Second { a, normal, b } => {
+                *a = t.transform_point3(*a);
+                *b = t.transform_point3(*b);
+                *normal = t.transform_vector3(*normal);
+            }
+            ThreeStage::Third { a, b, c } => {
+                *a = t.transform_point3(*a);
+                *b = t.transform_point3(*b);
+                if let Some(c) = c {
+                    *c = t.transform_point3(*c);
+                }
+            }
+        }
     }
 
     pub fn hover(&mut self, doc: &Document, screen: Screen<'_>, cursor: Vec2) {

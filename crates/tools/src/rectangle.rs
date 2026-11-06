@@ -1,7 +1,7 @@
 //! The Rectangle tool (R). Click a corner, then click the opposite corner, or press-drag-release.
 //! While sizing, or right after finishing, type `width,height` and Enter, as in SketchUp.
 
-use glam::{DVec3, Vec2};
+use glam::{DAffine3, DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_lengths};
 use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS};
@@ -57,6 +57,17 @@ impl RectangleTool {
     pub fn cancel(&mut self) {
         self.sizing = None;
         self.last = None;
+    }
+
+    /// Carry the rectangle being sized out of the group being closed: `t` maps the old
+    /// container's coordinates to the one drawn in now.
+    pub fn migrate_context(&mut self, t: DAffine3) {
+        let Some(sizing) = &mut self.sizing else { return };
+        let f = &mut sizing.frame;
+        f.corner = t.transform_point3(f.corner);
+        f.normal = t.transform_vector3(f.normal);
+        f.u = t.transform_vector3(f.u);
+        f.v = t.transform_vector3(f.v);
     }
 
     pub fn hover(&mut self, doc: &Document, screen: Screen<'_>, cursor: Vec2) {
