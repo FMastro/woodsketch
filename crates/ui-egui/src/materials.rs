@@ -9,6 +9,7 @@ use woodsketch_doc::library::LIBRARY;
 use woodsketch_doc::cutplan::Standard;
 use woodsketch_doc::units::{format_length, parse_length, parse_lengths};
 use woodsketch_doc::{Document, Entity, MaterialId, MaterialKind};
+use woodsketch_i18n::t;
 use woodsketch_tools::{ToolId, Tools};
 
 
@@ -28,16 +29,16 @@ impl MaterialsPanel {
                     }
                 })
                 .response
-                .on_hover_text("Add a material");
+                .on_hover_text(t!("materials-add-hint"));
             });
         });
 
         // No material: the default look; painting with it removes paint.
         ui.horizontal(|ui| {
             swatch(ui, [250, 250, 246]);
-            let none = ui.selectable_label(tools.active_material.is_none(), "No material (default)").on_hover_text(
-                "The plain default look. Painting with it removes paint. It isn't a material you can edit: add one with +.",
-            );
+            let none = ui
+                .selectable_label(tools.active_material.is_none(), t!("materials-none"))
+                .on_hover_text(t!("materials-none-hint"));
             if none.clicked() {
                 activate(tools, None);
             }
@@ -50,13 +51,13 @@ impl MaterialsPanel {
                 let active = tools.active_material == Some(*id);
                 let response = ui
                     .selectable_label(active, &material.name)
-                    .on_hover_text(format!("{}. Click to paint with it; {} to edit it.", material.kind.name(), ph::PENCIL_SIMPLE));
+                    .on_hover_text(t!("materials-paint-hint", "kind" => material.kind.name(), "pencil" => ph::PENCIL_SIMPLE));
                 if response.clicked() {
                     activate(tools, Some(*id));
                     self.editing = Some(*id);
                 }
                 let editing = self.editing == Some(*id);
-                let edit = ui.selectable_label(editing, ph::PENCIL_SIMPLE).on_hover_text("Edit this material");
+                let edit = ui.selectable_label(editing, ph::PENCIL_SIMPLE).on_hover_text(t!("materials-edit-hint"));
                 if edit.clicked() {
                     self.editing = if editing { None } else { Some(*id) };
                 }
@@ -65,12 +66,12 @@ impl MaterialsPanel {
 
         if materials.is_empty() {
             ui.add_space(2.0);
-            ui.weak(format!("No materials yet. Click {} to add one, like Red Oak or Plywood.", ph::PLUS));
+            ui.weak(t!("materials-empty", "plus" => ph::PLUS));
         } else if tools.active_material.is_none() && tools.active() == ToolId::PaintBucket {
             ui.add_space(2.0);
             ui.colored_label(
                 ui.visuals().warn_fg_color,
-                "No material is selected: painting removes paint. Pick a material above to paint with.",
+                t!("materials-none-selected"),
             );
         }
 
@@ -81,9 +82,9 @@ impl MaterialsPanel {
         if let Some(id) = self.editing {
             ui.add_space(4.0);
             ui.horizontal(|ui| {
-                ui.strong(format!("Editing {}", doc.scene().material(id).map_or("", |m| m.name.as_str())));
+                ui.strong(t!("materials-editing", "name" => doc.scene().material(id).map_or("", |m| m.name.as_str())));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.small_button(ph::X).on_hover_text("Close the editor").clicked() {
+                    if ui.small_button(ph::X).on_hover_text(t!("materials-close-editor")).clicked() {
                         self.editing = None;
                     }
                 });
@@ -98,7 +99,7 @@ impl MaterialsPanel {
 /// The + menu: library materials, or a blank one of a type. Returns the material added.
 fn add_menu(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) -> Option<MaterialId> {
     let mut added = None;
-    ui.weak("Library");
+    ui.weak(t!("materials-library"));
     for preset in LIBRARY {
         let clicked = ui
             .horizontal(|ui| {
@@ -111,7 +112,7 @@ fn add_menu(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) -> Option<
         }
     }
     ui.separator();
-    ui.menu_button("New blank material", |ui| {
+    ui.menu_button(t!("materials-new-blank"), |ui| {
         for kind in MaterialKind::ALL {
             if ui.button(kind.name()).clicked() {
                 added = Some(doc.add_material(kind));
@@ -175,22 +176,22 @@ fn editor(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools, id: Material
     let standard = material.standard.clone();
     egui::Frame::group(ui.style()).show(ui, |ui| {
         egui::Grid::new(("material_editor", id)).num_columns(2).spacing([8.0, 5.0]).show(ui, |ui| {
-            ui.label("Name");
-            if let Some(name) = text_field(ui, key("name"), material.name.clone(), "Name", 150.0)
+            ui.label(t!("materials-name"));
+            if let Some(name) = text_field(ui, key("name"), material.name.clone(), &t!("materials-name"), 150.0)
                 && !name.trim().is_empty()
             {
                 doc.edit_material(id, |m| m.name = name.trim().to_owned());
             }
             ui.end_row();
 
-            ui.label("Color");
+            ui.label(t!("materials-color"));
             let mut color = material.color;
             if egui::color_picker::color_edit_button_srgb(ui, &mut color).changed() {
                 doc.edit_material(id, |m| m.color = color);
             }
             ui.end_row();
 
-            ui.label("Type");
+            ui.label(t!("materials-type"));
             egui::ComboBox::from_id_salt(("material_kind", id)).selected_text(material.kind.name()).show_ui(ui, |ui| {
                 for kind in MaterialKind::ALL {
                     if ui.selectable_label(material.kind == kind, kind.name()).clicked() && kind != material.kind {
@@ -204,9 +205,9 @@ fn editor(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools, id: Material
             });
             ui.end_row();
 
-            ui.label("Grain");
+            ui.label(t!("materials-grain"));
             let mut grained = material.grained;
-            if ui.checkbox(&mut grained, "Has grain").on_hover_text("Parts must follow the grain when cut").changed() {
+            if ui.checkbox(&mut grained, t!("materials-has-grain")).on_hover_text(t!("materials-has-grain-hint")).changed() {
                 doc.edit_material(id, |m| m.grained = grained);
             }
             ui.end_row();
@@ -223,8 +224,8 @@ fn editor(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools, id: Material
             };
             match material.kind {
                 MaterialKind::SheetGood => {
-                    list_row(ui, "Thicknesses", "thicknesses", &standard.thicknesses, "1/4, 1/2, 3/4", |s, v| s.thicknesses = v);
-                    ui.label("Sheet sizes");
+                    list_row(ui, &t!("materials-thicknesses"), "thicknesses", &standard.thicknesses, "1/4, 1/2, 3/4", |s, v| s.thicknesses = v);
+                    ui.label(t!("materials-sheet-sizes"));
                     if let Some(text) = text_field(ui, key("sheets"), sizes_text(&standard.sheets), "96 x 48, 60 x 60", 160.0)
                         && let Some(sheets) = parse_sizes(&text)
                     {
@@ -233,16 +234,16 @@ fn editor(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools, id: Material
                     ui.end_row();
                 }
                 MaterialKind::SolidWood => {
-                    list_row(ui, "Thicknesses", "thicknesses", &standard.thicknesses, "3/4, 1, 1 1/4", |s, v| s.thicknesses = v);
-                    list_row(ui, "Board lengths", "lengths", &standard.lengths, "72, 96, 120", |s, v| s.lengths = v);
-                    list_row(ui, "Board widths", "widths", &standard.widths, "3 1/2, 5 1/2", |s, v| s.widths = v);
+                    list_row(ui, &t!("materials-thicknesses"), "thicknesses", &standard.thicknesses, "3/4, 1, 1 1/4", |s, v| s.thicknesses = v);
+                    list_row(ui, &t!("materials-board-lengths"), "lengths", &standard.lengths, "72, 96, 120", |s, v| s.lengths = v);
+                    list_row(ui, &t!("materials-board-widths"), "widths", &standard.widths, "3 1/2, 5 1/2", |s, v| s.widths = v);
                 }
                 MaterialKind::DimensionalLumber => {
-                    list_row(ui, "Lengths", "lengths", &standard.lengths, "96, 120, 144", |s, v| s.lengths = v);
+                    list_row(ui, &t!("materials-lengths"), "lengths", &standard.lengths, "96, 120, 144", |s, v| s.lengths = v);
                 }
                 MaterialKind::Hardware | MaterialKind::Other => {
                     ui.label("");
-                    ui.weak("Not cut from stock; the cut list counts the parts.");
+                    ui.weak(t!("materials-not-cut"));
                     ui.end_row();
                 }
             }
@@ -251,13 +252,13 @@ fn editor(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools, id: Material
             // not named for its species, picks the one it moves like).
             if matches!(material.kind, MaterialKind::SolidWood | MaterialKind::DimensionalLumber) {
                 use woodsketch_doc::movement::{species_list, species_name};
-                ui.label("Moves like").on_hover_text("For the wood movement check: the species whose seasonal movement it shares");
+                ui.label(t!("materials-moves-like")).on_hover_text(t!("materials-moves-like-hint"));
                 let shown = match material.movement {
-                    Some(m) => species_name(m).unwrap_or_else(|| "Custom".to_owned()),
-                    None => "Not known".to_owned(),
+                    Some(m) => species_name(m).unwrap_or_else(|| t!("materials-movement-custom")),
+                    None => t!("materials-movement-unknown"),
                 };
                 egui::ComboBox::from_id_salt(("material_movement", id)).selected_text(shown).show_ui(ui, |ui| {
-                    if ui.selectable_label(material.movement.is_none(), "Not known").clicked() {
+                    if ui.selectable_label(material.movement.is_none(), t!("materials-movement-unknown")).clicked() {
                         doc.edit_material(id, |m| m.movement = None);
                     }
                     for (name, movement) in species_list() {
@@ -271,10 +272,10 @@ fn editor(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools, id: Material
         });
 
         if material.kind == MaterialKind::DimensionalLumber {
-            egui::CollapsingHeader::new(format!("Sections ({} of {})", standard.sections.len(), lumber_sizes().len()))
+            egui::CollapsingHeader::new(t!("materials-sections", "shown" => standard.sections.len(), "total" => lumber_sizes().len()))
                 .id_salt(("lumber_sections", id))
                 .show(ui, |ui| {
-                    ui.weak("Nominal and actual sizes it comes in; each part gets the smallest that fits.");
+                    ui.weak(t!("materials-sections-note"));
                     egui::Grid::new(("lumber_table", id)).striped(true).num_columns(2).show(ui, |ui| {
                         for (name, t, w) in lumber_sizes() {
                             let mut on = standard.sections.iter().any(|&(st, sw)| (st - t).abs() < 1e-9 && (sw - w).abs() < 1e-9);
@@ -294,7 +295,7 @@ fn editor(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools, id: Material
                 });
         }
 
-        if ui.button(format!("{} Delete material", ph::TRASH)).on_hover_text("Painted things go back to no material").clicked() {
+        if ui.button(format!("{} {}", ph::TRASH, t!("materials-delete"))).on_hover_text(t!("materials-delete-hint")).clicked() {
             doc.delete_material(id);
             tools.active_material = None;
         }
@@ -327,18 +328,18 @@ pub fn entity_info_material(ui: &mut egui::Ui, doc: &mut Document, tools: &mut T
     }
     let name_of = |doc: &Document, m: Option<MaterialId>| match m.and_then(|m| doc.scene().material(m)) {
         Some(m) => m.name.clone(),
-        None => "Default".to_owned(),
+        None => t!("entity-material-default"),
     };
     let current = doc.selection_material();
     let shown = match current {
         Some(m) => name_of(doc, m),
         None => "(mixed)".to_owned(),
     };
-    let mut choices: Vec<(Option<MaterialId>, String)> = vec![(None, "Default".to_owned())];
+    let mut choices: Vec<(Option<MaterialId>, String)> = vec![(None, t!("entity-material-default"))];
     choices.extend(doc.scene().materials().map(|(id, m)| (Some(id), m.name.clone())));
     let mut picked = None;
     ui.horizontal(|ui| {
-        ui.label(format!("{} Material", ph::PAINT_BUCKET));
+        ui.label(format!("{} {}", ph::PAINT_BUCKET, t!("entity-material")));
         egui::ComboBox::from_id_salt("entity_info_material").selected_text(shown).show_ui(ui, |ui| {
             for (material, name) in &choices {
                 if ui.selectable_label(current == Some(*material), name).clicked() {

@@ -6,6 +6,7 @@ use woodsketch_doc::board::{Stock, default_stock, stock_options};
 use woodsketch_doc::library::LIBRARY;
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, MaterialId, MaterialKind};
+use woodsketch_i18n::t;
 use woodsketch_tools::{Picked, Tools};
 
 pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
@@ -23,13 +24,13 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
         .num_columns(2)
         .spacing([8.0, 4.0])
         .show(ui, |ui| {
-            ui.label("Material");
+            ui.label(t!("board-material"));
             let current = board
                 .picked
                 .as_ref()
                 .and_then(|p| woods.iter().find(|(id, _, _)| *id == p.material));
             let shown = current.map_or_else(
-                || "Pick a material".to_owned(),
+                || t!("board-pick-material"),
                 |(_, name, kind)| {
                     // "Pine (boards)", but not "Pine Lumber (lumber)".
                     if name
@@ -38,7 +39,7 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
                     {
                         name.clone()
                     } else {
-                        format!("{name} ({})", noun(*kind))
+                        t!("board-with-noun", "name" => name.as_str(), "noun" => noun_shown(*kind))
                     }
                 },
             );
@@ -48,9 +49,11 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
                 .show_ui(ui, |ui| {
                     // By type, so Pine Lumber (2x4s) and Pine (boards) don't get mixed up: the drawing's
                     // woods first, then the library's others (picking one adds it).
-                    for (kind, heading) in KINDS {
-                        ui.label(egui::RichText::new(heading).strong());
-                        ui.indent(heading, |ui| {
+                    for (kind, salt) in KINDS {
+                        ui.label(egui::RichText::new(kind_heading(kind)).strong());
+                        // Indented under a salt that stays English: egui keys the indent by it,
+                        // and an id that changed with the language would be a different widget.
+                        ui.indent(salt, |ui| {
                             for (id, name, _) in woods.iter().filter(|w| w.2 == kind) {
                                 if ui
                                     .selectable_label(
@@ -68,7 +71,7 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
                             for preset in library {
                                 if ui
                                     .selectable_label(false, preset.name)
-                                    .on_hover_text("From the library: adds it to the drawing")
+                                    .on_hover_text(t!("board-from-library-hint"))
                                     .clicked()
                                 {
                                     let id = doc.add_preset(preset);
@@ -83,13 +86,13 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
             if let Some(picked) = board.picked.clone()
                 && let Some(material) = doc.scene().material(picked.material)
             {
-                ui.label("Stock");
+                ui.label(t!("board-stock"));
                 egui::ComboBox::from_id_salt("board_stock_size")
                     .selected_text(label(&picked.name, picked.stock))
                     .height(560.0)
                     .show_ui(ui, |ui| {
                         // First, so it shows above a long list of sizes.
-                        if ui.selectable_label(false, "Custom size...").on_hover_text("Add a size this material comes in (or type it in the Measurements box)").clicked() {
+                        if ui.selectable_label(false, t!("board-custom-size-open")).on_hover_text(t!("board-custom-size-open-hint")).clicked() {
                             ui.data_mut(|d| d.insert_temp(custom_id(), true));
                         }
                         ui.separator();
@@ -109,11 +112,11 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
                 ui.end_row();
 
                 if matches!(picked.stock, Stock::Section { .. }) {
-                    ui.label("Lay it");
+                    ui.label(t!("board-lay-it"));
                     ui.horizontal(|ui| {
-                        ui.selectable_value(&mut board.on_edge, false, "Flat");
-                        ui.selectable_value(&mut board.on_edge, true, "On edge")
-                            .on_hover_text("Ctrl switches while drawing");
+                        ui.selectable_value(&mut board.on_edge, false, t!("board-flat"));
+                        ui.selectable_value(&mut board.on_edge, true, t!("board-on-edge"))
+                            .on_hover_text(t!("board-on-edge-hint"));
                     });
                     ui.end_row();
                 }
@@ -133,23 +136,44 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
         .as_ref()
         .is_some_and(|p| matches!(p.stock, Stock::Section { .. }))
     {
-        ui.weak("Lumber is named by its nominal size; the actual size is in brackets. Draw any length: the cut list picks the board to buy (8', 10'...). For a one-off size, type it, like 3,6 1/2; to keep a size in the list, use Custom size.");
+        ui.weak(t!("board-lumber-note"));
     } else if board
         .picked
         .as_ref()
         .is_some_and(|p| matches!(p.stock, Stock::Thickness(_)))
     {
-        ui.weak("Drawn as a rectangle at this thickness. For 2x4s and other framing sizes, pick a Lumber material such as Pine Lumber.");
+        ui.weak(t!("board-sheet-note"));
     }
 }
 
-/// The kinds of material boards are drawn from, as the dropdown groups them.
+/// The kinds of material boards are drawn from, as the dropdown groups them, each with the id
+/// its group is indented under. The heading itself is `kind_heading`.
 const KINDS: [(MaterialKind, &str); 3] = [
-    (MaterialKind::DimensionalLumber, "Lumber: 2x4, 2x6..."),
-    (MaterialKind::SolidWood, "Boards: 3/4\", 1\"... thick"),
-    (MaterialKind::SheetGood, "Sheets: plywood, MDF"),
+    (MaterialKind::DimensionalLumber, "lumber"),
+    (MaterialKind::SolidWood, "boards"),
+    (MaterialKind::SheetGood, "sheets"),
 ];
 
+fn kind_heading(kind: MaterialKind) -> String {
+    match kind {
+        MaterialKind::DimensionalLumber => t!("board-kind-lumber"),
+        MaterialKind::SolidWood => t!("board-kind-boards"),
+        _ => t!("board-kind-sheets"),
+    }
+}
+
+/// What a material comes as, for showing beside its name.
+fn noun_shown(kind: MaterialKind) -> String {
+    match kind {
+        MaterialKind::DimensionalLumber => t!("board-noun-lumber"),
+        MaterialKind::SolidWood => t!("board-noun-boards"),
+        _ => t!("board-noun-sheets"),
+    }
+}
+
+/// The same words in English, and only for the test just above that asks whether a material's
+/// name already says what it is ("Pine Lumber" needn't read "Pine Lumber (lumber)"). That test
+/// is about English names in the library, so translating it would break it.
 fn noun(kind: MaterialKind) -> &'static str {
     match kind {
         MaterialKind::DimensionalLumber => "lumber",
@@ -170,13 +194,13 @@ fn custom_size(ui: &mut egui::Ui, doc: &mut Document, material: MaterialId, lumb
     let mut added = None;
     let mut close = false;
     egui::Frame::group(ui.style()).show(ui, |ui| {
-        ui.strong("Custom size");
+        ui.strong(t!("board-custom-size"));
         egui::Grid::new("board_custom_grid").num_columns(2).show(ui, |ui| {
-            ui.label("Thickness");
+            ui.label(t!("board-thickness"));
             ui.add(egui::TextEdit::singleline(&mut thickness).hint_text("1 1/4\"").desired_width(80.0));
             ui.end_row();
             if lumber {
-                ui.label("Width");
+                ui.label(t!("board-width"));
                 ui.add(egui::TextEdit::singleline(&mut width).hint_text("2 1/2\"").desired_width(80.0));
                 ui.end_row();
             }
@@ -190,18 +214,18 @@ fn custom_size(ui: &mut egui::Ui, doc: &mut Document, material: MaterialId, lumb
         };
         let name = doc.scene().material(material).map_or_else(String::new, |m| m.name.clone());
         ui.horizontal(|ui| {
-            if ui.add_enabled(stock.is_some(), egui::Button::new(format!("Add to {name}"))).clicked()
+            if ui.add_enabled(stock.is_some(), egui::Button::new(t!("board-add-to", "material" => name.as_str()))).clicked()
                 && let Some(stock) = stock
                 && let Some((name, stock)) = doc.add_stock(material, stock)
             {
                 added = Some(Picked { material, stock, name });
                 close = true;
             }
-            if ui.button("Cancel").clicked() {
+            if ui.button(t!("board-cancel")).clicked() {
                 close = true;
             }
         });
-        ui.weak("It's added to the material's sizes, so the cut list knows it.");
+        ui.weak(t!("board-custom-note"));
     });
     ui.data_mut(|d| {
         if close {

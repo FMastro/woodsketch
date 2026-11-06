@@ -4,6 +4,7 @@
 use eframe::egui;
 use egui_phosphor::regular as ph;
 use woodsketch_doc::{DefinitionKind, Document, Entity, InstanceId, MaterialId};
+use woodsketch_i18n::t;
 use woodsketch_tools::Tools;
 
 pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
@@ -11,7 +12,7 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
     ui.separator();
 
     if doc.scene().root.instances().next().is_none() {
-        ui.weak("No groups or components yet.");
+        ui.weak(t!("outliner-empty"));
     }
     // The whole model as a tree; act on a click after drawing it.
     let mut action = None;
@@ -35,20 +36,20 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
 
     ui.separator();
     ui.horizontal_wrapped(|ui| {
-        if ui.button(format!("{} Group", ph::CUBE)).on_hover_text("Make Group (Ctrl+G)").clicked() {
+        if ui.button(format!("{} {}", ph::CUBE, t!("outliner-group"))).on_hover_text(t!("outliner-group-hint")).clicked() {
             tools.make_group(doc, DefinitionKind::Group);
         }
-        if ui.button(format!("{} Component", ph::PUZZLE_PIECE)).on_hover_text("Make Component (G)").clicked() {
+        if ui.button(format!("{} {}", ph::PUZZLE_PIECE, t!("outliner-component"))).on_hover_text(t!("outliner-component-hint")).clicked() {
             tools.make_group(doc, DefinitionKind::Component);
         }
-        if ui.button("Explode").on_hover_text("Turn the selected groups back into loose geometry").clicked() {
+        if ui.button(t!("edit-explode")).on_hover_text(t!("outliner-explode-hint")).clicked() {
             tools.explode(doc);
         }
     });
     let mut auto_group = tools.auto_group();
     if ui
-        .checkbox(&mut auto_group, "Auto-group new boards")
-        .on_hover_text("When Push/Pull turns a free-standing face into a solid, make it a group")
+        .checkbox(&mut auto_group, t!("outliner-auto-group"))
+        .on_hover_text(t!("outliner-auto-group-hint"))
         .changed()
     {
         tools.set_auto_group(auto_group);
@@ -60,13 +61,13 @@ fn breadcrumb(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
     let path = doc.path().to_vec();
     let names = doc.path_names();
     ui.horizontal_wrapped(|ui| {
-        ui.label("Model");
+        ui.label(t!("outliner-model"));
         for name in &names {
             ui.label("›");
             ui.strong(name);
         }
     });
-    if !path.is_empty() && ui.button("Close group (Esc)").clicked() {
+    if !path.is_empty() && ui.button(t!("outliner-close-group")).clicked() {
         tools.cancel();
         doc.exit();
     }
@@ -105,13 +106,13 @@ fn rows(ui: &mut egui::Ui, doc: &Document, at: &[InstanceId], inherited: Option<
             }
             if !visible {
                 // Its tag is hidden: listed, but it can't be picked until shown again.
-                ui.weak(format!("{icon}  {}  (hidden)", def.name));
+                ui.weak(format!("{icon}  {}  {}", def.name, t!("outliner-hidden")));
                 return None;
             }
             let response = ui.selectable_label(selected, text);
-            let response = if editing { response.on_hover_text("Open: you're working inside it") } else { response };
+            let response = if editing { response.on_hover_text(t!("outliner-open-hint")) } else { response };
             if needs_material {
-                ui.colored_label(ui.visuals().warn_fg_color, ph::WARNING).on_hover_text("Needs a material for the cut list");
+                ui.colored_label(ui.visuals().warn_fg_color, ph::WARNING).on_hover_text(t!("outliner-needs-material-hint"));
             }
             Some(response)
         };

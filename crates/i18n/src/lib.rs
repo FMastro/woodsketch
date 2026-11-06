@@ -86,6 +86,24 @@ impl From<u32> for Arg<'_> {
     }
 }
 
+impl From<u8> for Arg<'_> {
+    fn from(value: u8) -> Self {
+        Self::Count(i64::from(value))
+    }
+}
+
+impl From<u16> for Arg<'_> {
+    fn from(value: u16) -> Self {
+        Self::Count(i64::from(value))
+    }
+}
+
+impl From<i32> for Arg<'_> {
+    fn from(value: i32) -> Self {
+        Self::Count(i64::from(value))
+    }
+}
+
 impl From<f64> for Arg<'_> {
     fn from(value: f64) -> Self {
         Self::Number(value)

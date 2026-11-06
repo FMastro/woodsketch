@@ -5,6 +5,8 @@ use eframe::egui;
 use woodsketch_doc::library::LIBRARY;
 use woodsketch_doc::template::{CaseJoints, DoorStyle, DrawerJoints, Fill, FrameJoints, Fronts, HingeSide, Made, Pulls, Template};
 use woodsketch_doc::units::{format_length, parse_length};
+use woodsketch_i18n::t;
+
 use woodsketch_doc::{Document, InstanceId, MaterialKind};
 
 /// Making a new one: which template (with its sizes) and wood, kept between frames.
@@ -30,7 +32,7 @@ pub fn new(ui: &mut egui::Ui, doc: &mut Document) -> bool {
     ui.add_space(4.0);
     let woods = woods(doc);
     egui::Grid::new("template_wood").num_columns(2).spacing([8.0, 4.0]).show(ui, |ui| {
-        ui.label("Wood");
+        ui.label(t!("template-wood"));
         egui::ComboBox::from_id_salt("template_wood_pick").selected_text(&draft.wood).height(400.0).show_ui(ui, |ui| {
             for name in &woods {
                 ui.selectable_value(&mut draft.wood, name.clone(), name);
@@ -45,8 +47,8 @@ pub fn new(ui: &mut egui::Ui, doc: &mut Document) -> bool {
     {
         ui.colored_label(ui.visuals().warn_fg_color, why);
     }
-    let make = ui.add_enabled(valid && check.is_ok(), egui::Button::new(format!("Add the {}", draft.template.name().to_lowercase())));
-    if make.on_hover_text("Built beside the drawing, as one group; one Undo takes it out").clicked() {
+    let make = ui.add_enabled(valid && check.is_ok(), egui::Button::new(t!("template-add", "template" => draft.template.name().to_lowercase())));
+    if make.on_hover_text(t!("template-add-hint")).clicked() {
         let wood = wood_id_for(doc, &draft.wood);
         added = true;
         if let Err(e) = doc.add_template(&draft.template, wood) {
@@ -73,7 +75,7 @@ pub fn change(ui: &mut egui::Ui, doc: &mut Document, instance: InstanceId, made:
     let mut wood = ui.data(|d| d.get_temp::<String>(wood_id)).unwrap_or_else(|| current.clone());
     let woods = woods(doc);
     egui::Grid::new(("template_change_wood_grid", instance)).num_columns(2).spacing([8.0, 4.0]).show(ui, |ui| {
-        ui.label("Wood");
+        ui.label(t!("template-wood"));
         egui::ComboBox::from_id_salt(wood_id).selected_text(&wood).height(400.0).show_ui(ui, |ui| {
             for name in &woods {
                 ui.selectable_value(&mut wood, name.clone(), name);
@@ -90,8 +92,8 @@ pub fn change(ui: &mut egui::Ui, doc: &mut Document, instance: InstanceId, made:
         ui.colored_label(ui.visuals().warn_fg_color, why);
     }
     let changed = template != made.template || wood != current;
-    let button = ui.add_enabled(valid && check.is_ok() && changed, egui::Button::new("Change size"));
-    if button.on_hover_text("Builds it again with these sizes and wood, where it is. Changes made inside it by hand are lost.").clicked() {
+    let button = ui.add_enabled(valid && check.is_ok() && changed, egui::Button::new(t!("template-change-size")));
+    if button.on_hover_text(t!("template-change-size-hint")).clicked() {
         let wood = wood_id_for(doc, &wood);
         match doc.rebuild_template(instance, &template, wood) {
             Ok(_) => ui.data_mut(|d| {
@@ -134,86 +136,88 @@ fn sizes(ui: &mut egui::Ui, key: &str, template: &mut Template) -> bool {
     // cabinet's width over.
     let key = &format!("{key} {}", template.name());
     egui::Grid::new(("template_sizes", key, template.name())).num_columns(2).spacing([8.0, 4.0]).show(ui, |ui| {
-        let mut length = |ui: &mut egui::Ui, label: &str, value: &mut f64| {
-            valid &= length_field(ui, (key, label), label, value);
+        let mut length = |ui: &mut egui::Ui, salt: &str, label: &str, value: &mut f64| {
+            valid &= length_field(ui, (key, salt), label, value);
         };
         match template {
             Template::Cabinet(c) => {
-                length(ui, "Width", &mut c.width);
-                length(ui, "Height", &mut c.height);
-                length(ui, "Depth", &mut c.depth);
-                length(ui, "Stock", &mut c.stock);
-                ui.label("Shelves");
+                length(ui, "Width", &t!("template-width"), &mut c.width);
+                length(ui, "Height", &t!("template-height"), &mut c.height);
+                length(ui, "Depth", &t!("template-depth"), &mut c.depth);
+                length(ui, "Stock", &t!("template-stock"), &mut c.stock);
+                ui.label(t!("template-shelves"));
                 ui.add(egui::DragValue::new(&mut c.shelves).range(0..=20));
                 ui.end_row();
                 if c.shelves > 0 {
                     ui.label("");
-                    ui.checkbox(&mut c.adjustable, "Adjustable (on shelf pins)");
+                    ui.checkbox(&mut c.adjustable, t!("template-adjustable"));
                     ui.end_row();
                 }
-                ui.label("Back");
-                ui.checkbox(&mut c.back, "1/4\" plywood");
+                ui.label(t!("template-back"));
+                ui.checkbox(&mut c.back, t!("template-back-ply"));
                 ui.end_row();
-                pick(ui, "Joints", &mut c.joints, &CaseJoints::ALL, |j| j.name());
+                pick(ui, "Joints", &t!("template-joints"), &mut c.joints, &CaseJoints::ALL, |j| j.name());
                 // Each opening, top first as you see them: open, a drawer, or doors.
                 let n = c.shelves as usize;
                 for k in (0..=n.min(c.fills.len() - 1)).rev() {
                     let label = match (k, n) {
-                        (0, 0) => "Opening".to_owned(),
-                        (0, _) => "Bottom opening".to_owned(),
-                        (k, n) if k == n => "Top opening".to_owned(),
-                        (k, _) => format!("Opening {}", k + 1),
+                        (0, 0) => t!("template-opening"),
+                        (0, _) => t!("template-opening-bottom"),
+                        (k, n) if k == n => t!("template-opening-top"),
+                        (k, _) => t!("template-opening-n", "n" => k + 1),
                     };
-                    pick(ui, &label, &mut c.fills[k], &Fill::ALL, |f| f.name());
+                    // The salt is the opening's number, so each keeps its own dropdown however
+                    // the openings happen to be named.
+                    pick(ui, &format!("opening {k}"), &label, &mut c.fills[k], &Fill::ALL, |f| f.name());
                 }
                 let used = &c.fills[..=n.min(c.fills.len() - 1)];
                 let (drawers, doors) = (used.contains(&Fill::Drawer), used.contains(&Fill::Doors));
                 if drawers || doors {
-                    pick(ui, "Fronts", &mut c.fronts, &Fronts::ALL, |f| f.name());
-                    pick(ui, "Pulls", &mut c.pulls, &Pulls::ALL, |p| p.name());
+                    pick(ui, "Fronts", &t!("template-fronts"), &mut c.fronts, &Fronts::ALL, |f| f.name());
+                    pick(ui, "Pulls", &t!("template-pulls"), &mut c.pulls, &Pulls::ALL, |p| p.name());
                 }
                 if doors {
-                    pick(ui, "Doors", &mut c.doors, &DoorStyle::ALL, |d| d.name());
-                    pick(ui, "Single doors hinge", &mut c.hinge, &HingeSide::ALL, |h| h.name());
+                    pick(ui, "Doors", &t!("template-doors"), &mut c.doors, &DoorStyle::ALL, |d| d.name());
+                    pick(ui, "Single doors hinge", &t!("template-hinge"), &mut c.hinge, &HingeSide::ALL, |h| h.name());
                 }
                 if drawers {
-                    pick(ui, "Drawer corners", &mut c.drawer_joints, &DrawerJoints::ALL, |j| j.name());
+                    pick(ui, "Drawer corners", &t!("template-drawer-corners"), &mut c.drawer_joints, &DrawerJoints::ALL, |j| j.name());
                 }
             }
             Template::Drawer(d) => {
-                length(ui, "Width", &mut d.width);
-                length(ui, "Height", &mut d.height);
-                length(ui, "Depth", &mut d.depth);
-                length(ui, "Stock", &mut d.stock);
-                pick(ui, "Corners", &mut d.joints, &DrawerJoints::ALL, |j| j.name());
+                length(ui, "Width", &t!("template-width"), &mut d.width);
+                length(ui, "Height", &t!("template-height"), &mut d.height);
+                length(ui, "Depth", &t!("template-depth"), &mut d.depth);
+                length(ui, "Stock", &t!("template-stock"), &mut d.stock);
+                pick(ui, "Corners", &t!("template-corners"), &mut d.joints, &DrawerJoints::ALL, |j| j.name());
             }
             Template::FaceFrame(f) => {
-                length(ui, "Width", &mut f.width);
-                length(ui, "Height", &mut f.height);
-                length(ui, "Stiles", &mut f.stile);
-                length(ui, "Rails", &mut f.rail);
-                length(ui, "Stock", &mut f.stock);
-                ui.label("Middle rails");
+                length(ui, "Width", &t!("template-width"), &mut f.width);
+                length(ui, "Height", &t!("template-height"), &mut f.height);
+                length(ui, "Stiles", &t!("template-stiles"), &mut f.stile);
+                length(ui, "Rails", &t!("template-rails"), &mut f.rail);
+                length(ui, "Stock", &t!("template-stock"), &mut f.stock);
+                ui.label(t!("template-middle-rails"));
                 ui.add(egui::DragValue::new(&mut f.middle_rails).range(0..=10));
                 ui.end_row();
-                pick(ui, "Joints", &mut f.joints, &FrameJoints::ALL, |j| j.name());
+                pick(ui, "Joints", &t!("template-joints"), &mut f.joints, &FrameJoints::ALL, |j| j.name());
             }
             Template::Table(t) => {
-                length(ui, "Width", &mut t.width);
-                length(ui, "Depth", &mut t.depth);
-                length(ui, "Height", &mut t.height);
-                length(ui, "Legs", &mut t.leg);
-                length(ui, "Aprons", &mut t.apron);
-                length(ui, "Top", &mut t.top);
-                pick(ui, "Joints", &mut t.joints, &FrameJoints::ALL, |j| j.name());
+                length(ui, "Width", &t!("template-width"), &mut t.width);
+                length(ui, "Depth", &t!("template-depth"), &mut t.depth);
+                length(ui, "Height", &t!("template-height"), &mut t.height);
+                length(ui, "Legs", &t!("template-legs"), &mut t.leg);
+                length(ui, "Aprons", &t!("template-aprons"), &mut t.apron);
+                length(ui, "Top", &t!("template-top"), &mut t.top);
+                pick(ui, "Joints", &t!("template-joints"), &mut t.joints, &FrameJoints::ALL, |j| j.name());
             }
         }
     });
     ui.weak(match template {
-        Template::Cabinet(_) => "Sides, top, bottom and shelves of the stock; outside sizes. Drawers ride on side-mount slides; doors wider than 24\" come in pairs.",
-        Template::Drawer(_) => "A box with a 1/4\" plywood bottom in grooves; outside sizes.",
-        Template::FaceFrame(_) => "Stiles full height, rails between them.",
-        Template::Table(_) => "Square legs, 3/4\" thick aprons, a top overhanging 1\"; height to the top of the top.",
+        Template::Cabinet(_) => t!("template-note-cabinet"),
+        Template::Drawer(_) => t!("template-note-drawer"),
+        Template::FaceFrame(_) => t!("template-note-face-frame"),
+        Template::Table(_) => t!("template-note-table"),
     });
     valid
 }
@@ -237,9 +241,9 @@ fn length_field(ui: &mut egui::Ui, key: (&str, &str), label: &str, value: &mut f
     parsed.is_some()
 }
 
-fn pick<T: Copy + PartialEq>(ui: &mut egui::Ui, label: &str, value: &mut T, all: &[T], name: impl Fn(T) -> &'static str) {
+fn pick<T: Copy + PartialEq>(ui: &mut egui::Ui, salt: &str, label: &str, value: &mut T, all: &[T], name: impl Fn(T) -> &'static str) {
     ui.label(label);
-    egui::ComboBox::from_id_salt(("template_pick", label)).selected_text(name(*value)).show_ui(ui, |ui| {
+    egui::ComboBox::from_id_salt(("template_pick", salt)).selected_text(name(*value)).show_ui(ui, |ui| {
         for &option in all {
             ui.selectable_value(value, option, name(option));
         }

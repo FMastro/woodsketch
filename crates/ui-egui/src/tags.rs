@@ -3,6 +3,7 @@
 use eframe::egui;
 use egui_phosphor::regular as ph;
 use woodsketch_doc::{Document, TagId};
+use woodsketch_i18n::t;
 use woodsketch_tools::Tools;
 
 #[derive(Default)]
@@ -32,11 +33,11 @@ impl TagsPanel {
                     this.renaming = Some((tag, name));
                     this.focused = false;
                 };
-                if ui.button(ph::PLUS).on_hover_text("Add a tag").clicked() {
+                if ui.button(ph::PLUS).on_hover_text(t!("tags-add-hint")).clicked() {
                     let tag = doc.add_tag();
                     start_renaming(self, doc, tag);
                 }
-                if ui.button(ph::FOLDER_PLUS).on_hover_text("Add a folder (right-click a tag to move it into one)").clicked() {
+                if ui.button(ph::FOLDER_PLUS).on_hover_text(t!("tags-add-folder-hint")).clicked() {
                     let folder = doc.add_tag_folder();
                     start_renaming(self, doc, folder);
                 }
@@ -48,7 +49,7 @@ impl TagsPanel {
         let mut changes = Vec::new();
         let untagged = ui.horizontal(|ui| {
             ui.add_enabled(false, egui::Button::new(ph::EYE).frame(false));
-            ui.label("Untagged");
+            ui.label(t!("tags-untagged"));
         });
         drop_target(ui, &untagged.response, None, &mut changes);
 
@@ -93,7 +94,7 @@ impl TagsPanel {
                     let caret = if open { ph::CARET_DOWN } else { ph::CARET_RIGHT };
                     let fold = ui.add(egui::Button::new(caret).frame(false));
                     on_button |= fold.hovered();
-                    if fold.on_hover_text(if open { "Fold" } else { "Unfold" }).clicked() {
+                    if fold.on_hover_text(if open { t!("tags-fold") } else { t!("tags-unfold") }).clicked() {
                         if open {
                             self.closed.insert(id);
                         } else {
@@ -102,8 +103,11 @@ impl TagsPanel {
                     }
                 }
                 let eye = if visible { ph::EYE } else { ph::EYE_SLASH };
-                let what = if is_folder { "everything in this folder" } else { "everything with this tag" };
-                let hint = if visible { format!("Hide {what}") } else { "Show it again".to_owned() };
+                let hint = match (visible, is_folder) {
+                    (true, true) => t!("tags-hide-folder"),
+                    (true, false) => t!("tags-hide-tag"),
+                    (false, _) => t!("tags-show"),
+                };
                 let eye = ui.add(egui::Button::new(eye).frame(false));
                 on_button |= eye.hovered();
                 if eye.on_hover_text(hint).clicked() {
@@ -132,7 +136,7 @@ impl TagsPanel {
                         let text = if is_folder { format!("{} {name}", ph::FOLDER) } else { name.clone() };
                         let label = if visible && shown { egui::RichText::new(text) } else { egui::RichText::new(text).weak() };
                         let response = ui.add(egui::Label::new(label).selectable(false).sense(egui::Sense::click()));
-                        let response = response.on_hover_text("Double-click to rename; drag the row onto a folder (or right-click) to move it");
+                        let response = response.on_hover_text(t!("tags-rename-hint"));
                         if response.double_clicked() {
                             self.renaming = Some((id, name.clone()));
                             self.focused = false;
@@ -142,7 +146,7 @@ impl TagsPanel {
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let hint = if is_folder { "Delete folder (what's in it moves up)" } else { "Delete tag (its groups become Untagged)" };
+                    let hint = if is_folder { t!("tags-delete-folder-hint") } else { t!("tags-delete-tag-hint") };
                     let trash = ui.add(egui::Button::new(ph::TRASH).frame(false));
                     on_button |= trash.hovered();
                     if trash.on_hover_text(hint).clicked() {
@@ -173,8 +177,8 @@ fn move_menu(ui: &mut egui::Ui, scene: &woodsketch_doc::Scene, tag: TagId, chang
         .map(|(id, _)| (id, scene.tag_path(id)))
         .collect();
     folders.sort_by_key(|(_, path)| path.to_lowercase());
-    ui.label(egui::RichText::new("Move to").weak());
-    if current.is_some() && ui.button("Top level").clicked() {
+    ui.label(egui::RichText::new(t!("tags-move-to")).weak());
+    if current.is_some() && ui.button(t!("tags-top-level")).clicked() {
         changes.push(Change::Move(tag, None));
         ui.close();
     }
@@ -185,7 +189,7 @@ fn move_menu(ui: &mut egui::Ui, scene: &woodsketch_doc::Scene, tag: TagId, chang
         }
     }
     if scene.tags().all(|(id, t)| !t.folder || id == tag) {
-        ui.weak("No folders yet: add one with the folder button.");
+        ui.weak(t!("tags-no-folders"));
     }
 }
 
@@ -193,7 +197,7 @@ fn move_menu(ui: &mut egui::Ui, scene: &woodsketch_doc::Scene, tag: TagId, chang
 pub fn entity_info(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
     let count = doc.selection().len();
     if count == 0 {
-        ui.weak("Nothing selected.");
+        ui.weak(t!("entity-nothing-selected"));
         return;
     }
     let instances = doc.selection().iter().filter(|e| matches!(e, woodsketch_doc::Entity::Instance(_))).count();
@@ -203,13 +207,13 @@ pub fn entity_info(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
         (1, 1, Some(instance)) => name_field(ui, doc, instance),
         (1, 0, _) if note.is_some_and(|g| doc.note_text(g).is_some()) => note_field(ui, doc, note.expect("checked")),
         (1, 0, _) if let Some(length) = note.and_then(|g| dimension_length(doc, g)) => {
-            ui.label(format!("Dimension  {}", woodsketch_doc::units::format_length(length)));
+            ui.label(t!("entity-dimension", "length" => woodsketch_doc::units::format_length(length)));
         }
         (n, 0, _) => {
-            ui.label(format!("{n} loose entities"));
+            ui.label(t!("entity-loose", "count" => n));
         }
         (n, i, _) => {
-            ui.label(format!("{n} selected ({i} groups/components)"));
+            ui.label(t!("entity-selected", "count" => n, "groups" => i));
         }
     }
     // Guides, dimensions and notes take no material or tag.
@@ -224,21 +228,21 @@ pub fn entity_info(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
         crate::profile::part_profiles(ui, doc, instance);
     }
     if instances == 0 {
-        ui.weak("Tags go on groups and components. Group this first (Ctrl+G).");
+        ui.weak(t!("entity-tags-note"));
         return;
     }
 
     // Tags with their folders (`Deck / Joist`); folders themselves can't be put on anything.
     let name_of = |doc: &Document, tag: Option<TagId>| match tag.filter(|t| doc.scene().tag(*t).is_some()) {
         Some(t) => doc.scene().tag_path(t),
-        None => "Untagged".to_owned(),
+        None => t!("tags-untagged"),
     };
     let current = doc.selection_tag();
     let shown = match current {
         Some(tag) => name_of(doc, tag),
         None => "(mixed)".to_owned(),
     };
-    let mut choices: Vec<(Option<TagId>, String)> = vec![(None, "Untagged".to_owned())];
+    let mut choices: Vec<(Option<TagId>, String)> = vec![(None, t!("tags-untagged"))];
     let mut tags: Vec<(Option<TagId>, String)> =
         doc.scene().tags().filter(|(_, t)| !t.folder).map(|(id, _)| (Some(id), doc.scene().tag_path(id))).collect();
     tags.sort_by_key(|(_, path)| path.to_lowercase());
@@ -246,7 +250,7 @@ pub fn entity_info(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
 
     let mut picked = None;
     ui.horizontal(|ui| {
-        ui.label(format!("{} Tag", ph::TAG));
+        ui.label(format!("{} {}", ph::TAG, t!("entity-tag")));
         egui::ComboBox::from_id_salt("entity_info_tag").selected_text(shown).show_ui(ui, |ui| {
             for (tag, name) in &choices {
                 if ui.selectable_label(current == Some(*tag), name).clicked() {
@@ -268,7 +272,7 @@ fn name_field(ui: &mut egui::Ui, doc: &mut Document, instance: woodsketch_doc::I
     // While typing, keep what's typed (even blank); otherwise show the drawing's name.
     let mut text = ui.data(|d| d.get_temp::<String>(key)).unwrap_or(current);
     ui.horizontal(|ui| {
-        ui.label("Name");
+        ui.label(t!("entity-name"));
         let response = ui.add(egui::TextEdit::singleline(&mut text).desired_width(150.0));
         if response.changed() {
             doc.rename_instance(instance, &text);
@@ -291,7 +295,7 @@ fn note_field(ui: &mut egui::Ui, doc: &mut Document, note: woodsketch_doc::Guide
     let current = doc.note_text(note).unwrap_or_default().to_owned();
     // While typing, keep what's typed (even blank); otherwise show the drawing's words.
     let mut text = ui.data(|d| d.get_temp::<String>(key)).unwrap_or(current);
-    ui.label("Text");
+    ui.label(t!("entity-text"));
     let response = ui.add(egui::TextEdit::multiline(&mut text).id(key).desired_rows(2).desired_width(f32::INFINITY));
     if response.changed() {
         doc.set_note_text(note, &text);
