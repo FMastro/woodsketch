@@ -555,6 +555,21 @@ mod tests {
 
     const SIZE: Vec2 = Vec2::new(1000.0, 800.0);
 
+    /// Where the comma can't be a decimal point, and why it is left that way.
+    ///
+    /// Move takes either one length or `x,y,z`, so a lone `38,5` is two things at once: thirty
+    /// eight and a half, or a vector one part short. Reading it as the number would turn an
+    /// English user's mistyped `1,2` into a silent 1.2" move, which is worse than being told.
+    /// The semicolon is the way to say which is meant, and it is unambiguous: `38,5;0;0`.
+    #[test]
+    fn a_lone_comma_number_is_not_a_move() {
+        let along = DVec3::X;
+        assert!(parse_offset("38,5", along, DVec3::ZERO).is_err());
+        assert_eq!(parse_offset("38.5", along, DVec3::ZERO).unwrap(), DVec3::X * 38.5);
+        // Said with a semicolon, it is read as the vector it looks like.
+        assert_eq!(parse_offset("38,5;0;0", along, DVec3::ZERO).unwrap(), DVec3::X * 38.5);
+    }
+
     #[test]
     fn a_typed_base_point_then_a_typed_target() {
         let (mut doc, _) = setup();

@@ -128,7 +128,7 @@ impl Files {
             egui::Modal::new(egui::Id::new("file_error")).show(ctx, |ui| {
                 ui.set_max_width(360.0);
                 ui.label(error);
-                if ui.button("OK").clicked() {
+                if ui.button(t!("files-ok")).clicked() {
                     self.error = None;
                 }
             });

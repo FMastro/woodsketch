@@ -350,33 +350,34 @@ circle or polygon's rim goes through a point passed over.
 ## 15. UI
 Done: View > Theme (Light, Dark, Follow System), remembered; the viewport's sky and overlays follow it.
 Done: translations (`crates/i18n`, Fluent, View > Language, `docs/TRANSLATING.md`) — all of
-`ui-egui` and all of `tools`, 763 keys. Nothing a woodworker reads is hard coded any more.
-1. [5] Tool, material, species and template names: whether to translate them at all is a
-   judgement per language (a SketchUp user hunting for "Push/Pull" may want the English, or may
-   want SketchUp's own translation of it). They reach the catalog as placeables today, so the
-   English shows through wherever they appear. Ask on #10 before doing it.
-2. [3] Decimal commas in the Measurements box: `38,5` is how much of the world writes it, but a
-   comma already means `x,y,z` there. Needs a decision in `doc::units`, not a translation.
-3. [3] The printable cut sheet and build sheets (`doc::cutsheet`, `doc::buildsheet`) are still
+`ui-egui` and all of `tools`, 793 keys, the tools' own names among them. Nothing a woodworker
+reads is hard coded any more.
+Done: decimal commas (`38,5`), with a semicolon to separate several lengths (`5,5';6'`), asked
+for on #10.
+1. [3] Material, species and template names are still English, and should stay that way until
+   there is somewhere to put a translation that isn't the name itself: they are written into the
+   drawing, matched to the library by name and named by recipes, so translating the stored name
+   would be a file-format change. A display name beside the stored one is the shape of the work.
+2. [3] The printable cut sheet and build sheets (`doc::cutsheet`, `doc::buildsheet`) are still
    English: their headings and step wording live in `doc`, which has no catalog yet. The pages
    open in a browser, so they are the most shareable thing WoodSketch makes.
-4. [2] Eraser: erase a face by itself (select it and press Delete now).
-5. [3] Standard views: Back, Left, Bottom; a Parallel Projection toggle.
-6. [3] Units: centimeters, decimal inches, feet and inches.
-7. [2] Joint descriptions follow the units (they keep the ones they were made in). Units saved
+3. [2] Eraser: erase a face by itself (select it and press Delete now).
+4. [3] Standard views: Back, Left, Bottom; a Parallel Projection toggle.
+5. [3] Units: centimeters, decimal inches, feet and inches.
+6. [2] Joint descriptions follow the units (they keep the ones they were made in). Units saved
    with the drawing is 7.1.
-8. [3] Sky and ground colors of your own (light and dark presets now).
-9. [5] Eraser: Shift hides, Ctrl softens/smooths.
-10. [5] Right-click menu: Hide, Entity Info, Intersect Faces and per-tool menus.
-11. [5] Per-tool cursors (the system arrow now).
-12. [5] File dialogs that don't block the window (rfd's synchronous API).
-13. [8] Tab moves between widgets (focus never stays on buttons now, so shortcuts and
+7. [3] Sky and ground colors of your own (light and dark presets now).
+8. [5] Eraser: Shift hides, Ctrl softens/smooths.
+9. [5] Right-click menu: Hide, Entity Info, Intersect Faces and per-tool menus.
+10. [5] Per-tool cursors (the system arrow now).
+11. [5] File dialogs that don't block the window (rfd's synchronous API).
+12. [8] Tab moves between widgets (focus never stays on buttons now, so shortcuts and
     Space/Enter aren't swallowed).
-14. [21] Components, Styles and Scenes panels.
-15. [21] Movable, customizable toolbars; tray panels reordered and undocked.
-16. [3] Updating reopens the drawing only if it has a file: a never-saved drawing (or a `.skp`
+13. [21] Components, Styles and Scenes panels.
+14. [21] Movable, customizable toolbars; tray panels reordered and undocked.
+15. [3] Updating reopens the drawing only if it has a file: a never-saved drawing (or a `.skp`
     opened and not saved) isn't brought back after the restart (carry it over through autosave).
-17. [8] Our own toolbar icons, drawn for WoodSketch with the second color only where it matters
+16. [8] Our own toolbar icons, drawn for WoodSketch with the second color only where it matters
     (Move's arrows, a line's end points, as SketchUp's are): Phosphor's are two-toned by
     filling the whole shape now. Panel buttons and menus are still one color.
 

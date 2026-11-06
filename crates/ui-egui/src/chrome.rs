@@ -477,7 +477,7 @@ impl WoodSketchApp {
                         ui.horizontal(|ui| {
                             ui.heading(&release.version);
                             if release.version == crate::updates::VERSION {
-                                ui.label("(this one)");
+                                ui.label(t!("whats-new-this-one"));
                             }
                         });
                         for item in notes_items(&release.notes) {
@@ -560,8 +560,11 @@ impl WoodSketchApp {
                 for pair in group.chunks(2) {
                     ui.horizontal(|ui| {
                         for &tool in pair {
-                            let hint = format!("{} ({})", tool.name(), tool.shortcut_label());
-                            let hint = if tool.is_available() { hint } else { format!("{hint}: coming soon") };
+                            let hint = if tool.is_available() {
+                                t!("tool-hint", "tool" => tool.name(), "key" => tool.shortcut_label())
+                            } else {
+                                t!("tool-hint-coming-soon", "tool" => tool.name(), "key" => tool.shortcut_label())
+                            };
                             let selected = self.tools.active() == tool;
                             if icon_button(ui, icons::tool(tool), selected, tool.is_available(), &hint) {
                                 self.tools.activate(tool);

@@ -56,6 +56,7 @@ impl StartPage {
                 if ui.button(t!("start-back-to", "drawing" => drawing)).on_hover_text(t!("start-back-to-hint")).clicked() {
                     self.open = false;
                 }
+                // The key's own name, the same on every keyboard, so it is not in the catalog.
                 ui.weak("Esc");
             });
             ui.add_space(12.0);
@@ -65,7 +66,7 @@ impl StartPage {
                 ui.label(t!("start-intro"));
                 ui.add_space(18.0);
 
-                ui.strong("New");
+                ui.strong(t!("start-new"));
                 ui.add_space(6.0);
                 ui.horizontal_wrapped(|ui| {
                     // Inches first: WoodSketch's model unit, and what its users measure in.

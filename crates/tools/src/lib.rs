@@ -107,34 +107,36 @@ impl ToolId {
         Self::Walk,
     ];
 
-    pub fn name(self) -> &'static str {
+    /// What the tool is called, in the language in use. A `String` rather than a
+    /// `&'static str` because a translation can't be a literal in the binary.
+    pub fn name(self) -> String {
         match self {
-            Self::Select => "Select",
-            Self::Eraser => "Eraser",
-            Self::PaintBucket => "Paint Bucket",
-            Self::Line => "Line",
-            Self::Arc => "Arc",
-            Self::Rectangle => "Rectangle",
-            Self::Circle => "Circle",
-            Self::Polygon => "Polygon",
-            Self::CenterArc => "Center Arc",
-            Self::ThreePointArc => "3-Point Arc",
-            Self::Pie => "Pie",
-            Self::RotatedRectangle => "Rotated Rectangle",
-            Self::Board => "Board",
-            Self::PushPull => "Push/Pull",
-            Self::Move => "Move",
-            Self::Rotate => "Rotate",
-            Self::Scale => "Scale",
-            Self::Offset => "Offset",
-            Self::TapeMeasure => "Tape Measure",
-            Self::Protractor => "Protractor",
-            Self::Dimension => "Dimension",
-            Self::Text => "Text",
-            Self::Orbit => "Orbit",
-            Self::Pan => "Pan",
-            Self::Zoom => "Zoom",
-            Self::Walk => "Walk",
+            Self::Select => t!("tool-name-select"),
+            Self::Eraser => t!("tool-name-eraser"),
+            Self::PaintBucket => t!("tool-name-paint-bucket"),
+            Self::Line => t!("tool-name-line"),
+            Self::Arc => t!("tool-name-arc"),
+            Self::Rectangle => t!("tool-name-rectangle"),
+            Self::Circle => t!("tool-name-circle"),
+            Self::Polygon => t!("tool-name-polygon"),
+            Self::CenterArc => t!("tool-name-center-arc"),
+            Self::ThreePointArc => t!("tool-name-three-point-arc"),
+            Self::Pie => t!("tool-name-pie"),
+            Self::RotatedRectangle => t!("tool-name-rotated-rectangle"),
+            Self::Board => t!("tool-name-board"),
+            Self::PushPull => t!("tool-name-push-pull"),
+            Self::Move => t!("tool-name-move"),
+            Self::Rotate => t!("tool-name-rotate"),
+            Self::Scale => t!("tool-name-scale"),
+            Self::Offset => t!("tool-name-offset"),
+            Self::TapeMeasure => t!("tool-name-tape-measure"),
+            Self::Protractor => t!("tool-name-protractor"),
+            Self::Dimension => t!("tool-name-dimension"),
+            Self::Text => t!("tool-name-text"),
+            Self::Orbit => t!("tool-name-orbit"),
+            Self::Pan => t!("tool-name-pan"),
+            Self::Zoom => t!("tool-name-zoom"),
+            Self::Walk => t!("tool-name-walk"),
         }
     }
 
@@ -529,7 +531,7 @@ impl Tools {
 
     pub fn activate(&mut self, tool: ToolId) {
         if !tool.is_available() {
-            self.message = Some(format!("{} ({}) is coming soon.", tool.name(), tool.shortcut_label()));
+            self.message = Some(t!("tool-coming-soon", "tool" => tool.name(), "key" => tool.shortcut_label()));
             return;
         }
         self.cancel();
@@ -1030,7 +1032,7 @@ impl Tools {
             ToolId::Dimension => self.dimension.enter(doc, &typed),
             ToolId::Walk => units::parse_length(&typed).map_err(|e| e.to_string()).map(|h| self.walk_eye_typed = Some(h)),
             ToolId::Text => self.text.enter(doc, &typed),
-            _ => Err(format!("{} doesn't take typed values.", self.active.name())),
+            _ => Err(t!("tool-takes-no-typed-values", "tool" => self.active.name())),
         };
         if let Err(message) = result {
             self.message = Some(message);
@@ -1311,7 +1313,7 @@ impl Tools {
     pub fn duplicate(&mut self, doc: &mut Document) {
         self.cancel();
         let Some(clip) = doc.copy_selection() else {
-            self.message = Some("Select something to duplicate".into());
+            self.message = Some(t!("tool-nothing-to-duplicate"));
             return;
         };
         let (lo, hi) = clip.bounds();

@@ -44,6 +44,10 @@ Keep logic out of `ui-egui`: anything testable belongs in a plain crate.
 Just type: digits and length punctuation start a Measurements entry; once typing, letters go
 to the box too (so `38mm` isn't Move). Otherwise letters are tool shortcuts, Space is Select,
 `Z` (Shift+Z) is Zoom Extents. Enter submits, Esc clears typing / cancels / deselects.
+A comma is a decimal point (`38,5`), since half the world writes one; a list of lengths is
+separated by a comma *or* a semicolon, and a semicolon anywhere means the semicolon is the
+separator and every comma is a decimal (`5,5';6'` = `5.5',6'`). Without one `3,5` is still two
+lengths, which is why the semicolon has to be typed (`units::parse_lengths`).
 
 ## Walking (Camera > Walk)
 `ui-egui::viewport::walk`, as in a game: the mouse looks, W A S D or the arrows walk, Shift is
@@ -72,6 +76,12 @@ that isn't built in, for tests and for a translator previewing their own file.
   is what stands in for the compiler; a key built at runtime is invisible to it. So a `const`
   array of labels becomes either `t!` calls built at use (`file_menu`'s `formats`) or a `match`
   returning them (`chrome::view_name`, `theme_name`), never a key passed as a variable.
+- Two guard tests stand in for the compiler, and both are in `crates/i18n`:
+  `every_key_the_code_asks_for_exists` reads every `.rs` in the workspace for `t!` keys and looks
+  each up in English, and `nothing_on_screen_is_written_into_the_code` catches the other
+  direction -- a string literal handed straight to `.label(`, `.button(`, `.on_hover_text(` and
+  the rest in `ui-egui` or `tools`, which no translation could ever reach. The second exists
+  because "fully converted" was wrong twice and both times it was found by eye.
 - `bundle.set_use_isolating(false)`: Fluent otherwise wraps inserted values in invisible
   direction marks, which would sit inside a label and break `get_by_label`.
 - The language is **global**, and `workflow.rs` runs in parallel threads matching English labels,
@@ -89,8 +99,11 @@ that isn't built in, for tests and for a translator previewing their own file.
   `" (copying)"` dropped into the middle, no `+ "s"` for a plural. Fluent plurals where the
   number changes the wording (`cutlist-needs-material`, `entity-loose`).
 - Left in English on purpose: `woodsketch-cli` and the MCP server (read by programs and agents),
-  and the names of tools, materials, species and templates, which reach the catalog as
-  placeables. `docs/TRANSLATING.md` is the contributor-facing guide and says why.
+  and the names of materials, species and templates, which are data (written into the drawing,
+  matched to the library by name, named by recipes) and reach the catalog as placeables.
+  **Tool names are translated** (`tool-name-*`, asked for by `ToolId::name`, which returns a
+  `String`): `ToolId` has no serde and never leaves the window, so they are text and nothing
+  else. `docs/TRANSLATING.md` is the contributor-facing guide and says why for each.
 
 ## Conventions
 - Z up; red = X, green = Y, blue = Z (SketchUp). Model units are **inches**.

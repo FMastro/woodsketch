@@ -1,8 +1,9 @@
 //! Parsing and formatting lengths the way SketchUp's Measurements box does. Lengths are inches.
 //!
 //! Accepted: `1.5`, `1.5"`, `1.5in`, `1 1/2`, `1-1/2"`, `3/4`, `3'`, `3ft`, `3'6"`, `3' 6 1/2"`,
-//! `38mm`, `3.8cm`, `1.2m`, and a leading `-` to flip direction. Bare numbers are in the units
-//! chosen ([`set_units`]): inches, or millimeters; lengths are shown in them too.
+//! `38mm`, `3.8cm`, `1.2m`, and a leading `-` to flip direction. A comma is a decimal point too
+//! (`38,5`). Bare numbers are in the units chosen ([`set_units`]): inches, or millimeters;
+//! lengths are shown in them too.
 
 use std::cell::Cell;
 use std::fmt;
@@ -85,11 +86,25 @@ pub fn parse_length(input: &str) -> Result<f64, ParseLengthError> {
 
 /// Parse a comma- or semicolon-separated list, like `1.5",3.5"`. Empty entries are `None`,
 /// meaning "keep the current value" (`,3.5` changes only the second dimension).
+///
+/// A semicolon anywhere in the input says *that* is the separator, which leaves the comma free
+/// to be a decimal point: `5,5';6'` and `5.5',6'` are the same two lengths. Without a semicolon
+/// the comma separates, as it always has, so `3,5` is still two lengths and not three and a
+/// half -- which is why someone writing decimals with a comma needs the semicolon to say so.
 pub fn parse_lengths(input: &str) -> Result<Vec<Option<f64>>, ParseLengthError> {
-    input
-        .split([',', ';'])
-        .map(|part| if part.trim().is_empty() { Ok(None) } else { parse_length(part).map(Some) })
+    split_values(input)
+        .iter()
+        .map(|part| if part.is_empty() { Ok(None) } else { parse_length(part).map(Some) })
         .collect()
+}
+
+/// Split typed input into its values: a semicolon anywhere makes the semicolon the separator and
+/// every comma a decimal point, otherwise the comma separates. Each part comes back trimmed with
+/// its comma already a point, so a plain `f64` parse reads it -- which is what Scale's factors
+/// need, and the reason this is one function rather than the same two lines in two places.
+pub fn split_values(input: &str) -> Vec<String> {
+    let separator = if input.contains(';') { ';' } else { ',' };
+    input.split(separator).map(|part| part.trim().replace(',', ".")).collect()
 }
 
 /// Format inches as fractional inches to the nearest 1/16", like `3 1/2"`. Rounded values get
@@ -126,6 +141,9 @@ pub fn format_length(inches: f64) -> String {
 fn parse_number(s: &str) -> Option<f64> {
     let s = s.trim();
     let decimal = |t: &str| -> Option<f64> {
+        // Half the world writes 5,5 for five and a half. Taken here rather than in the callers
+        // so it holds for feet and inches, millimeters and the whole part of a fraction alike.
+        let t = t.trim().replace(',', ".");
         let t = t.trim();
         let valid = !t.is_empty()
             && t != "."
@@ -183,6 +201,41 @@ mod tests {
         assert!((parse("38mm") - 1.496_062_992).abs() < 1e-9);
         assert!((parse("2.54cm") - 1.0).abs() < 1e-12);
         assert!((parse("1m") - 39.370_078_74).abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_comma_is_a_decimal_point() {
+        // Portuguese, Spanish, French, German: 5,5 is five and a half. One value on its own has
+        // nothing to separate, so the comma can only be the decimal point.
+        assert_eq!(parse("1,5"), 1.5);
+        assert_eq!(parse("1,5\""), 1.5);
+        assert_eq!(parse("5,5'"), 66.0);
+        assert!((parse("38,5mm") - 38.5 / 25.4).abs() < 1e-9);
+        assert_eq!(parse("1 1/2"), parse("1,5"));
+    }
+
+    #[test]
+    fn a_semicolon_says_the_comma_is_a_decimal_point() {
+        // The reason the semicolon is worth accepting: without it there is no way to write a
+        // list of lengths that have decimals, because the comma would be doing both jobs.
+        assert_eq!(parse_lengths("5,5';6'").unwrap(), parse_lengths("5.5',6'").unwrap());
+        assert_eq!(parse_lengths("5,5';6'").unwrap(), vec![Some(66.0), Some(72.0)]);
+        assert_eq!(parse_lengths("38,5;10;2,25").unwrap().len(), 3);
+    }
+
+    #[test]
+    fn without_a_semicolon_the_comma_still_separates() {
+        // Unchanged, and the whole reason the semicolon has to be typed: `3,5` has meant two
+        // lengths since the first version, and drawings are full of people meaning that.
+        assert_eq!(parse_lengths("3,5").unwrap(), vec![Some(3.0), Some(5.0)]);
+        assert_eq!(parse_lengths("1.5\",3.5\"").unwrap(), vec![Some(1.5), Some(3.5)]);
+        assert_eq!(parse_lengths(",3.5").unwrap(), vec![None, Some(3.5)]);
+    }
+
+    #[test]
+    fn two_decimal_points_in_one_number_is_still_wrong() {
+        assert!(parse_length("5,5.5").is_err());
+        assert!(parse_lengths("5,5,5;6").is_err());
     }
 
     #[test]

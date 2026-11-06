@@ -476,7 +476,7 @@ fn angled(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
     for (index, joint, _) in &joints {
         ui.horizontal_wrapped(|ui| {
             ui.label(format!("{} {}, {}", egui_phosphor::regular::CHECK, joint.kind.name(), joint.detail));
-            if ui.small_button("Change").on_hover_text("Take it out and set it up again from its sizes").clicked() {
+            if ui.small_button(t!("joinery-change")).on_hover_text(t!("joinery-change-hint")).clicked() {
                 change = Some((*index, joint.sizes.clone()));
             }
             if ui.small_button(t!("joinery-remove")).on_hover_text(t!("joinery-remove-hint")).clicked() {

@@ -81,7 +81,7 @@ impl CutListWindow {
                         }
                         let build = ui
                             .button(format!("{} {}", ph::NOTEBOOK, t!("cutlist-print-build-sheets")))
-                            .on_hover_text("A page per part for the shop: its size, drawings, joints and profiles, in order");
+                            .on_hover_text(t!("cutlist-print-build-sheets-hint"));
                         if build.clicked() {
                             self.export_build_sheets(doc);
                         }

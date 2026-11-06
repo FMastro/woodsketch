@@ -421,6 +421,109 @@ mod tests {
 
     /// The test that stands in for the compiler: a misspelled key fails here rather than showing
     /// itself in somebody's menu.
+    /// Every string literal handed straight to one of egui's text calls: a word on screen that
+    /// never passed through the catalog. Comments are skipped, so a `.label("x")` written in
+    /// documentation is not mistaken for one.
+    fn screen_literals(text: &str) -> Vec<String> {
+        const CALLS: [&str; 9] = [
+            ".label(",
+            ".button(",
+            ".small_button(",
+            ".strong(",
+            ".weak(",
+            ".heading(",
+            ".on_hover_text(",
+            ".monospace(",
+            "Button::new(",
+        ];
+        let bytes = text.as_bytes();
+        let mut found = Vec::new();
+        let mut i = 0;
+        let (mut in_line, mut in_block) = (false, 0usize);
+        while i < bytes.len() {
+            if in_line {
+                if bytes[i] == b'\n' {
+                    in_line = false;
+                }
+                i += 1;
+            } else if in_block > 0 {
+                if bytes[i..].starts_with(b"/*") {
+                    in_block += 1;
+                    i += 2;
+                } else if bytes[i..].starts_with(b"*/") {
+                    in_block -= 1;
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            } else if bytes[i..].starts_with(b"//") {
+                in_line = true;
+                i += 2;
+            } else if bytes[i..].starts_with(b"/*") {
+                in_block = 1;
+                i += 2;
+            } else if bytes[i] == b'"' {
+                // A `'"'` char literal, not the start of a string.
+                if i > 0 && bytes[i - 1] == b'\'' && bytes.get(i + 1) == Some(&b'\'') {
+                    i += 2;
+                    continue;
+                }
+                let start = i + 1;
+                let mut j = start;
+                while j < bytes.len() && bytes[j] != b'"' {
+                    if bytes[j] == b'\\' {
+                        j += 1;
+                    }
+                    j += 1;
+                }
+                if CALLS.iter().any(|call| text[..i].ends_with(call)) {
+                    found.push(text[start..j.min(text.len())].to_owned());
+                }
+                i = j + 1;
+            } else {
+                i += 1;
+            }
+        }
+        found
+    }
+
+    /// Nothing a woodworker reads is written into the code.
+    ///
+    /// `ui-egui` and `tools` are fully translated, and that claim was wrong twice before this
+    /// test existed: a Change button and its tooltip were handed to egui as literals while the
+    /// catalog held the right keys unused, and the Start page's "New" heading, the What's New
+    /// window's "(this one)", a build-sheets tooltip, an OK button and Ctrl+D's "Select
+    /// something to duplicate" were never keys at all. Each of those was found by eye, which is
+    /// not a method. This looks instead.
+    #[test]
+    fn nothing_on_screen_is_written_into_the_code() {
+        // A key's own name, the same on every keyboard, so deliberately not in the catalog.
+        // Anything with no letters in it at all (an arrow, a dash) is fine as it stands.
+        const ALLOWED: [&str; 1] = ["Esc"];
+        let mut stray = Vec::new();
+        let mut looked_at = 0;
+        for path in sources() {
+            let shown = path.display().to_string().replace('\\', "/");
+            if !(shown.contains("/ui-egui/src/") || shown.contains("/tools/src/")) {
+                continue;
+            }
+            let Ok(text) = std::fs::read_to_string(&path) else { continue };
+            looked_at += 1;
+            for literal in screen_literals(&text) {
+                if literal.chars().any(char::is_alphabetic) && !ALLOWED.contains(&literal.as_str()) {
+                    stray.push(format!("{shown}: {literal:?}"));
+                }
+            }
+        }
+        assert!(looked_at > 20, "only {looked_at} files scanned, so this test is proving nothing");
+        assert!(
+            stray.is_empty(),
+            "{} word(s) on screen never went through the catalog, so no translation can reach them:\n{}",
+            stray.len(),
+            stray.join("\n")
+        );
+    }
+
     #[test]
     fn every_key_the_code_asks_for_exists() {
         let known = keys_in(catalog(BASE).expect("English is built in").source);

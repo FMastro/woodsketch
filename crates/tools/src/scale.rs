@@ -300,7 +300,11 @@ fn typed_factors(typed: &str, target: &Target, active: &[usize]) -> Result<DVec3
     let values: Vec<f64> = if sizes {
         parse_lengths(typed).map_err(|e| e.to_string())?.into_iter().map(|v| v.unwrap_or(f64::NAN)).collect()
     } else {
-        typed.split([',', ';']).map(|s| s.trim().parse::<f64>().map_err(|_| format!("\"{}\" isn't a scale factor", s.trim()))).collect::<Result<_, _>>()?
+        // Through `split_values` so a factor is written the same way as a length: `1,5;2`.
+        woodsketch_doc::units::split_values(typed)
+            .iter()
+            .map(|s| s.parse::<f64>().map_err(|_| t!("tool-scale-not-a-factor", "value" => s.as_str())))
+            .collect::<Result<_, _>>()?
     };
     let typed_count = values.len();
     let per_axis: Vec<f64> = match values.len() {

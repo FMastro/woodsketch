@@ -7,6 +7,16 @@ Write them short. One line per change, a sentence or two at most: what changed, 
 reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
 that belongs in the commit message, which is where it already is.
 
+## 0.1.70
+
+- The tools' names are translated now -- Push/Pull, Offset and the rest come from the language
+  file, so a translation covers them along with everything else (#10).
+- A comma works as a decimal point: `38,5` is thirty-eight and a half. For several lengths at
+  once, separate them with a semicolon and the commas stay decimal: `5,5';6'`. A comma on its
+  own still separates, so `3,5` is two lengths. Thanks to @jmartsdesign for working it out.
+- Seven words that were still built into the program now come from the language file too: the
+  Start page's New heading, a Change button in the Joinery panel and its tooltip, and four more.
+
 ## 0.1.69
 
 - Fixed: the Start page hid windows that opened behind it. About, What's New, the feedback forms
