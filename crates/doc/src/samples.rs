@@ -104,8 +104,9 @@ mod tests {
             ("Workbench", 13, 16),
             ("Dining table", 9, 8),
             ("Kitchen run", 75, 86),
-            // 990 rather than 995: the five doors start hidden, and a hidden part is not cut.
-            ("Small house", 990, 72),
+            // The five doors start hidden and a hidden part is not cut, which is what keeps this
+            // under a thousand; narrowing the two bath doors to 2'-6" added the cripples over them.
+            ("Small house", 994, 72),
         ];
         assert_eq!(expected.len(), SAMPLES.len(), "every sample needs its counts here");
         for (sample, (name, parts, joints)) in SAMPLES.iter().zip(expected) {
@@ -190,24 +191,30 @@ mod tests {
         }
     }
 
-    /// Nothing in either bathroom crosses a wall or stands in its doorway.
+    /// You can walk into both baths, and round what is in them.
     ///
-    /// Reported from walking the house: a tub sat 3-1/2" behind a bathroom door and ran through
-    /// the wall into the next bathroom, and a toilet stood out through the other door into the
-    /// bedroom. The fixtures were sized for rooms 60" clear and the rooms are 56-1/2".
+    /// A layout that reads right on the plan can still be one you can't get into. The first
+    /// version of these baths faced a toilet 28" deep across a vanity 21" deep in a 60" room,
+    /// which leaves 11" between them: a gap on paper, a wall in Walk mode. So this measures the
+    /// floor the way a person meets it rather than the way it was drawn. A 22" square -- a pair
+    /// of shoulders -- is slid over each bath on a 1" grid, and wherever it fits clear of every
+    /// fixture you can stand. Starting from the floor inside the door, those places have to join
+    /// up, and they have to reach all three fixtures.
     #[test]
-    fn nothing_in_the_baths_stands_in_a_doorway() {
-        // From `scripts/make-house-sample.py`: each bath's clear floor, and the floor just
-        // inside its door, which is the part of a room nothing is allowed to stand on.
+    fn the_baths_can_be_walked_into_and_round() {
+        // From `scripts/make-house-sample.py`: each bath's clear floor, and the floor inside its
+        // door -- bath 1 is entered through its south wall, bath 2 through its east.
         const BATHS: [[f64; 4]; 2] = [[135.5, 171.5, 195.5, 282.5], [199.0, 171.5, 259.0, 282.5]];
-        // Bath 1 is entered through its south wall, bath 2 through its east wall; 24" deep.
-        const DOORWAYS: [[f64; 4]; 2] = [[150.0, 171.5, 184.0, 195.5], [235.0, 200.0, 259.0, 234.0]];
+        const DOORWAYS: [[f64; 4]; 2] = [[139.0, 171.5, 169.0, 195.5], [235.0, 200.0, 259.0, 230.0]];
+        const PERSON: f64 = 22.0; // shoulders: what a gap has to have to be a way through
+        const REACH: f64 = 18.0; // near enough a fixture to stand at it
+        const STEP: f64 = 1.0;
         const EPS: f64 = 1e-6;
 
         let doc = by_name("Small house").expect("the house is a sample").build().unwrap();
         let scene = doc.scene();
         let (bathrooms, _) = scene.tags().find(|(_, t)| t.name == "Bathrooms").expect("a Bathrooms tag");
-        let mut checked = 0;
+        let mut fixtures: Vec<(String, [f64; 4])> = Vec::new();
         for (_, instance) in scene.root.instances().filter(|(_, i)| i.tag == Some(bathrooms)) {
             let Some((lo, hi)) = scene.definition_bounds(instance.definition) else { continue };
             let corners = [
@@ -221,24 +228,89 @@ mod tests {
                 glam::DVec3::new(hi.x, hi.y, hi.z),
             ];
             let placed: Vec<glam::DVec3> = corners.iter().map(|c| instance.transform.transform_point3(*c)).collect();
-            let x0 = placed.iter().map(|p| p.x).fold(f64::INFINITY, f64::min);
-            let x1 = placed.iter().map(|p| p.x).fold(f64::NEG_INFINITY, f64::max);
-            let y0 = placed.iter().map(|p| p.y).fold(f64::INFINITY, f64::min);
-            let y1 = placed.iter().map(|p| p.y).fold(f64::NEG_INFINITY, f64::max);
+            let at = [
+                placed.iter().map(|p| p.x).fold(f64::INFINITY, f64::min),
+                placed.iter().map(|p| p.y).fold(f64::INFINITY, f64::min),
+                placed.iter().map(|p| p.x).fold(f64::NEG_INFINITY, f64::max),
+                placed.iter().map(|p| p.y).fold(f64::NEG_INFINITY, f64::max),
+            ];
             let name = scene.definition(instance.definition).map_or("?", |d| d.name.as_str());
-            let box_ = format!("{name} at x {x0:.1}..{x1:.1}, y {y0:.1}..{y1:.1}");
-
-            let inside = BATHS.iter().any(|[bx0, by0, bx1, by1]| {
-                x0 >= bx0 - EPS && x1 <= bx1 + EPS && y0 >= by0 - EPS && y1 <= by1 + EPS
+            let what = format!("{name} at x {:.1}..{:.1}, y {:.1}..{:.1}", at[0], at[2], at[1], at[3]);
+            let inside = BATHS.iter().any(|[x0, y0, x1, y1]| {
+                at[0] >= x0 - EPS && at[2] <= x1 + EPS && at[1] >= y0 - EPS && at[3] <= y1 + EPS
             });
-            assert!(inside, "{box_} is not inside one bathroom's walls");
-            for [dx0, dy0, dx1, dy1] in DOORWAYS {
-                let overlaps = x0 < dx1 - EPS && x1 > dx0 + EPS && y0 < dy1 - EPS && y1 > dy0 + EPS;
-                assert!(!overlaps, "{box_} stands in the floor inside a bathroom door");
-            }
-            checked += 1;
+            assert!(inside, "{what} is not inside one bathroom's walls");
+            fixtures.push((what, at));
         }
-        assert_eq!(checked, 6, "two baths, three fixtures each");
+        assert_eq!(fixtures.len(), 6, "two baths, three fixtures each");
+
+        for (bath, room) in BATHS.iter().enumerate() {
+            let [rx0, ry0, rx1, ry1] = *room;
+            let mine: Vec<&(String, [f64; 4])> = fixtures
+                .iter()
+                .filter(|(_, b)| b[0] >= rx0 - EPS && b[2] <= rx1 + EPS && b[1] >= ry0 - EPS && b[3] <= ry1 + EPS)
+                .collect();
+            assert_eq!(mine.len(), 3, "bath {} holds a tub, a vanity and a toilet", bath + 1);
+
+            let half = PERSON / 2.0;
+            let standable = |x: f64, y: f64| {
+                x - half >= rx0 - EPS
+                    && x + half <= rx1 + EPS
+                    && y - half >= ry0 - EPS
+                    && y + half <= ry1 + EPS
+                    && mine.iter().all(|(_, b)| {
+                        x + half <= b[0] + EPS
+                            || x - half >= b[2] - EPS
+                            || y + half <= b[1] + EPS
+                            || y - half >= b[3] - EPS
+                    })
+            };
+            let nx = ((rx1 - rx0) / STEP) as usize;
+            let ny = ((ry1 - ry0) / STEP) as usize;
+            let at = |i: usize, j: usize| (rx0 + (i as f64 + 0.5) * STEP, ry0 + (j as f64 + 0.5) * STEP);
+
+            let [dx0, dy0, dx1, dy1] = DOORWAYS[bath];
+            let mut standing = vec![false; nx * ny];
+            let mut walk: Vec<(usize, usize)> = Vec::new();
+            for i in 0..nx {
+                for j in 0..ny {
+                    let (x, y) = at(i, j);
+                    if x >= dx0 && x <= dx1 && y >= dy0 && y <= dy1 && standable(x, y) {
+                        standing[j * nx + i] = true;
+                        walk.push((i, j));
+                    }
+                }
+            }
+            assert!(!walk.is_empty(), "there is nowhere to stand inside bath {}'s door", bath + 1);
+            while let Some((i, j)) = walk.pop() {
+                for (ni, nj) in [(i.wrapping_sub(1), j), (i + 1, j), (i, j.wrapping_sub(1)), (i, j + 1)] {
+                    if ni >= nx || nj >= ny || standing[nj * nx + ni] {
+                        continue;
+                    }
+                    let (x, y) = at(ni, nj);
+                    if standable(x, y) {
+                        standing[nj * nx + ni] = true;
+                        walk.push((ni, nj));
+                    }
+                }
+            }
+            for (what, b) in &mine {
+                let near = (0..nx)
+                    .flat_map(|i| (0..ny).map(move |j| (i, j)))
+                    .filter(|(i, j)| standing[j * nx + i])
+                    .map(|(i, j)| {
+                        let (x, y) = at(i, j);
+                        (b[0] - x).max(x - b[2]).max(0.0).hypot((b[1] - y).max(y - b[3]).max(0.0))
+                    })
+                    .fold(f64::INFINITY, f64::min);
+                assert!(
+                    near <= REACH,
+                    "{what} can't be walked up to from bath {}'s door: the nearest floor you \
+                     could stand on is {near:.1}\" from it",
+                    bath + 1
+                );
+            }
+        }
     }
 
     /// Nothing about a sample should be a surprise to the wood: a sample that opens with a

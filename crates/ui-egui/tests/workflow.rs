@@ -2880,8 +2880,8 @@ fn the_house_is_built_on_a_thread_and_says_so() {
     }
     let list = woodsketch_doc::cutlist::cut_list(harness.state().document().scene());
     let parts: usize = list.materials.iter().flat_map(|m| &m.parts).map(|p| p.count).sum();
-    // 990, not 995: the five doors start hidden, and a hidden part is not a cut-list part.
-    assert_eq!(parts, 990, "the whole house arrived");
+    // Under a thousand because the five doors start hidden, and a hidden part is not cut.
+    assert_eq!(parts, 994, "the whole house arrived");
     let (lo, hi) = harness.state().document().bounds().unwrap();
     assert!((hi - lo).x > 400.0 && (hi - lo).z > 190.0, "a 34' house, got {:?}", hi - lo);
     snapshot(&mut harness, "start_page_house");

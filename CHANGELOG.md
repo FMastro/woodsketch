@@ -7,6 +7,12 @@ Write them short. One line per change, a sentence or two at most: what changed, 
 reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
 that belongs in the commit message, which is where it already is.
 
+## 0.1.71
+
+- Small house: the baths are laid out again, so you can get into them. Each has its tub, toilet
+  and vanity down one wall and a 34" lane from the door past them, and the bath doors are 2'-6"
+  at the end of their wall rather than 2'-10" in the middle of it.
+
 ## 0.1.70
 
 - The tools' names are translated now -- Push/Pull, Offset and the rest come from the language

@@ -371,10 +371,15 @@ there to answer "how big does this get?" and "is this only for woodworking?", no
 sensible cut list. Its **Doors tag starts hidden** (`"hidden": true` in the recipe), because shut
 doors stand between you and every room; a hidden instance is not a cut-list part, so the five
 doors and their knobs are out of the counts until the tag is shown, which is why
-`the_houses_knobs_are_bought_not_cut` shows it first. Its bathroom fixtures are checked by
-`nothing_in_the_baths_stands_in_a_doorway`. Each bath is framed 60" clear, which is the width an
-alcove tub drops into and the reason the two dividing walls are where they are; a tub used to run
-through a wall into the next bath and stand 3-1/2" behind the door. It leans on three things being right — components placed many times
+`the_houses_knobs_are_bought_not_cut` shows it first. Each bath is framed 60" clear, which is the
+width an alcove tub drops into and the reason the two dividing walls are where they are, and each
+is laid out the way a 5' bath is: tub across the far end, toilet and vanity down the wall away
+from the door, a 34" lane past them, and a 2'-6" door at the lane's end of its wall rather than
+in the middle (a door in the middle of a 5' wall leaves nowhere to stand anything and nowhere to
+walk). `the_baths_can_be_walked_into_and_round` is what holds that: it slides a 22" square over
+each bath's floor on a 1" grid, floods out from the doorway, and fails unless every fixture can be
+reached — a plan check wouldn't have caught the 11" gap between two facing fixtures that it did.
+It leans on three things being right — components placed many times
 (everything repeated is `copies`, so the renderer draws one design per placement), tag folders
 (Shell / Roof / Inside / Outside, which is how you peel it apart), and `PartSpec::outline` for
 the gable ends. `samples::tests::the_house_comes_apart_by_tag` guards the tagging, which no
