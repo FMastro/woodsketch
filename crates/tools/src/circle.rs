@@ -2,7 +2,7 @@
 //! or type the radius. Type `32s` to use 32 sides instead of 24, before or right after drawing;
 //! typing a radius right after drawing resizes the circle just drawn.
 
-use glam::{DVec3, Vec2};
+use glam::{DAffine3, DVec3, Vec2};
 use woodsketch_doc::curves::{CIRCLE_SEGMENTS, circle_points};
 use woodsketch_i18n::t;
 use woodsketch_doc::units::{format_length, parse_length};
@@ -68,6 +68,19 @@ impl CircleTool {
     pub fn cancel(&mut self) {
         self.center = None;
         self.last = None;
+    }
+
+    /// Carry the circle being sized out of the group being closed (`t` maps old to new
+    /// coordinates).
+    pub fn migrate_context(&mut self, t: DAffine3) {
+        if let Some((center, normal)) = &mut self.center {
+            *center = t.transform_point3(*center);
+            *normal = t.transform_vector3(*normal);
+        }
+        if let Some((anchor, rim)) = &mut self.through {
+            *anchor = t.transform_point3(*anchor);
+            *rim = t.transform_point3(*rim);
+        }
     }
 
     /// Polygon's Ctrl: the radius to the middle of a side, or to a corner.
