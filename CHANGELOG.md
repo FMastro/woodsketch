@@ -9,6 +9,9 @@ that belongs in the commit message, which is where it already is.
 
 ## 0.1.71
 
+- WoodSketch speaks Portuguese. View > Language is in the menu bar now that there are two to
+  choose between, and a computer set to Portuguese -- Brazilian included -- starts in it. Thanks
+  to @jmartsdesign for writing it (#10).
 - Small house: the baths are laid out again, so you can get into them. Each has its tub, toilet
   and vanity down one wall and a 34" lane from the door past them, and the bath doors are 2'-6"
   at the end of their wall rather than 2'-10" in the middle of it.
