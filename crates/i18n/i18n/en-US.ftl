@@ -65,6 +65,11 @@ edit-select-none = Select None
 edit-make-group = Make Group
 edit-make-component = Make Component...
 edit-explode = Explode
+edit-flip-along = Flip Along
+edit-flip-along-hint = Mirror the selection where it stands. One group or component flips along its own axes.
+edit-flip-red = Red Direction
+edit-flip-green = Green Direction
+edit-flip-blue = Blue Direction
 
 ## View
 
@@ -842,6 +847,7 @@ tools-noun-group = group
 tools-noun-component = component
 tools-no-guides = There are no guides to delete.
 tools-select-to-explode = Select a group or component to explode.
+tools-select-to-flip = Select something to flip.
 tools-select-to-copy = Select something to copy
 tools-nothing-to-paste = Nothing to paste: copy something first
 
@@ -939,7 +945,7 @@ tool-scale-move-center = Move to scale, or type a factor (2, 0.5) or a size (36"
 tool-scale-move-opposite = Move to scale, or type a factor (2, 0.5) or a size (36"). Tap Ctrl to scale about the center. Hold Shift to switch even and stretched.
 tool-scale-click-grip = Click a scale grip, then type the scale
 tool-scale-hover-grips = Click one of the scale grips (hover something to see them)
-tool-scale-positive = Scale must be greater than zero (mirroring isn't supported yet)
+tool-scale-not-negative = Scale must be greater than zero. To mirror, use Edit > Flip Along.
 # $value is what was typed, kept as it was typed.
 tool-scale-not-a-factor = "{ $value }" isn't a scale factor
 tool-scale-one-or-n = Enter one value, or { $count } separated by commas

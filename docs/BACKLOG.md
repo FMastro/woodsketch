@@ -315,7 +315,8 @@ circle or polygon's rim goes through a point passed over.
 8. [5] Offset a selection of connected edges (only faces now).
 9. [1] Tape Measure resize: ask first, as SketchUp does (it's one undo step now).
 10. [3] Scale grips as green boxes, hiding the ones facing away (red crosses now).
-11. [8] Scale: mirroring (negative factors are refused).
+11. [3] Scale: dragging a grip through the far side to mirror, and typing a negative factor
+    (both refused; Edit > Flip Along mirrors from the menu, and `mirroring` does the geometry).
 12. [8] Scale: a rotated group among several scaled together gets sheared (they use the
     red/green/blue axes), and the cut list measures it only approximately.
 

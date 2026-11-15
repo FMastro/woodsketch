@@ -255,6 +255,15 @@ add it there; when you finish an item, remove it.
    on the box (corners even, edges two ways, faces one way), opposite grip fixed or Ctrl for the
    center, typed factors or sizes (`36"`), retyping changes it. A single group scales along its
    own axes into its transform; the cut list measures parts through their groups' scale.
+   Flip Along (Edit menu and right-click, `Document::flip_selection`) mirrors the selection in the
+   plane through the middle of its box, square to red, green or blue: `transform::mirroring`, which
+   is `scaling` by -1 one way, so the box doesn't move. A single group or component flips along its
+   own axes, as Scale measures it. Groups flip by their **placement**, so one copy of a shared
+   component becomes the other hand with its definition, joinery, profiles and grain untouched
+   (`buildsheet` already counted a mirrored placement as the other hand, and `part::extents`
+   measures a length, so the cut list is unchanged). A mirror turns geometry inside out, so
+   `transform_entities` winds the faces it moved whole back (`rewind_mirrored_faces`) and
+   `Model::append` does the same when it flattens a mirrored instance into the `View`.
 19. Eraser (done): `Document::erase`; tool (E) erases the edge, guide, group or component clicked, or
    everything dragged over as one undo step; faces only go with their edges (a seam between
    coplanar faces merges them). Every toolbar tool is now available.

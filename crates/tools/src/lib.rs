@@ -1112,6 +1112,17 @@ impl Tools {
         doc.edit(|m| m.delete_guides());
     }
 
+    /// Mirror the selection along one of the axes (SketchUp's Edit > Flip Along): `axis` 0 red,
+    /// 1 green, 2 blue. A single group or component flips along its own axes.
+    pub fn flip(&mut self, doc: &mut Document, axis: usize) {
+        self.cancel();
+        match doc.flip_selection(axis) {
+            Ok(true) => {}
+            Ok(false) => self.message = Some(t!("tools-select-to-flip")),
+            Err(error) => self.message = Some(error.to_string()),
+        }
+    }
+
     /// Explode the selected groups and components back into loose geometry.
     pub fn explode(&mut self, doc: &mut Document) {
         self.cancel();

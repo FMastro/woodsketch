@@ -904,6 +904,18 @@ fn context_menu(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) -> boo
         doc.reverse_selected_faces();
         ui.close();
     }
+    if any {
+        ui.menu_button(t!("edit-flip-along"), |ui| {
+            for axis in 0..3 {
+                if ui.button(crate::chrome::axis_name(axis)).on_hover_text(t!("edit-flip-along-hint")).clicked() {
+                    tools.flip(doc, axis);
+                    ui.close();
+                }
+            }
+        })
+        .response
+        .on_hover_text(t!("edit-flip-along-hint"));
+    }
     ui.separator();
     if item(ui, true, &t!("camera-zoom-extents"), "Shift+Z") {
         zoom = true;

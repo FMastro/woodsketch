@@ -266,7 +266,7 @@ impl ScaleTool {
     fn apply(&mut self, doc: &mut Document, factors: DVec3) -> Result<(), String> {
         let Some(op) = &self.op else { return Ok(()) };
         if factors.min_element() < 1e-6 {
-            return Err(t!("tool-scale-positive"));
+            return Err(t!("tool-scale-not-negative"));
         }
         let transform = scaling(op.target.axes, op.anchor, factors);
         doc.transform_entities(&op.target.entities, &[transform], false).map_err(|e| e.to_string())?;

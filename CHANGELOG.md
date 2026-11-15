@@ -7,6 +7,12 @@ Write them short. One line per change, a sentence or two at most: what changed, 
 reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
 that belongs in the commit message, which is where it already is.
 
+## 0.1.72
+
+- Flip Along, in the Edit menu and the right-click menu, mirrors what's selected where it
+  stands: along red, green or blue, or along a single group's own axes. One copy of a shared
+  component becomes the other hand and the rest stay as they were.
+
 ## 0.1.71
 
 - WoodSketch speaks Portuguese. View > Language is in the menu bar now that there are two to

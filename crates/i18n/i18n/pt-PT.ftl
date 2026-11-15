@@ -938,7 +938,6 @@ tool-scale-move-center = Mova para escalar, ou escreva um fator (2, 0,5) ou um t
 tool-scale-move-opposite = Mova para escalar, ou escreva um fator (2, 0,5) ou um tamanho (36"). Ctrl escala pelo centro. Mantenha Shift para alternar uniforme e esticado.
 tool-scale-click-grip = Clique numa pega de escala, depois escreva a escala
 tool-scale-hover-grips = Clique numa das pegas de escala (paire sobre algo para as ver)
-tool-scale-positive = A escala tem de ser maior que zero (o espelhamento ainda não é suportado)
 # $value is what was typed, kept as it was typed.
 tool-scale-not-a-factor = "{ $value }" não é um fator de escala
 tool-scale-one-or-n = Escreva um valor, ou { $count } separados por vírgulas

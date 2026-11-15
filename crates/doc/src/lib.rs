@@ -44,4 +44,4 @@ pub use scene::{
     Container, Definition, DefinitionId, DefinitionKind, Instance, InstanceId, Material, MaterialId, MaterialKind,
     Owner, Scene, Tag, TagId, View,
 };
-pub use transform::{MoveError, rotation, scaling};
+pub use transform::{MoveError, mirroring, rotation, scaling};
