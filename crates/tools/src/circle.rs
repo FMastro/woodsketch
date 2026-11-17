@@ -9,6 +9,7 @@ use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS};
 
 use crate::Overlay;
+use crate::carry::Carry;
 use crate::infer::Hints;
 use crate::pick::{AXIS_RADIUS, Screen, Snap, SnapKind, snap};
 
@@ -68,6 +69,25 @@ impl CircleTool {
     pub fn cancel(&mut self) {
         self.center = None;
         self.last = None;
+    }
+
+    /// Say the circle being sized again in the container outside the group being closed,
+    /// forgetting what hovering inside it found.
+    pub fn migrate_context(&mut self, carry: &Carry) {
+        self.hover = None;
+        self.hints = Hints::default();
+        // The circle drawn a moment ago is the old container's, and typing can't resize it from
+        // out here.
+        self.last = None;
+        self.radius = carry.length(self.radius);
+        if let Some((center, normal)) = &mut self.center {
+            *center = carry.point(*center);
+            *normal = carry.normal(*normal);
+        }
+        if let Some((anchor, rim)) = &mut self.through {
+            *anchor = carry.point(*anchor);
+            *rim = carry.point(*rim);
+        }
     }
 
     /// Polygon's Ctrl: the radius to the middle of a side, or to a corner.

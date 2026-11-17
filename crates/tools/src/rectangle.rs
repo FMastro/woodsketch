@@ -6,6 +6,7 @@ use woodsketch_doc::units::{format_length, parse_lengths};
 use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS};
 
+use crate::carry::Carry;
 use crate::infer::Hints;
 use crate::pick::{AXIS_RADIUS, Screen, Snap, SnapKind, snap};
 use crate::{Axis, Overlay};
@@ -57,6 +58,27 @@ impl RectangleTool {
     pub fn cancel(&mut self) {
         self.sizing = None;
         self.last = None;
+    }
+
+    /// Say the rectangle being sized again in the container outside the group being closed.
+    /// `u` and `v` are the ruler the sizing measures with ([`Frame`] keeps them unit and square
+    /// to each other), so they come back unit; only a similarity gets this far, which is what
+    /// keeps them square.
+    pub fn migrate_context(&mut self, carry: &Carry) {
+        self.hover = None;
+        self.hints = Hints::default();
+        // The rectangle drawn a moment ago is the old container's, and typing can't resize it
+        // from out here.
+        self.last = None;
+        let Some(sizing) = &mut self.sizing else { return };
+        sizing.proportion = None;
+        sizing.aligned = None;
+        sizing.extents = (carry.length(sizing.extents.0), carry.length(sizing.extents.1));
+        let f = &mut sizing.frame;
+        f.corner = carry.point(f.corner);
+        f.normal = carry.normal(f.normal);
+        f.u = carry.direction(f.u);
+        f.v = carry.direction(f.v);
     }
 
     pub fn hover(&mut self, doc: &Document, screen: Screen<'_>, cursor: Vec2) {

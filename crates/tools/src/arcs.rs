@@ -11,6 +11,7 @@ use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS};
 use woodsketch_i18n::t;
 
+use crate::carry::Carry;
 use crate::circle::parse_segments;
 use crate::pick::{Screen, Snap, snap};
 use crate::{Axis, Overlay};
@@ -56,6 +57,21 @@ impl CenterArcTool {
 
     pub fn cancel(&mut self) {
         self.stage = CenterStage::Center;
+    }
+
+    /// Say the arc being turned again in the container outside the group being closed. The sweep
+    /// is an angle about `normal`, which a turn, a move and one scale all leave alone; a hop that
+    /// turned it over wouldn't have got this far.
+    pub fn migrate_context(&mut self, carry: &Carry) {
+        self.hover = None;
+        match &mut self.stage {
+            CenterStage::Center => {}
+            CenterStage::Start { center, normal, start } | CenterStage::Sweep { center, normal, start, .. } => {
+                *center = carry.point(*center);
+                *start = carry.point(*start);
+                *normal = carry.normal(*normal);
+            }
+        }
     }
 
     /// Arrow keys: lay it in the plane across red, green or blue; again to unlock.
@@ -221,6 +237,26 @@ impl ThreePointArcTool {
 
     pub fn cancel(&mut self) {
         self.stage = ThreeStage::First;
+    }
+
+    /// Say the arc's points again in the container outside the group being closed.
+    pub fn migrate_context(&mut self, carry: &Carry) {
+        self.hover = None;
+        match &mut self.stage {
+            ThreeStage::First => {}
+            ThreeStage::Second { a, normal, b } => {
+                *a = carry.point(*a);
+                *b = carry.point(*b);
+                *normal = carry.normal(*normal);
+            }
+            ThreeStage::Third { a, b, c } => {
+                *a = carry.point(*a);
+                *b = carry.point(*b);
+                if let Some(c) = c {
+                    *c = carry.point(*c);
+                }
+            }
+        }
     }
 
     pub fn hover(&mut self, doc: &Document, screen: Screen<'_>, cursor: Vec2) {

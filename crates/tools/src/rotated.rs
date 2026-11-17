@@ -7,6 +7,7 @@ use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS};
 
+use crate::carry::Carry;
 use crate::infer::{self, Hints, Query, Target};
 use crate::move_tool::parse_offset;
 use crate::pick::{Screen, Snap, snap};
@@ -47,6 +48,25 @@ impl RotatedRectangleTool {
 
     pub fn cancel(&mut self) {
         self.stage = Stage::First;
+    }
+
+    /// Say the rectangle being sized again in the container outside the group being closed,
+    /// forgetting what hovering inside it found.
+    pub fn migrate_context(&mut self, carry: &Carry) {
+        self.hover = None;
+        self.hints = Hints::default();
+        self.target = None;
+        if let Stage::Across { height, .. } = &mut self.stage {
+            *height = carry.length(*height);
+        }
+        match &mut self.stage {
+            Stage::First => {}
+            Stage::Side { a, normal, b } | Stage::Across { a, b, normal, .. } => {
+                *a = carry.point(*a);
+                *b = carry.point(*b);
+                *normal = carry.normal(*normal);
+            }
+        }
     }
 
     pub fn hover(&mut self, doc: &Document, screen: Screen<'_>, cursor: Vec2) {

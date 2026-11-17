@@ -14,6 +14,8 @@ use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS};
 
+use crate::carry::Carry;
+
 use crate::infer::{self, Direction, Hints, Query, Target};
 use crate::move_tool::parse_offset;
 use crate::pick::{Screen, Snap, snap};
@@ -64,6 +66,18 @@ impl LineTool {
         self.end = None;
         self.lock = None;
         self.shift_lock = None;
+    }
+
+    /// Say the chain's start again in the container outside the group being closed, forgetting
+    /// what hovering inside it found.
+    pub fn migrate_context(&mut self, carry: &Carry) {
+        self.hover = None;
+        self.end = None;
+        self.hints = Hints::default();
+        self.retype = None;
+        let Some(start) = &mut self.start else { return };
+        start.point = carry.point(start.point);
+        start.normal = carry.normal(start.normal);
     }
 
     pub fn lock_axis(&mut self, axis: Axis) {
