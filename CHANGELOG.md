@@ -7,6 +7,40 @@ Write them short. One line per change, a sentence or two at most: what changed, 
 reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
 that belongs in the commit message, which is where it already is.
 
+## 0.1.72
+
+- Flip Along, in the Edit menu and the right-click menu, mirrors what's selected where it
+  stands: along red, green or blue, or along a single group's own axes. One copy of a shared
+  component becomes the other hand and the rest stay as they were.
+
+## 0.1.71
+
+- WoodSketch speaks Portuguese. View > Language is in the menu bar now that there are two to
+  choose between, and a computer set to Portuguese -- Brazilian included -- starts in it. Thanks
+  to @jmartsdesign for writing it (#10).
+- Small house: the baths are laid out again, so you can get into them. Each has its tub, toilet
+  and vanity down one wall and a 34" lane from the door past them, and the bath doors are 2'-6"
+  at the end of their wall rather than 2'-10" in the middle of it.
+
+## 0.1.70
+
+- The tools' names are translated now -- Push/Pull, Offset and the rest come from the language
+  file, so a translation covers them along with everything else (#10).
+- A comma works as a decimal point: `38,5` is thirty-eight and a half. For several lengths at
+  once, separate them with a semicolon and the commas stay decimal: `5,5';6'`. A comma on its
+  own still separates, so `3,5` is two lengths. Thanks to @jmartsdesign for working it out.
+- Seven words that were still built into the program now come from the language file too: the
+  Start page's New heading, a Change button in the Joinery panel and its tooltip, and four more.
+- Dovetails start with more, narrower tails -- about 1 1/8" each, so a 6" drawer side gets four
+  rather than two. Two tails 2" wide was the old suggestion and it looked like a jig set wrong.
+- Hovering Tails, Pins or Half pins now says what a tail, a pin and a half pin are, rather than
+  assuming you already know.
+- Small house: both baths are framed 60" clear, the width an alcove tub drops into, and laid out
+  around their doors. A tub used to run through the wall into the next bathroom and stand right
+  behind the door, and a toilet poked out through the other doorway into the bedroom.
+- Small house: the doors start hidden, since they stand between you and every room. One click in
+  the Tags panel brings them back -- and with them, their five doors in the cut list.
+
 ## 0.1.69
 
 - Esc now undoes the auto-open of a group you drew on, instead of cancelling the drawing: the

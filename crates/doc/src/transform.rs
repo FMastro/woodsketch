@@ -123,8 +123,23 @@ impl Model {
         self.copy_entities_with(entities, |p| p + delta)
     }
 
-    /// Copy `entities` mapped through `transform`, which must preserve orientation (a move or
-    /// rotation, not a mirror). Returns the copies.
+    /// Wind back every face whose vertices are all in `vertices`, after mirroring them turned it
+    /// inside out, so the side that was the front still is. A face only partly in `vertices` was
+    /// stretched rather than mirrored, and keeps the winding it has.
+    pub fn rewind_mirrored_faces(&mut self, vertices: &BTreeSet<VertexId>) {
+        let mirrored: Vec<FaceId> = self
+            .faces()
+            .filter(|(_, f)| f.loops().flatten().all(|v| vertices.contains(v)))
+            .map(|(id, _)| id)
+            .collect();
+        for id in mirrored {
+            self.reverse_face(id);
+        }
+    }
+
+    /// Copy `entities` mapped through `transform`. A mirroring transform leaves the copies inside
+    /// out; the caller winds them back ([`Self::reverse_face`]), since a point map can't say
+    /// whether it turned the orientation over. Returns the copies.
     pub fn copy_entities_with(&mut self, entities: &[Entity], transform: impl Fn(DVec3) -> DVec3) -> Vec<Entity> {
         let source = self.clone();
         self.copy_entities_with_from(&source, entities, transform)
@@ -205,6 +220,14 @@ pub fn scaling(axes: [DVec3; 3], anchor: DVec3, factors: DVec3) -> glam::DAffine
     let frame = glam::DMat3::from_cols(axes[0], axes[1], axes[2]);
     let matrix3 = frame * glam::DMat3::from_diagonal(factors) * frame.transpose();
     glam::DAffine3 { matrix3, translation: anchor - matrix3 * anchor }
+}
+
+/// Mirroring in the plane through `center` square to `axes[axis]` (0, 1 or 2), which is scaling
+/// by -1 that one way and leaving the other two alone. `center` is on the plane, so it stays put.
+pub fn mirroring(axes: [DVec3; 3], center: DVec3, axis: usize) -> glam::DAffine3 {
+    let mut factors = DVec3::ONE;
+    factors[axis] = -1.0;
+    scaling(axes, center, factors)
 }
 
 #[cfg(test)]

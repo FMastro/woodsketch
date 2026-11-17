@@ -2002,9 +2002,18 @@ impl Dovetails {
         Self { tails, half_blind, pin: DOVETAIL_PIN, half_pin: DOVETAIL_HALF_PIN }
     }
 
-    /// About one tail per 2 1/2" of width.
+    /// Enough tails that each one comes out about 1 1/8" across, which is what a hand-cut
+    /// drawer looks like.
+    ///
+    /// The first answer here was one tail per 2 1/2" of width, which gave tails almost exactly
+    /// 2" wide at every size: a 6" drawer side got two of them. Big tails between thin pins is
+    /// the look of a jig set up wrong, and the first thing anyone did was type a larger number.
     pub fn suggested(wide: f64) -> u32 {
-        ((wide / 2.5).round() as u32).max(1)
+        // A board holds two half pins, a pin between each pair of tails, and the tails:
+        // wide = 2 * half_pin + (n - 1) * pin + n * TAIL. Solved for n, with the usual pins.
+        const TAIL: f64 = 1.125;
+        let n = (wide - 2.0 * DOVETAIL_HALF_PIN + DOVETAIL_PIN) / (DOVETAIL_PIN + TAIL);
+        (n.round() as u32).max(1)
     }
 }
 
@@ -2143,8 +2152,13 @@ mod dovetail_tests {
     fn through_dovetails_cut_tails_and_pins() {
         let mut doc = Document::default();
         let (front, side) = drawer_corner(&mut doc);
-        let tails = Dovetails::suggested(6.0);
-        assert_eq!(tails, 2);
+        // A 6" drawer side: four tails 1 1/8" wide between 1/4" pins, rather than the two 2"
+        // tails this used to offer.
+        let wide = doc.part_size(side).unwrap()[1];
+        let tails = Dovetails::suggested(wide);
+        assert_eq!(tails, 4, "a {wide}\" drawer side");
+        let tail = (wide - 2.0 * DOVETAIL_HALF_PIN - f64::from(tails - 1) * DOVETAIL_PIN) / f64::from(tails);
+        assert!((tail - 1.125).abs() < 1e-9, "each tail comes out 1 1/8\" wide, not {tail}");
         doc.dovetails(side, front, Dovetails::new(3, false)).unwrap();
         assert!(closed(&doc, side) && closed(&doc, front), "both stay closed solids");
         assert_eq!(doc.part_size(side).unwrap()[0], 14.75, "the side reaches through the front");

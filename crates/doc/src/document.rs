@@ -558,10 +558,12 @@ impl Document {
         Ok(())
     }
 
-    /// Move or rotate `entities` of the container being edited by `transforms[0]`, or with
-    /// `copy`, place one copy per transform (arrays). Loose geometry stretches connected faces;
-    /// groups and components move whole, and copies of them are new instances of the same
-    /// definition. One undoable step; on error nothing changes. Returns the copies.
+    /// Move, rotate or mirror `entities` of the container being edited by `transforms[0]`, or
+    /// with `copy`, place one copy per transform (arrays). Loose geometry stretches connected
+    /// faces; groups and components move whole, and copies of them are new instances of the same
+    /// definition. A mirroring transform turns loose geometry inside out, so the faces it moved
+    /// whole are wound back and keep the side that was their front. One undoable step; on error
+    /// nothing changes. Returns the copies.
     pub fn transform_entities(
         &mut self,
         entities: &[Entity],
@@ -577,7 +579,15 @@ impl Document {
         let mut copies = Vec::new();
         if copy {
             for t in transforms {
-                copies.extend(trial.model.copy_entities_with(&loose, |p| t.transform_point3(p)));
+                let made = trial.model.copy_entities_with(&loose, |p| t.transform_point3(p));
+                if t.matrix3.determinant() < 0.0 {
+                    for &entity in &made {
+                        if let Entity::Face(f) = entity {
+                            trial.model.reverse_face(f);
+                        }
+                    }
+                }
+                copies.extend(made);
                 for &g in &guides {
                     if let Some(moved) = trial.model.guide(g).map(|guide| guide.transformed(t)) {
                         copies.push(Entity::Guide(trial.model.add_guide(moved)));
@@ -593,6 +603,9 @@ impl Document {
         } else if let Some(t) = transforms.first() {
             let vertices = trial.model.entity_vertices(loose);
             trial.model.transform_vertices(&vertices, |p| t.transform_point3(p))?;
+            if t.matrix3.determinant() < 0.0 {
+                trial.model.rewind_mirrored_faces(&vertices);
+            }
             for &g in &guides {
                 trial.model.transform_guide(g, t);
             }
@@ -850,6 +863,49 @@ impl Document {
             }
         });
         true
+    }
+
+    /// Mirror the selection in the plane through the middle of its box, square to one of the
+    /// axes (SketchUp's Edit > Flip Along): `axis` 0 red, 1 green, 2 blue. The box doesn't move,
+    /// so what was flipped stays where it was.
+    ///
+    /// A single group or component flips along *its own* axes, the way the Scale tool measures
+    /// it, so a part turned to a corner flips along itself rather than along the drawing; any
+    /// other selection flips along red, green and blue. Groups and components flip by their
+    /// placement, which is what makes this cheap and safe: one copy of a shared component
+    /// becomes the other hand without the other copies moving, and the joinery, profiles and
+    /// grain cut into the definition are untouched (`buildsheet` counts a mirrored placement as
+    /// the other hand). Loose geometry is mirrored vertex by vertex and wound back, so its front
+    /// faces stay its front faces.
+    ///
+    /// One undo step. `Ok(false)` if nothing with a size is selected; an error if mirroring part
+    /// of a piece would bend a face connected to it, and then nothing changes.
+    pub fn flip_selection(&mut self, axis: usize) -> Result<bool, MoveError> {
+        let entities: Vec<Entity> = self.selection.iter().collect();
+        // Guides come along, but an endless line has no box to measure the middle of.
+        let sized: Vec<Entity> = entities.iter().copied().filter(|e| !matches!(e, Entity::Guide(_))).collect();
+        if sized.is_empty() {
+            return Ok(false);
+        }
+        // One group or component: its own axes, so its box turns with it (as in `scale`).
+        let (origin, axes) = match sized[..] {
+            [Entity::Instance(id)] => match self.container().instance(id) {
+                Some(inst) => {
+                    let t = inst.transform;
+                    (t.translation, [t.matrix3.x_axis, t.matrix3.y_axis, t.matrix3.z_axis].map(DVec3::normalize))
+                }
+                None => return Ok(false),
+            },
+            _ => (DVec3::ZERO, [DVec3::X, DVec3::Y, DVec3::Z]),
+        };
+        let model = self.view.model();
+        let along =
+            |p: DVec3| DVec3::new((p - origin).dot(axes[0]), (p - origin).dot(axes[1]), (p - origin).dot(axes[2]));
+        let points: Vec<DVec3> = self.view.vertices_of(&sized).into_iter().map(|v| along(model.vertex(v))).collect();
+        let Some(lo) = points.iter().copied().reduce(DVec3::min) else { return Ok(false) };
+        let hi = points.iter().copied().reduce(DVec3::max).expect("the low corner found a point");
+        let middle = (0..3).fold(origin, |p, i| p + axes[i] * ((lo[i] + hi[i]) * 0.5));
+        self.transform_entities(&entities, &[crate::mirroring(axes, middle, axis)], false).map(|_| true)
     }
 
     /// Give each selected copy of a shared group or component its own definition, so changing it
@@ -1264,6 +1320,220 @@ mod context_tests {
 
     use super::*;
     use crate::{DefinitionKind, Guide};
+
+    /// A 1.5 x 3.5 x 30 board as loose geometry, from the origin.
+    fn loose_board(doc: &mut Document, at: DVec3) -> Vec<Entity> {
+        let face = doc.edit(|m| m.add_rectangle(at, DVec3::X * 1.5, DVec3::Y * 3.5, DVec3::Z).unwrap());
+        doc.push_pull(face, 30.0, false).unwrap();
+        doc.model().connected(Entity::Face(face)).into_iter().collect()
+    }
+
+    /// The same board, auto-grouped the way Push/Pull leaves one.
+    fn grouped_board(doc: &mut Document, at: DVec3) -> InstanceId {
+        let face = doc.edit(|m| m.add_rectangle(at, DVec3::X * 1.5, DVec3::Y * 3.5, DVec3::Z).unwrap());
+        doc.push_pull(face, 30.0, true).unwrap().expect("Push/Pull groups it")
+    }
+
+    /// Where a group's box sits in the drawing, along one axis.
+    fn instance_span(doc: &Document, id: InstanceId, axis: usize) -> (f64, f64) {
+        let instance = doc.container().instance(id).expect("a live instance");
+        let corners = doc.scene().instance_box_corners(instance);
+        let along: Vec<f64> = corners.iter().map(|p| p[axis]).collect();
+        (along.iter().copied().fold(f64::INFINITY, f64::min), along.iter().copied().fold(f64::NEG_INFINITY, f64::max))
+    }
+
+    /// Every face of a closed solid points away from the middle of it, so this catches geometry
+    /// turned inside out however it got that way.
+    fn faces_point_outward(model: &Model) -> bool {
+        let Some((lo, hi)) = model.bounds() else { return false };
+        let middle = (lo + hi) * 0.5;
+        model.faces().all(|(_, face)| {
+            let points = model.loop_points(&face.outer);
+            let centroid = points.iter().fold(DVec3::ZERO, |a, &p| a + p) / points.len() as f64;
+            (centroid - middle).dot(face.normal) > 0.0
+        })
+    }
+
+    /// Winding and normal agree, which is what `Face::outer` promises and what a mirror breaks.
+    fn winding_matches_normals(model: &Model) -> bool {
+        model.faces().all(|(_, face)| {
+            let normal = crate::model::newell_normal(&model.loop_points(&face.outer));
+            normal.length() > crate::EPS && normal.normalize().dot(face.normal) > 0.99
+        })
+    }
+
+    /// A model's shape, to compare two of them by (`Model` has no `PartialEq`).
+    fn shape(model: &Model) -> Vec<(DVec3, Vec<DVec3>)> {
+        model.faces().map(|(_, f)| (f.normal, model.loop_points(&f.outer))).collect()
+    }
+
+    #[test]
+    fn flipping_loose_geometry_mirrors_it_in_place_without_turning_it_inside_out() {
+        let mut doc = Document::default();
+        let board = loose_board(&mut doc, DVec3::ZERO);
+        doc.selection_mut().extend(board);
+        let before = doc.model().bounds().unwrap();
+        assert!(faces_point_outward(doc.model()), "the solid starts out right side out");
+        assert!(doc.flip_selection(0).unwrap());
+        let after = doc.model().bounds().unwrap();
+        assert!(after.0.abs_diff_eq(before.0, 1e-9) && after.1.abs_diff_eq(before.1, 1e-9), "the box doesn't move");
+        assert!(faces_point_outward(doc.model()), "the front faces are still the front faces");
+        assert!(winding_matches_normals(doc.model()), "each face is still wound around its normal");
+    }
+
+    #[test]
+    fn flipping_twice_along_the_same_axis_puts_loose_geometry_back() {
+        let mut doc = Document::default();
+        let board = loose_board(&mut doc, DVec3::new(2.0, -1.0, 0.5));
+        doc.selection_mut().extend(board);
+        let before = shape(doc.model());
+        for axis in 0..3 {
+            assert!(doc.flip_selection(axis).unwrap());
+            assert!(doc.flip_selection(axis).unwrap());
+        }
+        let after = shape(doc.model());
+        assert_eq!(before.len(), after.len(), "the same faces");
+        for ((n0, l0), (n1, l1)) in before.into_iter().zip(after) {
+            assert!(n0.abs_diff_eq(n1, 1e-9), "normal {n0} became {n1}");
+            assert_eq!(l0.len(), l1.len());
+            assert!(l0.iter().zip(&l1).all(|(a, b)| a.abs_diff_eq(*b, 1e-9)), "{l0:?} became {l1:?}");
+        }
+    }
+
+    #[test]
+    fn a_flipped_group_reverses_its_own_axis_and_leaves_its_definition_alone() {
+        let mut doc = Document::default();
+        let board = grouped_board(&mut doc, DVec3::ZERO);
+        // Turned to a corner, so flipping along the drawing's red would be the wrong plane.
+        let quarter = DAffine3::from_rotation_z(std::f64::consts::FRAC_PI_4);
+        doc.transform_entities(&[Entity::Instance(board)], &[quarter], false).unwrap();
+        let before = doc.container().instance(board).unwrap().transform;
+        let definition = doc.container().instance(board).unwrap().definition;
+        let geometry = shape(&doc.scene().definition(definition).unwrap().container.model);
+        doc.selection_mut().extend([Entity::Instance(board)]);
+        assert!(doc.flip_selection(0).unwrap());
+        let after = doc.container().instance(board).unwrap().transform;
+        assert!(after.matrix3.x_axis.abs_diff_eq(-before.matrix3.x_axis, 1e-9), "its own red is reversed");
+        assert!(after.matrix3.y_axis.abs_diff_eq(before.matrix3.y_axis, 1e-9), "green is left alone");
+        assert!(after.matrix3.z_axis.abs_diff_eq(before.matrix3.z_axis, 1e-9), "blue is left alone");
+        assert!(after.matrix3.determinant() < 0.0, "it is the other hand now");
+        let later = shape(&doc.scene().definition(definition).unwrap().container.model);
+        assert_eq!(geometry.len(), later.len(), "the flip is in the placement, not the part");
+        for ((n0, l0), (n1, l1)) in geometry.into_iter().zip(later) {
+            assert!(n0.abs_diff_eq(n1, 1e-12) && l0.len() == l1.len(), "the part itself is untouched");
+            assert!(l0.iter().zip(&l1).all(|(a, b)| a.abs_diff_eq(*b, 1e-12)), "the part itself is untouched");
+        }
+        assert!(faces_point_outward(doc.view().model()), "what gets drawn and picked isn't inside out");
+        assert!(winding_matches_normals(doc.view().model()), "and it is wound around its normals");
+    }
+
+    #[test]
+    fn flipping_one_copy_of_a_component_leaves_the_other_where_it_was() {
+        let mut doc = Document::default();
+        let board = grouped_board(&mut doc, DVec3::ZERO);
+        doc.selection_mut().extend([Entity::Instance(board)]);
+        let part = doc.group_selection(DefinitionKind::Component).unwrap();
+        let Entity::Instance(copy) = doc
+            .transform_entities(&[Entity::Instance(part)], &[DAffine3::from_translation(DVec3::X * 12.0)], true)
+            .unwrap()[0]
+        else {
+            panic!("the copy is an instance")
+        };
+        let definition = doc.container().instance(part).unwrap().definition;
+        assert_eq!(doc.scene().instance_count(definition), 2, "one component, placed twice");
+        let other = doc.container().instance(copy).unwrap().transform;
+        doc.selection_mut().clear();
+        doc.selection_mut().extend([Entity::Instance(part)]);
+        assert!(doc.flip_selection(1).unwrap());
+        assert_eq!(doc.container().instance(copy).unwrap().transform, other, "the other copy doesn't move");
+        assert_eq!(doc.scene().instance_count(definition), 2, "and it stays one shared component");
+    }
+
+    #[test]
+    fn the_build_sheet_asks_for_one_of_each_hand() {
+        let mut doc = Document::default();
+        let board = grouped_board(&mut doc, DVec3::ZERO);
+        doc.selection_mut().extend([Entity::Instance(board)]);
+        let part = doc.group_selection(DefinitionKind::Component).unwrap();
+        doc.transform_entities(&[Entity::Instance(part)], &[DAffine3::from_translation(DVec3::X * 12.0)], true)
+            .unwrap();
+        doc.selection_mut().clear();
+        doc.selection_mut().extend([Entity::Instance(part)]);
+        assert!(doc.flip_selection(2).unwrap());
+        let list = crate::cutlist::cut_list(doc.scene());
+        let sheets = crate::buildsheet::sheets(doc.scene(), &list);
+        let (_, sheet, _) = sheets.first().expect("the part has a build sheet");
+        assert_eq!((sheet.count, sheet.mirrored), (2, 1), "two to make, one of them the other hand");
+    }
+
+    #[test]
+    fn a_flipped_part_is_the_same_part_in_the_cut_list() {
+        let mut doc = Document::default();
+        let board = grouped_board(&mut doc, DVec3::ZERO);
+        let before = crate::cutlist::cut_list(doc.scene());
+        doc.selection_mut().extend([Entity::Instance(board)]);
+        assert!(doc.flip_selection(2).unwrap());
+        let after = crate::cutlist::cut_list(doc.scene());
+        let size = |list: &crate::cutlist::CutList| {
+            let part = &list.materials[0].parts[0];
+            (part.length, part.width, part.thickness)
+        };
+        assert_eq!(size(&before), size(&after), "mirroring a board doesn't change what you cut");
+    }
+
+    #[test]
+    fn flipping_several_groups_swaps_their_ends_about_the_middle_of_the_lot() {
+        let mut doc = Document::default();
+        let left = grouped_board(&mut doc, DVec3::ZERO);
+        let right = grouped_board(&mut doc, DVec3::new(20.0, 0.0, 0.0));
+        doc.selection_mut().extend([Entity::Instance(left), Entity::Instance(right)]);
+        let before = doc.bounds().unwrap();
+        let was_left = instance_span(&doc, left, 0);
+        assert!(doc.flip_selection(0).unwrap());
+        let after = doc.bounds().unwrap();
+        assert!(after.0.abs_diff_eq(before.0, 1e-9) && after.1.abs_diff_eq(before.1, 1e-9), "same box, both of them");
+        let now = instance_span(&doc, left, 0);
+        assert!(now.0 > was_left.1, "the left board is on the right now: {was_left:?} -> {now:?}");
+    }
+
+    #[test]
+    fn flipping_is_one_undo_step_and_needs_a_selection() {
+        let mut doc = Document::default();
+        let board = loose_board(&mut doc, DVec3::ZERO);
+        let before: Vec<DVec3> = doc.model().vertices().map(|(_, p)| p).collect();
+        assert!(!doc.flip_selection(0).unwrap(), "nothing selected, nothing flipped");
+        doc.selection_mut().extend(board);
+        assert!(doc.flip_selection(0).unwrap());
+        assert_ne!(doc.model().vertices().map(|(_, p)| p).collect::<Vec<_>>(), before, "it moved");
+        assert!(doc.undo());
+        assert_eq!(doc.model().vertices().map(|(_, p)| p).collect::<Vec<_>>(), before, "one undo puts it back");
+    }
+
+    #[test]
+    fn flipping_part_of_a_piece_is_refused_rather_than_mangling_it() {
+        let mut doc = Document::default();
+        let face = doc.edit(|m| m.add_rectangle(DVec3::ZERO, DVec3::X * 1.5, DVec3::Y * 3.5, DVec3::Z).unwrap());
+        doc.push_pull(face, 30.0, false).unwrap();
+        // One face of the solid, not the whole of it: the sides hanging off it would fold over
+        // into bow ties, so it is refused (which of the two ways it is refused depends on the
+        // shape, and either way the drawing is left as it was).
+        doc.selection_mut().extend([Entity::Face(face)]);
+        let before: Vec<DVec3> = doc.model().vertices().map(|(_, p)| p).collect();
+        assert!(doc.flip_selection(0).is_err());
+        assert_eq!(doc.model().vertices().map(|(_, p)| p).collect::<Vec<_>>(), before, "nothing changed");
+    }
+
+    #[test]
+    fn a_guide_flips_with_what_it_was_measured_from() {
+        let mut doc = Document::default();
+        let board = loose_board(&mut doc, DVec3::ZERO);
+        let guide = doc.edit(|m| m.add_guide(Guide::Point(DVec3::new(0.25, 1.0, 0.0))));
+        doc.selection_mut().extend(board);
+        doc.selection_mut().extend([Entity::Guide(guide)]);
+        assert!(doc.flip_selection(0).unwrap());
+        // The board spans x 0..1.5, so the middle is 0.75 and the point mirrors to 1.25.
+        assert_eq!(doc.model().guide(guide), Some(&Guide::Point(DVec3::new(1.25, 1.0, 0.0))));
+    }
 
     #[test]
     fn reverse_faces_turns_the_selected_ones_over() {

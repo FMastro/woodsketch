@@ -416,6 +416,8 @@ fn fields<const N: usize>(ui: &mut egui::Ui, key: (&str, InstanceId, InstanceId)
     });
     egui::Grid::new(id).num_columns(2).show(ui, |ui| {
         for (i, (_, label, _, hint)) in specs.iter().enumerate() {
+            // The hint hangs on the label, not on the box beside it: a tooltip over the box is
+            // over the thing you are about to type in, and it was tried.
             ui.label(*label).on_hover_text(*hint);
             ui.add(egui::TextEdit::singleline(&mut texts[i]).desired_width(70.0));
             ui.end_row();
@@ -476,7 +478,7 @@ fn angled(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
     for (index, joint, _) in &joints {
         ui.horizontal_wrapped(|ui| {
             ui.label(format!("{} {}, {}", egui_phosphor::regular::CHECK, joint.kind.name(), joint.detail));
-            if ui.small_button("Change").on_hover_text("Take it out and set it up again from its sizes").clicked() {
+            if ui.small_button(t!("joinery-change")).on_hover_text(t!("joinery-change-hint")).clicked() {
                 change = Some((*index, joint.sizes.clone()));
             }
             if ui.small_button(t!("joinery-remove")).on_hover_text(t!("joinery-remove-hint")).clicked() {

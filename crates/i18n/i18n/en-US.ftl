@@ -65,6 +65,11 @@ edit-select-none = Select None
 edit-make-group = Make Group
 edit-make-component = Make Component...
 edit-explode = Explode
+edit-flip-along = Flip Along
+edit-flip-along-hint = Mirror the selection where it stands. One group or component flips along its own axes.
+edit-flip-red = Red Direction
+edit-flip-green = Green Direction
+edit-flip-blue = Blue Direction
 
 ## View
 
@@ -147,6 +152,51 @@ status-downloading = Downloading WoodSketch { $version }...
 status-restart-to-update = Restart to update to { $version }
 status-restart-to-update-hint = Installs the new version and reopens WoodSketch (you'll be asked to save first)
 
+## The tools' own names, shown in the Tools menu and in each toolbar button's tooltip.
+##
+## These are SketchUp's names, because most people arriving here already know them from there.
+## SketchUp has its own translation, so if it names a tool in your language, that name is the one
+## your readers will be looking for -- use it rather than a fresh translation of the English.
+## Leaving one in English is a reasonable choice too, if that is what people in your language
+## actually say.
+
+tool-name-select = Select
+tool-name-eraser = Eraser
+tool-name-paint-bucket = Paint Bucket
+tool-name-line = Line
+tool-name-arc = Arc
+tool-name-rectangle = Rectangle
+tool-name-circle = Circle
+tool-name-polygon = Polygon
+tool-name-center-arc = Center Arc
+tool-name-three-point-arc = 3-Point Arc
+tool-name-pie = Pie
+tool-name-rotated-rectangle = Rotated Rectangle
+tool-name-board = Board
+tool-name-push-pull = Push/Pull
+tool-name-move = Move
+tool-name-rotate = Rotate
+tool-name-scale = Scale
+tool-name-offset = Offset
+tool-name-tape-measure = Tape Measure
+tool-name-protractor = Protractor
+tool-name-dimension = Dimension
+tool-name-text = Text
+tool-name-orbit = Orbit
+tool-name-pan = Pan
+tool-name-zoom = Zoom
+tool-name-walk = Walk
+
+# A toolbar button's tooltip: the tool's name and the key that picks it. $key is the same on
+# every keyboard, so keep it as it is.
+tool-hint = { $tool } ({ $key })
+# The same, for a tool that isn't built yet.
+tool-hint-coming-soon = { $tool } ({ $key }): coming soon
+# Said at the bottom of the window when someone picks a tool that isn't built yet.
+tool-coming-soon = { $tool } ({ $key }) is coming soon.
+# Said when a length or an angle is typed while holding a tool that has nothing to do with one.
+tool-takes-no-typed-values = { $tool } doesn't take typed values.
+
 ## The toolbar. Each of these is a tooltip, and carries the keyboard shortcut in brackets; the
 ## shortcut itself is the same on every keyboard, so leave it as it is and translate around it.
 
@@ -177,6 +227,8 @@ tray-template-sizes = { $template } sizes
 ## The What's New window (Help > What's New), shown once after an update
 
 whats-new-title = What's New in WoodSketch
+# Marked beside the version that is running.
+whats-new-this-one = (this one)
 # How many versions have arrived since the one that ran last. Two messages rather than one with a
 # plural, because the singular drops the number altogether: "One update since 0.1.64:".
 whats-new-one-since = One update since { $from }:
@@ -489,11 +541,13 @@ joinery-through-hint = The tails show on both faces of the corner
 joinery-half-blind = Half-blind
 joinery-half-blind-hint = Hidden from the front, as on a drawer front
 joinery-tails = Tails
-joinery-tails-hint = How many tails across the width
+# The three dovetail hints say what the word means first: plenty of people meet these names
+# for the first time in this panel.
+joinery-tails-hint = How many tails to cut. The tails are the fan-shaped pieces on this board, the ones you see along a drawer's side; more of them, each narrower, is the hand-cut look.
 joinery-pins = Pins
-joinery-pins-hint = Each pin's width where it shows: narrow (1/8") for a hand-cut look, wider for a machine-cut one
+joinery-pins-hint = The pins are the wedges on the other board that fill the gaps between the tails. This is how wide each one is where it shows: narrow (1/8" to 1/4") is hand-cut, as wide as a tail is machine-cut.
 joinery-half-pins = Half pins
-joinery-half-pins-hint = The pins at each edge; the tails share the rest
+joinery-half-pins-hint = The half pins are the ones at the top and bottom edges, with a tail on one side only. They hold the corner together, so they are usually a little wider than the pins between the tails.
 joinery-dovetail-note = { $part } gets the tails, { $into } the pins (1:8 slope).
 joinery-cut-dovetails = Cut the dovetails
 joinery-dovetails-done = Dovetails cut; { $part } is longer by the tails.
@@ -563,6 +617,7 @@ cutlist-tab-settings = Saw kerf
 cutlist-print-cut-sheet = Print cut sheet...
 cutlist-print-cut-sheet-hint = Save the parts and cutting diagrams as a page to print, or save as PDF, from your browser
 cutlist-print-build-sheets = Print build sheets...
+cutlist-print-build-sheets-hint = A page per part for the shop: its size, drawings, joints and profiles, in order
 cutlist-export-csv = Export CSV...
 cutlist-save-failed = Couldn't save { $path }: { $error }
 cutlist-saved-not-opened = Saved, but couldn't open it: { $error }
@@ -649,6 +704,7 @@ start-import = Import...
 start-import-under = A SketchUp model, into the drawing that's open
 start-recent = Recent
 start-recent-empty = Drawings you open or save appear here.
+start-new = New
 start-samples = Samples
 start-samples-note = Finished pieces, built fresh each time you open one. Change anything: they aren't files, so nothing here can be written over.
 # How a card reads out to a screen reader: its title, then the line under it.
@@ -662,6 +718,8 @@ files-open-failed = Couldn't open { $path }: { $error }
 files-export-failed = Couldn't export { $path }: { $error }
 # The window's title: the drawing's name, a star if there are unsaved changes, then the app.
 files-window-title = { $name }{ $dirty } - WoodSketch
+# Dismisses a message about a file that couldn't be opened or saved.
+files-ok = OK
 files-save-changes = Save changes?
 files-save-changes-question = Do you want to save the changes to { $name }?
 files-save = Save
@@ -789,6 +847,7 @@ tools-noun-group = group
 tools-noun-component = component
 tools-no-guides = There are no guides to delete.
 tools-select-to-explode = Select a group or component to explode.
+tools-select-to-flip = Select something to flip.
 tools-select-to-copy = Select something to copy
 tools-nothing-to-paste = Nothing to paste: copy something first
 
@@ -886,8 +945,13 @@ tool-scale-move-center = Move to scale, or type a factor (2, 0.5) or a size (36"
 tool-scale-move-opposite = Move to scale, or type a factor (2, 0.5) or a size (36"). Tap Ctrl to scale about the center. Hold Shift to switch even and stretched.
 tool-scale-click-grip = Click a scale grip, then type the scale
 tool-scale-hover-grips = Click one of the scale grips (hover something to see them)
-tool-scale-positive = Scale must be greater than zero (mirroring isn't supported yet)
+tool-scale-not-negative = Scale must be greater than zero. To mirror, use Edit > Flip Along.
+# $value is what was typed, kept as it was typed.
+tool-scale-not-a-factor = "{ $value }" isn't a scale factor
 tool-scale-one-or-n = Enter one value, or { $count } separated by commas
+
+# Ctrl+D with nothing picked.
+tool-nothing-to-duplicate = Select something to duplicate
 
 # Tape Measure
 tape-note-guide-line = + Guide Line

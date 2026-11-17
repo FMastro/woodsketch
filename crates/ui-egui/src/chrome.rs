@@ -37,6 +37,15 @@ const TOOL_SET: &[&[ToolId]] = &[
 
 const VIEWS: [StandardView; 4] = [StandardView::Iso, StandardView::Top, StandardView::Front, StandardView::Right];
 
+/// What Flip Along's three directions are called. A match for the same reason as [`view_name`].
+pub fn axis_name(axis: usize) -> String {
+    match axis {
+        0 => t!("edit-flip-red"),
+        1 => t!("edit-flip-green"),
+        _ => t!("edit-flip-blue"),
+    }
+}
+
 /// What a standard view is called. A match rather than a string beside each view, so every key
 /// stays a literal where `t!` can see it and the test that checks the catalog can find it.
 fn view_name(view: StandardView) -> String {
@@ -289,6 +298,19 @@ impl WoodSketchApp {
                 ui.close();
                 self.tools.explode(&mut self.doc);
             }
+            ui.separator();
+            ui.add_enabled_ui(selected, |ui| {
+                ui.menu_button(t!("edit-flip-along"), |ui| {
+                    for axis in 0..3 {
+                        if ui.button(axis_name(axis)).on_hover_text(t!("edit-flip-along-hint")).clicked() {
+                            ui.close();
+                            self.tools.flip(&mut self.doc, axis);
+                        }
+                    }
+                })
+                .response
+                .on_hover_text(t!("edit-flip-along-hint"));
+            });
         });
     }
 
@@ -477,7 +499,7 @@ impl WoodSketchApp {
                         ui.horizontal(|ui| {
                             ui.heading(&release.version);
                             if release.version == crate::updates::VERSION {
-                                ui.label("(this one)");
+                                ui.label(t!("whats-new-this-one"));
                             }
                         });
                         for item in notes_items(&release.notes) {
@@ -560,8 +582,11 @@ impl WoodSketchApp {
                 for pair in group.chunks(2) {
                     ui.horizontal(|ui| {
                         for &tool in pair {
-                            let hint = format!("{} ({})", tool.name(), tool.shortcut_label());
-                            let hint = if tool.is_available() { hint } else { format!("{hint}: coming soon") };
+                            let hint = if tool.is_available() {
+                                t!("tool-hint", "tool" => tool.name(), "key" => tool.shortcut_label())
+                            } else {
+                                t!("tool-hint-coming-soon", "tool" => tool.name(), "key" => tool.shortcut_label())
+                            };
                             let selected = self.tools.active() == tool;
                             if icon_button(ui, icons::tool(tool), selected, tool.is_available(), &hint) {
                                 self.tools.activate(tool);

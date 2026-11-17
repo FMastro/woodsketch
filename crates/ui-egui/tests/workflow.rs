@@ -1205,6 +1205,55 @@ fn the_cut_list_calls_out_parts_needing_a_material() {
     assert_ne!(harness.state().tools().active(), ToolId::PaintBucket);
 }
 
+/// Edit > Flip Along > Red Direction on two selected boards, through the real menu.
+#[test]
+fn edit_flip_along_mirrors_the_selection() {
+    use egui_kittest::kittest::Queryable;
+    use glam::DVec3;
+    use woodsketch_doc::Entity;
+    let mut harness = app();
+    let (left, right) = {
+        let doc = harness.state_mut().document_mut();
+        // Different heights, so the swap is something you can see.
+        let mut board = |x: f64, tall: f64| {
+            let face = doc
+                .edit(|m| m.add_rectangle(DVec3::new(x, 0.0, 0.0), DVec3::X * 1.5, DVec3::Y * 3.5, DVec3::Z))
+                .unwrap();
+            doc.push_pull(face, tall, true).unwrap().unwrap()
+        };
+        let (left, right) = (board(0.0, 30.0), board(20.0, 12.0));
+        doc.selection_mut().extend([Entity::Instance(left), Entity::Instance(right)]);
+        (left, right)
+    };
+    harness.run();
+    type_text(&mut harness, "Z");
+    let span = |harness: &Harness<'_, WoodSketchApp>, id| {
+        let doc = harness.state().document();
+        let instance = doc.container().instance(id).unwrap();
+        let xs: Vec<f64> = doc.scene().instance_box_corners(instance).iter().map(|p| p.x).collect();
+        (xs.iter().copied().fold(f64::INFINITY, f64::min), xs.iter().copied().fold(f64::NEG_INFINITY, f64::max))
+    };
+    let (before, was_left, was_right) =
+        (harness.state().document().bounds().unwrap(), span(&harness, left), span(&harness, right));
+
+    harness.get_by_label("Edit").click();
+    harness.run();
+    harness.get_by_label_contains("Flip Along").hover();
+    harness.run();
+    harness.get_by_label("Red Direction").click();
+    harness.run();
+
+    let after = harness.state().document().bounds().unwrap();
+    assert!(after.0.abs_diff_eq(before.0, 1e-9) && after.1.abs_diff_eq(before.1, 1e-9), "the pair stays in its box");
+    assert_eq!(span(&harness, left), was_right, "the left board has taken the right one's place");
+    assert_eq!(span(&harness, right), was_left, "and the right one the left's");
+    snapshot(&mut harness, "flipped_along_red");
+
+    harness.key_press_modifiers(Modifiers::COMMAND, Key::Z);
+    harness.run();
+    assert_eq!(span(&harness, left), was_left, "one undo puts them back");
+}
+
 #[test]
 fn entity_info_shows_a_parts_grain_and_lets_you_turn_it() {
     use egui_kittest::kittest::Queryable;
@@ -1782,7 +1831,7 @@ fn joinery_panel_dovetails_a_drawer_corner_and_changes_and_removes_it() {
     harness.run();
     harness.get_by_label("Cut the dovetails").click();
     harness.run();
-    assert!(harness.query_by_label_contains("Dovetails, 2 tails, half-blind").is_some(), "listed as joined");
+    assert!(harness.query_by_label_contains("Dovetails, 4 tails, half-blind").is_some(), "listed as joined");
     assert_eq!(harness.state().document().part_size(side).unwrap()[0], 14.5);
     snapshot(&mut harness, "dovetails");
 
@@ -1795,7 +1844,7 @@ fn joinery_panel_dovetails_a_drawer_corner_and_changes_and_removes_it() {
     harness.run();
     harness.get_by_label("Cut the dovetails").click();
     harness.run();
-    assert!(harness.query_by_label_contains("2 tails, through").is_some());
+    assert!(harness.query_by_label_contains("4 tails, through").is_some());
 
     // Remove, from Entity Info with just the front selected.
     let doc = harness.state_mut().document_mut();
@@ -2331,6 +2380,53 @@ fn right_click_selects_and_offers_make_unique() {
     let doc = harness.state().document();
     let defs: std::collections::BTreeSet<_> = doc.container().instances().map(|(_, i)| i.definition).collect();
     assert_eq!(defs.len(), 2, "the right-clicked copy has its own definition now");
+}
+
+/// Right-click > Flip Along on one lopsided component: it flips along its own axes, in place,
+/// and what comes back is the other hand rather than a part turned inside out.
+#[test]
+fn right_click_flip_along_turns_a_component_into_its_other_hand() {
+    use egui_kittest::kittest::Queryable;
+    use glam::DVec3;
+    let mut harness = app();
+    let part = {
+        let doc = harness.state_mut().document_mut();
+        // An upright with a foot out one side, so its two hands are different.
+        let post = add_board(doc, DVec3::ZERO, 24.0, 1.5, 3.5);
+        let foot = add_board(doc, DVec3::new(1.5, 0.0, 0.0), 1.5, 9.0, 3.5);
+        doc.selection_mut().extend([post, foot]);
+        doc.group_selection(woodsketch_doc::DefinitionKind::Component).unwrap()
+    };
+    harness.state_mut().zoom_extents();
+    harness.run();
+    // Where the upright stands, in red: the geometry tall enough to only be the post.
+    let post_at = |harness: &Harness<'_, WoodSketchApp>| {
+        let model = harness.state().document().view().model();
+        let xs = model.vertices().map(|(_, p)| p).filter(|p| p.z > 20.0).map(|p| p.x);
+        xs.fold(f64::INFINITY, f64::min)
+    };
+    let before = harness.state().document().bounds().unwrap();
+    assert!((post_at(&harness) - 0.0).abs() < 1e-9, "the post starts on the red-low side");
+
+    let middle = egui::pos2(515.0, 500.0);
+    harness.hover_at(middle);
+    harness.run();
+    for pressed in [true, false] {
+        harness.event(Event::PointerButton { pos: middle, button: PointerButton::Secondary, pressed, modifiers: Modifiers::NONE });
+        harness.run();
+    }
+    harness.get_by_label_contains("Flip Along").hover();
+    harness.run();
+    harness.get_by_label("Red Direction").click();
+    harness.run();
+
+    let after = harness.state().document().bounds().unwrap();
+    assert!(after.0.abs_diff_eq(before.0, 1e-9) && after.1.abs_diff_eq(before.1, 1e-9), "it stays where it stood");
+    let transform = harness.state().document().container().instance(part).unwrap().transform;
+    assert!(transform.matrix3.determinant() < 0.0, "the placement is mirrored");
+    // The post and its foot have swapped ends: 1 1/2" of post, then 9" of foot, the other way.
+    assert!((post_at(&harness) - 9.0).abs() < 1e-9, "the post is at the far end now: {}", post_at(&harness));
+    snapshot(&mut harness, "flipped_component");
 }
 
 #[test]
@@ -2911,7 +3007,8 @@ fn the_house_is_built_on_a_thread_and_says_so() {
     }
     let list = woodsketch_doc::cutlist::cut_list(harness.state().document().scene());
     let parts: usize = list.materials.iter().flat_map(|m| &m.parts).map(|p| p.count).sum();
-    assert_eq!(parts, 995, "the whole house arrived");
+    // Under a thousand because the five doors start hidden, and a hidden part is not cut.
+    assert_eq!(parts, 994, "the whole house arrived");
     let (lo, hi) = harness.state().document().bounds().unwrap();
     assert!((hi - lo).x > 400.0 && (hi - lo).z > 190.0, "a 34' house, got {:?}", hi - lo);
     snapshot(&mut harness, "start_page_house");

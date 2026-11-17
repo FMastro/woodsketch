@@ -44,6 +44,10 @@ Keep logic out of `ui-egui`: anything testable belongs in a plain crate.
 Just type: digits and length punctuation start a Measurements entry; once typing, letters go
 to the box too (so `38mm` isn't Move). Otherwise letters are tool shortcuts, Space is Select,
 `Z` (Shift+Z) is Zoom Extents. Enter submits, Esc clears typing / cancels / deselects.
+A comma is a decimal point (`38,5`), since half the world writes one; a list of lengths is
+separated by a comma *or* a semicolon, and a semicolon anywhere means the semicolon is the
+separator and every comma is a decimal (`5,5';6'` = `5.5',6'`). Without one `3,5` is still two
+lengths, which is why the semicolon has to be typed (`units::parse_lengths`).
 
 ## Walking (Camera > Walk)
 `ui-egui::viewport::walk`, as in a game: the mouse looks, W A S D or the arrows walk, Shift is
@@ -72,6 +76,12 @@ that isn't built in, for tests and for a translator previewing their own file.
   is what stands in for the compiler; a key built at runtime is invisible to it. So a `const`
   array of labels becomes either `t!` calls built at use (`file_menu`'s `formats`) or a `match`
   returning them (`chrome::view_name`, `theme_name`), never a key passed as a variable.
+- Two guard tests stand in for the compiler, and both are in `crates/i18n`:
+  `every_key_the_code_asks_for_exists` reads every `.rs` in the workspace for `t!` keys and looks
+  each up in English, and `nothing_on_screen_is_written_into_the_code` catches the other
+  direction -- a string literal handed straight to `.label(`, `.button(`, `.on_hover_text(` and
+  the rest in `ui-egui` or `tools`, which no translation could ever reach. The second exists
+  because "fully converted" was wrong twice and both times it was found by eye.
 - `bundle.set_use_isolating(false)`: Fluent otherwise wraps inserted values in invisible
   direction marks, which would sit inside a label and break `get_by_label`.
 - The language is **global**, and `workflow.rs` runs in parallel threads matching English labels,
@@ -89,8 +99,11 @@ that isn't built in, for tests and for a translator previewing their own file.
   `" (copying)"` dropped into the middle, no `+ "s"` for a plural. Fluent plurals where the
   number changes the wording (`cutlist-needs-material`, `entity-loose`).
 - Left in English on purpose: `woodsketch-cli` and the MCP server (read by programs and agents),
-  and the names of tools, materials, species and templates, which reach the catalog as
-  placeables. `docs/TRANSLATING.md` is the contributor-facing guide and says why.
+  and the names of materials, species and templates, which are data (written into the drawing,
+  matched to the library by name, named by recipes) and reach the catalog as placeables.
+  **Tool names are translated** (`tool-name-*`, asked for by `ToolId::name`, which returns a
+  `String`): `ToolId` has no serde and never leaves the window, so they are text and nothing
+  else. `docs/TRANSLATING.md` is the contributor-facing guide and says why for each.
 
 ## Conventions
 - Z up; red = X, green = Y, blue = Z (SketchUp). Model units are **inches**.
@@ -242,6 +255,15 @@ add it there; when you finish an item, remove it.
    on the box (corners even, edges two ways, faces one way), opposite grip fixed or Ctrl for the
    center, typed factors or sizes (`36"`), retyping changes it. A single group scales along its
    own axes into its transform; the cut list measures parts through their groups' scale.
+   Flip Along (Edit menu and right-click, `Document::flip_selection`) mirrors the selection in the
+   plane through the middle of its box, square to red, green or blue: `transform::mirroring`, which
+   is `scaling` by -1 one way, so the box doesn't move. A single group or component flips along its
+   own axes, as Scale measures it. Groups flip by their **placement**, so one copy of a shared
+   component becomes the other hand with its definition, joinery, profiles and grain untouched
+   (`buildsheet` already counted a mirrored placement as the other hand, and `part::extents`
+   measures a length, so the cut list is unchanged). A mirror turns geometry inside out, so
+   `transform_entities` winds the faces it moved whole back (`rewind_mirrored_faces`) and
+   `Model::append` does the same when it flattens a mirrored instance into the `View`.
 19. Eraser (done): `Document::erase`; tool (E) erases the edge, guide, group or component clicked, or
    everything dragged over as one undo step; faces only go with their edges (a seam between
    coplanar faces merges them). Every toolbar tool is now available.
@@ -355,7 +377,18 @@ The Small house is the odd one out and is meant to be: ~750 parts of a stud-fram
 bath, mostly *not* wood (concrete, drywall, glass, asphalt as `MaterialKind::Other`; the door
 knobs are `hardware`, so they are bought rather than cut). It is
 there to answer "how big does this get?" and "is this only for woodworking?", not to produce a
-sensible cut list. It leans on three things being right — components placed many times
+sensible cut list. Its **Doors tag starts hidden** (`"hidden": true` in the recipe), because shut
+doors stand between you and every room; a hidden instance is not a cut-list part, so the five
+doors and their knobs are out of the counts until the tag is shown, which is why
+`the_houses_knobs_are_bought_not_cut` shows it first. Each bath is framed 60" clear, which is the
+width an alcove tub drops into and the reason the two dividing walls are where they are, and each
+is laid out the way a 5' bath is: tub across the far end, toilet and vanity down the wall away
+from the door, a 34" lane past them, and a 2'-6" door at the lane's end of its wall rather than
+in the middle (a door in the middle of a 5' wall leaves nowhere to stand anything and nowhere to
+walk). `the_baths_can_be_walked_into_and_round` is what holds that: it slides a 22" square over
+each bath's floor on a 1" grid, floods out from the doorway, and fails unless every fixture can be
+reached — a plan check wouldn't have caught the 11" gap between two facing fixtures that it did.
+It leans on three things being right — components placed many times
 (everything repeated is `copies`, so the renderer draws one design per placement), tag folders
 (Shell / Roof / Inside / Outside, which is how you peel it apart), and `PartSpec::outline` for
 the gable ends. `samples::tests::the_house_comes_apart_by_tag` guards the tagging, which no

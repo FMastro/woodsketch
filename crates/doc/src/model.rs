@@ -259,10 +259,12 @@ impl Model {
         )
     }
 
-    /// Copy all of `other`'s geometry in, mapped through `transform` (a rigid motion), without
-    /// merging it with anything already here.
+    /// Copy all of `other`'s geometry in, mapped through `transform`, without merging it with
+    /// anything already here. A mirroring `transform` (a group flipped along an axis) turns every
+    /// loop inside out, so those are wound back and each face keeps the side that was its front.
     pub(crate) fn append(&mut self, other: &Model, transform: &DAffine3) {
         self.face_index.take();
+        let mirrored = transform.matrix3.determinant() < 0.0;
         // Old id -> new id, by index (ids are dense): this runs for every group on every edit.
         let mut vertex_map = vec![VertexId(u32::MAX); other.vertices.next_id() as usize];
         for (id, p) in other.vertices() {
@@ -274,9 +276,15 @@ impl Model {
             self.edges.insert(Edge { a: to_new(edge.a), b: to_new(edge.b), hidden: edge.hidden });
         }
         for (_, face) in other.faces() {
+            let mut outer = map(&face.outer);
+            let mut holes: Vec<Vec<VertexId>> = face.holes.iter().map(|h| map(h)).collect();
+            if mirrored {
+                outer.reverse();
+                holes.iter_mut().for_each(|h| h.reverse());
+            }
             self.faces.insert(Face {
-                outer: map(&face.outer),
-                holes: face.holes.iter().map(|h| map(h)).collect(),
+                outer,
+                holes,
                 normal: transform.transform_vector3(face.normal).normalize(),
                 material: face.material,
             });

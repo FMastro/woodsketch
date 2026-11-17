@@ -109,15 +109,20 @@ If you don't have Rust, open the pull request anyway and CI will run both for yo
   that language, not just someone who speaks it. Where one appears inside a sentence you are
   translating it arrives as `{ $material }` or similar, so you can put it wherever your language
   needs it.
-- **Tool names** (Push/Pull, Offset) and **template names** (Cabinet, Drawer) are not translated
-  either. They are deliberately the names SketchUp uses, and a SketchUp user switching over looks
-  for the name they know. Whether that means keeping the English or matching SketchUp's own
-  translation is a judgement for each language, and worth asking about in the pull request.
+- **Template names** (Cabinet, Drawer) are not translated, for the same reason as materials:
+  they name a thing the drawing stores, and arrive inside sentences as `{ $template }`.
+
+  **Tool names are** translated -- `tool-name-push-pull` and the rest. They are deliberately
+  SketchUp's names, so if SketchUp has a translation in your language, use the name it uses:
+  that is what someone switching over will be looking for. Keeping the English is a fair
+  choice too, where that is what people actually say.
 - **Typed measurements.** `3/4"`, `2'6`, `38mm` are parsed, not displayed, and don't go through
-  translation. A language that writes decimals with a comma — `38,5` — has a real problem here,
-  because a comma already means something in the Measurements box (`x,y,z`). That's a design
-  question rather than a translation one, and it is open: say so in your pull request if it
-  affects your language and it will be taken seriously.
+  translation. A comma is read as a decimal point, so `38,5` is thirty-eight and a half. Where
+  several lengths are typed at once, separate them with a semicolon and the commas stay
+  decimals: `5,5';6'`. A comma on its own still separates (`3,5` is two lengths), because it
+  has meant that since the first version. Lengths are *shown* with a period, which is what the
+  translator who asked for this preferred; if your language would rather see a comma there,
+  say so.
 
 Everything else a woodworker reads is in the catalog, including the line at the bottom of the
 window that tells you what the tool in your hand is waiting for. If you find something that isn't,
