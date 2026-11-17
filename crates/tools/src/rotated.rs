@@ -2,11 +2,12 @@
 //! second (the first side: its direction and length, inferred like a line, or typed), then move
 //! across and click (or type) the other side.
 
-use glam::{DAffine3, DVec3, Vec2};
+use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS};
 
+use crate::carry::Carry;
 use crate::infer::{self, Hints, Query, Target};
 use crate::move_tool::parse_offset;
 use crate::pick::{Screen, Snap, snap};
@@ -49,20 +50,21 @@ impl RotatedRectangleTool {
         self.stage = Stage::First;
     }
 
-    /// Carry the rectangle being sized out of the group being closed (`t` maps old to new
-    /// coordinates).
-    pub fn migrate_context(&mut self, t: DAffine3) {
+    /// Say the rectangle being sized again in the container outside the group being closed,
+    /// forgetting what hovering inside it found.
+    pub fn migrate_context(&mut self, carry: &Carry) {
+        self.hover = None;
+        self.hints = Hints::default();
+        self.target = None;
+        if let Stage::Across { height, .. } = &mut self.stage {
+            *height = carry.length(*height);
+        }
         match &mut self.stage {
             Stage::First => {}
-            Stage::Side { a, normal, b } => {
-                *a = t.transform_point3(*a);
-                *b = t.transform_point3(*b);
-                *normal = t.transform_vector3(*normal);
-            }
-            Stage::Across { a, b, normal, .. } => {
-                *a = t.transform_point3(*a);
-                *b = t.transform_point3(*b);
-                *normal = t.transform_vector3(*normal);
+            Stage::Side { a, normal, b } | Stage::Across { a, b, normal, .. } => {
+                *a = carry.point(*a);
+                *b = carry.point(*b);
+                *normal = carry.normal(*normal);
             }
         }
     }

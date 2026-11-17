@@ -1,11 +1,12 @@
 //! The Rectangle tool (R). Click a corner, then click the opposite corner, or press-drag-release.
 //! While sizing, or right after finishing, type `width,height` and Enter, as in SketchUp.
 
-use glam::{DAffine3, DVec3, Vec2};
+use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_lengths};
 use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS};
 
+use crate::carry::Carry;
 use crate::infer::Hints;
 use crate::pick::{AXIS_RADIUS, Screen, Snap, SnapKind, snap};
 use crate::{Axis, Overlay};
@@ -59,15 +60,25 @@ impl RectangleTool {
         self.last = None;
     }
 
-    /// Carry the rectangle being sized out of the group being closed: `t` maps the old
-    /// container's coordinates to the one drawn in now.
-    pub fn migrate_context(&mut self, t: DAffine3) {
+    /// Say the rectangle being sized again in the container outside the group being closed.
+    /// `u` and `v` are the ruler the sizing measures with ([`Frame`] keeps them unit and square
+    /// to each other), so they come back unit; only a similarity gets this far, which is what
+    /// keeps them square.
+    pub fn migrate_context(&mut self, carry: &Carry) {
+        self.hover = None;
+        self.hints = Hints::default();
+        // The rectangle drawn a moment ago is the old container's, and typing can't resize it
+        // from out here.
+        self.last = None;
         let Some(sizing) = &mut self.sizing else { return };
+        sizing.proportion = None;
+        sizing.aligned = None;
+        sizing.extents = (carry.length(sizing.extents.0), carry.length(sizing.extents.1));
         let f = &mut sizing.frame;
-        f.corner = t.transform_point3(f.corner);
-        f.normal = t.transform_vector3(f.normal);
-        f.u = t.transform_vector3(f.u);
-        f.v = t.transform_vector3(f.v);
+        f.corner = carry.point(f.corner);
+        f.normal = carry.normal(f.normal);
+        f.u = carry.direction(f.u);
+        f.v = carry.direction(f.v);
     }
 
     pub fn hover(&mut self, doc: &Document, screen: Screen<'_>, cursor: Vec2) {

@@ -3,12 +3,13 @@
 //! instead, `24s` the number of sides (12 by default). Typing right after drawing changes the
 //! arc just drawn. An arc across a face's corner splits off the corner, ready to push away.
 
-use glam::{DAffine3, DVec3, Vec2};
+use glam::{DVec3, Vec2};
 use woodsketch_doc::curves::{ARC_SEGMENTS, arc_points};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS};
 use woodsketch_i18n::t;
 
+use crate::carry::Carry;
 use crate::circle::parse_segments;
 use crate::move_tool::parse_offset;
 use crate::pick::{Screen, Snap, snap};
@@ -70,19 +71,29 @@ impl ArcTool {
         self.last = None;
     }
 
-    /// Carry the arc being sized out of the group being closed (`t` maps old to new coordinates).
-    pub fn migrate_context(&mut self, t: DAffine3) {
+    /// Say the arc being sized again in the container outside the group being closed, forgetting
+    /// what hovering inside it found.
+    pub fn migrate_context(&mut self, carry: &Carry) {
+        self.hover = None;
+        self.hints = Hints::default();
+        self.target = None;
+        // The arc drawn a moment ago is the old container's, and typing can't reshape it from
+        // out here.
+        self.last = None;
         match &mut self.stage {
             Stage::Start => {}
             Stage::End { a, normal, end } => {
-                *a = t.transform_point3(*a);
-                *end = t.transform_point3(*end);
-                *normal = t.transform_vector3(*normal);
+                *a = carry.point(*a);
+                *end = carry.point(*end);
+                *normal = carry.normal(*normal);
             }
-            Stage::Bulge { a, b, normal, .. } => {
-                *a = t.transform_point3(*a);
-                *b = t.transform_point3(*b);
-                *normal = t.transform_vector3(*normal);
+            Stage::Bulge { a, b, normal, bulge } => {
+                *a = carry.point(*a);
+                *b = carry.point(*b);
+                *normal = carry.normal(*normal);
+                // Signed across the chord, so it grows with the group but keeps its side: only
+                // a hop that keeps its hand gets this far.
+                *bulge = carry.length(*bulge);
             }
         }
     }

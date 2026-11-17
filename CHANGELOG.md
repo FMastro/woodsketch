@@ -7,6 +7,12 @@ Write them short. One line per change, a sentence or two at most: what changed, 
 reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
 that belongs in the commit message, which is where it already is.
 
+## 0.1.73
+
+- Drawing on a closed group opens it, and Esc now takes that back instead of throwing the
+  drawing away: the corner you placed stays where it is and the shape finishes outside the
+  group. Thanks to @clems71 (#11).
+
 ## 0.1.72
 
 - Flip Along, in the Edit menu and the right-click menu, mirrors what's selected where it
@@ -43,8 +49,6 @@ that belongs in the commit message, which is where it already is.
 
 ## 0.1.69
 
-- Esc now undoes the auto-open of a group you drew on, instead of cancelling the drawing: the
-drawn-so-far corner stays put and the draw continues outside the group.
 - Fixed: the Start page hid windows that opened behind it. About, What's New, the feedback forms
   and the Cut List now show over it.
 - The Start page's menu bar keeps only File and Help. The rest act on the drawing behind the

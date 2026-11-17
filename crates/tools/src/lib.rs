@@ -4,6 +4,7 @@
 mod arc;
 mod arcs;
 mod board;
+mod carry;
 mod circle;
 mod notes;
 mod eraser;
@@ -28,6 +29,7 @@ use woodsketch_view::OrbitCamera;
 
 pub use pick::{Snap, SnapKind};
 use arc::ArcTool;
+use carry::Carry;
 use board::BoardTool;
 pub use board::Picked;
 use circle::CircleTool;
@@ -450,7 +452,10 @@ pub struct Tools {
     walk_eye: f64,
     walk_eye_typed: Option<f64>,
     /// How many levels [`Self::open_group_to_draw_on`] opened for the gesture in progress, so
-    /// one Esc cancels the drawing and steps back out again.
+    /// Esc can step back out of exactly those. It belongs to that one gesture: [`Self::cancel`]
+    /// and the end of [`Self::pointer`] put it back to zero as soon as no drawing is in
+    /// progress, because a drawing that finished left its geometry in the group and the group is
+    /// then open for good, like one entered by hand.
     opened_to_draw: usize,
 }
 
@@ -539,7 +544,6 @@ impl Tools {
             return;
         }
         self.cancel();
-        self.opened_to_draw = 0;
         self.active = tool;
     }
 
@@ -583,6 +587,9 @@ impl Tools {
 
     /// Abandon whatever the active tool is in the middle of.
     pub fn cancel(&mut self) {
+        // No gesture, nothing for Esc to walk back out of: the group it opened stays open, as a
+        // group entered by hand would.
+        self.opened_to_draw = 0;
         self.picking_reference = None;
         self.grip_dragging = false;
         self.grip_rotated = false;
@@ -867,6 +874,11 @@ impl Tools {
         if let Err(message) = result {
             self.message = Some(message);
         }
+        // The drawing this click finished (or never started) left its geometry in the group, so
+        // the group is open for good now and Esc has nothing of its own to take back.
+        if !self.drawing_in_progress() {
+            self.opened_to_draw = 0;
+        }
     }
 
     /// Starting a drawing tool, Push/Pull or Offset on a face of a closed group or component
@@ -893,18 +905,7 @@ impl Tools {
                 | ToolId::PushPull
                 | ToolId::Offset
         ) && !offsetting_selection;
-        let busy = self.line.is_busy()
-            || self.rectangle.is_busy()
-            || self.circle.is_busy()
-            || self.polygon.is_busy()
-            || self.arc.is_busy()
-            || self.center_arc.is_busy()
-            || self.three_point_arc.is_busy()
-            || self.pie.is_busy()
-            || self.rotated_rectangle.is_busy()
-            || self.push_pull.is_busy()
-            || self.offset.is_busy();
-        if !drawing || busy {
+        if !drawing || self.drawing_in_progress() {
             return;
         }
         // Nested groups open one level at a time, down to the face's own group. Esc undoes the
@@ -925,18 +926,41 @@ impl Tools {
         self.opened_to_draw = opened;
     }
 
-    /// Hand every drawing's in-progress state from the group being closed over to the context
-    /// outside: `t` maps the old container's coordinates to the one drawn in now.
-    fn migrate_context(&mut self, t: DAffine3) {
-        self.line.migrate_context(t);
-        self.rectangle.migrate_context(t);
-        self.circle.migrate_context(t);
-        self.polygon.migrate_context(t);
-        self.rotated_rectangle.migrate_context(t);
-        self.arc.migrate_context(t);
-        self.center_arc.migrate_context(t);
-        self.three_point_arc.migrate_context(t);
-        self.pie.migrate_context(t);
+    /// Whether a gesture that [`Self::open_group_to_draw_on`] opens a group for is part way
+    /// through.
+    fn drawing_in_progress(&self) -> bool {
+        self.line.is_busy()
+            || self.rectangle.is_busy()
+            || self.circle.is_busy()
+            || self.polygon.is_busy()
+            || self.arc.is_busy()
+            || self.center_arc.is_busy()
+            || self.three_point_arc.is_busy()
+            || self.pie.is_busy()
+            || self.rotated_rectangle.is_busy()
+            || self.push_pull.is_busy()
+            || self.offset.is_busy()
+    }
+
+    /// Hand the drawing in progress over to the container outside the group being closed, and
+    /// say whether it went. The one list of the tools this works for: a drawing is anchors and a
+    /// plane, which [`Carry`] can say again out here, while Push/Pull and Offset hold a face of
+    /// the group itself, which has no name outside it -- those answer `false` and the caller
+    /// cancels them instead.
+    fn carry_drawing(&mut self, carry: &Carry) -> bool {
+        match self.active {
+            ToolId::Line => self.line.migrate_context(carry),
+            ToolId::Rectangle => self.rectangle.migrate_context(carry),
+            ToolId::Circle => self.circle.migrate_context(carry),
+            ToolId::Polygon => self.polygon.migrate_context(carry),
+            ToolId::RotatedRectangle => self.rotated_rectangle.migrate_context(carry),
+            ToolId::Arc => self.arc.migrate_context(carry),
+            ToolId::CenterArc => self.center_arc.migrate_context(carry),
+            ToolId::ThreePointArc => self.three_point_arc.migrate_context(carry),
+            ToolId::Pie => self.pie.migrate_context(carry),
+            _ => return false,
+        }
+        true
     }
 
     /// Whether Shift is held: drawing tools lock the direction showing while it is.
@@ -1096,58 +1120,34 @@ impl Tools {
                 // Esc while carrying a paste takes it out again.
                 doc.undo();
             }
-            // Esc never undoes the drawing: `open_group_to_draw_on` entered the face's group for
-            // it, and Esc walks back out of that, carrying the drawing's anchors out of the
-            // group's coordinates into the context outside. Push/Pull and Offset have a face of
-            // the group itself in their state, so they just cancel and leave.
-            let migrates = matches!(
-                self.active,
-                ToolId::Line
-                    | ToolId::Rectangle
-                    | ToolId::Circle
-                    | ToolId::Polygon
-                    | ToolId::Arc
-                    | ToolId::CenterArc
-                    | ToolId::ThreePointArc
-                    | ToolId::Pie
-                    | ToolId::RotatedRectangle
-            );
+            // Esc takes back what the app did on its own, not what you did:
+            // `open_group_to_draw_on` entered the face's group for this gesture, so Esc steps
+            // back out of it and says the drawing's anchors again out there. Where the drawing
+            // can't be carried -- Push/Pull and Offset hold a face of the group, or the group's
+            // own transform is uneven (see [`Carry::out_of`]) -- it cancels and still closes the
+            // group, so one press is still one press and you're back where you were.
             let opened = self.opened_to_draw;
-            if opened > 0 && migrates {
-                let before = doc.context_transform();
+            if opened > 0 {
+                let inside = doc.context_transform();
                 for _ in 0..opened {
                     if !doc.exit() {
                         break;
                     }
                 }
                 doc.selection_mut().clear();
-                let t = doc.context_transform().inverse() * before;
-                self.migrate_context(t);
+                let hop = doc.context_transform().inverse() * inside;
+                let carried = Carry::out_of(hop).is_some_and(|carry| self.carry_drawing(&carry));
+                if !carried {
+                    self.cancel();
+                }
             } else {
                 self.cancel();
-                // Groups `open_group_to_draw_on` opened for Push/Pull or Offset were never
-                // entered by hand: step back out of them too.
-                for _ in 0..opened {
-                    if !doc.exit() {
-                        break;
-                    }
-                }
-                doc.selection_mut().clear();
             }
             self.opened_to_draw = 0;
         } else if self.active == ToolId::Select && !doc.selection().is_empty() {
             doc.selection_mut().clear();
-            self.opened_to_draw = 0;
         } else if doc.exit() {
             self.cancel();
-            // If the groups were opened for drawing, one Esc steps back out of all of them, not
-            // just the innermost.
-            for _ in 0..self.opened_to_draw.saturating_sub(1) {
-                if !doc.exit() {
-                    break;
-                }
-            }
-            self.opened_to_draw = 0;
         }
     }
 
@@ -1607,6 +1607,96 @@ mod tests {
         tools.escape(&mut doc);
         assert!(tools.rectangle.is_busy());
         assert_eq!(doc.path().len(), 1, "the hand-entered level stays: {:?}", doc.path());
+    }
+
+    /// A drawing that *finished* left its geometry in the group, so the group is open for good,
+    /// like one entered by hand: Esc leaves one level, not every level the drawing opened.
+    #[test]
+    fn a_finished_drawing_leaves_its_groups_open_like_ones_entered_by_hand() {
+        use woodsketch_view::StandardView;
+        let mut doc = Document::default();
+        let face = doc.edit(|m| m.add_rectangle(DVec3::ZERO, DVec3::X * 1.5, DVec3::Y * 3.5, DVec3::Z)).unwrap();
+        doc.push_pull(face, 10.0, true).unwrap().unwrap();
+        doc.select_all();
+        doc.group_selection(woodsketch_doc::DefinitionKind::Group);
+        let mut camera = OrbitCamera { target: glam::Vec3::new(0.75, 1.75, 5.0), distance: 40.0, ..Default::default() };
+        camera.set_view(StandardView::Top);
+        let size = Vec2::new(1000.0, 800.0);
+        let mut tools = Tools::default();
+        tools.activate(ToolId::Rectangle);
+        let mods = Modifiers::default();
+        let at = camera.project(glam::Vec3::new(0.75, 1.75, 10.0), size).unwrap();
+        let far = camera.project(glam::Vec3::new(1.25, 2.75, 10.0), size).unwrap();
+        tools.pointer(PointerEvent::Click { pos: at, count: 1, mods }, &mut doc, &mut camera, size);
+        assert_eq!(doc.path().len(), 2, "both levels opened to draw on the board");
+        tools.pointer(PointerEvent::Click { pos: far, count: 1, mods }, &mut doc, &mut camera, size);
+        assert!(!tools.rectangle.is_busy(), "the rectangle is drawn");
+
+        tools.escape(&mut doc);
+        assert_eq!(doc.path().len(), 1, "one Esc leaves one level, not both: {:?}", doc.path());
+        tools.escape(&mut doc);
+        assert!(doc.path().is_empty(), "the second leaves the other");
+    }
+
+    /// Esc in a group scaled unevenly: there is no faithful way to say a rectangle out here, so
+    /// the drawing is cancelled and the group still closes -- one press, back where you were.
+    #[test]
+    fn a_drawing_in_an_unevenly_scaled_group_is_cancelled_rather_than_carried_wrong() {
+        use woodsketch_view::StandardView;
+        let mut doc = Document::default();
+        let face = doc.edit(|m| m.add_rectangle(DVec3::ZERO, DVec3::X * 1.5, DVec3::Y * 3.5, DVec3::Z)).unwrap();
+        let board = doc.push_pull(face, 10.0, true).unwrap().unwrap();
+        // The Scale tool writes a group's factors into its own transform; 4x across red only.
+        let stretch = DAffine3::from_scale(DVec3::new(4.0, 1.0, 1.0));
+        doc.transform_entities(&[woodsketch_doc::Entity::Instance(board)], &[stretch], false).unwrap();
+        let mut camera = OrbitCamera { target: glam::Vec3::new(3.0, 1.75, 5.0), distance: 60.0, ..Default::default() };
+        camera.set_view(StandardView::Top);
+        let size = Vec2::new(1000.0, 800.0);
+        let mut tools = Tools::default();
+        tools.activate(ToolId::Rectangle);
+        let mods = Modifiers::default();
+        let at = camera.project(glam::Vec3::new(3.0, 1.75, 10.0), size).unwrap();
+        tools.pointer(PointerEvent::Click { pos: at, count: 1, mods }, &mut doc, &mut camera, size);
+        assert_eq!(doc.path(), &[board], "the stretched board's group opened to draw on");
+        assert!(tools.rectangle.is_busy());
+
+        tools.escape(&mut doc);
+        assert!(!tools.rectangle.is_busy(), "the drawing is cancelled, not carried out stretched");
+        assert!(doc.path().is_empty(), "and the group it opened is closed again");
+        assert_eq!(doc.model().faces().count(), 0, "nothing was drawn at the top level");
+    }
+
+    /// Esc in a group scaled evenly: the drawing carries, and the rectangle that finishes outside
+    /// is the size it looked while drawing. The tool measures with `u` and `v`, so a doubled group
+    /// that left them doubled would draw it twice the size the cursor said.
+    #[test]
+    fn a_drawing_carried_out_of_an_evenly_scaled_group_is_the_size_it_looks() {
+        use woodsketch_view::StandardView;
+        let mut doc = Document::default();
+        let face = doc.edit(|m| m.add_rectangle(DVec3::ZERO, DVec3::X * 1.5, DVec3::Y * 3.5, DVec3::Z)).unwrap();
+        let board = doc.push_pull(face, 10.0, true).unwrap().unwrap();
+        let twice = DAffine3::from_scale(DVec3::splat(2.0));
+        doc.transform_entities(&[woodsketch_doc::Entity::Instance(board)], &[twice], false).unwrap();
+        // The board is 3 x 7 x 20 in the drawing now, its top at 20.
+        let mut camera = OrbitCamera { target: glam::Vec3::new(1.5, 3.5, 10.0), distance: 80.0, ..Default::default() };
+        camera.set_view(StandardView::Top);
+        let size = Vec2::new(1000.0, 800.0);
+        let mut tools = Tools::default();
+        tools.activate(ToolId::Rectangle);
+        let mods = Modifiers::default();
+        let at = camera.project(glam::Vec3::new(1.5, 3.5, 20.0), size).unwrap();
+        tools.pointer(PointerEvent::Click { pos: at, count: 1, mods }, &mut doc, &mut camera, size);
+        assert_eq!(doc.path(), &[board], "the doubled board's group opened to draw on");
+
+        tools.escape(&mut doc);
+        assert!(tools.rectangle.is_busy(), "the drawing carried out of the group");
+        assert!(doc.path().is_empty());
+        let far = camera.project(glam::Vec3::new(2.5, 5.5, 20.0), size).unwrap();
+        tools.pointer(PointerEvent::Click { pos: far, count: 1, mods }, &mut doc, &mut camera, size);
+        assert_eq!(doc.model().faces().count(), 1, "one rectangle, loose at the top level");
+        let (lo, hi) = doc.model().bounds().unwrap();
+        assert!((hi - lo).abs_diff_eq(DVec3::new(1.0, 2.0, 0.0), 0.01), "1\" x 2\", as drawn: {}", hi - lo);
+        assert!(lo.abs_diff_eq(DVec3::new(1.5, 3.5, 20.0), 0.01), "and where it was drawn: {lo}");
     }
 
     #[test]

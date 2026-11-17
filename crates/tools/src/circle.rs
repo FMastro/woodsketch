@@ -2,13 +2,14 @@
 //! or type the radius. Type `32s` to use 32 sides instead of 24, before or right after drawing;
 //! typing a radius right after drawing resizes the circle just drawn.
 
-use glam::{DAffine3, DVec3, Vec2};
+use glam::{DVec3, Vec2};
 use woodsketch_doc::curves::{CIRCLE_SEGMENTS, circle_points};
 use woodsketch_i18n::t;
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS};
 
 use crate::Overlay;
+use crate::carry::Carry;
 use crate::infer::Hints;
 use crate::pick::{AXIS_RADIUS, Screen, Snap, SnapKind, snap};
 
@@ -70,16 +71,22 @@ impl CircleTool {
         self.last = None;
     }
 
-    /// Carry the circle being sized out of the group being closed (`t` maps old to new
-    /// coordinates).
-    pub fn migrate_context(&mut self, t: DAffine3) {
+    /// Say the circle being sized again in the container outside the group being closed,
+    /// forgetting what hovering inside it found.
+    pub fn migrate_context(&mut self, carry: &Carry) {
+        self.hover = None;
+        self.hints = Hints::default();
+        // The circle drawn a moment ago is the old container's, and typing can't resize it from
+        // out here.
+        self.last = None;
+        self.radius = carry.length(self.radius);
         if let Some((center, normal)) = &mut self.center {
-            *center = t.transform_point3(*center);
-            *normal = t.transform_vector3(*normal);
+            *center = carry.point(*center);
+            *normal = carry.normal(*normal);
         }
         if let Some((anchor, rim)) = &mut self.through {
-            *anchor = t.transform_point3(*anchor);
-            *rim = t.transform_point3(*rim);
+            *anchor = carry.point(*anchor);
+            *rim = carry.point(*rim);
         }
     }
 

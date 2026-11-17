@@ -5,12 +5,13 @@
 
 use std::f64::consts::TAU;
 
-use glam::{DAffine3, DVec3, Vec2};
+use glam::{DVec3, Vec2};
 use woodsketch_doc::curves::{ARC_SEGMENTS, angle_about, circle_through, sweep_points};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS};
 use woodsketch_i18n::t;
 
+use crate::carry::Carry;
 use crate::circle::parse_segments;
 use crate::pick::{Screen, Snap, snap};
 use crate::{Axis, Overlay};
@@ -58,14 +59,17 @@ impl CenterArcTool {
         self.stage = CenterStage::Center;
     }
 
-    /// Carry the arc being sized out of the group being closed (`t` maps old to new coordinates).
-    pub fn migrate_context(&mut self, t: DAffine3) {
+    /// Say the arc being turned again in the container outside the group being closed. The sweep
+    /// is an angle about `normal`, which a turn, a move and one scale all leave alone; a hop that
+    /// turned it over wouldn't have got this far.
+    pub fn migrate_context(&mut self, carry: &Carry) {
+        self.hover = None;
         match &mut self.stage {
             CenterStage::Center => {}
             CenterStage::Start { center, normal, start } | CenterStage::Sweep { center, normal, start, .. } => {
-                *center = t.transform_point3(*center);
-                *start = t.transform_point3(*start);
-                *normal = t.transform_vector3(*normal);
+                *center = carry.point(*center);
+                *start = carry.point(*start);
+                *normal = carry.normal(*normal);
             }
         }
     }
@@ -235,20 +239,21 @@ impl ThreePointArcTool {
         self.stage = ThreeStage::First;
     }
 
-    /// Carry the arc being sized out of the group being closed (`t` maps old to new coordinates).
-    pub fn migrate_context(&mut self, t: DAffine3) {
+    /// Say the arc's points again in the container outside the group being closed.
+    pub fn migrate_context(&mut self, carry: &Carry) {
+        self.hover = None;
         match &mut self.stage {
             ThreeStage::First => {}
             ThreeStage::Second { a, normal, b } => {
-                *a = t.transform_point3(*a);
-                *b = t.transform_point3(*b);
-                *normal = t.transform_vector3(*normal);
+                *a = carry.point(*a);
+                *b = carry.point(*b);
+                *normal = carry.normal(*normal);
             }
             ThreeStage::Third { a, b, c } => {
-                *a = t.transform_point3(*a);
-                *b = t.transform_point3(*b);
+                *a = carry.point(*a);
+                *b = carry.point(*b);
                 if let Some(c) = c {
-                    *c = t.transform_point3(*c);
+                    *c = carry.point(*c);
                 }
             }
         }

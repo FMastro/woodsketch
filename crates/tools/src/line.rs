@@ -9,10 +9,12 @@
 //! - Type a length (along the current direction), a relative `x,y,z` / `<x,y,z>` or an absolute
 //!   `[x,y,z]` to place the next point exactly.
 
-use glam::{DAffine3, DVec3, Vec2};
+use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS};
+
+use crate::carry::Carry;
 
 use crate::infer::{self, Direction, Hints, Query, Target};
 use crate::move_tool::parse_offset;
@@ -66,11 +68,16 @@ impl LineTool {
         self.shift_lock = None;
     }
 
-    /// Carry the chain's start out of the group being closed (`t` maps old to new coordinates).
-    pub fn migrate_context(&mut self, t: DAffine3) {
+    /// Say the chain's start again in the container outside the group being closed, forgetting
+    /// what hovering inside it found.
+    pub fn migrate_context(&mut self, carry: &Carry) {
+        self.hover = None;
+        self.end = None;
+        self.hints = Hints::default();
+        self.retype = None;
         let Some(start) = &mut self.start else { return };
-        start.point = t.transform_point3(start.point);
-        start.normal = t.transform_vector3(start.normal);
+        start.point = carry.point(start.point);
+        start.normal = carry.normal(start.normal);
     }
 
     pub fn lock_axis(&mut self, axis: Axis) {
