@@ -9,9 +9,8 @@ that belongs in the commit message, which is where it already is.
 
 ## 0.1.76
 
-- The Mac builds are signed and notarized by Apple, so the app opens on any Mac instead of
-  macOS offering only to move it to the Bin. The installer package itself isn't signed yet, so
-  macOS still warns about that once, and not about the app it installs.
+- The Mac builds are signed and notarized by Apple, installer and app both, so they open on any
+  Mac instead of macOS offering only to move them to the Bin.
 
 ## 0.1.75
 

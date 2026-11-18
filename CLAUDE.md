@@ -393,8 +393,9 @@ add it there; when you finish an item, remove it.
    `MACOS_*` secrets: the job makes a keychain for the run (on the search list, or codesign finds
    no valid identity) and `vpk pack` does the rest given `--signAppIdentity`, `--notaryProfile`
    and `--keychain`, so the ticket is stapled into the bundle before it is packed. The `.pkg`
-   installer needs a second certificate, Developer ID Installer, and is unsigned until those
-   three secrets are there; Linux needs no signature. It is all `docs/MACOS-SIGNING.md`. CI
+   installer is signed by a second certificate, Developer ID Installer (`--signInstallIdentity`,
+   its own three secrets), because `codesign` doesn't sign installer packages and `productbuild`
+   does; Linux needs no signature. It is all `docs/MACOS-SIGNING.md`. CI
    (`.github/workflows/ci.yml`) lints and runs the non-GPU tests on all three platforms.
 
 ## Start page and samples

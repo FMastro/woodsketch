@@ -16,7 +16,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 21 | A live link to the open drawing |
-| 6 | Release polish | 68 | Both signed now; the rest is packaging and reach |
+| 6 | Release polish | 66 | Both platforms signed; the rest is packaging and reach |
 | 7 | Start page and samples | 10 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
 | 9 | Cut list and materials | 171 | Better buying and cutting |
@@ -136,26 +136,22 @@ Problem / Send Feedback (GitHub issue forms, details with nothing private; fixed
 when their release is published); a crash is saved (with the calls that led there) and offered for a
 report at the next start; reports name the OS version; Windows signing (Azure Artifact Signing,
 signed in CI over OIDC with no stored key); macOS signing and notarization with an Apple
-Developer ID (`docs/MACOS-SIGNING.md`).
-1. [2] Sign the macOS `.pkg` installer, which takes a second certificate (Developer ID Installer)
-   and the three secrets `release.yml` already looks for: step 7 of `docs/MACOS-SIGNING.md`. The
-   app inside it is signed and notarized either way, so Gatekeeper warns about the installer and
-   not about what it installs.
-2. [2] SHA-256 checksums (Linux needs no signing; optionally GPG-signed checksums).
-3. [2] A Download button on woodsketch.net that picks the visitor's OS.
-4. [3] Delta updates (download the previous release before packing, so updates are small).
-5. [5] `.woodsketch` file association on all three (double-click opens it).
-6. [3] A macOS DMG.
-7. [5] Linux .deb and .rpm.
-8. [5] Windows ARM64 and Linux ARM64 builds.
-9. [3] Crash reports: a line number for each call that led there (names only in release builds:
+Developer ID, the app and the `.pkg` installer both (`docs/MACOS-SIGNING.md`).
+1. [2] SHA-256 checksums (Linux needs no signing; optionally GPG-signed checksums).
+2. [2] A Download button on woodsketch.net that picks the visitor's OS.
+3. [3] Delta updates (download the previous release before packing, so updates are small).
+4. [5] `.woodsketch` file association on all three (double-click opens it).
+5. [3] A macOS DMG.
+6. [5] Linux .deb and .rpm.
+7. [5] Windows ARM64 and Linux ARM64 builds.
+8. [3] Crash reports: a line number for each call that led there (names only in release builds:
     line tables make the Windows symbols 67 MB instead of 6; or keep them on GitHub and look the
     addresses up when a report comes in).
-10. [5] Crashes that aren't Rust panics (a graphics driver crash, running out of memory, a stack
+9. [5] Crashes that aren't Rust panics (a graphics driver crash, running out of memory, a stack
     overflow) leave nothing to report.
-11. [2] A scheduled check of new reports (a daily routine that reads `from-app` issues and drafts
+10. [2] A scheduled check of new reports (a daily routine that reads `from-app` issues and drafts
     fixes for review); now they're checked at the start of each session (CLAUDE.md).
-12. [21] End-user help for every feature: a User Guide on woodsketch.net (/help), a page per
+11. [21] End-user help for every feature: a User Guide on woodsketch.net (/help), a page per
     feature or tool (what it's for, step by step, the keys and typed values, tips, what it doesn't
     do yet), written for woodworkers new to SketchUp as well as SketchUp users. Getting started
     (draw a board, join two parts, print a cut list), each drawing tool, groups and components,
