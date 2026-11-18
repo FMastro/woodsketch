@@ -47,6 +47,34 @@ impl System {
     }
 }
 
+/// What a driver says when it won't say: a Vulkan driver older than `VK_KHR_driver_properties`
+/// has nothing to report its own name and version from, and wgpu passes on what it gets.
+const SAYS_NOTHING: [&str; 3] = ["?", "unknown", "n/a"];
+
+/// The graphics card, the backend drawing on it, what kind of card it is and its driver:
+/// `GeForce RTX 4060 (Vulkan, discrete, NVIDIA 560.94)`, or
+/// `GeForce GTX 860M (Vulkan, discrete, driver not reported)`.
+///
+/// The last of those is the whole reason this is a function with tests rather than a `format!`
+/// at the one place it's used. A report of a graphics crash came in reading `(Vulkan, ? ?)`,
+/// because the two question marks were what the driver answered and only an *empty* answer was
+/// being left out. Saying "driver not reported" instead is worth more than it looks: a driver
+/// that can't name itself is old enough to be the reason, and that is the one thing the report
+/// needed to say (#13).
+pub fn graphics_line(card: &str, backend: &str, kind: &str, driver: &str, driver_info: &str) -> String {
+    let said = |s: &str| {
+        let s = s.trim();
+        (!s.is_empty() && !SAYS_NOTHING.contains(&s.to_ascii_lowercase().as_str())).then(|| s.to_owned())
+    };
+    // English, like the rest of the details block: it is written into a GitHub issue to be read
+    // by whoever fixes it, not shown as the app's own words.
+    let driver = [said(driver), said(driver_info)].into_iter().flatten().collect::<Vec<_>>().join(" ");
+    let driver = if driver.is_empty() { "driver not reported".to_owned() } else { driver };
+    let about = [said(backend), said(kind), Some(driver)].into_iter().flatten().collect::<Vec<_>>().join(", ");
+    let card = said(card).unwrap_or_else(|| "graphics card not reported".to_owned());
+    if about.is_empty() { card } else { format!("{card} ({about})") }
+}
+
 /// The OS with its version, and the processor: `Windows 11 Pro 10.0.26100 (x86_64)`, `Mac OS
 /// 15.1.0 (aarch64)`. Looked up once.
 pub fn os_name() -> String {
@@ -415,6 +443,33 @@ mod tests {
         assert_eq!(reply(429, r#"{"error":"That's a lot of reports"}"#), Err("That's a lot of reports".into()));
         assert!(reply(500, "<html>").unwrap_err().contains("error 500"));
         assert!(valid_email("maker@example.com") && !valid_email("maker@example") && !valid_email("no at.com") && !valid_email("a b@c.com") && !valid_email("@c.com"));
+    }
+
+    /// The line a graphics report stands on. The "? ?" case is the one that came in from a real
+    /// crash and said nothing (#13); it has to come out saying the driver wouldn't name itself,
+    /// since that is the finding.
+    #[test]
+    fn a_graphics_line_says_what_the_driver_would_not() {
+        assert_eq!(
+            graphics_line("GeForce RTX 4060", "Vulkan", "discrete", "NVIDIA", "560.94"),
+            "GeForce RTX 4060 (Vulkan, discrete, NVIDIA 560.94)"
+        );
+        assert_eq!(
+            graphics_line("GeForce GTX 860M", "Vulkan", "discrete", "?", "?"),
+            "GeForce GTX 860M (Vulkan, discrete, driver not reported)",
+            "two question marks are an answer of nothing, not a driver called '?'"
+        );
+        assert_eq!(
+            graphics_line("Apple M4 Max", "Metal", "integrated", "", "  "),
+            "Apple M4 Max (Metal, integrated, driver not reported)",
+            "nothing said at all reads the same as nothing worth saying"
+        );
+        assert_eq!(
+            graphics_line("llvmpipe", "Gl", "cpu", "unknown", "Mesa 24.0"),
+            "llvmpipe (Gl, cpu, Mesa 24.0)",
+            "half an answer is still an answer"
+        );
+        assert_eq!(graphics_line("", "", "", "", ""), "graphics card not reported (driver not reported)");
     }
 
     #[test]

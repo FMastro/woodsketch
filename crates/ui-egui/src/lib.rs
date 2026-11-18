@@ -7,6 +7,7 @@ mod cutlist;
 pub mod files;
 mod icons;
 mod keys;
+mod gpu;
 mod materials;
 pub mod net;
 mod autosave;
@@ -67,6 +68,8 @@ pub struct WoodSketchApp {
     feedback: feedback::FeedbackWindow,
     /// The graphics card and driver, for a problem report.
     graphics: String,
+    /// What the graphics card last complained about, instead of panicking over it.
+    gpu: gpu::Trouble,
     /// View > Theme, as last seen (saved with the settings).
     theme: egui::ThemePreference,
     /// Units for File > Export.
@@ -167,11 +170,10 @@ impl WoodSketchApp {
             show_about: false,
             feedback: feedback::FeedbackWindow::default(),
             theme,
-            graphics: {
-                let info = render_state.adapter.get_info();
-                let driver = [info.driver.as_str(), info.driver_info.as_str()].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
-                format!("{} ({:?}{})", info.name, info.backend, if driver.is_empty() { String::new() } else { format!(", {driver}") })
-            },
+            graphics: gpu::describe(&render_state.adapter),
+            // Takes over from wgpu's handler, which panics: a driver that fails one frame used to
+            // close the window (#13).
+            gpu: gpu::Trouble::watch(&render_state.device),
             export_units: woodsketch_doc::export::ExportUnits::Inches,
             recent: cc.storage.and_then(|s| eframe::get_value(s, RECENT_KEY)).unwrap_or_default(),
             autosave,
@@ -777,6 +779,11 @@ impl eframe::App for WoodSketchApp {
         self.offer_crash_report(&ctx);
         self.keep_up_to_date();
         self.collect_building(&ctx);
+        // Said where a failed save is said, and kept for a problem report, since a reader who
+        // sees a drawing go strange needs the card's own words to send on.
+        if let Some(trouble) = self.gpu.taken() {
+            self.files.show_error(gpu::Trouble::said(&trouble));
+        }
         if !self.files.is_asking()
             && self.leftovers.is_empty()
             && self.crash.is_none()

@@ -732,6 +732,10 @@ start-card-label = { $title }. { $under }
 files-untitled = Untitled
 files-save-failed = Couldn't save { $path }: { $error }
 files-open-failed = Couldn't open { $path }: { $error }
+
+# The graphics card reported a problem. The drawing is safe and can be saved; what is on screen
+# may not have drawn. Help > Report a Problem carries the card's own words.
+gpu-trouble = The graphics card reported a problem: { $error }. Your drawing is safe — save it, and please send a report from Help > Report a Problem.
 files-export-failed = Couldn't export { $path }: { $error }
 # The window's title: the drawing's name, a star if there are unsaved changes, then the app.
 files-window-title = { $name }{ $dirty } - WoodSketch

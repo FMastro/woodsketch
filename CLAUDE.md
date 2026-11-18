@@ -131,7 +131,15 @@ units, the last error with paths scrubbed, counts from the drawing; never names 
 A crash (any panic) is saved by `ui-egui::crash` (a panic hook installed in `main`) as a
 `feedback::Crash` (message scrubbed, `source_location` trimmed to `crates/...`, `own_frames` of the
 backtrace: names only in release, from the PDB `release.yml` ships beside the Windows exe); the next start offers
-it for a report (`FeedbackWindow::start_crash`). `feedback::os_name` (the `os_info` crate) names the OS.
+it for a report (`FeedbackWindow::start_crash`). `feedback::os_name` (the `os_info` crate) names the OS, and `feedback::graphics_line` writes the
+card, backend, kind and driver -- saying "driver not reported" where a Vulkan driver too old for
+`VK_KHR_driver_properties` answers `?`, which a report of a graphics crash arrived reading as
+`(Vulkan, ? ?)` and so said nothing (#13).
+An error `wgpu` can't hand back to a caller goes to the device's uncaptured-error handler, whose
+default panics, so one bad frame closed the window: `ui-egui::gpu::Trouble` takes that over
+(installed on `render_state.device`), keeps what the card said and shows it where a failed save is
+shown, and the app stays up with the drawing saveable. It is a seatbelt, not a repair -- the
+backend is still whatever wgpu picks, which is Vulkan on Windows by `Backend` enum order.
 - At the start of a session, and when asked, check them: `gh issue list --label from-app --state open`
   (read one with `gh issue view N --comments`). Tell the user what's new before starting other work.
 - To fix one: reproduce it (a test that fails first, using the details' counts and any attached

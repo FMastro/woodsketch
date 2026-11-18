@@ -5048,7 +5048,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "woodsketch"
-version = "0.1.74"
+version = "0.1.75"
 dependencies = [
  "eframe",
  "env_logger",
@@ -5063,7 +5063,7 @@ dependencies = [
 
 [[package]]
 name = "woodsketch-cli"
-version = "0.1.74"
+version = "0.1.75"
 dependencies = [
  "glam",
  "png",
@@ -5078,7 +5078,7 @@ dependencies = [
 
 [[package]]
 name = "woodsketch-doc"
-version = "0.1.74"
+version = "0.1.75"
 dependencies = [
  "earcut",
  "glam",
@@ -5091,7 +5091,7 @@ dependencies = [
 
 [[package]]
 name = "woodsketch-i18n"
-version = "0.1.74"
+version = "0.1.75"
 dependencies = [
  "fluent-bundle",
  "fluent-syntax",
@@ -5101,7 +5101,7 @@ dependencies = [
 
 [[package]]
 name = "woodsketch-render"
-version = "0.1.74"
+version = "0.1.75"
 dependencies = [
  "bytemuck",
  "glam",
@@ -5112,7 +5112,7 @@ dependencies = [
 
 [[package]]
 name = "woodsketch-tools"
-version = "0.1.74"
+version = "0.1.75"
 dependencies = [
  "glam",
  "woodsketch-doc",
@@ -5122,7 +5122,7 @@ dependencies = [
 
 [[package]]
 name = "woodsketch-ui-egui"
-version = "0.1.74"
+version = "0.1.75"
 dependencies = [
  "eframe",
  "egui",
@@ -5131,6 +5131,7 @@ dependencies = [
  "egui_kittest",
  "glam",
  "image",
+ "log",
  "png",
  "rfd",
  "serde",
@@ -5146,7 +5147,7 @@ dependencies = [
 
 [[package]]
 name = "woodsketch-view"
-version = "0.1.74"
+version = "0.1.75"
 dependencies = [
  "glam",
 ]

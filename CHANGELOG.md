@@ -7,6 +7,13 @@ Write them short. One line per change, a sentence or two at most: what changed, 
 reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
 that belongs in the commit message, which is where it already is.
 
+## 0.1.75
+
+- A problem reported by the graphics card no longer closes the app. Your drawing stays open and
+  can be saved, and the card's own words go into Help > Report a Problem (#13).
+- A problem report now says what the graphics driver is, or that it wouldn't say, instead of two
+  question marks.
+
 ## 0.1.74
 
 - The tray's panels each have a header bar now, with a ✕ that closes that panel. Window >
