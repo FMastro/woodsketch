@@ -15,9 +15,9 @@ on [woodsketch.net](https://woodsketch.net/#get-started) and in
 [GitHub Releases](https://github.com/FMastro/woodsketch/releases/latest). Installed copies check
 for updates when they start and install them when you restart.
 
-The Windows installer is signed, though SmartScreen may still warn until the signature earns a
-reputation: click *More info*, then *Run anyway*. The macOS installer isn't signed yet, so
-right-click it and choose *Open*.
+The installers are signed: Windows by Azure Artifact Signing, macOS with an Apple Developer ID
+and notarized by Apple, so neither calls the publisher unknown. SmartScreen may still warn on
+Windows until the signature earns a reputation: click *More info*, then *Run anyway*.
 
 Would rather not run someone else's binary? [Build it yourself](#build-it-yourself) — it's three
 commands once Rust is installed.
