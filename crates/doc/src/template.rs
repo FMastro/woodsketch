@@ -30,6 +30,7 @@ const PANEL: f64 = 0.25;
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Template {
     Cabinet(Cabinet),
+    Door(Door),
     Drawer(Drawer),
     FaceFrame(FaceFrame),
     Table(Table),
@@ -102,6 +103,19 @@ fn leg_size() -> f64 {
 
 fn apron_width() -> f64 {
     4.0
+}
+
+fn quarter() -> f64 {
+    PANEL
+}
+
+/// A door's stiles and rails, as wide as a cabinet's own doors have them.
+fn door_frame_width() -> f64 {
+    2.25
+}
+
+fn stub_tenons() -> FrameJoints {
+    FrameJoints::MortiseAndTenon
 }
 
 /// The most openings a cabinet has (20 shelves).
@@ -185,6 +199,29 @@ impl Pulls {
             Self::None => "None",
         }
     }
+}
+
+/// A door on its own, to hang on something that isn't a WoodSketch cabinet (or to price before
+/// there is a cabinet). A cabinet's own doors are sized by its openings instead.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Door {
+    pub width: f64,
+    pub height: f64,
+    pub style: DoorStyle,
+    /// Stile width (the uprights).
+    #[serde(default = "door_frame_width")]
+    pub stile: f64,
+    /// Rail width (top and bottom).
+    #[serde(default = "door_frame_width")]
+    pub rail: f64,
+    /// How the rails meet the stiles; a slab door has no joints.
+    #[serde(default = "stub_tenons")]
+    pub joints: FrameJoints,
+    #[serde(default = "three_quarters")]
+    pub stock: f64,
+    /// The panel's thickness.
+    #[serde(default = "quarter")]
+    pub panel: f64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
@@ -311,6 +348,21 @@ impl Default for Cabinet {
     }
 }
 
+impl Default for Door {
+    fn default() -> Self {
+        Self {
+            width: 16.0,
+            height: 24.0,
+            style: DoorStyle::FrameAndPanel,
+            stile: door_frame_width(),
+            rail: door_frame_width(),
+            joints: stub_tenons(),
+            stock: STOCK,
+            panel: PANEL,
+        }
+    }
+}
+
 impl Default for Drawer {
     fn default() -> Self {
         Self { width: 16.0, height: 5.0, depth: 14.0, joints: DrawerJoints::Dovetails, stock: DRAWER_STOCK }
@@ -333,6 +385,7 @@ impl Template {
     pub fn name(&self) -> &'static str {
         match self {
             Self::Cabinet(_) => "Cabinet",
+            Self::Door(_) => "Door",
             Self::Drawer(_) => "Drawer",
             Self::FaceFrame(_) => "Face frame",
             Self::Table(_) => "Table",
@@ -340,8 +393,14 @@ impl Template {
     }
 
     /// One of each, with starting sizes.
-    pub fn all() -> [Self; 4] {
-        [Self::Cabinet(Cabinet::default()), Self::Drawer(Drawer::default()), Self::FaceFrame(FaceFrame::default()), Self::Table(Table::default())]
+    pub fn all() -> [Self; 5] {
+        [
+            Self::Cabinet(Cabinet::default()),
+            Self::Door(Door::default()),
+            Self::Drawer(Drawer::default()),
+            Self::FaceFrame(FaceFrame::default()),
+            Self::Table(Table::default()),
+        ]
     }
 
     /// Why these sizes can't be built, if they can't.
@@ -361,6 +420,30 @@ impl Template {
                 let room = c.height - 2.0 * c.stock - f64::from(c.shelves) * c.stock;
                 if room <= f64::from(c.shelves + 1) {
                     return Err("Too many shelves for the height.".into());
+                }
+            }
+            Self::Door(d) => {
+                if !(0.25..=2.0).contains(&d.stock) {
+                    return Err("The stock must be 1/4\" to 2\" thick.".into());
+                }
+                if d.style == DoorStyle::Slab {
+                    if d.width <= 2.0 || d.height <= 2.0 {
+                        return Err(small("width and height", 2.0));
+                    }
+                } else {
+                    // A 1/2" shoulder each side of a stub tenon, and something left between.
+                    if d.stile < 1.5 || d.rail < 1.5 {
+                        return Err("Stiles and rails must be at least 1 1/2\" wide.".into());
+                    }
+                    if d.width <= 2.0 * d.stile + 1.0 {
+                        return Err(small("width", 2.0 * d.stile + 1.0));
+                    }
+                    if d.height <= 2.0 * d.rail + 1.0 {
+                        return Err(small("height", 2.0 * d.rail + 1.0));
+                    }
+                    if !(0.125..=d.stock / 2.0).contains(&d.panel) {
+                        return Err("The panel must be 1/8\" thick, up to half the stock.".into());
+                    }
                 }
             }
             Self::Drawer(d) => {
@@ -476,6 +559,7 @@ impl Document {
         let mut parts = Parts { doc: self, wood, made: Vec::new() };
         match *template {
             Template::Cabinet(c) => parts.cabinet(c),
+            Template::Door(d) => parts.door(d),
             Template::Drawer(d) => parts.drawer(d, DVec3::ZERO),
             Template::FaceFrame(f) => parts.face_frame(f),
             Template::Table(t) => parts.table(t),
@@ -741,34 +825,45 @@ impl Parts<'_> {
         Ok(())
     }
 
-    /// A frame-and-panel door filling `leaf`: stiles full height, rails between them stub-tenoned
-    /// into the stiles, a 1/4" plywood panel let into grooves all round.
+    /// A frame-and-panel door filling `leaf`, in the sizes a cabinet gives its own doors: the
+    /// stiles and rails as wide as the leaf allows, 3/4" stock, a 1/4" plywood panel.
     fn frame_and_panel(&mut self, leaf: &Rect) -> Result<(), JoineryError> {
         let (w, h) = (leaf.x1 - leaf.x0, leaf.z1 - leaf.z0);
         let s = 2.25_f64.min(w / 4.0).min(h / 4.0);
+        let door = Door { width: w, height: h, style: DoorStyle::FrameAndPanel, stile: s, rail: s, joints: stub_tenons(), stock: STOCK, panel: PANEL };
+        self.door_at(DVec3::new(leaf.x0, leaf.y0, leaf.z0), door)
+    }
+
+    /// A door on its own, its front-left-bottom corner at the origin.
+    fn door(&mut self, d: Door) -> Result<(), JoineryError> {
+        self.door_at(DVec3::ZERO, d)
+    }
+
+    /// A door with its front-left-bottom corner at `at`: one board, or stiles full height with
+    /// the rails joined between them and a panel let into grooves all round.
+    fn door_at(&mut self, at: DVec3, d: Door) -> Result<(), JoineryError> {
+        let (w, h, s, r, t) = (d.width, d.height, d.stile, d.rail, d.stock);
         let wood = self.wood;
-        let y = leaf.y0;
-        let left = self.board("Door stile", wood, DVec3::new(leaf.x0, y, leaf.z0), DVec3::Z, DVec3::X, [h, s, STOCK]);
-        let right = self.board("Door stile", wood, DVec3::new(leaf.x1 - s, y, leaf.z0), DVec3::Z, DVec3::X, [h, s, STOCK]);
-        let bottom = self.board("Door rail", wood, DVec3::new(leaf.x0 + s, y + STOCK, leaf.z0), DVec3::X, DVec3::Z, [w - 2.0 * s, s, STOCK]);
-        let top = self.board("Door rail", wood, DVec3::new(leaf.x0 + s, y + STOCK, leaf.z1 - s), DVec3::X, DVec3::Z, [w - 2.0 * s, s, STOCK]);
-        let groove = 0.375;
+        if d.style == DoorStyle::Slab {
+            self.board("Door", wood, at + DVec3::new(0.0, t, 0.0), DVec3::X, DVec3::Z, [w, h, t]);
+            return Ok(());
+        }
+        let left = self.board("Door stile", wood, at, DVec3::Z, DVec3::X, [h, s, t]);
+        let right = self.board("Door stile", wood, at + DVec3::new(w - s, 0.0, 0.0), DVec3::Z, DVec3::X, [h, s, t]);
+        let bottom = self.board("Door rail", wood, at + DVec3::new(s, t, 0.0), DVec3::X, DVec3::Z, [w - 2.0 * s, r, t]);
+        let top = self.board("Door rail", wood, at + DVec3::new(s, t, h - r), DVec3::X, DVec3::Z, [w - 2.0 * s, r, t]);
+        // The groove a panel sits in, half the stock at most, and never past 3/8".
+        let groove = (t / 2.0).min(0.375);
         for rail in [bottom, top] {
             for stile in [left, right] {
                 // Stub tenons, as deep as the panel groove, set in 1/2" from the rail's edges: the
-                // groove (which reaches 3/8" past the rail's edge) stays clear of the mortise.
-                self.doc.mortise_and_tenon(rail, stile, Tenon { length: groove, thickness: PANEL, shoulder: 0.5, haunch: 0.0, fit: 0.0 })?;
+                // groove (which reaches past the rail's edge) stays clear of the mortise.
+                let tenon = Tenon { length: groove, thickness: d.panel, shoulder: 0.5, haunch: 0.0, fit: 0.0 };
+                self.frame_joint(rail, stile, d.joints, Some(tenon))?;
             }
         }
         let plywood = Some(self.plywood());
-        let panel = self.board(
-            "Door panel",
-            plywood,
-            DVec3::new(leaf.x0 + s, y + (STOCK + PANEL) / 2.0, leaf.z0 + s),
-            DVec3::X,
-            DVec3::Z,
-            [w - 2.0 * s, h - 2.0 * s, PANEL],
-        );
+        let panel = self.board("Door panel", plywood, at + DVec3::new(s, (t + d.panel) / 2.0, r), DVec3::X, DVec3::Z, [w - 2.0 * s, h - 2.0 * r, d.panel]);
         for into in [bottom, top, left, right] {
             self.doc.let_in(panel, into, groove)?;
         }
@@ -1014,7 +1109,9 @@ mod tests {
         for joints in FrameJoints::ALL {
             templates.push(Template::FaceFrame(FaceFrame { joints, ..Default::default() }));
             templates.push(Template::Table(Table { joints, ..Default::default() }));
+            templates.push(Template::Door(Door { joints, ..Default::default() }));
         }
+        templates.push(Template::Door(Door { style: DoorStyle::Slab, ..Default::default() }));
         for template in templates {
             let mut doc = Document::default();
             let group = doc.add_template(&template, None).unwrap_or_else(|e| panic!("{template:?}: {e}"));

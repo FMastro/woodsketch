@@ -481,6 +481,9 @@ template-middle-rails = Middle rails
 template-fronts = Fronts
 template-pulls = Pulls
 template-doors = Doors
+# A door on its own: a slab, or a frame around a floating panel.
+template-style = Style
+template-panel = Panel
 template-hinge = Single doors hinge
 template-drawer-corners = Drawer corners
 # The openings in a cabinet, named top-down as you look at it. A cabinet with no shelves has
@@ -490,6 +493,8 @@ template-opening-bottom = Bottom opening
 template-opening-top = Top opening
 template-opening-n = Opening { $n }
 template-note-cabinet = Sides, top, bottom and shelves of the stock; outside sizes. Drawers ride on side-mount slides; doors wider than 24" come in pairs.
+template-note-door = Stiles full height, rails between them, a plywood panel floating in grooves all round;
+    the size of the door itself, with nothing taken off for the gap round an opening.
 template-note-drawer = A box with a 1/4" plywood bottom in grooves; outside sizes.
 template-note-face-frame = Stiles full height, rails between them.
 template-note-table = Square legs, 3/4" thick aprons, a top overhanging 1"; height to the top of the top.

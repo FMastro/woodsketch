@@ -1,4 +1,4 @@
-//! The Templates panel in the tray: make a cabinet, drawer, face frame or table from a few
+//! The Templates panel in the tray: make a cabinet, door, drawer, face frame or table from a few
 //! sizes, or change the sizes of one that's selected.
 
 use eframe::egui;
@@ -184,6 +184,18 @@ fn sizes(ui: &mut egui::Ui, key: &str, template: &mut Template) -> bool {
                     pick(ui, "Drawer corners", &t!("template-drawer-corners"), &mut c.drawer_joints, &DrawerJoints::ALL, |j| j.name());
                 }
             }
+            Template::Door(d) => {
+                length(ui, "Width", &t!("template-width"), &mut d.width);
+                length(ui, "Height", &t!("template-height"), &mut d.height);
+                pick(ui, "Style", &t!("template-style"), &mut d.style, &DoorStyle::ALL, |s| s.name());
+                length(ui, "Stock", &t!("template-stock"), &mut d.stock);
+                if d.style == DoorStyle::FrameAndPanel {
+                    length(ui, "Stiles", &t!("template-stiles"), &mut d.stile);
+                    length(ui, "Rails", &t!("template-rails"), &mut d.rail);
+                    length(ui, "Panel", &t!("template-panel"), &mut d.panel);
+                    pick(ui, "Joints", &t!("template-joints"), &mut d.joints, &FrameJoints::ALL, |j| j.name());
+                }
+            }
             Template::Drawer(d) => {
                 length(ui, "Width", &t!("template-width"), &mut d.width);
                 length(ui, "Height", &t!("template-height"), &mut d.height);
@@ -215,6 +227,7 @@ fn sizes(ui: &mut egui::Ui, key: &str, template: &mut Template) -> bool {
     });
     ui.weak(match template {
         Template::Cabinet(_) => t!("template-note-cabinet"),
+        Template::Door(_) => t!("template-note-door"),
         Template::Drawer(_) => t!("template-note-drawer"),
         Template::FaceFrame(_) => t!("template-note-face-frame"),
         Template::Table(_) => t!("template-note-table"),

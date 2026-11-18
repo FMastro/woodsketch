@@ -387,7 +387,10 @@ mod tests {
                 match rest.find('"') {
                     Some(end) if !joined && end > 0 => {
                         found.push(rest[..end].to_owned());
-                        i += 4 + end;
+                        // Past the key's closing quote, not onto it: landing on it read that
+                        // quote as a string opening, and every key after the first in a file
+                        // was then skipped as string content. 1 of this file's 59, once.
+                        i += 5 + end;
                     }
                     _ => {
                         in_string = true;

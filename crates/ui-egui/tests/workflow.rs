@@ -1989,6 +1989,27 @@ fn templates_panel_adds_a_drawer_and_changes_its_size() {
 }
 
 #[test]
+fn templates_panel_adds_a_door_on_its_own() {
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    harness.get_by_label("Templates").click();
+    harness.run();
+    harness.get_by_label("Door").click();
+    harness.run();
+    snapshot(&mut harness, "templates_door");
+    harness.get_by_label("Add the door").click();
+    harness.run();
+    let doc = harness.state().document();
+    let (group, _) = doc.container().instances().next().expect("a door");
+    assert_eq!(doc.instance_name(group), Some("Door"));
+    let (lo, hi) = doc.bounds().unwrap();
+    assert!((hi.x - lo.x - 16.0).abs() < 1e-9 && (hi.z - lo.z - 24.0).abs() < 1e-9, "16\" x 24\": {lo} {hi}");
+    // Four stub tenons holding the rails, and the panel grooved into all four frame pieces.
+    assert_eq!(doc.scene().joints.len(), 8);
+    assert!(harness.query_by_label("Door Sizes").is_some(), "its sizes show in their own panel");
+}
+
+#[test]
 fn copy_and_paste_carries_a_board_to_where_you_click() {
     let mut harness = app();
     let board = {

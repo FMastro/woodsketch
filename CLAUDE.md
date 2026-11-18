@@ -472,10 +472,12 @@ follows the app.
 Specialized for woodworking: SketchUp-familiar modeling where parts know they're wood (species,
 grain, joinery, profiles, cut list, build sheets, movement checks). The ordered plan is `docs/BACKLOG.md` (categories in the recommended order, items with effort
 points); keep general modeling working alongside it.
-28. Templates: `doc::template` (`Template` cabinet / drawer / face frame / table, each from a few sizes
-   and a joint choice, built from boards and the joinery API, grouped, one undo step via
+28. Templates: `doc::template` (`Template` cabinet / door / drawer / face frame / table, each from a
+   few sizes and a joint choice, built from boards and the joinery API, grouped, one undo step via
    `Document::as_one_step`, sizes kept on the definition as `Made` so `rebuild_template` changes
-   them in place). Templates panel in the tray; "<Template> sizes" for a selected one.
+   them in place). Templates panel in the tray; "<Template> sizes" for a selected one. A cabinet's
+   own doors are sized by its openings (`doors_in`); `Door` is the same builder (`door_at`) asked
+   for a size instead, for a door to hang on something that isn't a WoodSketch cabinet (#17).
 29. Copy and paste: `doc::clipboard` (`Clip` = the source scene with only the copies at the top, in
    world coordinates; pasting into the same drawing reuses definitions, into another imports
    definitions, materials by name, tags, joints and profiles). `Tools::copy / cut / paste /

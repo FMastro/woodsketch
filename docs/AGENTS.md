@@ -156,6 +156,10 @@ Ready-made assemblies, with only the sizes you change:
   `Open`, `Drawer`, `Doors`, e.g. `["Drawer", "Doors"]`), `fronts` (`Overlay`, `Inset`), `doors`
   (`Slab`, `FrameAndPanel`), `pulls` (`Bar`, `Knob`, `None`), `drawer_joints` (`Dovetails`,
   `BoxJoints`, `Rabbets`), `hinge` (`Left`, `Right`).
+- `door`: `width`, `height`, `style` (`FrameAndPanel`, `Slab`), `stile`, `rail`, `panel`
+  (thickness), `stock`, `joints` (frame joints). A door on its own, to hang on something that
+  isn't a WoodSketch cabinet; the size of the door itself, with nothing taken off for the gap
+  round an opening.
 - `drawer`: `width`, `height`, `depth`, `joints` (drawer joints), `stock`.
 - `face_frame`: `width`, `height`, `stile`, `rail`, `stock`, `middle_rails`, `joints`.
 

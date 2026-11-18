@@ -11,6 +11,8 @@ that belongs in the commit message, which is where it already is.
 
 - A panel goes into its frame whichever edge is grooved first. Letting a door's panel into
   the stiles no longer stops the rails from taking it (#17).
+- A door is a template of its own now, in the Templates panel beside the cabinet and the
+  table: give it a size and get a frame-and-panel or slab door to hang on anything (#17).
 
 ## 0.1.76
 

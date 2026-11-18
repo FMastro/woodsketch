@@ -268,8 +268,8 @@ fn y_axis() -> String {
     "y".into()
 }
 
-/// A template: `cabinet`, `drawer`, `face_frame` or `table`, with only the sizes that differ from
-/// its defaults (`{"width": 24, "height": 30}`).
+/// A template: `cabinet`, `door`, `drawer`, `face_frame` or `table`, with only the sizes that
+/// differ from its defaults (`{"width": 24, "height": 30}`).
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TemplateSpec {
@@ -1096,10 +1096,11 @@ fn axis(name: &str) -> Option<usize> {
 fn template(kind: &str, sizes: &serde_json::Map<String, serde_json::Value>, mm: bool) -> Result<Template, String> {
     let defaults = match kind.to_ascii_lowercase().replace([' ', '-'], "_").as_str() {
         "cabinet" => Template::Cabinet(Default::default()),
+        "door" => Template::Door(Default::default()),
         "drawer" => Template::Drawer(Default::default()),
         "face_frame" | "faceframe" => Template::FaceFrame(Default::default()),
         "table" => Template::Table(Default::default()),
-        other => return Err(format!("\"{other}\" isn't a template (cabinet, drawer, face_frame or table).")),
+        other => return Err(format!("\"{other}\" isn't a template (cabinet, door, drawer, face_frame or table).")),
     };
     // Its fields as JSON, with the given ones laid over.
     let mut json = serde_json::to_value(defaults).map_err(|e| e.to_string())?;
@@ -1521,6 +1522,34 @@ mod tests {
         assert!(doc.scene().joints.len() >= 8, "the table's mortises and tenons");
         let bad = parse(r#"{ "templates": [{ "kind": "table", "sizes": { "colour": 3 } }] }"#).unwrap();
         assert!(build(&bad).err().expect("an error")[0].contains("Table has no size \"colour\""));
+    }
+
+    #[test]
+    fn a_door_is_a_template_of_its_own() {
+        // A door to hang on something that isn't a WoodSketch cabinet (#17): its own sizes, in
+        // the style and joint asked for.
+        let recipe = parse(
+            r#"{
+            "materials": [{ "id": "oak", "library": "White Oak" }],
+            "templates": [{ "kind": "door", "name": "Left door", "wood": "oak",
+                            "sizes": { "width": 18, "height": 30, "stile": 2, "rail": 2.5, "joints": "Dowels" } }]
+        }"#,
+        )
+        .unwrap();
+        let doc = build(&recipe).unwrap_or_else(|e| panic!("{e:?}"));
+        let (lo, hi) = doc.scene().bounds().unwrap();
+        assert!((hi.x - lo.x - 18.0).abs() < 1e-9 && (hi.z - lo.z - 30.0).abs() < 1e-9, "18 x 30: {lo} {hi}");
+        let frame = summary(&doc);
+        assert!(frame.contains("Door stile x2") && frame.contains("Door rail x2") && frame.contains("Door panel x1"), "{frame}");
+        assert!(frame.contains("4 dowels") && frame.contains("4 groove"), "dowelled frame, panel in grooves: {frame}");
+        // A slab door is one board, and then the frame sizes don't apply.
+        let slab = parse(r#"{ "templates": [{ "kind": "door", "sizes": { "style": "Slab", "width": 18, "height": 30 } }] }"#).unwrap();
+        let doc = build(&slab).unwrap_or_else(|e| panic!("{e:?}"));
+        assert_eq!(doc.scene().joints.len(), 0);
+        let one_board = summary(&doc);
+        assert!(one_board.contains("Door x1"), "{one_board}");
+        let bad = parse(r#"{ "templates": [{ "kind": "door", "sizes": { "stile": 0.5 } }] }"#).unwrap();
+        assert!(build(&bad).err().expect("an error")[0].contains("Stiles and rails must be at least 1 1/2\""));
     }
 }
 
