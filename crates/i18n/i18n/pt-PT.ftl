@@ -83,7 +83,6 @@ view-dimensions = Cotas
 view-dimensions-hint = Mostrar ou ocultar todas as cotas
 view-text = Texto
 view-text-hint = Mostrar ou ocultar todas as notas de texto
-view-default-tray = Bandeja Predefinida
 view-language = Idioma
 view-language-hint = O idioma em que o próprio WoodSketch está escrito; o seu desenho fica intacto
 

@@ -89,7 +89,6 @@ view-dimensions = Dimensions
 view-dimensions-hint = Show or hide every dimension
 view-text = Text
 view-text-hint = Show or hide every text note
-view-default-tray = Default Tray
 view-language = Language
 view-language-hint = What WoodSketch itself is written in; your drawing is untouched
 
@@ -111,6 +110,12 @@ tools-cut-list = Cut List...
 ## Window
 
 window-default-tray = Default Tray
+window-show-tray = Show Tray
+window-show-tray-hint = The whole tray, down the right-hand side
+window-panels-show-all = Show All Panels
+window-panels-hide-all = Hide All Panels
+window-panels-automatic = Automatic
+window-panels-automatic-hint = Each panel appears when it has something to show, which is how the tray starts out
 window-cut-list = Cut List
 
 ## Help
@@ -211,18 +216,30 @@ toolbar-cut-list-hint = Cut List: parts and cutting diagrams
 ## The Default Tray, down the right-hand side, and the name of each panel in it
 
 tray-title = Default Tray
+tray-hide = Hide the tray
 tray-hide-hint = Hide the tray (Window > Default Tray)
+# The ✕ on a panel's header bar: named after the panel, since every panel has one.
+tray-close-panel = Close { $panel }
+tray-close-panel-hint = Close this panel. Window > Default Tray brings it back.
+tray-no-panels = Every panel is closed. Window > Default Tray brings them back.
 tray-board = Board
 tray-entity-info = Entity Info
 tray-joinery = Joinery
-tray-edge-profile = Edge profile
+tray-edge-profile = Edge Profile
 tray-templates = Templates
 tray-materials = Materials
 tray-tags = Tags
 tray-outliner = Outliner
 # The sizes of whichever template is selected: "Cabinet sizes", "Drawer sizes". The template's own
 # name is not translated yet, so it arrives in English.
-tray-template-sizes = { $template } sizes
+tray-template-sizes = { $template } Sizes
+# The same panel, named without a template to name: on its own in the Window menu, and on its
+# header while nothing made from a template is selected.
+tray-template-sizes-name = Template Sizes
+# Said in a panel's body when it is open but has nothing to work on yet.
+tray-joinery-needs = Select two parts that touch, to joint them.
+tray-template-sizes-needs = Select a part made from a template, to change its sizes.
+tray-edge-profile-needs = Select one part, to profile its edges.
 
 ## The What's New window (Help > What's New), shown once after an update
 

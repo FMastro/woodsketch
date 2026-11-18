@@ -18,6 +18,7 @@ mod part;
 mod profile;
 mod tags;
 mod template;
+mod tray;
 pub mod start;
 pub mod thumbs;
 pub mod updates;
@@ -41,6 +42,8 @@ const LAST_VERSION_KEY: &str = "last_version";
 const UNITS_KEY: &str = "units";
 /// Settings key for View > Theme.
 const THEME_KEY: &str = "theme";
+/// Which tray panels stand in the tray (Window > Default Tray), kept between runs.
+const PANELS_KEY: &str = "tray_panels";
 /// Which language the interface is in (View > Language). Absent means nobody has chosen, so the
 /// computer's own language is followed; once chosen it is kept, because someone who picked English
 /// on a Portuguese computer meant it.
@@ -56,6 +59,8 @@ pub struct WoodSketchApp {
     files: files::Files,
     cut_list: cutlist::CutListWindow,
     show_tray: bool,
+    /// Which panels stand in the tray, and which somebody closed (Window > Default Tray).
+    panels: tray::Tray,
     show_about: bool,
     /// Help > Report a Problem / Send Feedback.
     feedback: feedback::FeedbackWindow,
@@ -157,6 +162,7 @@ impl WoodSketchApp {
             files: files::Files::default(),
             cut_list: cutlist::CutListWindow::default(),
             show_tray: true,
+            panels: cc.storage.and_then(|s| eframe::get_value(s, PANELS_KEY)).unwrap_or_default(),
             show_about: false,
             feedback: feedback::FeedbackWindow::default(),
             theme,
@@ -758,6 +764,7 @@ impl eframe::App for WoodSketchApp {
             eframe::set_value(storage, THEME_KEY, &key.to_string());
         }
         eframe::set_value(storage, LANGUAGE_KEY, &woodsketch_i18n::language());
+        eframe::set_value(storage, PANELS_KEY, &self.panels);
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, frame: &mut eframe::Frame) {

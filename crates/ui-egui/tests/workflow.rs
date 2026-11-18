@@ -698,6 +698,105 @@ fn tape_a_guide_off_an_edge_then_draw_from_where_it_crosses() {
     assert_eq!(harness.state().document().model().guides().count(), 0);
 }
 
+/// Open Window > Default Tray. Told apart from the tray's own "Default Tray" title by being a
+/// button: the title is a label.
+fn tray_menu(harness: &mut Harness<'_, WoodSketchApp>) {
+    use egui_kittest::kittest::{Queryable, by};
+    harness.get_by_label("Window").click();
+    // Steps rather than `run`: an open menu animates, so it never stops asking to be repainted.
+    harness.run_steps(3);
+    harness.get(by().role(egui::accesskit::Role::Button).label_contains("Default Tray")).hover();
+    harness.run_steps(3);
+}
+
+/// Each tray panel has a header bar naming it and a ✕ of its own; closing one leaves the rest
+/// where they were, and the Window menu brings it back.
+#[test]
+fn a_tray_panel_closes_on_its_own_and_comes_back_from_the_window_menu() {
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    for panel in ["Entity Info", "Materials", "Tags", "Outliner"] {
+        assert!(harness.query_by_label(panel).is_some(), "{panel} has a header of its own");
+    }
+    snapshot(&mut harness, "tray_panels");
+
+    // Each ✕ is named after its panel, so there is one to aim at.
+    harness.get_by_label("Close Materials").click();
+    harness.run();
+    assert!(harness.query_by_label("Materials").is_none(), "Materials is closed");
+    for panel in ["Entity Info", "Tags", "Outliner"] {
+        assert!(harness.query_by_label(panel).is_some(), "{panel} stayed");
+    }
+
+    tray_menu(&mut harness);
+    harness.get_by_label("Materials").click();
+    harness.run();
+    assert!(harness.query_by_label("Materials").is_some(), "Materials is back in the tray");
+}
+
+/// Hide All Panels empties the tray and says how to fill it again; Show All Panels brings every
+/// panel whether it has anything to work on or not; Automatic goes back to panels appearing when
+/// they apply.
+#[test]
+fn the_window_menu_hides_and_shows_every_panel_at_once() {
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    tray_menu(&mut harness);
+    harness.get_by_label("Hide All Panels").click();
+    harness.run();
+    for panel in ["Entity Info", "Materials", "Tags", "Outliner"] {
+        assert!(harness.query_by_label(panel).is_none(), "{panel} is closed");
+    }
+    assert!(harness.query_by_label_contains("Every panel is closed").is_some(), "and the tray says how to get them back");
+
+    tray_menu(&mut harness);
+    harness.get_by_label("Show All Panels").click();
+    harness.run();
+    // Each panel's own ✕ says it is there, including the ones about a selection there isn't.
+    for panel in ["Board", "Entity Info", "Joinery", "Template Sizes", "Edge Profile", "Templates", "Materials", "Tags", "Outliner"] {
+        assert!(harness.query_by_label(&format!("Close {panel}")).is_some(), "{panel} is in the tray");
+    }
+    assert!(harness.query_by_label_contains("Select two parts that touch").is_some(), "Joinery says what it needs");
+    snapshot(&mut harness, "tray_all_panels");
+
+    tray_menu(&mut harness);
+    harness.get_by_label("Automatic").click();
+    harness.run();
+    assert!(harness.query_by_label("Outliner").is_some(), "the Outliner always has something to show");
+    assert!(harness.query_by_label("Joinery").is_none(), "Joinery waits for two parts again");
+}
+
+/// Automatic: a panel about the selection appears when the selection says so, and one closed by
+/// hand stays closed even when it applies.
+#[test]
+fn a_panel_about_the_selection_appears_when_it_applies() {
+    use egui_kittest::kittest::Queryable;
+    use glam::DVec3;
+    let mut harness = app();
+    let (a, b) = {
+        let doc = harness.state_mut().document_mut();
+        let a = add_board(doc, DVec3::ZERO, 24.0, 1.5, 3.5);
+        let b = add_board(doc, DVec3::new(1.5, 0.0, 0.0), 24.0, 1.5, 3.5);
+        (a, b)
+    };
+    harness.run();
+    assert!(harness.query_by_label("Joinery").is_none(), "nothing to joint yet");
+
+    harness.state_mut().document_mut().selection_mut().extend([a, b]);
+    harness.run();
+    assert!(harness.query_by_label("Joinery").is_some(), "two parts selected: the Joinery panel is there");
+    assert!(harness.query_by_label("Edge Profile").is_none(), "but Edge profile wants one part");
+
+    harness.get_by_label("Close Joinery").click();
+    harness.run();
+    assert!(harness.query_by_label("Joinery").is_none(), "closed stays closed");
+    harness.state_mut().document_mut().selection_mut().clear();
+    harness.run();
+    harness.state_mut().document_mut().selection_mut().extend([a, b]);
+    harness.run();
+    assert!(harness.query_by_label("Joinery").is_none(), "and it doesn't come back by itself");
+}
+
 #[test]
 fn the_window_is_laid_out_like_sketchup() {
     use egui_kittest::kittest::Queryable;
@@ -705,9 +804,12 @@ fn the_window_is_laid_out_like_sketchup() {
     for menu in ["File", "Edit", "View", "Camera", "Draw", "Tools", "Window", "Help"] {
         assert!(harness.query_by_label(menu).is_some(), "{menu} menu");
     }
-    for panel in ["Default Tray", "Entity Info", "Materials", "Tags", "Outliner", "Measurements"] {
-        assert!(harness.query_by_label_contains(panel).is_some(), "{panel}");
+    // By their exact names: each panel's header is its name, and its ✕ is "Close <name>", so
+    // matching on part of a name would find both.
+    for panel in ["Default Tray", "Entity Info", "Materials", "Tags", "Outliner"] {
+        assert!(harness.query_by_label(panel).is_some(), "{panel}");
     }
+    assert!(harness.query_by_label_contains("Measurements").is_some(), "the Measurements box");
     // Draw > Line activates the Line tool, like its L shortcut.
     harness.get_by_label("Draw").click();
     harness.run();
@@ -1683,7 +1785,7 @@ fn edge_profile_panel_rounds_over_a_tabletop_and_chamfers_a_leg() {
         (top, leg)
     };
     harness.run();
-    assert!(harness.query_by_label("Edge profile").is_some());
+    assert!(harness.query_by_label("Edge Profile").is_some());
     assert!(harness.query(egui_kittest::kittest::by().role(egui::accesskit::Role::ComboBox).value("Around the top")).is_some(), "a tabletop starts with its top edges");
     harness.get_by_label("Rout the roundover").click();
     harness.run();
@@ -1873,7 +1975,7 @@ fn templates_panel_adds_a_drawer_and_changes_its_size() {
     assert_eq!(doc.instance_name(group), Some("Drawer"));
     assert!(doc.selection().contains(woodsketch_doc::Entity::Instance(group)), "the new drawer is selected");
     // Selected, its sizes show in their own panel: make it 6" tall.
-    assert!(harness.query_by_label("Drawer sizes").is_some());
+    assert!(harness.query_by_label("Drawer Sizes").is_some());
     let height = harness.get_all_by_role(egui::accesskit::Role::TextInput).find(|n| n.value().as_deref() == Some("5\"")).expect("the drawer's height (its own panel comes first)");
     height.click();
     harness.run();

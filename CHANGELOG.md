@@ -7,6 +7,12 @@ Write them short. One line per change, a sentence or two at most: what changed, 
 reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
 that belongs in the commit message, which is where it already is.
 
+## 0.1.74
+
+- The tray's panels each have a header bar now, with a ✕ that closes that panel. Window >
+  Default Tray lists them all: tick one to bring it back, or Show All Panels, Hide All Panels
+  and Automatic for the lot. What you leave open is remembered for next time.
+
 ## 0.1.73
 
 - Drawing on a closed group opens it, and Esc now takes that back instead of throwing the

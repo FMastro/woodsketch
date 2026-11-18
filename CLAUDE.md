@@ -32,6 +32,13 @@ reading (`doc::skp`) was worked out from `.skp` files only, without the SDK; kee
   branding or artwork. Keyboard routing (`keys.rs`), viewport input and overlays
   (`viewport.rs`). `tests/workflow.rs` drives the real app headlessly with `egui_kittest` (set
   `WOODSKETCH_SNAPSHOT_DIR` to save rendered PNGs).
+  The tray is `tray.rs`: one `Panel` per panel, each drawn by `tray::section` with a header bar
+  that folds it and a ✕ named after it (`Close Materials`, so nine buttons aren't all "✕"), and
+  `Tray` saying which stand there, kept in the settings. Three answers per panel, not two:
+  `Shows::Auto` is the old behaviour, where Joinery, Edge Profile, Template Sizes and Board
+  appear when they have something to work on (`chrome::panel_applies`), and Window > Default
+  Tray sets `Always` or `Never` when someone means it. A panel asked for with nothing to work on
+  says what to select (`Panel::needs`) rather than standing empty.
 - `apps/woodsketch`: the binary.
 - `apps/woodsketch-cli`: the command line and MCP server for agents (`woodsketch-cli help`):
   builds recipes (`doc::recipe`), writes the shop sheets, renders PNGs headless

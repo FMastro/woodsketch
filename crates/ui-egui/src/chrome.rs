@@ -1,6 +1,6 @@
 //! The window around the viewport, laid out the way SketchUp users expect on Windows: a menu
 //! bar, a toolbar of standard and view buttons, the two-column Large Tool Set down the left,
-//! the Default Tray of collapsible panels on the right, and the status bar with the
+//! the Default Tray of panels on the right (`crate::tray`), and the status bar with the
 //! Measurements box at the bottom right.
 
 use eframe::egui;
@@ -11,6 +11,7 @@ use woodsketch_view::StandardView;
 
 use woodsketch_i18n::t;
 
+use crate::tray::{self, Panel, Shows};
 use crate::{WoodSketchApp, files, icons, outliner, tags};
 
 const BUTTON_SIZE: f32 = 32.0;
@@ -81,6 +82,13 @@ pub fn visuals(dark: bool) -> egui::Visuals {
     v.selection.stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(0, 84, 153));
     v.widgets.noninteractive.bg_stroke = egui::Stroke::new(1.0, egui::Color32::from_gray(210));
     v
+}
+
+/// The fill behind a tray panel's header bar, a shade off the tray itself so the column reads as
+/// panels rather than as one long list. Here, beside [`visuals`], because it belongs to the theme
+/// and both themes have to answer for it.
+pub fn panel_header_fill(visuals: &egui::Visuals) -> egui::Color32 {
+    if visuals.dark_mode { egui::Color32::from_gray(58) } else { egui::Color32::from_gray(221) }
 }
 
 /// View > Theme's choices: the preference, its name, and how it's saved.
@@ -349,7 +357,6 @@ impl WoodSketchApp {
             if ui.checkbox(&mut text, t!("view-text")).on_hover_text(t!("view-text-hint")).changed() {
                 self.doc.set_text_hidden(!text);
             }
-            ui.checkbox(&mut self.show_tray, t!("view-default-tray"));
             language_menu(ui);
         });
     }
@@ -397,9 +404,34 @@ impl WoodSketchApp {
         });
     }
 
+    /// Window: the tray and its panels (as SketchUp keeps them, under the tray's own name), and
+    /// the Cut List window.
     fn window_menu(&mut self, ui: &mut egui::Ui) {
         ui.menu_button(t!("menu-window"), |ui| {
-            ui.checkbox(&mut self.show_tray, t!("window-default-tray"));
+            ui.menu_button(t!("window-default-tray"), |ui| {
+                ui.checkbox(&mut self.show_tray, t!("window-show-tray")).on_hover_text(t!("window-show-tray-hint"));
+                ui.separator();
+                for panel in Panel::ALL {
+                    let mut on = self.panels.showing(panel, self.panel_applies(panel));
+                    if ui.checkbox(&mut on, panel.name()).changed() {
+                        self.panels.set(panel, if on { Shows::Always } else { Shows::Never });
+                        // A panel asked for while the tray is hidden means the tray, too.
+                        self.show_tray |= on;
+                    }
+                }
+                ui.separator();
+                if ui.button(t!("window-panels-show-all")).clicked() {
+                    self.panels.set_all(Shows::Always);
+                    self.show_tray = true;
+                }
+                if ui.button(t!("window-panels-hide-all")).clicked() {
+                    self.panels.set_all(Shows::Never);
+                }
+                if ui.button(t!("window-panels-automatic")).on_hover_text(t!("window-panels-automatic-hint")).clicked() {
+                    self.panels.set_all(Shows::Auto);
+                    self.show_tray = true;
+                }
+            });
             ui.checkbox(&mut self.cut_list.open, t!("window-cut-list"));
         });
     }
@@ -598,55 +630,115 @@ impl WoodSketchApp {
         });
     }
 
-    /// SketchUp's Default Tray: Entity Info, Materials, Tags and Outliner, each collapsible.
+    /// The one selected part, which Edge profile and Template sizes are about.
+    fn selected_part(&self) -> Option<woodsketch_doc::InstanceId> {
+        match self.doc.selection().iter().collect::<Vec<_>>()[..] {
+            [woodsketch_doc::Entity::Instance(part)] => Some(part),
+            _ => None,
+        }
+    }
+
+    /// Whether a panel has anything to say right now, which is what [`Shows::Auto`] follows.
+    fn panel_applies(&self, panel: Panel) -> bool {
+        match panel {
+            // Tool settings: the stock the next board is cut from.
+            Panel::Board => self.tools.active() == ToolId::Board,
+            Panel::Joinery => crate::joinery::selected_pair(&self.doc).is_some(),
+            Panel::TemplateSizes => self.selected_part().and_then(|part| self.doc.template_of(part)).is_some(),
+            Panel::EdgeProfile => self.selected_part().is_some(),
+            _ => true,
+        }
+    }
+
+    /// SketchUp's Default Tray: a column of panels, each with a header bar that folds it and a ✕
+    /// that closes it, and Window > Default Tray to bring one back. Which of them stand here is
+    /// kept between runs ([`crate::tray::Tray`]).
     pub(crate) fn tray(&mut self, ui: &mut egui::Ui) {
-        // A text note double-clicked: its words, in Entity Info, ready to type over.
+        // A text note double-clicked: its words, in Entity Info, ready to type over. The panel is
+        // asked for by name, in case it was closed -- otherwise the words would open out of sight.
         if let Some(note) = self.tools.take_edit_note() {
             self.show_tray = true;
+            self.panels.set(Panel::EntityInfo, Shows::Always);
             ui.memory_mut(|m| m.request_focus(tags::note_field_id(note)));
         }
         if !self.show_tray {
             return;
         }
+        let showing: Vec<Panel> = Panel::ALL.into_iter().filter(|&p| self.panels.showing(p, self.panel_applies(p))).collect();
+        let part = self.selected_part();
+        let pair = crate::joinery::selected_pair(&self.doc);
+        let made = part.and_then(|part| self.doc.template_of(part));
         egui::Panel::right("default tray").default_size(250.0).show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.strong(t!("tray-title"));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    if ui.small_button(icons::CLOSE).on_hover_text(t!("tray-hide-hint")).clicked() {
+                    let hide = ui.small_button(icons::CLOSE);
+                    hide.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, t!("tray-hide")));
+                    if hide.on_hover_text(t!("tray-hide-hint")).clicked() {
                         self.show_tray = false;
                     }
                 });
             });
             ui.separator();
+            // The ✕ on a panel is answered after the column is drawn: the tray is being read
+            // while it's drawn, and a panel that vanished mid-column would take the next one's
+            // place under the cursor.
+            let mut closed = None;
             egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-                if self.tools.active() == ToolId::Board {
-                    tray_section(ui, "Board", &t!("tray-board"), |ui| crate::board::show(ui, &mut self.doc, &mut self.tools));
-                }
-                tray_section(ui, "Entity Info", &t!("tray-entity-info"), |ui| tags::entity_info(ui, &mut self.doc, &mut self.tools));
-                if let Some(pair) = crate::joinery::selected_pair(&self.doc) {
-                    tray_section(ui, "Joinery", &t!("tray-joinery"), |ui| crate::joinery::show(ui, &mut self.doc, pair));
-                }
-                if let [woodsketch_doc::Entity::Instance(part)] = self.doc.selection().iter().collect::<Vec<_>>()[..] {
-                    if let Some(made) = self.doc.template_of(part) {
-                        tray_section(ui, "Template sizes", &t!("tray-template-sizes", "template" => made.template.name()), |ui| {
-                            crate::template::change(ui, &mut self.doc, part, made)
-                        });
-                    }
-                    tray_section(ui, "Edge profile", &t!("tray-edge-profile"), |ui| crate::profile::show(ui, &mut self.doc, part));
-                }
-                // Folded until wanted: making a new cabinet, drawer, face frame or table.
-                egui::CollapsingHeader::new(egui::RichText::new(t!("tray-templates")).strong())
-                    .id_salt("Templates")
-                    .default_open(false)
-                    .show(ui, |ui| {
-                        if crate::template::new(ui, &mut self.doc) {
-                            self.viewport.request_zoom_extents();
+                for panel in showing {
+                    // A panel asked for with nothing to work on says what to select instead.
+                    let needs = (!self.panel_applies(panel)).then(|| panel.needs()).flatten();
+                    let title = match (panel, made) {
+                        (Panel::TemplateSizes, Some(made)) => t!("tray-template-sizes", "template" => made.template.name()),
+                        _ => panel.name(),
+                    };
+                    let shut = tray::section(ui, panel, &title, |ui| {
+                        if let Some(needs) = needs {
+                            // Dimmed, like Entity Info's "Nothing selected.": it's the panel
+                            // waiting, not something to read.
+                            ui.weak(needs);
+                            return;
+                        }
+                        match panel {
+                            Panel::Board => crate::board::show(ui, &mut self.doc, &mut self.tools),
+                            Panel::EntityInfo => tags::entity_info(ui, &mut self.doc, &mut self.tools),
+                            Panel::Joinery => {
+                                if let Some(pair) = pair {
+                                    crate::joinery::show(ui, &mut self.doc, pair);
+                                }
+                            }
+                            Panel::TemplateSizes => {
+                                if let (Some(part), Some(made)) = (part, made) {
+                                    crate::template::change(ui, &mut self.doc, part, made);
+                                }
+                            }
+                            Panel::EdgeProfile => {
+                                if let Some(part) = part {
+                                    crate::profile::show(ui, &mut self.doc, part);
+                                }
+                            }
+                            Panel::Templates => {
+                                if crate::template::new(ui, &mut self.doc) {
+                                    self.viewport.request_zoom_extents();
+                                }
+                            }
+                            Panel::Materials => self.materials.show(ui, &mut self.doc, &mut self.tools),
+                            Panel::Tags => self.tags.show(ui, &mut self.doc),
+                            Panel::Outliner => outliner::show(ui, &mut self.doc, &mut self.tools),
                         }
                     });
-                tray_section(ui, "Materials", &t!("tray-materials"), |ui| self.materials.show(ui, &mut self.doc, &mut self.tools));
-                tray_section(ui, "Tags", &t!("tray-tags"), |ui| self.tags.show(ui, &mut self.doc));
-                tray_section(ui, "Outliner", &t!("tray-outliner"), |ui| outliner::show(ui, &mut self.doc, &mut self.tools));
+                    if shut {
+                        closed = Some(panel);
+                    }
+                }
+                if !Panel::ALL.into_iter().any(|p| self.panels.showing(p, self.panel_applies(p))) {
+                    ui.add_space(4.0);
+                    ui.label(t!("tray-no-panels"));
+                }
             });
+            if let Some(panel) = closed {
+                self.panels.set(panel, Shows::Never);
+            }
         });
     }
 
@@ -782,15 +874,6 @@ fn notes_items(notes: &str) -> Vec<String> {
         }
     }
     items
-}
-
-/// One folding panel of the tray. `salt` is what egui remembers the fold by, so it stays the
-/// same in every language: keyed on the title, switching language would forget every fold.
-fn tray_section(ui: &mut egui::Ui, salt: &str, title: &str, contents: impl FnOnce(&mut egui::Ui)) {
-    egui::CollapsingHeader::new(egui::RichText::new(title).strong())
-        .id_salt(salt)
-        .default_open(true)
-        .show(ui, contents);
 }
 
 /// A menu of tools, each with its shortcut.
