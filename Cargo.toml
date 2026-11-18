@@ -32,6 +32,9 @@ serde = { version = "1", features = ["derive"] }
 # float_roundtrip: coordinates must reload bit-for-bit, or a reopened drawing drifts.
 serde_json = { version = "1", features = ["float_roundtrip"] }
 rfd = "0.17"
+# platform-verifier: HTTPS that can trust the roots the computer trusts, which is the only way
+# onto a network that re-signs it (`ui_egui::net`).
+ureq = { version = "3.4", features = ["platform-verifier"] }
 log = "0.4"
 env_logger = "0.11"
 

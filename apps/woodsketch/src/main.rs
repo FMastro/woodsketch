@@ -4,6 +4,7 @@
 use eframe::egui;
 use woodsketch_ui_egui::WoodSketchApp;
 
+mod releases;
 mod update;
 
 fn main() -> eframe::Result {

@@ -8,6 +8,7 @@ pub mod files;
 mod icons;
 mod keys;
 mod materials;
+pub mod net;
 mod autosave;
 mod watch;
 mod board;

@@ -22,8 +22,8 @@ glam.workspace = true
 # Which tray panels are open, kept in eframe's settings.
 serde.workspace = true
 egui-phosphor = { version = "0.14", features = ["regular", "fill"] }
-# Sending a report to woodsketch.net (already built for Velopack's update checks).
-ureq = "3.4"
+# Sending a report to woodsketch.net, and the roots to trust doing it (`net.rs`).
+ureq.workspace = true
 # Thumbnails kept between runs (the CLI already builds this to write its pictures).
 png = "0.18"
 

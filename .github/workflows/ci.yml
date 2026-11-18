@@ -39,7 +39,7 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Tests (without the GPU)
         shell: bash
-        run: cargo test --locked -p woodsketch-doc -p woodsketch-tools -p woodsketch-view -p woodsketch-cli
+        run: cargo test --locked -p woodsketch-doc -p woodsketch-tools -p woodsketch-view -p woodsketch-cli -p woodsketch
       # ui-egui's own tests need a GPU, but its unit tests don't, and one of them reads the real
       # CHANGELOG and asserts its newest section is the running version. That guard was only ever
       # run by hand until now.
@@ -57,3 +57,17 @@ jobs:
           fetch-depth: 0
       - name: Check for source that no release can describe
         run: python3 -I scripts/check-unreleased.py --verbose
+
+  notices:
+    name: the notices name every package that ships
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Every platform's packages, not this runner's: the same notices ship beside all four
+      # builds, so the file names what Windows, macOS and Linux each pull in.
+      - name: Fetch every package's source
+        run: cargo fetch --locked
+      - name: Check THIRD-PARTY-NOTICES.md against the dependencies
+        run: python3 -I scripts/make-notices.py --check

@@ -19,20 +19,33 @@ pub type Post = Arc<dyn Fn(&str) -> Result<(u16, String), String> + Send + Sync>
 /// The real post: to woodsketch.net, saying it's the app.
 fn post_to_relay() -> Post {
     Arc::new(|body: &str| {
-        let agent: ureq::Agent = ureq::Agent::config_builder()
-            .http_status_as_error(false)
-            .timeout_global(Some(std::time::Duration::from_secs(30)))
-            .build()
-            .into();
-        let mut response = agent
-            .post(RELAY)
-            .header("User-Agent", &format!("WoodSketch/{}", crate::updates::VERSION))
-            .header("Content-Type", "application/json")
-            .send(body)
-            .map_err(|e| t!("feedback-unreachable", "error" => e.to_string()))?;
-        let status = response.status().as_u16();
-        let text = response.body_mut().read_to_string().unwrap_or_default();
-        Ok((status, text))
+        // Each roots in turn, so a machine whose HTTPS is re-signed can still send a report
+        // (`crate::net`); a report is posted once, since only a refused certificate retries.
+        let mut refused = None;
+        for roots in crate::net::roots() {
+            let agent: ureq::Agent = ureq::Agent::config_builder()
+                .http_status_as_error(false)
+                .tls_config(crate::net::tls(roots))
+                .timeout_global(Some(std::time::Duration::from_secs(30)))
+                .build()
+                .into();
+            match agent
+                .post(RELAY)
+                .header("User-Agent", &format!("WoodSketch/{}", crate::updates::VERSION))
+                .header("Content-Type", "application/json")
+                .send(body)
+            {
+                Ok(mut response) => {
+                    let status = response.status().as_u16();
+                    let text = response.body_mut().read_to_string().unwrap_or_default();
+                    return Ok((status, text));
+                }
+                Err(e) if crate::net::untrusted_certificate(&e) => refused = Some(e),
+                Err(e) => return Err(t!("feedback-unreachable", "error" => e.to_string())),
+            }
+        }
+        let said = refused.map(|e| e.to_string()).unwrap_or_default();
+        Err(t!("feedback-unreachable", "error" => said))
     })
 }
 

@@ -4,11 +4,12 @@
 use std::sync::{Arc, Mutex};
 
 use eframe::egui;
-use velopack::sources::GithubSource;
 use velopack::{UpdateCheck, UpdateInfo, UpdateManager};
 use woodsketch_ui_egui::updates::{UpdateState, Updater};
 
-const REPO: &str = "https://github.com/FMastro/woodsketch";
+use crate::releases::Releases;
+
+pub const REPO: &str = "https://github.com/FMastro/woodsketch";
 
 /// The update found and downloaded, ready to apply.
 type Pending = Arc<Mutex<Option<(UpdateManager, UpdateInfo)>>>;
@@ -32,7 +33,7 @@ pub fn updater(ctx: egui::Context) -> Updater {
                 };
                 set(UpdateState::Checking);
                 // Not installed with the installer (run from a build): nothing to update.
-                let Ok(manager) = UpdateManager::new(GithubSource::new(REPO, None, false), None, None) else {
+                let Ok(manager) = UpdateManager::new(Releases::at(REPO), None, None) else {
                     set(UpdateState::NotInstalled);
                     return;
                 };

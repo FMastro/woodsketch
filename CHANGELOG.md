@@ -12,6 +12,8 @@ that belongs in the commit message, which is where it already is.
 - The tray's panels each have a header bar now, with a ✕ that closes that panel. Window >
   Default Tray lists them all: tick one to bring it back, or Show All Panels, Hide All Panels
   and Automatic for the lot. What you leave open is remembered for next time.
+- Checking for updates and sending a report now trust the certificates your computer trusts, so
+  they work on a VPN or a managed network that re-signs secure traffic (#14).
 
 ## 0.1.73
 

@@ -184,7 +184,13 @@ the drawing is no longer the one it holds.
 
 ## Third-party notices
 `THIRD-PARTY-NOTICES.md` lists every package WoodSketch is built with and its license, and
-`release.yml` packs it beside the app. Regenerate it when dependencies change.
+`release.yml` packs it beside the app. It is written by `python -I scripts/make-notices.py`, never
+by hand, and CI's `notices` job runs `--check`, so a `cargo add` or `cargo update` that changes
+what ships fails until the file is written again. The graph it reads is every feature and every
+platform (the same file ships beside all four builds; filtering to the machine that generated it
+is how the macOS notices came to be missing every `objc2` package), minus WoodSketch's own crates
+and anything reached only as a dev-dependency. Licenses with the same text are listed once with
+all their copyright lines, and where a package offers a choice the permissive one is taken.
 
 ## Backlog
 `docs/BACKLOG.md` lists known gaps and skipped work. When you skip or simplify something,
@@ -342,7 +348,18 @@ add it there; when you finish an item, remove it.
    ship). The app runs `VelopackApp` first, then checks GitHub Releases in the background at startup
    (Help > Check for updates at startup; Help > Check for Updates...), downloads quietly, and offers
    "Restart to update" in the status bar (after "Save changes?"; the open drawing reopens). The UI side (`ui-egui::updates`)
-   has no Velopack dependency; `apps/woodsketch/src/update.rs` plugs it in. The Windows build is
+   has no Velopack dependency; `apps/woodsketch/src/update.rs` plugs it in, with
+   `apps/woodsketch/src/releases.rs` as the update source instead of Velopack's `GithubSource`:
+   that one builds its HTTPS client with only the certificate roots compiled into the binary and
+   offers no way to change them, so on a machine whose HTTPS is re-signed (a VPN, a managed
+   network, antivirus that inspects traffic) the check alone failed with `UnknownIssuer` while
+   every other program worked (#14). Which roots to trust is one answer in `ui-egui::net`, used by
+   the update source and the feedback relay both: the computer's own first, the roots shipped here
+   as the fall-back, and only an untrusted certificate tries the next (anything else is reported,
+   so a report is never posted twice). `releases.rs` reads each release's
+   `releases.<channel>.json`; `every_platform_has_an_update_to_find` checks the real feed for all
+   four channels and is the one test that can tell whether GitHub's answer still parses, so run it
+   after touching that file (`WOODSKETCH_RELEASES=1 cargo test -p woodsketch`). The Windows build is
    signed with Azure Artifact Signing (profile `woodsketch-public`) over OIDC from the `release`
    environment when the `AZURE_*` repository variables are set, and ships unsigned without them;
    macOS and Linux aren't signed yet (`docs/BACKLOG.md`). CI
