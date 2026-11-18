@@ -137,6 +137,7 @@ when their release is published); a crash is saved (with the calls that led ther
 report at the next start; reports name the OS version; Windows signing (Azure Artifact Signing,
 signed in CI over OIDC with no stored key).
 1. [8] macOS signing with an Apple Developer ID ($99/year) plus notarization, or Gatekeeper blocks it.
+   Making the identity is `docs/MACOS-SIGNING.md`; what's left after that is the workflow.
 2. [2] SHA-256 checksums (Linux needs no signing; optionally GPG-signed checksums).
 3. [2] A Download button on woodsketch.net that picks the visitor's OS.
 4. [3] Delta updates (download the previous release before packing, so updates are small).

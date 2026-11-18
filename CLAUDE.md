@@ -389,7 +389,8 @@ add it there; when you finish an item, remove it.
    after touching that file (`WOODSKETCH_RELEASES=1 cargo test -p woodsketch`). The Windows build is
    signed with Azure Artifact Signing (profile `woodsketch-public`) over OIDC from the `release`
    environment when the `AZURE_*` repository variables are set, and ships unsigned without them;
-   macOS and Linux aren't signed yet (`docs/BACKLOG.md`). CI
+   macOS and Linux aren't signed yet (`docs/BACKLOG.md`); making the Apple Developer ID identity
+   the macOS jobs will need, and the six secrets they read, is `docs/MACOS-SIGNING.md`. CI
    (`.github/workflows/ci.yml`) lints and runs the non-GPU tests on all three platforms.
 
 ## Start page and samples
