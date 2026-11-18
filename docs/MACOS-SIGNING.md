@@ -44,7 +44,8 @@ warns about the file people double-click and not about what it installs.
 - Apple limits how many Developer ID certificates an account may hold. Check the expiry `openssl x509 -enddate` prints rather than assuming
   five years: the one issued in November 2026 runs to 18 December 2027.
   **Don't churn them.** If a step fails in a way this file doesn't cover, stop rather than
-  generating a second certificate.
+  generating a second certificate. Step 7's Installer certificate is a different type, not
+  another of these, so it costs nothing here.
 
 ## 0. What's already there
 
@@ -77,8 +78,8 @@ but it has to be there, and the request has to be SHA-256 over a 2048-bit RSA ke
 
 **Account holder:** upload `developerID.certSigningRequest` at developer.apple.com →
 Certificates, IDs & Profiles → Certificates → **+**, choosing **Developer ID Application** and
-the **G2 Sub-CA** profile type. Not "Developer ID Installer" -- that signs `.pkg` installers,
-which WoodSketch doesn't ship. Apple returns a `.cer` (usually
+the **G2 Sub-CA** profile type. Not "Developer ID Installer": that one signs the `.pkg`
+installer and is step 7, made the same way from its own key. Apple returns a `.cer` (usually
 `developerID_application.cer`); put it in `~/woodsketch-signing`.
 
 ## 2. Apple's intermediate certificate
