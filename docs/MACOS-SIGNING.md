@@ -36,7 +36,8 @@ exist. A signed but un-notarized app still trips Gatekeeper.
   holder, so it belongs in a password manager or an encrypted volume, never in the repository.
 - Never print the `.p12`, its base64, or the password into a terminal transcript. Write them to
   files and let `gh secret set` read from the file (below), so the value is never echoed.
-- Apple limits how many Developer ID certificates an account may hold, and they last five years.
+- Apple limits how many Developer ID certificates an account may hold. Check the expiry `openssl x509 -enddate` prints rather than assuming
+  five years: the one issued in November 2026 runs to 18 December 2027.
   **Don't churn them.** If a step fails in a way this file doesn't cover, stop rather than
   generating a second certificate.
 
@@ -121,17 +122,24 @@ kc="$PWD/verify.keychain-db"
 security create-keychain -p temp "$kc"
 security unlock-keychain -p temp "$kc"
 security import woodsketch-developer-id.p12 -k "$kc" -P "$(cat p12.password)" -T /usr/bin/codesign
+orig=$(security list-keychains -d user | tr -d '"' | xargs)
+security list-keychains -d user -s "$kc" $orig          # on the search list, or nothing is valid
+security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k temp "$kc" >/dev/null
 security find-identity -v -p codesigning "$kc"          # one Developer ID Application line
 
 printf 'int main(void){return 0;}' > t.c && cc t.c -o t
-security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k temp "$kc" >/dev/null
 codesign --force --options runtime --timestamp \
   --keychain "$kc" --sign "Developer ID Application: A Name (ABCDE12345)" t
 codesign -dv --verbose=4 t 2>&1 | grep -E "Authority|TeamIdentifier|Timestamp"
 spctl -a -vvv -t exec t          # "rejected" here is expected: nothing has notarized it yet
+security list-keychains -d user -s $orig
 security delete-keychain "$kc"
 rm -f t t.c
 ```
+
+A keychain that isn't on the user's search list imports fine but shows `0 valid identities`
+and `codesign` answers "no identity found": macOS can't build the trust path to Apple's root
+from a keychain it isn't searching. CI's temporary keychain needs the same `list-keychains -s`.
 
 `codesign` succeeding with a timestamp and an `Authority=Developer ID Certification Authority`
 chain is the proof. `spctl` rejecting an un-notarized binary is normal and not a problem.
