@@ -7,6 +7,11 @@ Write them short. One line per change, a sentence or two at most: what changed, 
 reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
 that belongs in the commit message, which is where it already is.
 
+## 0.1.77
+
+- A panel goes into its frame whichever edge is grooved first. Letting a door's panel into
+  the stiles no longer stops the rails from taking it (#17).
+
 ## 0.1.76
 
 - The Mac builds are signed and notarized by Apple, installer and app both, so they open on any

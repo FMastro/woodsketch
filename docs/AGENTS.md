@@ -178,6 +178,50 @@ A tag named on a part is made if new. To hide one, or file tags in folders, list
 What's on a hidden tag is in the drawing but not shown, cut or checked (a jig, a wall for
 reference, another version).
 
+## A frame-and-panel door
+
+Four frame pieces and a panel let into all four. Size the panel to the **opening**, not to the
+grooves: `let_in` grows it 1/4" into each one, so an 11 1/2" x 19 1/2" opening leaves a
+12" x 20" panel. Butt the rails between the stiles. Grooving the stiles or the rails first makes
+no difference.
+
+```json
+{
+  "name": "Shaker door",
+  "units": "in",
+  "materials": [
+    { "id": "oak", "library": "White Oak" },
+    { "id": "ply", "library": "Plywood" }
+  ],
+  "parts": [
+    { "name": "Left stile", "called": "Stile", "material": "oak", "size": [24, 2.25, 0.75], "at": [0, 0, 0], "length": "z", "width": "x" },
+    { "name": "Right stile", "called": "Stile", "material": "oak", "size": [24, 2.25, 0.75], "at": [13.75, 0, 0], "length": "z", "width": "x" },
+    { "name": "Bottom rail", "called": "Rail", "material": "oak", "size": [11.5, 2.25, 0.75], "at": [2.25, 0, 0], "length": "x", "width": "z" },
+    { "name": "Top rail", "called": "Rail", "material": "oak", "size": [11.5, 2.25, 0.75], "at": [2.25, 0, 21.75], "length": "x", "width": "z" },
+    { "name": "Panel", "material": "ply", "size": [19.5, 11.5, 0.25], "at": [2.25, 0.25, 2.25], "length": "z", "width": "x" }
+  ],
+  "joints": [
+    { "kind": "loose_tenons", "part": "Bottom rail", "into": "Left stile" },
+    { "kind": "loose_tenons", "part": "Bottom rail", "into": "Right stile" },
+    { "kind": "loose_tenons", "part": "Top rail", "into": "Left stile" },
+    { "kind": "loose_tenons", "part": "Top rail", "into": "Right stile" },
+    { "kind": "let_in", "part": "Panel", "into": "Left stile", "options": { "depth": 0.25 } },
+    { "kind": "let_in", "part": "Panel", "into": "Right stile", "options": { "depth": 0.25 } },
+    { "kind": "let_in", "part": "Panel", "into": "Bottom rail", "options": { "depth": 0.25 } },
+    { "kind": "let_in", "part": "Panel", "into": "Top rail", "options": { "depth": 0.25 } }
+  ],
+  "groups": [{ "name": "Door", "parts": ["Left stile", "Right stile", "Bottom rail", "Top rail", "Panel"], "moves": true }]
+}
+```
+
+A 16" x 24" door: two stiles, two rails, a floating panel, four loose tenons and four grooves.
+`build_sheets` then gives the frame joints, the grooves and the glue-up in order. A plywood panel
+can't move, so for a solid-wood one leave the groove its 1/4" and the panel floats -- `movement`
+says if it's held anywhere it shouldn't be.
+
+`cabinet`'s `doors` fills a case opening with one of these; this is how to build one on its own,
+to hang on something else or to price on its own.
+
 ## Checking your work
 
 - `build` lists every problem, each naming the item: `joints[2] (mortise_and_tenon, Apron into

@@ -285,7 +285,18 @@ impl Parts<'_> {
             let (mut lo, mut hi) = (r.0.max(o.0), r.1.min(o.1));
             lo[k] = rail_at;
             hi[k] = rail_at;
-            let whole = (0..3).filter(|&i| i != k).all(|i| (hi[i] - lo[i] - size[i]).abs() < TOUCH);
+            // A rail's whole end has to land on the other part -- except that an edge may run
+            // past its ends by up to that part's own thickness, because a door panel let into
+            // its stiles reaches into their grooves and so is wider than the rail it is grooved
+            // into as well (which way round the panel is grooved first shouldn't decide whether
+            // it can be). Further past than that is two parts crossing rather than meeting, and
+            // the slack is deliberately too small to make a stile butt the rail it carries.
+            let other = o.1 - o.0;
+            let slack = 2.0 * other[thinnest(o)] + TOUCH;
+            let whole = (0..3).filter(|&i| i != k).all(|i| {
+                let covered = hi[i] - lo[i];
+                (covered - size[i]).abs() < TOUCH || (covered - other[i]).abs() < TOUCH && size[i] - covered < slack
+            });
             if whole {
                 return Some(Butt { k, side, contact: (lo, hi) });
             }

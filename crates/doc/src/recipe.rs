@@ -1342,6 +1342,58 @@ mod tests {
     }
 
     #[test]
+    fn a_panels_grooves_go_in_whatever_order_they_are_asked_for() {
+        // A Shaker door, built as #17 built one: the panel is let into all four frame pieces.
+        // Letting it into the stiles first grows it 1/4" past each rail's end -- which is what a
+        // frame-and-panel door is -- so the rails have to groove it anyway.
+        fn door(order: [&str; 4]) -> Recipe {
+            let lets: Vec<String> = order
+                .iter()
+                .map(|into| format!(r#"{{ "kind": "let_in", "part": "Panel", "into": "{into}", "options": {{ "depth": 0.25 }} }}"#))
+                .collect();
+            parse(&format!(
+                r#"{{
+                "materials": [{{ "id": "oak", "library": "White Oak" }}, {{ "id": "ply", "library": "Plywood" }}],
+                "parts": [
+                    {{ "name": "Left stile", "material": "oak", "size": [24, 2.25, 0.75], "at": [0, 0, 0], "length": "z", "width": "x" }},
+                    {{ "name": "Right stile", "material": "oak", "size": [24, 2.25, 0.75], "at": [13.75, 0, 0], "length": "z", "width": "x" }},
+                    {{ "name": "Bottom rail", "material": "oak", "size": [11.5, 2.25, 0.75], "at": [2.25, 0, 0], "length": "x", "width": "z" }},
+                    {{ "name": "Top rail", "material": "oak", "size": [11.5, 2.25, 0.75], "at": [2.25, 0, 21.75], "length": "x", "width": "z" }},
+                    {{ "name": "Panel", "material": "ply", "size": [19.5, 11.5, 0.25], "at": [2.25, 0.25, 2.25], "length": "z", "width": "x" }}
+                ],
+                "joints": [{}]
+            }}"#,
+                lets.join(", ")
+            ))
+            .unwrap()
+        }
+        // The panel's own size, smallest extent first, so its axes don't have to be guessed.
+        fn panel(doc: &Document) -> [f64; 3] {
+            let scene = doc.scene();
+            let (_, instance) = scene
+                .root
+                .instances()
+                .find(|(_, i)| scene.definition(i.definition).is_some_and(|d| d.name == "Panel"))
+                .expect("the panel");
+            let (lo, hi) = scene.definition_bounds(instance.definition).expect("its size");
+            let mut size = [hi.x - lo.x, hi.y - lo.y, hi.z - lo.z];
+            size.sort_by(f64::total_cmp);
+            size
+        }
+        let stiles_first = build(&door(["Left stile", "Right stile", "Bottom rail", "Top rail"])).unwrap_or_else(|e| panic!("{e:?}"));
+        let rails_first = build(&door(["Bottom rail", "Top rail", "Left stile", "Right stile"])).unwrap_or_else(|e| panic!("{e:?}"));
+        for (doc, order) in [(&stiles_first, "stiles first"), (&rails_first, "rails first")] {
+            assert_eq!(doc.scene().joints.len(), 4, "four grooves, {order}");
+            // 1/4" into each of the four, from an 11 1/2" x 19 1/2" opening.
+            let size = panel(doc);
+            assert!(
+                (size[0] - 0.25).abs() < 1e-9 && (size[1] - 12.0).abs() < 1e-9 && (size[2] - 20.0).abs() < 1e-9,
+                "{order}: {size:?}"
+            );
+        }
+    }
+
+    #[test]
     fn mistakes_come_back_naming_the_item() {
         let recipe = parse(
             r#"{
@@ -1474,14 +1526,22 @@ mod tests {
 
 #[cfg(test)]
 mod guide {
-    /// The example in the agents' guide builds, with no wood movement warnings.
+    /// Every example in the agents' guide builds, with no wood movement warnings.
     #[test]
-    fn the_guides_example_builds() {
+    fn the_guides_examples_build() {
         let guide = include_str!("../../../docs/AGENTS.md");
-        let start = guide.find("```json").expect("an example") + "```json".len();
-        let example = &guide[start..start + guide[start..].find("```").unwrap()];
-        let doc = super::build(&super::parse(example).unwrap()).unwrap_or_else(|e| panic!("{e:?}"));
-        let summary = super::summary(&doc);
-        assert!(summary.contains("Joints: 2 dado, 2 notch") && summary.contains("Wood movement: no conflicts"), "{summary}");
+        let mut summaries = Vec::new();
+        let mut rest = guide;
+        while let Some(at) = rest.find("```json") {
+            let after = &rest[at + "```json".len()..];
+            let example = &after[..after.find("```").expect("a block that closes")];
+            let doc = super::build(&super::parse(example).unwrap()).unwrap_or_else(|e| panic!("{e:?}"));
+            summaries.push(super::summary(&doc));
+            rest = &after[example.len()..];
+        }
+        assert_eq!(summaries.len(), 2, "the bookcase and the door");
+        assert!(summaries[0].contains("Joints: 2 dado, 2 notch"), "{}", summaries[0]);
+        assert!(summaries[1].contains("Joints: 4 loose tenons, 4 groove"), "{}", summaries[1]);
+        assert!(summaries.iter().all(|s| s.contains("Wood movement: no conflicts")), "{summaries:?}");
     }
 }
