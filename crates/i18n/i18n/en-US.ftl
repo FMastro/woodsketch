@@ -736,6 +736,11 @@ files-open-failed = Couldn't open { $path }: { $error }
 # The graphics card reported a problem. The drawing is safe and can be saved; what is on screen
 # may not have drawn. Help > Report a Problem carries the card's own words.
 gpu-trouble = The graphics card reported a problem: { $error }. Your drawing is safe — save it, and please send a report from Help > Report a Problem.
+# WoodSketch is drawing with a different graphics backend because the one it prefers went wrong
+# on this computer. $backend is the one in use now, $failed the one given up on (Vulkan,
+# DirectX 12, OpenGL, Metal: the names their makers use, not translated).
+status-graphics-fell-back = Drawing with { $backend } — { $failed } didn't work on this computer
+status-graphics-fell-back-hint = { $failed } failed here, so WoodSketch moved on by itself. A new version will try it again.
 files-export-failed = Couldn't export { $path }: { $error }
 # The window's title: the drawing's name, a star if there are unsaved changes, then the app.
 files-window-title = { $name }{ $dirty } - WoodSketch

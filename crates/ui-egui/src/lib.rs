@@ -8,6 +8,7 @@ pub mod files;
 mod icons;
 mod keys;
 mod gpu;
+pub mod graphics;
 mod materials;
 pub mod net;
 mod autosave;
@@ -70,6 +71,12 @@ pub struct WoodSketchApp {
     graphics: String,
     /// What the graphics card last complained about, instead of panicking over it.
     gpu: gpu::Trouble,
+    /// The note this run leaves about the backend it drew with, so a backend that goes wrong
+    /// isn't the one the next run starts on (#13).
+    backend: graphics::Record,
+    /// A backend given up on, if this run stepped off one: said in the status bar until read,
+    /// because a quiet change of backend is a mystery.
+    fell_back: Option<String>,
     /// View > Theme, as last seen (saved with the settings).
     theme: egui::ThemePreference,
     /// Units for File > Export.
@@ -154,6 +161,8 @@ impl WoodSketchApp {
         let crash = crash_dir.as_deref().and_then(crash::left);
         // Pictures for the Start page live beside the autosaves and the crash report.
         let thumb_dir = crash_dir.as_deref().map(|d| d.join("thumbnails"));
+        // Which backend really started, written down beside them for the next run to read.
+        let backend = graphics::Record::new(crash_dir.as_deref(), render_state.adapter.get_info().backend);
         Self {
             // A drawing made here carries the units it's shown in, which `set_units` above took
             // from the settings.
@@ -174,6 +183,8 @@ impl WoodSketchApp {
             // Takes over from wgpu's handler, which panics: a driver that fails one frame used to
             // close the window (#13).
             gpu: gpu::Trouble::watch(&render_state.device),
+            backend,
+            fell_back: None,
             export_units: woodsketch_doc::export::ExportUnits::Inches,
             recent: cc.storage.and_then(|s| eframe::get_value(s, RECENT_KEY)).unwrap_or_default(),
             autosave,
@@ -585,6 +596,20 @@ impl WoodSketchApp {
         self.files.show_error(error);
     }
 
+    /// This run is drawing on another backend because `failed` didn't work on this computer
+    /// (#13). Said in the status bar, and written into a problem report, where it is the first
+    /// thing anyone reading one would want to know.
+    pub fn fell_back_from(&mut self, failed: &str) {
+        self.graphics = format!("{}, after {} didn't work", self.graphics, woodsketch_doc::graphics::said(failed));
+        self.fell_back = Some(failed.to_owned());
+    }
+
+    /// The backend given up on, and the one being drawn with instead, for the status bar.
+    pub(crate) fn fell_back(&self) -> Option<(&str, &str)> {
+        let failed = self.fell_back.as_deref()?;
+        Some((woodsketch_doc::graphics::said(self.backend.backend()), woodsketch_doc::graphics::said(failed)))
+    }
+
     /// Save to the drawing's file, asking where if it has none. Returns whether it saved.
     fn save(&mut self, choose: bool) -> bool {
         let path = match (&self.files.path, choose) {
@@ -721,6 +746,11 @@ impl WoodSketchApp {
         &self.thumbs
     }
 
+    /// The card, backend and driver as a problem report will carry them.
+    pub fn graphics_line(&self) -> &str {
+        &self.graphics
+    }
+
     pub fn tools(&self) -> &Tools {
         &self.tools
     }
@@ -779,9 +809,14 @@ impl eframe::App for WoodSketchApp {
         self.offer_crash_report(&ctx);
         self.keep_up_to_date();
         self.collect_building(&ctx);
+        // Enough frames to call this backend one that works, for the next run to read.
+        self.backend.drew();
         // Said where a failed save is said, and kept for a problem report, since a reader who
-        // sees a drawing go strange needs the card's own words to send on.
+        // sees a drawing go strange needs the card's own words to send on. It also goes in the
+        // note the next run reads: a card that complains has said what it does, and the next run
+        // starts on another backend (#13).
         if let Some(trouble) = self.gpu.taken() {
+            self.backend.trouble(&trouble);
             self.files.show_error(gpu::Trouble::said(&trouble));
         }
         if !self.files.is_asking()

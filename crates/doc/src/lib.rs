@@ -16,6 +16,7 @@ pub mod export;
 pub mod feedback;
 pub mod flat;
 pub mod file;
+pub mod graphics;
 pub mod joinery;
 pub mod hardware;
 pub mod library;

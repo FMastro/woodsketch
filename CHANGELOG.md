@@ -9,6 +9,9 @@ that belongs in the commit message, which is where it already is.
 
 ## 0.1.75
 
+- A graphics card that won't work with one way of drawing no longer stops WoodSketch: it starts
+  on another by itself, says in the status bar which and why, and tries the preferred one again
+  after an update (#13).
 - A problem reported by the graphics card no longer closes the app. Your drawing stays open and
   can be saved, and the card's own words go into Help > Report a Problem (#13).
 - A problem report now says what the graphics driver is, or that it wouldn't say, instead of two

@@ -803,6 +803,17 @@ impl WoodSketchApp {
                             .on_hover_text(t!("status-reloaded-hint"));
                         ui.separator();
                     }
+                    // Drawing on another backend because the preferred one went wrong here: say
+                    // which and why, rather than changing under someone in silence (#13).
+                    if let Some((backend, failed)) = self.fell_back() {
+                        let (backend, failed) = (backend.to_owned(), failed.to_owned());
+                        if ui.small_button(egui_phosphor::regular::X).on_hover_text(t!("status-dismiss")).clicked() {
+                            self.fell_back = None;
+                        }
+                        ui.label(format!("{} {}", egui_phosphor::regular::MONITOR, t!("status-graphics-fell-back", "backend" => backend, "failed" => failed.clone())))
+                            .on_hover_text(t!("status-graphics-fell-back-hint", "failed" => failed));
+                        ui.separator();
+                    }
                     // Just updated: say so once, with everything the update brought.
                     if self.updated() {
                         if ui.small_button(egui_phosphor::regular::X).on_hover_text(t!("status-dismiss")).clicked() {

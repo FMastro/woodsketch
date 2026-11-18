@@ -4,6 +4,7 @@
 
 use eframe::egui::{self, Event, Key, Modifiers, PointerButton, pos2};
 use egui_kittest::Harness;
+use egui_kittest::kittest::Queryable as _;
 use woodsketch_tools::ToolId;
 use woodsketch_ui_egui::WoodSketchApp;
 
@@ -3172,4 +3173,28 @@ fn the_start_page_pictures_a_recent_drawing() {
     }
     snapshot(&mut harness, "start_page_recent");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Drawing on a backend that wasn't the first choice is said in the status bar, and can be
+/// dismissed. The app is silent about it when nothing went wrong (#13).
+#[test]
+fn the_status_bar_says_when_a_graphics_backend_was_given_up_on() {
+    let mut harness = app();
+    harness.run();
+    assert!(harness.query_by_label_contains("didn't work on this computer").is_none(), "nothing went wrong, so nothing is said");
+
+    harness.state_mut().fell_back_from("vulkan");
+    harness.run();
+    // Which one is in use depends on the machine running the test, so only the given-up one is
+    // named here. A report from that machine carries both.
+    harness.get_by_label_contains("Vulkan didn't work on this computer");
+    // And it is in the problem report, where it is the first thing a reader wants to know.
+    assert!(harness.state().graphics_line().contains("after Vulkan didn't work"), "{}", harness.state().graphics_line());
+
+    // The ✕ beside it (named "Dismiss" only where the pointer rests, like the one on the
+    // just-updated note).
+    use egui_phosphor::regular as ph;
+    harness.get_by_label(ph::X).click();
+    harness.run();
+    assert!(harness.query_by_label_contains("didn't work on this computer").is_none(), "dismissed stays dismissed");
 }
