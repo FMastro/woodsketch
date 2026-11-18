@@ -16,7 +16,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 21 | A live link to the open drawing |
-| 6 | Release polish | 74 | macOS signing before announcing widely |
+| 6 | Release polish | 68 | Both signed now; the rest is packaging and reach |
 | 7 | Start page and samples | 10 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
 | 9 | Cut list and materials | 171 | Better buying and cutting |
@@ -135,9 +135,12 @@ Done: installers, auto-update, icons, release notes, the site's download links; 
 Problem / Send Feedback (GitHub issue forms, details with nothing private; fixed issues close
 when their release is published); a crash is saved (with the calls that led there) and offered for a
 report at the next start; reports name the OS version; Windows signing (Azure Artifact Signing,
-signed in CI over OIDC with no stored key).
-1. [8] macOS signing with an Apple Developer ID ($99/year) plus notarization, or Gatekeeper blocks it.
-   Making the identity is `docs/MACOS-SIGNING.md`; what's left after that is the workflow.
+signed in CI over OIDC with no stored key); macOS signing and notarization with an Apple
+Developer ID (`docs/MACOS-SIGNING.md`).
+1. [2] Sign the macOS `.pkg` installer, which takes a second certificate (Developer ID Installer)
+   and the three secrets `release.yml` already looks for: step 7 of `docs/MACOS-SIGNING.md`. The
+   app inside it is signed and notarized either way, so Gatekeeper warns about the installer and
+   not about what it installs.
 2. [2] SHA-256 checksums (Linux needs no signing; optionally GPG-signed checksums).
 3. [2] A Download button on woodsketch.net that picks the visitor's OS.
 4. [3] Delta updates (download the previous release before packing, so updates are small).

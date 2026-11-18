@@ -6,16 +6,25 @@ name: Release
 # offer it to installed copies as an update.
 #
 # Each platform has its own update channel, named in its files, so an update never crosses
-# platforms or processors. Windows is signed with Azure Artifact Signing when the repository
-# variables below are set; macOS and Linux are unsigned for now (Gatekeeper warns), and that
-# signing is in docs/BACKLOG.md.
+# platforms or processors. Windows is signed with Azure Artifact Signing and macOS with an
+# Apple Developer ID, each when its settings below are there; Linux is unsigned (it needs no
+# signature to run). Either build still runs without them and ships unsigned, so a fork with
+# neither account can cut a release.
 #
 # Windows signing needs these repository variables, and the `release` environment the package
 # job names (the signing app's federated credential trusts
 # repo:<owner>/<repo>:environment:release, so no key or secret is stored anywhere):
 #   AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID   the app that signs, over OIDC
 #   AZURE_SIGNING_ENDPOINT, AZURE_SIGNING_ACCOUNT, AZURE_SIGNING_PROFILE   what it signs with
-# Without them the Windows build still runs, and ships unsigned.
+#
+# macOS signing needs these repository secrets, which docs/MACOS-SIGNING.md makes:
+#   MACOS_CERT_P12_BASE64, MACOS_CERT_PASSWORD   the Developer ID Application identity
+#   MACOS_SIGNING_IDENTITY                       the name to sign under, out of the certificate
+#   MACOS_APPLE_ID, MACOS_TEAM_ID, MACOS_APP_PASSWORD   for notarizing with Apple
+# The .pkg installer needs a Developer ID Installer identity as well, which is a second
+# certificate (MACOS_INSTALLER_P12_BASE64, MACOS_INSTALLER_PASSWORD, MACOS_INSTALLER_IDENTITY).
+# Without it the app is signed and notarized but the installer around it isn't, so Gatekeeper
+# warns about the .pkg and not about what it installs.
 on:
   push:
     tags: ["v*"]
@@ -114,6 +123,57 @@ jobs:
           JSON
           echo "AZURE_SIGN_FILE=$RUNNER_TEMP/azure-signing.json" >> "$GITHUB_ENV"
           dotnet tool install -g sign --version "$SIGN_VERSION"
+      # Apple will only sign from a keychain, so the identity is imported into one made for this
+      # run and thrown away with the runner. Skipped whole when the secrets aren't there, the way
+      # Windows signing is, and then nothing below signs anything.
+      - name: Prepare macOS signing
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          CERT: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          INSTALLER_CERT: ${{ secrets.MACOS_INSTALLER_P12_BASE64 }}
+          INSTALLER_PASSWORD: ${{ secrets.MACOS_INSTALLER_PASSWORD }}
+          INSTALLER_IDENTITY: ${{ secrets.MACOS_INSTALLER_IDENTITY }}
+          APPLE_ID: ${{ secrets.MACOS_APPLE_ID }}
+          TEAM_ID: ${{ secrets.MACOS_TEAM_ID }}
+          APP_PASSWORD: ${{ secrets.MACOS_APP_PASSWORD }}
+        run: |
+          if [ -z "${CERT:-}" ]; then
+            echo "No Apple identity in the secrets, so this build ships unsigned."
+            exit 0
+          fi
+          keychain="$RUNNER_TEMP/woodsketch-signing.keychain-db"
+          password=$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 32)
+          security create-keychain -p "$password" "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          # Don't let it lock while Apple notarizes, which takes minutes and can take longer.
+          security set-keychain-settings -lut 21600 "$keychain"
+          # A keychain that isn't on the search list imports the identity but offers none that is
+          # valid, and codesign then can't find one at all (docs/MACOS-SIGNING.md).
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"' | xargs)
+          take() {
+            printf '%s' "$1" | base64 --decode > "$RUNNER_TEMP/identity.p12"
+            security import "$RUNNER_TEMP/identity.p12" -k "$keychain" -P "$2" \
+              -T /usr/bin/codesign -T /usr/bin/productbuild
+            rm -f "$RUNNER_TEMP/identity.p12"
+          }
+          take "$CERT" "$CERT_PASSWORD"
+          if [ -n "${INSTALLER_CERT:-}" ]; then
+            take "$INSTALLER_CERT" "$INSTALLER_PASSWORD"
+            echo "MACOS_INSTALLER=$INSTALLER_IDENTITY" >> "$GITHUB_ENV"
+          else
+            echo "No Developer ID Installer identity, so the .pkg will not be signed."
+          fi
+          # Without this, signing stops to ask for the keychain password, which nobody can type.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" >/dev/null
+          security find-identity -v -p codesigning "$keychain"
+          # Notarizing is a separate credential; vpk reaches it by this profile's name.
+          xcrun notarytool store-credentials woodsketch-ci --keychain "$keychain" \
+            --apple-id "$APPLE_ID" --team-id "$TEAM_ID" --password "$APP_PASSWORD"
+          echo "MACOS_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+          echo "MACOS_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
       - name: macOS icon (.icns from the PNGs)
         if: runner.os == 'macOS'
         shell: bash
@@ -149,14 +209,35 @@ jobs:
               --trusted-signing-account "${{ vars.AZURE_SIGNING_ACCOUNT }}" \
               --trusted-signing-certificate-profile "${{ vars.AZURE_SIGNING_PROFILE }}"
           fi
+          # The same on macOS: vpk signs the copy it puts inside the .app, not this one.
+          if [ -n "${MACOS_KEYCHAIN:-}" ]; then
+            codesign --force --timestamp --options runtime \
+              --keychain "$MACOS_KEYCHAIN" --sign "$MACOS_IDENTITY" "publish/${{ matrix.cli }}"
+          fi
           case "${{ runner.os }}" in
             Windows) icon=assets/icon/woodsketch.ico ;;
             macOS) icon=assets/icon/woodsketch.icns ;;
             *) icon=assets/icon/woodsketch-512.png ;;
           esac
+          # One of these at most: each platform signs with its own, or with nothing.
           sign_args=()
           if [ -n "${AZURE_SIGN_FILE:-}" ]; then
             sign_args=(--azureTrustedSignFile "$AZURE_SIGN_FILE")
+          fi
+          # vpk signs the .app, sends it to Apple, waits, and staples the answer onto it, which
+          # is what lets it open on a machine that has never seen it. `--keychain` is missing
+          # from vpk's own help but is there in the version pinned above, and both codesign and
+          # notarytool need it to look anywhere but the login keychain. The .pkg around the app
+          # only gets the same treatment when a Developer ID Installer identity is there too.
+          if [ -n "${MACOS_KEYCHAIN:-}" ]; then
+            sign_args=(
+              --signAppIdentity "$MACOS_IDENTITY"
+              --notaryProfile woodsketch-ci
+              --keychain "$MACOS_KEYCHAIN"
+            )
+            if [ -n "${MACOS_INSTALLER:-}" ]; then
+              sign_args+=(--signInstallIdentity "$MACOS_INSTALLER")
+            fi
           fi
           vpk pack \
             --packId WoodSketch \
@@ -176,6 +257,13 @@ jobs:
             pwsh -NoProfile -Command "Compress-Archive -Path 'publish/${{ matrix.cli }}' -DestinationPath 'releases/$cli_zip'"
           else
             zip -j "releases/$cli_zip" "publish/${{ matrix.cli }}"
+          fi
+          # A zip can't carry a stapled ticket, so Apple is asked about this one the first time
+          # it runs. Signing it alone wouldn't be enough: macOS refuses a downloaded program it
+          # can't ask about.
+          if [ -n "${MACOS_KEYCHAIN:-}" ]; then
+            xcrun notarytool submit "releases/$cli_zip" --wait \
+              --keychain-profile woodsketch-ci --keychain "$MACOS_KEYCHAIN"
           fi
           ls -l releases
       - uses: actions/upload-artifact@v4

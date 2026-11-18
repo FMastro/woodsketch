@@ -388,9 +388,13 @@ add it there; when you finish an item, remove it.
    four channels and is the one test that can tell whether GitHub's answer still parses, so run it
    after touching that file (`WOODSKETCH_RELEASES=1 cargo test -p woodsketch`). The Windows build is
    signed with Azure Artifact Signing (profile `woodsketch-public`) over OIDC from the `release`
-   environment when the `AZURE_*` repository variables are set, and ships unsigned without them;
-   macOS and Linux aren't signed yet (`docs/BACKLOG.md`); making the Apple Developer ID identity
-   the macOS jobs will need, and the six secrets they read, is `docs/MACOS-SIGNING.md`. CI
+   environment when the `AZURE_*` repository variables are set, and ships unsigned without them.
+   The macOS builds are signed and notarized with an Apple Developer ID the same way, from the
+   `MACOS_*` secrets: the job makes a keychain for the run (on the search list, or codesign finds
+   no valid identity) and `vpk pack` does the rest given `--signAppIdentity`, `--notaryProfile`
+   and `--keychain`, so the ticket is stapled into the bundle before it is packed. The `.pkg`
+   installer needs a second certificate, Developer ID Installer, and is unsigned until those
+   three secrets are there; Linux needs no signature. It is all `docs/MACOS-SIGNING.md`. CI
    (`.github/workflows/ci.yml`) lints and runs the non-GPU tests on all three platforms.
 
 ## Start page and samples

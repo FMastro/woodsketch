@@ -7,6 +7,12 @@ Write them short. One line per change, a sentence or two at most: what changed, 
 reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
 that belongs in the commit message, which is where it already is.
 
+## 0.1.76
+
+- The Mac builds are signed and notarized by Apple, so the app opens on any Mac instead of
+  macOS offering only to move it to the Bin. The installer package itself isn't signed yet, so
+  macOS still warns about that once, and not about the app it installs.
+
 ## 0.1.75
 
 - A graphics card that won't work with one way of drawing no longer stops WoodSketch: it starts

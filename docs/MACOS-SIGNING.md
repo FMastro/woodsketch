@@ -1,15 +1,15 @@
 # Signing and notarizing the macOS builds
 
-WoodSketch's macOS builds are **unsigned today**, so Gatekeeper refuses them on any machine but
-the one that built them: the app is quarantined on download and opening it offers only "move to
-Bin". The Windows build is signed in CI by Azure Artifact Signing over OIDC, with no key stored
-anywhere; macOS has no equivalent, because Apple will only issue a Developer ID certificate to a
-paid Apple Developer Program account and the private key has to exist on a Mac first.
+Without a signature Gatekeeper refuses a macOS build on any machine but the one that built it:
+the app is quarantined on download and opening it offers only "move to Bin". The Windows build
+is signed in CI by Azure Artifact Signing over OIDC, with no key stored anywhere; macOS has no
+equivalent, because Apple will only issue a Developer ID certificate to a paid Apple Developer
+Program account and the private key has to exist on a Mac first.
 
-This is the procedure for creating that identity. It needs doing once, and again every five
-years when the certificate expires. Most of it is command line and can be handed to an agent on
-a Mac; the two website steps need the account holder, because Apple requires an Apple ID with
-two-factor authentication.
+This is the procedure for creating that identity. It needs doing once, and again when the
+certificate expires -- read the date rather than assuming a term. Most of it is command line and
+can be handed to an agent on a Mac; the two website steps need the account holder, because Apple
+requires an Apple ID with two-factor authentication.
 
 Nothing here is secret. The certificate's own details (the identity string, the Team ID) are
 public by design -- they are written into every signed binary -- and the private key, the `.p12`
@@ -29,6 +29,11 @@ pasted into.
 
 Signing alone isn't enough: Apple must also **notarize** each build, which is why the last two
 exist. A signed but un-notarized app still trips Gatekeeper.
+
+Three more sign the `.pkg` installer, which needs a second certificate of its own (step 7):
+`MACOS_INSTALLER_P12_BASE64`, `MACOS_INSTALLER_PASSWORD` and `MACOS_INSTALLER_IDENTITY`.
+Without them the app is signed and notarized but the installer around it isn't, so Gatekeeper
+warns about the file people double-click and not about what it installs.
 
 ## Ground rules
 
@@ -184,15 +189,43 @@ Without `gh` authenticated with admin rights on the repository, write the six va
 file with mode 600, paste them into GitHub → Settings → Secrets and variables → Actions by
 hand, and delete the file.
 
-## 7. Keep
+## 7. The installer certificate, for the `.pkg`
+
+`WoodSketch-osx-arm64-Setup.pkg` is the main macOS download, and an installer package is signed
+by a **Developer ID Installer** certificate rather than the Application one. It is a different
+type, so issuing it doesn't spend an Application slot, and `productbuild` is what uses it.
+
+Everything above again, with its own key: `openssl genrsa -out developerID-installer.key 2048`,
+a CSR from it, **Developer ID Installer** chosen on Apple's page this time, the same G2
+intermediate in the `.p12`. Then the three secrets the workflow looks for:
+
+```bash
+base64 -i woodsketch-developer-id-installer.p12 > inst.base64
+gh secret set MACOS_INSTALLER_P12_BASE64 --repo $R < inst.base64
+gh secret set MACOS_INSTALLER_PASSWORD   --repo $R < inst.password
+printf '%s' 'Developer ID Installer: A Name (ABCDE12345)' | gh secret set MACOS_INSTALLER_IDENTITY --repo $R
+shred -u inst.base64 2>/dev/null || rm -P inst.base64
+```
+
+Step 4 doesn't apply to it: a `.pkg` isn't signed by `codesign`, and what it was signed with is
+read back with `pkgutil --check-signature <file>.pkg` instead.
+
+## 8. Keep
 
 `developerID.key`, `cert.pem`, `woodsketch-developer-id.p12` and `p12.password`, somewhere safe
-and offline. Losing the key means asking Apple for another certificate, and the count is
-limited.
+and offline (and the installer pair beside them). Losing a key means asking Apple for another
+certificate, and the count is limited.
 
-## Then
+## What the workflow does with them
 
-`release.yml`'s macOS jobs import the `.p12` into a temporary keychain, sign the app bundle with
-the hardened runtime and a timestamp, submit it to `notarytool --wait`, staple the ticket, and
-pack it as now -- and ship unsigned when the secrets are absent, the way the Windows job already
-does, so a fork without an Apple account still builds.
+`release.yml`'s macOS jobs make a keychain for the run, import the identity, put the keychain on
+the search list, set its partition list so nothing stops to ask for a password, and store the
+notarizing credential as the `woodsketch-ci` profile. `vpk pack` then gets `--signAppIdentity`,
+`--notaryProfile` and `--keychain`: it signs the bundle with the hardened runtime and a
+timestamp, submits it to Apple, waits, staples the answer into the bundle, and packs that, so
+what the installer and the updater carry is already notarized. `--signInstallIdentity` is added
+when the installer secrets are there, which signs and notarizes the `.pkg` too. The command line
+tool is signed the same way and its own zip submitted separately, since a zip can't be stapled.
+
+Without the secrets the macOS builds still run and ship unsigned, the way the Windows job does
+without its Azure variables, so a fork without an Apple account can still cut a release.
