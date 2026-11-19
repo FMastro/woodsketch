@@ -19,6 +19,9 @@ that belongs in the commit message, which is where it already is.
 - Selecting such a component shows its own numbers in the tray, a box each, with the ones it
   works out from the others shown as the sums they are. The panel is now called Sizes, since
   it holds a template's or a component's (#9).
+- Anything you have drawn can be given numbers of its own: group it, and Entity Info offers to
+  read it back. Name a number, type that name where a size used to be, and the whole piece
+  resizes by it from then on (#9).
 
 ## 0.1.79
 

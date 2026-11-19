@@ -58,6 +58,38 @@ impl Document {
         })
     }
 
+    /// Read `instance` back as a recipe and keep it, so that from now on its numbers can be
+    /// changed and it can be built again. The numbers are whatever it was drawn with: naming
+    /// them is the next job, in the panel.
+    ///
+    /// Anything the recipe can't describe comes back as notes, and they matter here more than
+    /// they do when reading a whole drawing: building it again is what the component is for, so
+    /// a piece that wouldn't come back the same says so rather than waiting to surprise anyone.
+    pub fn make_parametric(&mut self, instance: InstanceId) -> Result<Vec<String>, String> {
+        if self.parametric_of(instance).is_some() {
+            return Err("That already has numbers of its own.".into());
+        }
+        self.container().instance(instance).ok_or("That isn't in the group being edited.")?;
+        // On its own in a drawing of its own, so the reader describes it and nothing else.
+        let was = self.selection().iter().collect::<Vec<_>>();
+        let selection = self.selection_mut();
+        selection.clear();
+        selection.extend([Entity::Instance(instance)]);
+        let clip = self.copy_selection();
+        let selection = self.selection_mut();
+        selection.clear();
+        selection.extend(was);
+        let clip = clip.ok_or("There is nothing there to read.")?;
+        let mut alone = Document::default();
+        alone.paste(&clip, DVec3::ZERO);
+        let (recipe, notes) = crate::recipe_of::from_document(&alone);
+        if recipe.parts.is_empty() && recipe.templates.is_empty() {
+            return Err("There are no parts in that to describe.".into());
+        }
+        self.remember(instance, &recipe);
+        Ok(notes)
+    }
+
     /// What `instance` was built from, if it is a parametric component.
     pub fn parametric_of(&self, instance: InstanceId) -> Option<&Parametric> {
         let definition = self.container().instance(instance)?.definition;
@@ -360,6 +392,47 @@ mod tests {
         assert!(!doc.parametric_changed_by_hand(group_again), "and still says nobody has touched it");
         let group_again = doc.rebuild_parametric(group_again, &door(30.0), false).unwrap_or_else(|e| panic!("{e}"));
         assert!(same(part(&doc, group_again, "Panel"), [0.25, 24.0, 25.5]), "resized after a round trip");
+    }
+
+    #[test]
+    fn a_group_somebody_drew_can_be_given_numbers_of_its_own() {
+        // Nothing is built from a recipe here: two boards drawn by hand, read back into one so
+        // that from then on they can be resized together (#9).
+        use crate::board::Board;
+        let mut doc = Document::default();
+        let oak = doc.add_preset(crate::library::LIBRARY.iter().find(|p| p.name == "Red Oak").expect("oak"));
+        let board = |doc: &mut Document, at: DVec3, length: f64| {
+            doc.add_board(&Board { origin: at, length_dir: DVec3::X, width_dir: DVec3::Y, length, width: 3.5, thickness: 0.75 }, Some(oak)).expect("a board")
+        };
+        let one = board(&mut doc, DVec3::ZERO, 24.0);
+        let two = board(&mut doc, DVec3::new(0.0, 4.0, 0.0), 24.0);
+        doc.selection_mut().extend([Entity::Instance(one), Entity::Instance(two)]);
+        let group = doc.group_selection(crate::scene::DefinitionKind::Group).expect("grouped");
+        doc.rename_instance(group, "Frame");
+        assert!(doc.parametric_of(group).is_none(), "nothing to change yet");
+        let notes = doc.make_parametric(group).unwrap_or_else(|e| panic!("{e}"));
+        assert!(notes.is_empty(), "two plain boards read back whole: {notes:?}");
+        let kept = doc.parametric_of(group).expect("it has numbers now").recipe.clone();
+        assert_eq!(kept.parts.len(), 2, "both boards");
+        assert!(kept.parameters.is_empty(), "none of them named yet: that is the next job");
+        assert!(!doc.parametric_changed_by_hand(group), "read back, not rebuilt");
+        // Naming one and using it: the point of the whole thing.
+        let mut recipe = kept;
+        recipe.parameters.push(crate::recipe::ParameterSpec {
+            name: "length".into(),
+            value: crate::recipe::Length::Number(36.0),
+            label: None,
+            choices: Vec::new(),
+        });
+        for part in &mut recipe.parts {
+            part.size[0] = crate::recipe::Length::Text("length".into());
+        }
+        let group = doc.rebuild_parametric(group, &recipe, false).unwrap_or_else(|e| panic!("{e}"));
+        let (lo, hi) = doc.bounds().expect("geometry");
+        assert!((hi.x - lo.x - 36.0).abs() < 1e-6, "both boards are 36\" now: {}", hi.x - lo.x);
+        assert_eq!(doc.instance_name(group), Some("Frame"), "and it kept its name");
+        // Asked twice, it says no: it already has numbers.
+        assert!(doc.make_parametric(group).is_err());
     }
 
     #[test]

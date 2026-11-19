@@ -2034,6 +2034,64 @@ fn joinery_panel_takes_the_mortise_depths_a_machine_can_be_set_to() {
 }
 
 #[test]
+fn a_group_drawn_by_hand_is_given_numbers_and_resized_by_them() {
+    use egui_kittest::kittest::Queryable;
+    use glam::DVec3;
+    use woodsketch_doc::board::Board;
+    let mut harness = app();
+    // Two boards, grouped, as anyone would draw them: no recipe anywhere (#9, stage 4).
+    let group = {
+        let doc = harness.state_mut().document_mut();
+        let oak = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Red Oak").unwrap());
+        for y in [0.0, 4.0] {
+            let board = doc
+                .add_board(&Board { origin: DVec3::new(0.0, y, 0.0), length_dir: DVec3::X, width_dir: DVec3::Y, length: 24.0, width: 3.5, thickness: 0.75 }, Some(oak))
+                .unwrap();
+            doc.selection_mut().extend([woodsketch_doc::Entity::Instance(board)]);
+        }
+        let group = doc.group_selection(woodsketch_doc::DefinitionKind::Group).unwrap();
+        doc.rename_instance(group, "Frame");
+        doc.selection_mut().clear();
+        doc.selection_mut().extend([woodsketch_doc::Entity::Instance(group)]);
+        group
+    };
+    harness.run();
+    // Entity Info offers to read it back; the Sizes panel has nothing to say until it has.
+    assert!(harness.query_by_label("Close Frame Sizes").is_none(), "no numbers yet");
+    harness.get_by_label("Give it numbers of its own").click();
+    harness.run();
+    assert!(harness.state().document().parametric_of(group).is_some(), "it has a recipe now");
+    assert!(harness.query_by_label("Close Frame Sizes").is_some(), "and its own panel");
+    // Name a number and set both boards' length to it, then build.
+    harness.get_by_label("What it's made of").click();
+    harness.run();
+    // The first box holding what is wanted, since both boards have the same sizes.
+    fn into_box(harness: &mut Harness<'_, WoodSketchApp>, holding: &str, text: &str) {
+        harness
+            .get_all_by_role(egui::accesskit::Role::TextInput)
+            .find(|node| node.value().as_deref() == Some(holding))
+            .unwrap_or_else(|| panic!("a box holding {holding:?}"))
+            .click();
+        harness.run();
+        harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+        type_text(harness, text);
+        harness.run();
+    }
+    // Both boards' Along boxes, which hold 24", become the name of a number.
+    into_box(&mut harness, "24\"", "length");
+    into_box(&mut harness, "24\"", "length");
+    // Then the number itself: the two empty boxes are its name and its value.
+    into_box(&mut harness, "", "length");
+    into_box(&mut harness, "", "36");
+    harness.get_by_label("Add").click();
+    harness.run();
+    harness.get_by_label("Change size").click();
+    harness.run();
+    let (lo, hi) = harness.state().document().bounds().expect("geometry");
+    assert!((hi.x - lo.x - 36.0).abs() < 1e-6, "both boards are 36\" now: {}", hi.x - lo.x);
+}
+
+#[test]
 fn the_sizes_panel_changes_a_components_own_numbers() {
     use egui_kittest::kittest::Queryable;
     let mut harness = app();

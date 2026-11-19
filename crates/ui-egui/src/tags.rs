@@ -226,6 +226,7 @@ pub fn entity_info(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
         crate::part::show(ui, doc, tools, instance);
         crate::joinery::part_joints(ui, doc, instance);
         crate::profile::part_profiles(ui, doc, instance);
+        crate::parametric::offer(ui, doc, instance);
     }
     if instances == 0 {
         ui.weak(t!("entity-tags-note"));
