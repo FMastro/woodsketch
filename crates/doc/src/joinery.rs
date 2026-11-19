@@ -1963,6 +1963,91 @@ mod more_joints {
     }
 
     #[test]
+    fn which_part_butts_which_is_not_up_for_grabs() {
+        // The asymmetry that decides who gets the tenon and who gets the mortise. A rail's end
+        // lands on a stile's face, so the rail butts the stile -- and a stile never butts the rail
+        // it carries, whichever way round the pair is asked about (#17).
+        let mut doc = Document::default();
+        let stile = board(&mut doc, DVec3::new(40.0, 0.0, 0.0), DVec3::Z, DVec3::X, [30.0, 3.0, 1.5]);
+        let rail = board(&mut doc, DVec3::new(43.0, 0.0, 12.5), DVec3::X, -DVec3::Z, [20.0, 2.5, 1.5]);
+        assert_eq!(doc.joint_fit(rail, stile).expect("they meet").butt, Some((rail, stile)));
+        assert_eq!(doc.joint_fit(stile, rail).expect("they meet").butt, Some((rail, stile)), "asked the other way round");
+    }
+
+    #[test]
+    fn an_edge_may_run_past_what_it_meets_by_that_parts_thickness() {
+        // A door panel grooved into its stiles grows 1/4" past each rail's end, so its edge is
+        // wider than the rail it is also grooved into. That still meets the rail (#17). Running
+        // further past than the rail is thick is two parts crossing, and no joint at all.
+        let rail_and_panel = |panel_x: f64, wide: f64| {
+            let mut doc = Document::default();
+            // Its thickness runs along X cross Z, which is -Y, so it starts a thickness along to
+            // sit in y 0..3/4 with the panel inside it, as a door's rails do.
+            let rail = board(&mut doc, DVec3::new(2.25, 0.75, 0.0), DVec3::X, DVec3::Z, [11.5, 2.25, 0.75]);
+            let panel = board(&mut doc, DVec3::new(panel_x, 0.25, 2.25), DVec3::Z, DVec3::X, [19.75, wide, 0.25]);
+            (doc.joint_fit(panel, rail).expect("boxes").butt, panel, rail)
+        };
+        // Flush with the rail's ends, and 1/4" past each of them: both meet it.
+        let (butt, panel, rail) = rail_and_panel(2.25, 11.5);
+        assert_eq!(butt, Some((panel, rail)), "flush");
+        let (butt, panel, rail) = rail_and_panel(2.0, 12.0);
+        assert_eq!(butt, Some((panel, rail)), "into the stiles' grooves either side");
+        // 3/4" past each end is the rail's whole thickness, which is as far as a groove reaches.
+        let (butt, panel, rail) = rail_and_panel(1.5, 13.0);
+        assert_eq!(butt, Some((panel, rail)), "as far as the rule allows");
+        // Past that, the panel is no longer the part butting in: a rail against the middle of a
+        // big board is the rail meeting the board, which is the other joint and the other
+        // mortise. The direction is what the slack protects.
+        let (butt, panel, rail) = rail_and_panel(-10.0, 34.0);
+        assert_eq!(butt, Some((rail, panel)), "the rail meets the board, not the board the rail");
+    }
+
+    #[test]
+    fn the_depths_it_would_cut_are_whole_millimeters_where_the_stock_decides_them() {
+        let said = |thick: f64| {
+            let (face, end) = Slots::loose_tenons(1, 11.25).depths_in(thick);
+            ((face / MM).round(), (end / MM).round())
+        };
+        // A 6 x 40 tenon: two thirds into the face, the rest of it in the end, rounded down to a
+        // whole millimeter where the stock is what limits it. 2/3 of 3/4" is 12.7mm, and no joiner
+        // has a stop for that (#16).
+        assert_eq!(said(0.75), (12.0, 28.0), "3/4\" stock");
+        // Thick enough to take half the tenon either side, so nothing is rounded at all.
+        assert_eq!(said(1.5), (20.0, 20.0), "1 1/2\" stock");
+        // And the thickness that lands on nothing a DF 500 has, which is why `stops` exists.
+        assert_eq!(said(1.0), (16.0, 24.0), "1\" stock: neither is a setting");
+        // A biscuit is an imperial piece and goes in the same depth either way.
+        let (face, end) = Slots::biscuits(2, 11.25).depths_in(0.75);
+        assert_eq!((face, end), (0.5, 0.5), "a #20 biscuit");
+    }
+
+    #[test]
+    fn a_joiners_own_stops_make_a_pair_that_holds_the_tenon() {
+        let df500: Vec<f64> = [12.0, 15.0, 20.0, 25.0, 28.0].iter().map(|mm| mm * MM).collect();
+        let pair = |thick: f64| {
+            let slots = Slots::loose_tenons(1, 11.25);
+            let room = slots.depth.min(thick * 2.0 / 3.0);
+            Slots::pair_from(&df500, 2.0 * slots.depth, room).map(|(face, end)| ((face / MM).round(), (end / MM).round()))
+        };
+        // The deepest stop the stock allows, and the stop that takes the rest of the tenon.
+        assert_eq!(pair(0.75), Some((12.0, 28.0)), "3/4\" stock");
+        assert_eq!(pair(1.0), Some((15.0, 25.0)), "1\" stock, where its own rule gives 16 and 24");
+        assert_eq!(pair(2.0), Some((20.0, 20.0)), "thick enough for half each side");
+        // Stops too shallow to hold a 40 mm tenon between any two of them.
+        let small: Vec<f64> = [6.0, 8.0].iter().map(|mm| mm * MM).collect();
+        assert_eq!(Slots::pair_from(&small, 40.0 * MM, 0.5), None);
+    }
+
+    #[test]
+    fn a_depth_is_said_in_whatever_the_machine_is_set_in() {
+        // A loose tenon is metric, and "~ 1/2"" for a 12mm mortise reads like a guess (#16).
+        assert_eq!(say_depth(JointKind::LooseTenons, 12.0 * MM), "12mm");
+        assert_eq!(say_depth(JointKind::LooseTenons, 28.0 * MM), "28mm");
+        // Anything else in the drawing's own units, where the number is exact.
+        assert_eq!(say_depth(JointKind::Biscuits, 0.5), format_length(0.5));
+    }
+
+    #[test]
     fn loose_tenons_cut_mortises_in_both_parts() {
         let mut doc = Document::default();
         let (side, shelf) = side_and_shelf(&mut doc);

@@ -303,6 +303,47 @@ mod tests {
     }
 
     #[test]
+    fn arithmetic_goes_in_the_order_a_person_expects() {
+        let names = names([("width", 24.0), ("stile", 2.25), ("height", 30.0)]);
+        let eval = |text: &str| eval(text, false, &names);
+        // Times before plus, and both before a comparison, or "width - 2*stile" is the wrong
+        // size and nobody would notice until a part came out short.
+        assert_eq!(eval("2 + 3 * 4"), Ok(14.0));
+        assert_eq!(eval("(2 + 3) * 4"), Ok(20.0));
+        assert_eq!(eval("2 * 3 + 4 * 5"), Ok(26.0));
+        // Taken left to right, so 10 - 3 - 2 is 5 and not 9.
+        assert_eq!(eval("10 - 3 - 2"), Ok(5.0));
+        assert_eq!(eval("24 / 2 / 3"), Ok(4.0));
+        assert_eq!(eval("24 / 2 * 3"), Ok(36.0));
+        // A minus sign in front of something, next to an operator, and in front of a bracket.
+        assert_eq!(eval("-2 * 3"), Ok(-6.0));
+        assert_eq!(eval("2 - -3"), Ok(5.0));
+        assert_eq!(eval("-(2 + 3)"), Ok(-5.0));
+        // Spaces change nothing, and a function sits inside a sum like a number.
+        assert_eq!(eval("width-2*stile"), Ok(19.5));
+        assert_eq!(eval("2 * max(3, 4) + 1"), Ok(9.0));
+        assert_eq!(eval("floor((width - 1) / 5)"), Ok(4.0));
+        assert_eq!(eval("if(width > 24, width / 2, width)"), Ok(24.0));
+        assert_eq!(eval("if(height > width, 1, 0) + 1"), Ok(2.0));
+        // A comparison reads the sums either side of it before comparing them.
+        assert_eq!(eval("width + 1 > height - 1"), Ok(0.0));
+        assert_eq!(eval("width * 2 > height"), Ok(1.0));
+    }
+
+    #[test]
+    fn units_can_be_mixed_in_one_sum() {
+        let names = names([("width", 24.0), ("stile", 2.25), ("height", 30.0)]);
+        // Inches and millimeters in the same breath, in a recipe of either unit: everything is
+        // inches by the time it is added up.
+        assert_eq!(eval("300mm + 1in", false, &names), Ok(300.0 / 25.4 + 1.0));
+        assert_eq!(eval("300mm + 1in", true, &names), Ok(300.0 / 25.4 + 1.0));
+        assert_eq!(eval("width - 19mm", false, &names), Ok(24.0 - 19.0 / 25.4));
+        // A bare number follows the recipe, so the same sum means different things in each.
+        assert_eq!(eval("2 + 2", false, &names), Ok(4.0));
+        assert_eq!(eval("2 + 2", true, &names), Ok(4.0 / 25.4));
+    }
+
+    #[test]
     fn what_a_recipe_reads_is_known_before_it_is_worked_out() {
         assert_eq!(names_in("width - 2*stile", false), vec!["width".to_owned(), "stile".to_owned()]);
         // A function is not a parameter, and nothing is listed twice.
