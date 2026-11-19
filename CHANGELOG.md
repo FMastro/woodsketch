@@ -9,10 +9,10 @@ that belongs in the commit message, which is where it already is.
 
 ## 0.1.78
 
-- Loose tenons can be chosen and placed: which tenon, how deep into each part, and where
-  the first one sits with what spacing. Depths are whole millimeters now, so a joiner can
-  actually be set to them, and the joint says them in millimeters rather than as a rounded
-  fraction of an inch (#16).
+- Loose tenons can be chosen and placed: which tenon, how deep into each part, where each
+  mortise goes, and the depths your own joiner can be set to, so it picks a pair from those
+  instead of whatever the stock works out to. Its own depths are whole millimeters now, and
+  it says them in millimeters rather than as a rounded fraction of an inch (#16).
 
 ## 0.1.77
 

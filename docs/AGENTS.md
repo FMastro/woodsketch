@@ -127,7 +127,7 @@ the parts, as the app's Joinery panel does.
 | `cut_overlap` | the part kept whole / the part cut where they overlap | |
 | `mortise_and_tenon` | the rail (tenon) / the leg or stile (mortise) | `length`, `thickness`, `shoulder`, `fit` |
 | `dowels` | either / either | `count`, `diameter`, `depth`, `fit` |
-| `biscuits`, `loose_tenons` | either / either | `count`, `fit`, `face_depth`, `end_depth`, `offset`, `spacing`; `tenon` (`5x30`, `6x40`, `8x40`, `10x50`, thickness x length in mm) |
+| `biscuits`, `loose_tenons` | either / either | `count`, `fit`, `face_depth`, `end_depth`, `offset`, `spacing`, `centers`, `stops`; `tenon` (`5x30`, `6x40`, `8x40`, `10x50`, thickness x length in mm) |
 | `splines` | either / either | |
 | `pocket_screws` | the part drilled / the part screwed into | `count`, `screw` (length) |
 | `dovetails` | the tails board (a drawer side) / the pins board (the front) | `tails`, `half_blind`, `pin`, `half_pin` (widths where they show: 1/8" pins for a hand-cut look) |
@@ -144,7 +144,13 @@ the tenon's length in the butting part's end, in whole millimeters so a joiner c
 Give `face_depth` and `end_depth` to use your own machine's stops instead — the two together have
 to hold the tenon — and `offset` (the first slot's center from where the parts start to overlap)
 with `spacing` (center to center) to set them out from a reference edge rather than have them
-spread evenly across the joint.
+spread evenly across the joint. `centers` places every slot by hand instead, and says how many
+there are.
+
+`stops` is the other way round: give it the depths your machine can be set to and the two
+mortises become a pair from that list, deep enough between them to hold the tenon -- a Domino
+DF 500 is `"stops": [12, 15, 20, 25, 28]`. It is refused when no two of them hold the tenon in
+the stock, which is worth knowing before you are standing at the machine.
 An angled joint on a part with copies gives that copy a component of its own (the others,
 perhaps mirrored, stay as they are); `"every_copy": true` cuts every copy of it instead.
 

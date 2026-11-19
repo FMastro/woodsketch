@@ -1142,16 +1142,27 @@ fn loose_tenon_named(name: &str) -> Option<usize> {
 
 /// Where the slots go and how deep, for a machine whose stops don't match what WoodSketch would
 /// have picked: anything not asked for is left to the joint.
-fn set_out(slots: &mut Slots, asked: &dyn Fn(&str) -> Option<f64>) {
+fn set_out(slots: &mut Slots, j: &JointSpec, asked: &dyn Fn(&str) -> Option<f64>, mm: bool) {
     slots.face = asked("face_depth");
     slots.end = asked("end_depth");
     slots.offset = asked("offset");
     slots.spacing = asked("spacing");
+    slots.centers = lengths(j, "centers", mm);
+    slots.stops = lengths(j, "stops", mm);
+    if !slots.centers.is_empty() {
+        slots.count = slots.centers.len() as u32;
+    }
+}
+
+/// A joint option that is a list of lengths (`[40, 140, 240]`), in the recipe's units.
+fn lengths(j: &JointSpec, key: &str, mm: bool) -> Vec<f64> {
+    let Some(given) = j.options.get(key).and_then(serde_json::Value::as_array) else { return Vec::new() };
+    given.iter().filter_map(serde_json::Value::as_f64).map(|v| v / if mm { 25.4 } else { 1.0 }).collect()
 }
 
 /// A slot joint's sizes in the order the Joinery panel and `recipe_of` read them.
 fn slot_sizes(size: usize, slots: &Slots) -> Vec<f64> {
-    vec![
+    let mut sizes = vec![
         size as f64,
         f64::from(slots.count),
         slots.fit,
@@ -1159,7 +1170,10 @@ fn slot_sizes(size: usize, slots: &Slots) -> Vec<f64> {
         slots.end.unwrap_or(0.0),
         slots.offset.unwrap_or(0.0),
         slots.spacing.unwrap_or(0.0),
-    ]
+    ];
+    // A center each, after the rest: `count` says how many follow.
+    sizes.extend(slots.centers.iter().copied());
+    sizes
 }
 
 /// Whether an angled joint cuts every copy of a shared component (`"every_copy": true`), not
@@ -1226,7 +1240,7 @@ fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, 
                     let mut slots = Slots::biscuits(size, wide);
                     slots.count = count(slots.count);
                     slots.fit = len("fit", 0.0);
-                    set_out(&mut slots, &asked);
+                    set_out(&mut slots, j, &asked, mm);
                     (doc.slots(part, into, &slots), slot_sizes(size, &slots))
                 }
                 "loose_tenons" => {
@@ -1238,7 +1252,7 @@ fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, 
                     let mut slots = Slots::loose_tenons(size, wide);
                     slots.count = count(slots.count);
                     slots.fit = len("fit", 0.0);
-                    set_out(&mut slots, &asked);
+                    set_out(&mut slots, j, &asked, mm);
                     (doc.slots(part, into, &slots), slot_sizes(size, &slots))
                 }
                 "splines" | "spline" => (doc.slots(part, into, &Spline::for_stock(thick)), Vec::new()),
@@ -1603,6 +1617,43 @@ mod tests {
         )
         .unwrap();
         assert!(build(&bad).err().expect("an error")[0].contains("isn't a loose tenon size"), "{:?}", build(&bad).err());
+    }
+
+    #[test]
+    fn a_joiners_own_depth_stops_and_a_center_each() {
+        // The machine's stops instead of arithmetic: 3/4" stock leaves room for 12 mm in the
+        // face, and a DF 500's 28 mm takes the rest of a 40 mm tenon. Mortises placed one by
+        // one, too, for a layout that isn't a spacing at all (#16).
+        let door = |options: &str| {
+            parse(&format!(
+                r#"{{
+                "units": "mm",
+                "materials": [{{ "id": "oak", "library": "White Oak" }}],
+                "parts": [
+                    {{ "name": "Side", "material": "oak", "size": [762, 286, 19], "at": [0, 0, 0], "length": "z", "width": "y" }},
+                    {{ "name": "Shelf", "material": "oak", "size": [508, 286, 19], "at": [19, 0, 305], "length": "x", "width": "y" }}
+                ],
+                "joints": [{{ "kind": "loose_tenons", "part": "Shelf", "into": "Side", "options": {{ "tenon": "6x40", {options} }} }}]
+            }}"#
+            ))
+            .unwrap()
+        };
+        let doc = build(&door(r#""stops": [12, 15, 20, 25, 28]"#)).unwrap_or_else(|e| panic!("{e:?}"));
+        let detail = doc.scene().joints[0].detail.clone();
+        assert!(detail.contains("12mm deep in the face") && detail.contains("28mm in the end"), "{detail}");
+        // A center each: three mortises where they were asked for, and the count follows them.
+        let doc = build(&door(r#""centers": [40, 140, 240]"#)).unwrap_or_else(|e| panic!("{e:?}"));
+        let detail = doc.scene().joints[0].detail.clone();
+        assert!(detail.starts_with("3 x 6 x 20 x 40 mm loose tenon"), "{detail}");
+        let (read, _notes) = crate::recipe_of::from_document(&doc);
+        let back = read.joints[0].options.get("centers").and_then(|v| v.as_array()).expect("the centers come back").clone();
+        let back: Vec<f64> = back.iter().filter_map(serde_json::Value::as_f64).collect();
+        for (had, got) in [40.0, 140.0, 240.0].iter().zip(&back) {
+            assert!((got - had / 25.4).abs() < 0.01, "{back:?}");
+        }
+        // Stops that can't hold the tenon between them, and a mortise off the end of the joint.
+        assert!(build(&door(r#""stops": [6, 8]"#)).err().expect("an error")[0].contains("hold the tenon"));
+        assert!(build(&door(r#""centers": [40, 900]"#)).err().expect("an error")[0].contains("off the end of the joint"));
     }
 
     #[test]

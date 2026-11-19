@@ -332,8 +332,10 @@ add it there; when you finish an item, remove it.
    (`already_done`, `repeat`), so one leg component turned to each corner gets two mortises.
    Biscuits and loose tenons (`Slots`: matching slots, shallower in a face -- two thirds into it, the
    rest of the tenon in the end, rounded down to whole millimeters because 2/3 of 3/4" is 12.7mm and
-   no joiner has a stop for that; `face`, `end`, `offset` and `spacing` are the machine's own
-   settings when a recipe gives them, and a loose tenon's depths are said in mm, #16), pocket screws (a 3/8" bore at
+   no joiner has a stop for that; `face`, `end`, `offset`, `spacing` and `centers` are the machine's
+   own settings when a recipe gives them, `stops` hands it the machine's depth stops and
+   `Slots::pair_from` takes the deepest pair that holds the tenon, and a loose tenon's depths are
+   said in mm, #16), pocket screws (a 3/8" bore at
    15° stepping to a pilot, drilled with `doc::solid::drill`: BSP subtraction of `Rod`s, pieces merged back
    into faces per plane; `JointOp::drill`), through tenons; each joint's pieces (`Joint::hardware`) and glue-up seams
    (`PartInfo::edge_joint`) add up in `CutList::hardware` (Parts tab, cut sheet).

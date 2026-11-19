@@ -447,6 +447,12 @@ impl Reader<'_> {
                     if let Some(&(thick, _, long)) = size(0).and_then(|i| crate::joinery::LOOSE_TENONS.get(i as usize)) {
                         options.insert("tenon".into(), serde_json::json!(format!("{thick}x{long}")));
                     }
+                    // A center each, when the slots were placed one by one: `count` of them,
+                    // after the depths and the spacing.
+                    let placed: Vec<f64> = (0..size(1).unwrap_or(0.0) as usize).filter_map(|i| size(7 + i)).filter(|v| *v > 0.0).collect();
+                    if !placed.is_empty() {
+                        options.insert("centers".into(), serde_json::json!(placed.iter().map(|v| round(*v)).collect::<Vec<f64>>()));
+                    }
                     "loose_tenons"
                 }
                 JointKind::PocketScrews => {

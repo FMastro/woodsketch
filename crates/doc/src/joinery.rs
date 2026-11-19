@@ -1577,6 +1577,13 @@ pub struct Slots {
     /// and center to center after that. Spread evenly across the joint when they aren't given.
     pub offset: Option<f64>,
     pub spacing: Option<f64>,
+    /// A center for each slot, measured the same way, when they don't fall at a spacing at all.
+    /// It says how many there are, so `count` follows it.
+    pub centers: Vec<f64>,
+    /// The depths the machine cutting this can be set to. Given them, the two mortises are a
+    /// pair from this list rather than whatever the stock works out to, so the joint can be cut
+    /// without doing arithmetic at the machine.
+    pub stops: Vec<f64>,
 }
 
 /// Biscuit sizes: the name and its slot (length, thickness, depth into each part).
@@ -1603,7 +1610,21 @@ impl Slots {
             end: None,
             offset: None,
             spacing: None,
+            centers: Vec::new(),
+            stops: Vec::new(),
         }
+    }
+
+    /// The pair of `stops` to cut a `long` tenon with, the face mortise no deeper than `room`:
+    /// the deepest face stop that fits, with a stop in the end that takes the rest of the tenon.
+    /// `None` when no two of them hold it.
+    fn pair_from(stops: &[f64], long: f64, room: f64) -> Option<(f64, f64)> {
+        let mut fits: Vec<f64> = stops.iter().copied().filter(|d| *d > EPS && *d <= room + EPS).collect();
+        fits.sort_by(f64::total_cmp);
+        fits.into_iter().rev().find_map(|face| {
+            let end = stops.iter().copied().filter(|end| face + end + EPS >= long).min_by(f64::total_cmp)?;
+            Some((face, end))
+        })
     }
 
     /// Biscuits of a size (`BISCUITS` index) across a joint `wide` along, about one per 6".
@@ -1670,7 +1691,9 @@ impl Document {
     /// `into`'s face, spread evenly across the part's width.
     pub fn slots(&mut self, part: InstanceId, into: InstanceId, slots: &Slots) -> Result<(), JoineryError> {
         let sized = slots.length > EPS || slots.kind == JointKind::Splines;
-        if slots.count == 0 || !sized || slots.thickness <= EPS || slots.depth <= EPS || slots.fit < 0.0 {
+        // A center each says how many there are; otherwise `count` does.
+        let count = if slots.centers.is_empty() { slots.count } else { slots.centers.len() as u32 };
+        if count == 0 || !sized || slots.thickness <= EPS || slots.depth <= EPS || slots.fit < 0.0 {
             return Err(JoineryError::Size("The slots need a count and a size."));
         }
         self.joint_edit(|scene, path| {
@@ -1689,13 +1712,25 @@ impl Document {
             // of its length in the butting part's end (a biscuit goes in equally either way).
             let loose = slots.kind == JointKind::LooseTenons;
             let into_thick = o.1[butt.k] - o.0[butt.k];
-            let face_depth = slots.face.unwrap_or_else(|| {
-                let room = slots.depth.min(into_thick * 2.0 / 3.0);
+            let room = slots.depth.min(into_thick * 2.0 / 3.0);
+            // The machine's own stops, when it has them: a pair of them that holds the tenon.
+            let settable = if slots.stops.is_empty() || slots.face.is_some() && slots.end.is_some() {
+                None
+            } else {
+                match Slots::pair_from(&slots.stops, 2.0 * slots.depth, room) {
+                    Some(pair) => Some(pair),
+                    None => return Err(JoineryError::Size("No two of those depth stops hold the tenon in this stock: use a shorter tenon.")),
+                }
+            };
+            let face_depth = slots.face.or(settable.map(|(face, _)| face)).unwrap_or_else(|| {
                 // 2/3 of 3/4" stock is 1/2", which is 12.7 mm: a depth no joiner has a stop for.
                 // Whole millimeters for a metric tenon, so the mortise can actually be set.
                 if loose && room < slots.depth { (room / MM).floor() * MM } else { room }
             });
-            let end_depth = slots.end.unwrap_or(if loose { 2.0 * slots.depth - face_depth } else { slots.depth });
+            let end_depth = slots
+                .end
+                .or(settable.map(|(_, end)| end))
+                .unwrap_or(if loose { 2.0 * slots.depth - face_depth } else { slots.depth });
             if end_depth + slots.fit.max(0.0) / 2.0 >= r.1[butt.k] - r.0[butt.k] - EPS
                 || face_depth + slots.fit.max(0.0) / 2.0 >= into_thick - EPS
             {
@@ -1710,26 +1745,27 @@ impl Document {
             // A spline runs the whole joint; the others are spaced across it.
             let spline = slots.kind == JointKind::Splines;
             let length = if spline { size[wide] } else { slots.length };
-            let spacing = slots.spacing.unwrap_or(size[wide] / f64::from(slots.count));
+            let spacing = slots.spacing.unwrap_or(size[wide] / f64::from(count));
             if !spline && spacing < length + 0.25 {
                 return Err(JoineryError::Size("Too many for the width: use fewer, or a smaller size."));
             }
-            // Laid out from the reference edge when the machine's own setting-out is given:
-            // the first slot's center at `offset`, the rest a `spacing` apart. Each still has
-            // to fall on the joint, or it would be cut into thin air.
-            if let Some(offset) = slots.offset {
-                let last = offset + spacing * f64::from(slots.count - 1);
-                if offset - length / 2.0 < -EPS || last + length / 2.0 > size[wide] + EPS {
-                    return Err(JoineryError::Size("A slot would fall off the end of the joint: move the first one, or close up the spacing."));
-                }
+            // Laid out from the reference edge when the setting-out is given: a center each, or
+            // the first at `offset` with the rest a `spacing` apart. Each still has to fall on
+            // the joint, or it would be cut into thin air.
+            let placed: Vec<f64> = if !slots.centers.is_empty() {
+                slots.centers.clone()
+            } else if let Some(offset) = slots.offset {
+                (0..count).map(|i| offset + spacing * f64::from(i)).collect()
+            } else {
+                Vec::new()
+            };
+            if placed.iter().any(|at| at - length / 2.0 < -EPS || at + length / 2.0 > size[wide] + EPS) {
+                return Err(JoineryError::Size("A slot would fall off the end of the joint: move it, or close up the spacing."));
             }
             let to_part = p.relative(into, part)?;
             let mid = (butt.contact.0[thin] + butt.contact.1[thin]) / 2.0;
-            for i in 0..slots.count {
-                let along = match slots.offset {
-                    Some(offset) => offset + spacing * f64::from(i),
-                    None => spacing * (f64::from(i) + 0.5),
-                };
+            for i in 0..count {
+                let along = placed.get(i as usize).copied().unwrap_or_else(|| spacing * (f64::from(i) + 0.5));
                 let center = butt.contact.0[wide] + along;
                 // Each slot bigger than its piece by the fit allowance: thicker, longer (a spline's
                 // runs the whole joint already), and half of it deeper each side.
@@ -1750,9 +1786,9 @@ impl Document {
             // sent a report asking what the depths really were (#16).
             let deep = |d: f64| if loose { format!("{}mm", (d / MM).round()) } else { format_length(d) };
             let detail = if (face_depth - end_depth).abs() < 1e-9 {
-                format!("{} x {}, {} deep each side", slots.count, slots.piece, deep(face_depth))
+                format!("{} x {}, {} deep each side", count, slots.piece, deep(face_depth))
             } else {
-                format!("{} x {}, {} deep in the face, {} in the end", slots.count, slots.piece, deep(face_depth), deep(end_depth))
+                format!("{} x {}, {} deep in the face, {} in the end", count, slots.piece, deep(face_depth), deep(end_depth))
             };
             let detail = if slots.fit > EPS { format!("{detail}, slots {} roomier", format_length(slots.fit)) } else { detail };
             let name = if spline {
@@ -1760,7 +1796,7 @@ impl Document {
             } else {
                 slots.piece.clone()
             };
-            let hardware = Hardware { name, count: slots.count };
+            let hardware = Hardware { name, count };
             record_with(scene, path, slots.kind, part, into, detail, Some(hardware))
         })
     }

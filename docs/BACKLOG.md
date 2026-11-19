@@ -12,7 +12,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | # | Category | Points | Why here |
 |---|---|---|---|
 | 1 | Build sheets and assembly | 34 | Illustrated assembly steps, asked for by a user |
-| 2 | Joinery | 76 | Closes gaps in the core woodworking feature |
+| 2 | Joinery | 71 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 21 | A live link to the open drawing |
@@ -66,7 +66,8 @@ copy of a shared component (or only the one picked); removing a joint from a par
 hand elsewhere (an angled one refuses, keeping the change); pocket holes drilled (a 3/8" bore at
 15° stepping to a pilot out of the end's middle, with `doc::solid`'s subtraction); a loose
 tenon's size, its depth in each part and its setting-out chosen in a recipe, in whole
-millimeters (#16).
+millimeters; a center for each mortise, and the depths the joiner can be set to, so it takes a
+pair of those rather than what the stock works out to (#16).
 1. [8] Removing a joint from a part changed by hand right where the joint is, or an angled or
    drilled (pocket hole) joint after any hand change (refused: use Undo).
 2. [3] Pocket holes: set how far in from the edges and how far apart they go (spread evenly
@@ -76,10 +77,6 @@ millimeters (#16).
 5. [13] Angled dowels, half-laps and dovetails (`doc::solid` can drill and cut them now).
 6. [21] Compound angles, and a second angled joint on a part already cut at an angle in
    another plane.
-7. [5] Loose tenons: a center for each slot, rather than the first one's offset and a spacing,
-   and a word when the depths aren't ones a common joiner can be set to (a DF 500 stops at 12,
-   15, 20, 25 and 28 mm). The last two bullets of #16; whole millimeters and chosen depths
-   cover what he was actually blocked on.
 
 ## 3. Templates
 Done: cabinet (drawers and doors in its openings, adjustable shelves, hinge side), drawer, face
