@@ -16,6 +16,9 @@ that belongs in the commit message, which is where it already is.
 - A component built from a recipe keeps it, so changing one of its numbers builds the piece
   again rather than stretching it. Resizing one copy makes it its own component and leaves
   the others alone, and one you've changed by hand isn't built over until you say so (#9).
+- Selecting such a component shows its own numbers in the tray, a box each, with the ones it
+  works out from the others shown as the sums they are. The panel is now called Sizes, since
+  it holds a template's or a component's (#9).
 
 ## 0.1.79
 

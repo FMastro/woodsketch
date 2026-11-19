@@ -644,7 +644,7 @@ impl WoodSketchApp {
             // Tool settings: the stock the next board is cut from.
             Panel::Board => self.tools.active() == ToolId::Board,
             Panel::Joinery => crate::joinery::selected_pair(&self.doc).is_some(),
-            Panel::TemplateSizes => self.selected_part().and_then(|part| self.doc.template_of(part)).is_some(),
+            Panel::TemplateSizes => self.selected_part().is_some_and(|part| self.doc.template_of(part).is_some() || self.doc.parametric_of(part).is_some()),
             Panel::EdgeProfile => self.selected_part().is_some(),
             _ => true,
         }
@@ -690,6 +690,10 @@ impl WoodSketchApp {
                     let needs = (!self.panel_applies(panel)).then(|| panel.needs()).flatten();
                     let title = match (panel, made) {
                         (Panel::TemplateSizes, Some(made)) => t!("tray-template-sizes", "template" => made.template.name()),
+                        (Panel::TemplateSizes, None) => match part.and_then(|part| self.doc.instance_name(part)) {
+                            Some(name) => t!("tray-template-sizes", "template" => name),
+                            None => panel.name(),
+                        },
                         _ => panel.name(),
                     };
                     let shut = tray::section(ui, panel, &title, |ui| {
@@ -707,11 +711,11 @@ impl WoodSketchApp {
                                     crate::joinery::show(ui, &mut self.doc, pair);
                                 }
                             }
-                            Panel::TemplateSizes => {
-                                if let (Some(part), Some(made)) = (part, made) {
-                                    crate::template::change(ui, &mut self.doc, part, made);
-                                }
-                            }
+                            Panel::TemplateSizes => match (part, made) {
+                                (Some(part), Some(made)) => crate::template::change(ui, &mut self.doc, part, made),
+                                (Some(part), None) => crate::parametric::change(ui, &mut self.doc, part),
+                                _ => {}
+                            },
                             Panel::EdgeProfile => {
                                 if let Some(part) = part {
                                     crate::profile::show(ui, &mut self.doc, part);

@@ -18,6 +18,7 @@ mod building;
 mod joinery;
 mod outliner;
 mod part;
+mod parametric;
 mod profile;
 mod tags;
 mod template;

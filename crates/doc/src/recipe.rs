@@ -97,7 +97,7 @@ pub enum Length {
 
 /// A named number: `{ "name": "width", "value": 600 }`. Its value may be worked out from the
 /// parameters beside it (`"value": "width - 2*stile"`), so one measurement can follow another.
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ParameterSpec {
     pub name: String,

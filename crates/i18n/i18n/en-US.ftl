@@ -235,10 +235,10 @@ tray-outliner = Outliner
 tray-template-sizes = { $template } Sizes
 # The same panel, named without a template to name: on its own in the Window menu, and on its
 # header while nothing made from a template is selected.
-tray-template-sizes-name = Template Sizes
+tray-template-sizes-name = Sizes
 # Said in a panel's body when it is open but has nothing to work on yet.
 tray-joinery-needs = Select two parts that touch, to joint them.
-tray-template-sizes-needs = Select a part made from a template, to change its sizes.
+tray-template-sizes-needs = Select something made from a template or built from a recipe, to change its sizes.
 tray-edge-profile-needs = Select one part, to profile its edges.
 
 ## The What's New window (Help > What's New), shown once after an update
@@ -461,6 +461,12 @@ template-wood = Wood
 template-add = Add the { $template }
 template-add-hint = Built beside the drawing, as one group; one Undo takes it out
 template-change-size = Change size
+# A component built from a recipe, whose numbers are its own (the Templates panel's cousin).
+# $sum is the arithmetic a parameter is worked out by, and arrives as it was written.
+component-worked-out = { $sum }, worked out
+component-copies = One of { $count } like this: changing it here gives this one its own design and leaves the others alone.
+component-changed-by-hand = This one has been changed by hand since it was built. Building it again from its numbers would lose that.
+component-change-anyway = Change size anyway
 template-change-size-hint = Builds it again with these sizes and wood, where it is. Changes made inside it by hand are lost.
 template-width = Width
 template-height = Height

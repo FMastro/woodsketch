@@ -754,7 +754,7 @@ fn the_window_menu_hides_and_shows_every_panel_at_once() {
     harness.get_by_label("Show All Panels").click();
     harness.run();
     // Each panel's own ✕ says it is there, including the ones about a selection there isn't.
-    for panel in ["Board", "Entity Info", "Joinery", "Template Sizes", "Edge Profile", "Templates", "Materials", "Tags", "Outliner"] {
+    for panel in ["Board", "Entity Info", "Joinery", "Sizes", "Edge Profile", "Templates", "Materials", "Tags", "Outliner"] {
         assert!(harness.query_by_label(&format!("Close {panel}")).is_some(), "{panel} is in the tray");
     }
     assert!(harness.query_by_label_contains("Select two parts that touch").is_some(), "Joinery says what it needs");
@@ -2031,6 +2031,70 @@ fn joinery_panel_takes_the_mortise_depths_a_machine_can_be_set_to() {
     assert!(joint.detail.contains("15mm deep in the face") && joint.detail.contains("25mm in the end"), "{}", joint.detail);
     // Kept on the joint, so Change comes back to them rather than to what it would have picked.
     assert!(harness.query_by_label_contains("15mm deep in the face").is_some(), "the panel says so too");
+}
+
+#[test]
+fn the_sizes_panel_changes_a_components_own_numbers() {
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    // A door built from a recipe: its width is a number of its own, and the panel is where it is
+    // changed (#9).
+    let recipe = woodsketch_doc::recipe::parse(
+        r#"{
+        "name": "Door",
+        "parameters": [
+            { "name": "width", "value": 16, "label": "Door width" },
+            { "name": "stile", "value": 2.25 },
+            { "name": "opening", "value": "width - 2*stile" }
+        ],
+        "materials": [{ "id": "oak", "library": "White Oak" }],
+        "parts": [
+            { "name": "Left stile", "called": "Stile", "material": "oak", "size": [24, "stile", 0.75], "at": [0, 0, 0], "length": "z", "width": "x" },
+            { "name": "Right stile", "called": "Stile", "material": "oak", "size": [24, "stile", 0.75], "at": ["width - stile", 0, 0], "length": "z", "width": "x" },
+            { "name": "Panel", "material": "oak", "size": [24, "opening", 0.25], "at": ["stile", 0.25, 0], "length": "z", "width": "x" }
+        ],
+        "groups": [{ "name": "Door", "parts": ["Left stile", "Right stile", "Panel"] }]
+    }"#,
+    )
+    .expect("the recipe reads");
+    let group = {
+        let doc = harness.state_mut().document_mut();
+        let group = doc.add_parametric(&recipe).unwrap_or_else(|e| panic!("{e}"));
+        doc.selection_mut().clear();
+        doc.selection_mut().extend([woodsketch_doc::Entity::Instance(group)]);
+        group
+    };
+    harness.run();
+    // The panel names itself after the component, shows the label a parameter was given, and
+    // leaves the one that is worked out alone.
+    assert!(harness.query_by_label("Close Door Sizes").is_some(), "the panel is in the tray, titled after the component");
+    assert!(harness.query_by_label("Door width").is_some(), "the label, not the name");
+    assert!(harness.query_by_label("stile").is_some());
+    assert!(harness.query_by_label_contains("width - 2*stile").is_some(), "worked out, not typed");
+    let was = {
+        let (lo, hi) = harness.state().document().bounds().expect("geometry");
+        hi.x - lo.x
+    };
+    assert!((was - 16.0).abs() < 1e-9, "16\" to start: {was}");
+    // Type 30 into the width and build it again.
+    harness
+        .get_all_by_role(egui::accesskit::Role::TextInput)
+        .find(|n| n.value().as_deref() == Some("16\""))
+        .expect("the width box")
+        .click();
+    harness.run();
+    harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+    type_text(&mut harness, "30");
+    harness.get_by_label("Change size").click();
+    harness.run();
+    let (lo, hi) = harness.state().document().bounds().expect("geometry");
+    assert!((hi.x - lo.x - 30.0).abs() < 1e-9, "30\" wide now: {}", hi.x - lo.x);
+    // The panel is about whatever is selected, and the component kept its recipe to do it again.
+    let doc = harness.state().document();
+    let (now, _) = doc.container().instances().next().expect("the component");
+    assert!(doc.parametric_of(now).is_some(), "it still remembers");
+    assert_eq!(doc.instance_name(now), Some("Door"));
+    assert_ne!(now, group, "built again, so it is a new placement");
 }
 
 #[test]
