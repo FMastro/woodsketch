@@ -176,6 +176,11 @@ writes no note: a backend asked for by hand shouldn't decide what the next run d
 - `cargo run -p woodsketch-cli -- help` (build a recipe, render, MCP)
 - `cargo test --workspace`
 - `cargo clippy --workspace --all-targets` (keep it warning-free)
+- `cargo fmt --all` before committing. `rustfmt.toml` decides the layout (160 columns,
+  `use_small_heuristics = "Max"`, so the code stays as wide and dense as it was written) and CI's
+  `fmt` job holds it, so an unformatted commit fails. rustfmt occasionally needs a second pass to
+  settle, so `cargo fmt --all --check` after it is worth the second. The one-time reformat is in
+  `.git-blame-ignore-revs`; `git config blame.ignoreRevsFile .git-blame-ignore-revs` once per clone.
 - `python -I scripts/try-mcp.py` drives the real `woodsketch-cli mcp` over its pipe and checks it
   end to end (`--keep` leaves the drawing to open in the app). The unit tests drive the server
   in-process; this catches what only breaks across the pipe, such as anything printing to stdout.
