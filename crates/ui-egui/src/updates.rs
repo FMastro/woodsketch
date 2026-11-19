@@ -110,6 +110,52 @@ pub fn releases(changes: &str) -> Vec<Release> {
     found
 }
 
+/// One note from a version's release notes: a short lead saying what it is, then the rest for
+/// anyone who cares. The lead is written `**like this**` at the start of the bullet, which the
+/// GitHub release shows in bold and What's New shows in the strong colour, so the window can be
+/// read by its leads alone and the detail only where it's wanted.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Note {
+    /// The opening sentence, if the bullet has one.
+    pub lead: Option<String>,
+    /// Everything after it, or the whole note where there is no lead.
+    pub rest: String,
+}
+
+/// The notes of one version as a list, each wrapped bullet joined back into one note. Lines that
+/// aren't bullets still show, so notes written some other way aren't swallowed.
+pub fn notes_items(notes: &str) -> Vec<Note> {
+    let mut lines: Vec<String> = Vec::new();
+    for line in notes.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("- ") {
+            lines.push(rest.to_owned());
+        } else if !trimmed.is_empty() {
+            match lines.last_mut() {
+                // A wrapped continuation of the bullet above.
+                Some(item) => {
+                    item.push(' ');
+                    item.push_str(trimmed);
+                }
+                // Notes not written as bullets still show.
+                None => lines.push(trimmed.to_owned()),
+            }
+        }
+    }
+    lines.iter().map(|line| split_lead(line)).collect()
+}
+
+/// A bullet split into its lead and the rest. `**Lead.** Detail` gives both; anything else is
+/// all rest, including a bullet whose `**` is never closed.
+fn split_lead(line: &str) -> Note {
+    match line.strip_prefix("**").and_then(|rest| rest.split_once("**")) {
+        Some((lead, rest)) if !lead.trim().is_empty() => {
+            Note { lead: Some(lead.trim().to_owned()), rest: rest.trim().to_owned() }
+        }
+        _ => Note { lead: None, rest: line.to_owned() },
+    }
+}
+
 /// The versions worth showing: everything newer than `ran_last`, so someone who skipped four
 /// updates sees all four. `None` (a first run, or a version too old to be in the notes) shows
 /// the [`RECENT`] newest instead of nothing.
@@ -188,6 +234,38 @@ Blurb.
         // Someone a long way behind sees the same span, not every version since.
         let old = all.last().expect("a first release");
         assert_eq!(since(&all, Some(&old.version)).len(), shown.len().min(all.len() - 1));
+    }
+
+    #[test]
+    fn a_note_is_split_into_its_lead_and_the_rest() {
+        let notes = "- **Doors are a template of their own.** In the Templates panel,
+  beside the cabinet.
+- A note written without a lead.
+- **Never closed, so it is all rest.";
+        let items = notes_items(notes);
+        assert_eq!(items.len(), 3, "three bullets, wrapped lines joined");
+        assert_eq!(items[0].lead.as_deref(), Some("Doors are a template of their own."));
+        assert_eq!(items[0].rest, "In the Templates panel, beside the cabinet.");
+        assert_eq!(items[1].lead, None, "no lead is fine");
+        assert_eq!(items[1].rest, "A note written without a lead.");
+        assert_eq!(items[2].lead, None, "an unclosed ** is text, not a lead");
+        assert!(items[2].rest.starts_with("**Never closed"));
+    }
+
+    #[test]
+    fn every_note_the_window_can_show_leads_with_what_it_is() {
+        // What's New is read by its bold leads, and the detail only where someone wants it, so
+        // a note without one is a wall of text in the middle of the list. Only the versions the
+        // window can reach are held to it: older ones scroll out of range on their own.
+        let all = releases(CHANGES);
+        for release in since(&all, None) {
+            for note in notes_items(&release.notes) {
+                let lead = note.lead.unwrap_or_default();
+                assert!(!lead.is_empty(), "{} has a note with no **lead**: {}", release.version, note.rest);
+                assert!(lead.ends_with('.'), "{}: a lead is a sentence: {lead}", release.version);
+                assert!(lead.len() <= 70, "{}: {} characters is too long to scan: {lead}", release.version, lead.len());
+            }
+        }
     }
 
     #[test]

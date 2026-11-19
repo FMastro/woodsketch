@@ -7,85 +7,83 @@ Write them short. One line per change, a sentence or two at most: what changed, 
 reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
 that belongs in the commit message, which is where it already is.
 
+Start every note with a lead in `**bold**`: one plain sentence saying what it is, so the list
+can be read by its leads alone and the detail only where someone wants it. The lead is a
+sentence, not a label, and short enough to take in at a glance (70 characters is the limit a
+test holds it to). What's New shows it in the strong colour, GitHub shows it in bold.
+
+## 0.1.81
+
+- **What's New can be read at a glance.** Every note opens with a line saying what it is, so you
+  can skim the list and read the detail only where you want it.
+
 ## 0.1.80
 
-- A project built from a recipe can have named numbers -- a width, a stock thickness -- and
-  work its sizes and counts out from them: `width - 2*stile`, or a shelf every foot. Change the
-  one number and every part that reads it follows, which is the first half of components that
-  resize themselves (#9).
-- A component built from a recipe keeps it, so changing one of its numbers builds the piece
-  again rather than stretching it. Resizing one copy makes it its own component and leaves
-  the others alone, and one you've changed by hand isn't built over until you say so (#9).
-- Selecting such a component shows its own numbers in the tray, a box each, with the ones it
-  works out from the others shown as the sums they are. The panel is now called Sizes, since
-  it holds a template's or a component's (#9).
-- Anything you have drawn can be given numbers of its own: group it, and Entity Info offers to
-  read it back. Name a number, type that name where a size used to be, and the whole piece
-  resizes by it from then on (#9).
+- **Change one number and the whole piece resizes.** Name the numbers a design is built from, a
+  width or a stock thickness, and every part that uses one follows it (#9).
+- **A component remembers how it was built.** Change a number and it is built again rather than
+  stretched. Resizing one copy leaves the others alone (#9).
+- **Select a component to change its numbers.** They are in the tray's Sizes panel, a box each
+  (#9).
+- **Anything you have drawn can be given numbers too.** Group it, and Entity Info offers to read
+  it back so its sizes can be named (#9).
 
 ## 0.1.79
 
-- The Joinery panel takes the two mortise depths for biscuits and loose tenons, so a joint
-  can be cut at a depth your machine has a stop for. Left empty they are what WoodSketch
-  works out, and the hint says what that is (#16).
+- **Set the mortise depth your machine can cut.** The Joinery panel takes both depths for
+  biscuits and loose tenons. Left empty, they are what WoodSketch works out (#16).
 
 ## 0.1.78
 
-- Loose tenons can be chosen and placed: which tenon, how deep into each part, where each
-  mortise goes, and the depths your own joiner can be set to, so it picks a pair from those
-  instead of whatever the stock works out to. Its own depths are whole millimeters now, and
-  it says them in millimeters rather than as a rounded fraction of an inch (#16).
+- **Choose your loose tenon and where it goes.** The tenon, how deep it goes into each part,
+  where each mortise sits, and your joiner's own depth stops, so it picks a setting you have.
+  Depths are in whole millimeters now (#16).
 
 ## 0.1.77
 
-- A panel goes into its frame whichever edge is grooved first. Letting a door's panel into
-  the stiles no longer stops the rails from taking it (#17).
-- A door is a template of its own now, in the Templates panel beside the cabinet and the
-  table: give it a size and get a frame-and-panel or slab door to hang on anything (#17).
+- **A door's panel goes in whichever edge you groove first.** Letting it into the stiles no
+  longer stops the rails from taking it (#17).
+- **Doors are a template of their own.** Give it a size and get a frame-and-panel or slab door
+  to hang on anything, not only a WoodSketch cabinet (#17).
 
 ## 0.1.76
 
-- The Mac builds are signed and notarized by Apple, installer and app both, so they open on any
-  Mac instead of macOS offering only to move them to the Bin.
+- **The Mac builds are signed and notarized by Apple.** App and installer both, so they open on
+  any Mac instead of macOS offering only to move them to the Bin.
 
 ## 0.1.75
 
-- A graphics card that won't work with one way of drawing no longer stops WoodSketch: it starts
-  on another by itself, says in the status bar which and why, and tries the preferred one again
-  after an update (#13).
-- A problem reported by the graphics card no longer closes the app. Your drawing stays open and
-  can be saved, and the card's own words go into Help > Report a Problem (#13).
-- A problem report now says what the graphics driver is, or that it wouldn't say, instead of two
-  question marks.
+- **A graphics card that won't draw no longer stops WoodSketch.** It starts on another way of
+  drawing by itself and says in the status bar which and why (#13).
+- **A graphics error keeps your drawing open.** The app stays up and saveable, and the card's
+  own words go into Help > Report a Problem (#13).
+- **Problem reports name the graphics driver.** Or say it wouldn't give one, instead of showing
+  two question marks.
 
 ## 0.1.74
 
-- The tray's panels each have a header bar now, with a ✕ that closes that panel. Window >
-  Default Tray lists them all: tick one to bring it back, or Show All Panels, Hide All Panels
-  and Automatic for the lot. What you leave open is remembered for next time.
-- Checking for updates and sending a report now trust the certificates your computer trusts, so
-  they work on a VPN or a managed network that re-signs secure traffic (#14).
+- **Every tray panel has a header bar with a ✕.** Window > Default Tray brings one back, or shows
+  and hides them all, and what you leave open is remembered.
+- **Updates and reports work on a VPN or a managed network.** They trust the certificates your
+  computer trusts, so re-signed traffic no longer stops them (#14).
 
 ## 0.1.73
 
-- Drawing on a closed group opens it, and Esc now takes that back instead of throwing the
-  drawing away: the corner you placed stays where it is and the shape finishes outside the
-  group. Thanks to @clems71 (#11).
+- **Esc no longer throws away a shape you started on a group.** The corner you placed stays where
+  it is and the shape finishes outside the group. Thanks to @clems71 (#11).
 
 ## 0.1.72
 
-- Flip Along, in the Edit menu and the right-click menu, mirrors what's selected where it
-  stands: along red, green or blue, or along a single group's own axes. One copy of a shared
-  component becomes the other hand and the rest stay as they were.
+- **Flip Along mirrors what's selected where it stands.** In the Edit menu and the right-click
+  menu, along red, green or blue, or a single group's own axes. One copy of a shared component
+  becomes the other hand.
 
 ## 0.1.71
 
-- WoodSketch speaks Portuguese. View > Language is in the menu bar now that there are two to
-  choose between, and a computer set to Portuguese -- Brazilian included -- starts in it. Thanks
-  to @jmartsdesign for writing it (#10).
-- Small house: the baths are laid out again, so you can get into them. Each has its tub, toilet
-  and vanity down one wall and a 34" lane from the door past them, and the bath doors are 2'-6"
-  at the end of their wall rather than 2'-10" in the middle of it.
+- **WoodSketch speaks Portuguese.** View > Language is in the menu bar, and a computer set to
+  Portuguese starts in it. Thanks to @jmartsdesign for writing it (#10).
+- **The Small house's baths can be walked into.** Fixtures down one wall, a 34" lane past them,
+  and the door at the end of its wall rather than the middle.
 
 ## 0.1.70
 

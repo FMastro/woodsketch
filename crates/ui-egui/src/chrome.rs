@@ -534,8 +534,9 @@ impl WoodSketchApp {
                                 ui.label(t!("whats-new-this-one"));
                             }
                         });
-                        for item in notes_items(&release.notes) {
-                            ui.label(format!("{} {item}", egui_phosphor::regular::DOT_OUTLINE));
+                        for note in crate::updates::notes_items(&release.notes) {
+                            let job = note_line(ui, &note);
+                            ui.label(job);
                         }
                         ui.add_space(10.0);
                     }
@@ -867,28 +868,27 @@ impl WoodSketchApp {
     }
 }
 
-/// A tray panel: a bar with the panel's name that folds it open and closed.
-/// A version's notes split into its bullets, each with its wrapped lines joined into one, so
-/// egui wraps them to the window's width instead of keeping the file's line breaks.
-fn notes_items(notes: &str) -> Vec<String> {
-    let mut items: Vec<String> = Vec::new();
-    for line in notes.lines() {
-        let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix("- ") {
-            items.push(rest.to_owned());
-        } else if !trimmed.is_empty() {
-            match items.last_mut() {
-                // A wrapped continuation of the bullet above.
-                Some(item) => {
-                    item.push(' ');
-                    item.push_str(trimmed);
-                }
-                // Notes not written as bullets still show.
-                None => items.push(trimmed.to_owned()),
-            }
+/// One note as a line of What's New: the bullet, the lead in the strong colour, then the rest in
+/// the ordinary one, laid out together so the whole thing wraps to the window as one paragraph.
+/// There is no bold typeface in the fonts the app ships, so the lead is told apart by colour,
+/// which is how everything else here is emphasised.
+fn note_line(ui: &egui::Ui, note: &crate::updates::Note) -> egui::text::LayoutJob {
+    let mut job = egui::text::LayoutJob::default();
+    // Wrapping is the whole reason this is one laid-out line rather than labels side by side:
+    // the lead and the detail are one paragraph and have to break like one.
+    job.wrap.max_width = ui.available_width();
+    let font = egui::TextStyle::Body.resolve(ui.style());
+    let plain = egui::TextFormat { font_id: font.clone(), color: ui.visuals().text_color(), ..Default::default() };
+    let strong = egui::TextFormat { font_id: font, color: ui.visuals().strong_text_color(), ..Default::default() };
+    job.append(&format!("{} ", egui_phosphor::regular::DOT_OUTLINE), 0.0, plain.clone());
+    if let Some(lead) = &note.lead {
+        job.append(lead, 0.0, strong);
+        if !note.rest.is_empty() {
+            job.append(" ", 0.0, plain.clone());
         }
     }
-    items
+    job.append(&note.rest, 0.0, plain);
+    job
 }
 
 /// A menu of tools, each with its shortcut.

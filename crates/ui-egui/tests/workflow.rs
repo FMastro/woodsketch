@@ -2286,6 +2286,12 @@ fn whats_new_gathers_every_update_you_skipped() {
         assert!(harness.query_by_label(&release.version).is_some(), "{} is listed", release.version);
     }
     assert!(harness.query_by_label_contains(&all[4].version).is_none(), "older versions are left out");
+    // Each note opens with its lead, which is what makes the window skimmable: the `**` around
+    // it in the file is markup, so seeing it on screen would mean it never became a lead.
+    let note = woodsketch_ui_egui::updates::notes_items(&all[0].notes).remove(0);
+    let lead = note.lead.expect("the newest note leads with what it is");
+    assert!(harness.query_by_label_contains(&lead).is_some(), "the lead is on screen: {lead}");
+    assert!(harness.query_by_label_contains("**").is_none(), "and its asterisks are not");
     snapshot(&mut harness, "whats_new");
 
     harness.get_by_label("Done").click();
