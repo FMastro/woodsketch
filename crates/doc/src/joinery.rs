@@ -1565,10 +1565,18 @@ pub struct Slots {
     pub length: f64,
     /// Across the part's thickness.
     pub thickness: f64,
-    /// Into each part.
+    /// Into each part, before the stock makes the one in the face shallower.
     pub depth: f64,
     /// How much roomier each slot is than its piece (thicker, longer, deeper); 0 for a tight fit.
     pub fit: f64,
+    /// Into the face, when the machine's depth is chosen rather than worked out from the stock.
+    pub face: Option<f64>,
+    /// Into the butting part's end, likewise. A loose tenon's two together have to hold it.
+    pub end: Option<f64>,
+    /// The first slot's center, measured along the joint from where the parts start to overlap,
+    /// and center to center after that. Spread evenly across the joint when they aren't given.
+    pub offset: Option<f64>,
+    pub spacing: Option<f64>,
 }
 
 /// Biscuit sizes: the name and its slot (length, thickness, depth into each part).
@@ -1580,11 +1588,29 @@ pub const LOOSE_TENONS: [(u32, u32, u32); 4] = [(5, 19, 30), (6, 20, 40), (8, 22
 const MM: f64 = 1.0 / 25.4;
 
 impl Slots {
+    /// The depths and spacing left to WoodSketch: what every size starts as, and all a joint
+    /// needs unless the machine cutting it has something to say about it.
+    fn anywhere() -> Self {
+        Slots {
+            kind: JointKind::Biscuits,
+            piece: String::new(),
+            count: 0,
+            length: 0.0,
+            thickness: 0.0,
+            depth: 0.0,
+            fit: 0.0,
+            face: None,
+            end: None,
+            offset: None,
+            spacing: None,
+        }
+    }
+
     /// Biscuits of a size (`BISCUITS` index) across a joint `wide` along, about one per 6".
     pub fn biscuits(size: usize, wide: f64) -> Self {
         let (name, length, thickness, depth) = BISCUITS[size.min(BISCUITS.len() - 1)];
         let count = ((wide / 6.0).round() as u32).max(1);
-        Slots { kind: JointKind::Biscuits, piece: format!("{name} biscuit"), count, length, thickness, depth, fit: 0.0 }
+        Slots { kind: JointKind::Biscuits, piece: format!("{name} biscuit"), count, length, thickness, depth, fit: 0.0, ..Slots::anywhere() }
     }
 
     /// Loose tenons of a size (`LOOSE_TENONS` index) across a joint `wide` along.
@@ -1599,6 +1625,7 @@ impl Slots {
             thickness: f64::from(t) * MM,
             depth: f64::from(l) * MM / 2.0,
             fit: 0.0,
+            ..Slots::anywhere()
         }
     }
 
@@ -1660,22 +1687,50 @@ impl Document {
             }
             // Into a face, at most 2/3 of the way through; a loose tenon's other end takes up the rest
             // of its length in the butting part's end (a biscuit goes in equally either way).
-            let face_depth = slots.depth.min((o.1[butt.k] - o.0[butt.k]) * 2.0 / 3.0);
-            let end_depth = if slots.kind == JointKind::LooseTenons { 2.0 * slots.depth - face_depth } else { slots.depth };
-            if end_depth + slots.fit.max(0.0) / 2.0 >= r.1[butt.k] - r.0[butt.k] - EPS {
+            let loose = slots.kind == JointKind::LooseTenons;
+            let into_thick = o.1[butt.k] - o.0[butt.k];
+            let face_depth = slots.face.unwrap_or_else(|| {
+                let room = slots.depth.min(into_thick * 2.0 / 3.0);
+                // 2/3 of 3/4" stock is 1/2", which is 12.7 mm: a depth no joiner has a stop for.
+                // Whole millimeters for a metric tenon, so the mortise can actually be set.
+                if loose && room < slots.depth { (room / MM).floor() * MM } else { room }
+            });
+            let end_depth = slots.end.unwrap_or(if loose { 2.0 * slots.depth - face_depth } else { slots.depth });
+            if end_depth + slots.fit.max(0.0) / 2.0 >= r.1[butt.k] - r.0[butt.k] - EPS
+                || face_depth + slots.fit.max(0.0) / 2.0 >= into_thick - EPS
+            {
                 return Err(JoineryError::Size("The slots would go right through a part."));
+            }
+            if face_depth <= EPS || end_depth <= EPS {
+                return Err(JoineryError::Size("A slot needs a depth in each part."));
+            }
+            if loose && face_depth + end_depth + EPS < 2.0 * slots.depth {
+                return Err(JoineryError::Size("The two mortises are shallower than the tenon, so the joint wouldn't close."));
             }
             // A spline runs the whole joint; the others are spaced across it.
             let spline = slots.kind == JointKind::Splines;
             let length = if spline { size[wide] } else { slots.length };
-            let spacing = size[wide] / f64::from(slots.count);
+            let spacing = slots.spacing.unwrap_or(size[wide] / f64::from(slots.count));
             if !spline && spacing < length + 0.25 {
                 return Err(JoineryError::Size("Too many for the width: use fewer, or a smaller size."));
+            }
+            // Laid out from the reference edge when the machine's own setting-out is given:
+            // the first slot's center at `offset`, the rest a `spacing` apart. Each still has
+            // to fall on the joint, or it would be cut into thin air.
+            if let Some(offset) = slots.offset {
+                let last = offset + spacing * f64::from(slots.count - 1);
+                if offset - length / 2.0 < -EPS || last + length / 2.0 > size[wide] + EPS {
+                    return Err(JoineryError::Size("A slot would fall off the end of the joint: move the first one, or close up the spacing."));
+                }
             }
             let to_part = p.relative(into, part)?;
             let mid = (butt.contact.0[thin] + butt.contact.1[thin]) / 2.0;
             for i in 0..slots.count {
-                let center = butt.contact.0[wide] + spacing * (f64::from(i) + 0.5);
+                let along = match slots.offset {
+                    Some(offset) => offset + spacing * f64::from(i),
+                    None => spacing * (f64::from(i) + 0.5),
+                };
+                let center = butt.contact.0[wide] + along;
                 // Each slot bigger than its piece by the fit allowance: thicker, longer (a spline's
                 // runs the whole joint already), and half of it deeper each side.
                 let fit = slots.fit;
@@ -1690,10 +1745,14 @@ impl Document {
                 cut_box_in(scene, path, into, narrow(extrude(butt, face_depth + fit / 2.0)))?;
                 cut_box_in(scene, path, part, transform_box(&to_part, narrow(extrude_back(butt, end_depth + fit / 2.0))))?;
             }
+            // A loose tenon is a metric piece cut by a machine set in millimeters, so its
+            // mortises are said that way: 12 mm, not the "~ 1/2"" that reads like a guess and
+            // sent a report asking what the depths really were (#16).
+            let deep = |d: f64| if loose { format!("{}mm", (d / MM).round()) } else { format_length(d) };
             let detail = if (face_depth - end_depth).abs() < 1e-9 {
-                format!("{} x {}, {} deep each side", slots.count, slots.piece, format_length(face_depth))
+                format!("{} x {}, {} deep each side", slots.count, slots.piece, deep(face_depth))
             } else {
-                format!("{} x {}, {} deep in the face, {} in the end", slots.count, slots.piece, format_length(face_depth), format_length(end_depth))
+                format!("{} x {}, {} deep in the face, {} in the end", slots.count, slots.piece, deep(face_depth), deep(end_depth))
             };
             let detail = if slots.fit > EPS { format!("{detail}, slots {} roomier", format_length(slots.fit)) } else { detail };
             let name = if spline {
@@ -1850,6 +1909,39 @@ mod more_joints {
         doc.slots(shelf, side, &slots).unwrap();
         assert!(closed(&doc, side) && closed(&doc, shelf));
         assert_eq!(doc.joints_of(shelf)[0].0.kind, JointKind::LooseTenons);
+        // 3/4" stock takes 12 mm of the tenon, not the 12.7 mm that two thirds of it works out
+        // to: no joiner has a stop for 12.7, and the rest of the 40 mm goes in the end (#16).
+        let detail = doc.joints_of(shelf)[0].0.detail.clone();
+        assert!(detail.contains("12mm deep in the face") && detail.contains("28mm in the end"), "{detail}");
+    }
+
+    #[test]
+    fn a_loose_tenons_depths_and_spacing_can_be_set_by_hand() {
+        // What a machine can actually be set to, rather than what the stock works out to: the
+        // reporter's Domino wants whole stops, and his own setting-out off a reference edge (#16).
+        let mut doc = Document::default();
+        let (side, shelf) = side_and_shelf(&mut doc);
+        let mut slots = Slots::loose_tenons(1, 11.25);
+        slots.count = 3;
+        slots.face = Some(15.0 * MM);
+        slots.end = Some(25.0 * MM);
+        slots.offset = Some(2.0);
+        slots.spacing = Some(3.5);
+        doc.slots(shelf, side, &slots).unwrap();
+        assert!(closed(&doc, side) && closed(&doc, shelf));
+        let detail = doc.joints_of(shelf)[0].0.detail.clone();
+        assert!(detail.contains("15mm deep in the face") && detail.contains("25mm in the end"), "{detail}");
+        // Two mortises that together don't hold the tenon would leave the joint open.
+        let mut shallow = slots.clone();
+        shallow.face = Some(10.0 * MM);
+        shallow.end = Some(10.0 * MM);
+        let (mut doc, _) = (Document::default(), ());
+        let (side, shelf) = side_and_shelf(&mut doc);
+        assert!(matches!(doc.slots(shelf, side, &shallow), Err(JoineryError::Size(_))), "the tenon wouldn't close");
+        // Nor can a slot hang off the end of the joint.
+        let mut off = slots.clone();
+        off.offset = Some(10.0);
+        assert!(matches!(doc.slots(shelf, side, &off), Err(JoineryError::Size(_))), "a slot off the end");
     }
 
     #[test]
@@ -2032,7 +2124,7 @@ impl Spline {
     /// A spline for stock `thick` thick: 1/4" thick (1/8" in thin stock), 3/8" into each part.
     pub fn for_stock(thick: f64) -> Slots {
         let t = if thick >= 0.6 { 0.25 } else { 0.125 };
-        Slots { kind: JointKind::Splines, piece: format!("{} spline", format_length(t)), count: 1, length: 0.0, thickness: t, depth: 0.375, fit: 0.0 }
+        Slots { kind: JointKind::Splines, piece: format!("{} spline", format_length(t)), count: 1, length: 0.0, thickness: t, depth: 0.375, fit: 0.0, ..Slots::anywhere() }
     }
 }
 

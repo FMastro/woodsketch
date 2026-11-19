@@ -11,8 +11,8 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 ## Summary (recommended order)
 | # | Category | Points | Why here |
 |---|---|---|---|
-| 1 | Build sheets and assembly | 0 | Done |
-| 2 | Joinery | 71 | Closes gaps in the core woodworking feature |
+| 1 | Build sheets and assembly | 34 | Illustrated assembly steps, asked for by a user |
+| 2 | Joinery | 76 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 21 | A live link to the open drawing |
@@ -44,7 +44,17 @@ sheet; which copies take which part. A glue-up order for parts with no joints
 made (taken as butt joints); a picture for each step; parts at an angle touch only where their faces
 meet. Step pictures pull each part out the way it goes in; butt joints say where the
 screws go; leaders bend around parts in their way; past four places, a table of where the cuts are. A part
-at an angle slides out along its own axes too. Nothing left.
+at an angle slides out along its own axes too.
+1. [13] A printable staged sequence: each stage with the parts added to it highlighted, their
+   cut-list letters and part sheets, and the modeled joints shown on both mating parts at the
+   step they are cut, dimensioned from the reference faces (#15). All of it derived, so it
+   can't drift from the drawing -- which is why it was asked for, by someone whose own
+   hand-drawn Domino layout disagreed with the model.
+2. [21] An order and notes of your own on those steps: reordering, grouping into sub-assemblies
+   (each door), a short note against a step, and a flag on steps whose parts or joints have
+   changed or gone (#15). This would be the first thing a drawing keeps that nothing can
+   derive, so it needs saving, upgrading on open and a staleness model of its own; the derived
+   half above is worth having first, and may turn out to be enough.
 
 ## 2. Joinery
 Done: dado, groove, rabbet, mortise and tenon (through, haunched), dovetails (through,
@@ -54,7 +64,9 @@ mortises (haunched and angled too), dowel holes and slots; dovetail pin widths (
 Entity Info lists each cut once, saying where it is when two read alike; angled joints on every
 copy of a shared component (or only the one picked); removing a joint from a part changed by
 hand elsewhere (an angled one refuses, keeping the change); pocket holes drilled (a 3/8" bore at
-15° stepping to a pilot out of the end's middle, with `doc::solid`'s subtraction).
+15° stepping to a pilot out of the end's middle, with `doc::solid`'s subtraction); a loose
+tenon's size, its depth in each part and its setting-out chosen in a recipe, in whole
+millimeters (#16).
 1. [8] Removing a joint from a part changed by hand right where the joint is, or an angled or
    drilled (pocket hole) joint after any hand change (refused: use Undo).
 2. [3] Pocket holes: set how far in from the edges and how far apart they go (spread evenly
@@ -64,6 +76,10 @@ hand elsewhere (an angled one refuses, keeping the change); pocket holes drilled
 5. [13] Angled dowels, half-laps and dovetails (`doc::solid` can drill and cut them now).
 6. [21] Compound angles, and a second angled joint on a part already cut at an angle in
    another plane.
+7. [5] Loose tenons: a center for each slot, rather than the first one's offset and a spacing,
+   and a word when the depths aren't ones a common joiner can be set to (a DF 500 stops at 12,
+   15, 20, 25 and 28 mm). The last two bullets of #16; whole millimeters and chosen depths
+   cover what he was actually blocked on.
 
 ## 3. Templates
 Done: cabinet (drawers and doors in its openings, adjustable shelves, hinge side), drawer, face

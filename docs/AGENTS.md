@@ -127,7 +127,7 @@ the parts, as the app's Joinery panel does.
 | `cut_overlap` | the part kept whole / the part cut where they overlap | |
 | `mortise_and_tenon` | the rail (tenon) / the leg or stile (mortise) | `length`, `thickness`, `shoulder`, `fit` |
 | `dowels` | either / either | `count`, `diameter`, `depth`, `fit` |
-| `biscuits`, `loose_tenons` | either / either | `count`, `fit` |
+| `biscuits`, `loose_tenons` | either / either | `count`, `fit`, `face_depth`, `end_depth`, `offset`, `spacing`; `tenon` (`5x30`, `6x40`, `8x40`, `10x50`, thickness x length in mm) |
 | `splines` | either / either | |
 | `pocket_screws` | the part drilled / the part screwed into | `count`, `screw` (length) |
 | `dovetails` | the tails board (a drawer side) / the pins board (the front) | `tails`, `half_blind`, `pin`, `half_pin` (widths where they show: 1/8" pins for a hand-cut look) |
@@ -138,6 +138,13 @@ the parts, as the app's Joinery panel does.
 
 `fit` is a fit allowance: how much roomier the mortise, holes or slots are than what goes in
 (1/32" to 1/16"; 0, the default, for a tight fit).
+
+Slot depths are worked out from the stock: two thirds of the way into the face, and the rest of
+the tenon's length in the butting part's end, in whole millimeters so a joiner can be set to them.
+Give `face_depth` and `end_depth` to use your own machine's stops instead — the two together have
+to hold the tenon — and `offset` (the first slot's center from where the parts start to overlap)
+with `spacing` (center to center) to set them out from a reference edge rather than have them
+spread evenly across the joint.
 An angled joint on a part with copies gives that copy a component of its own (the others,
 perhaps mirrored, stay as they are); `"every_copy": true` cuts every copy of it instead.
 

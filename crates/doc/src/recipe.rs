@@ -1126,6 +1126,42 @@ fn template(kind: &str, sizes: &serde_json::Map<String, serde_json::Value>, mm: 
     serde_json::from_value(json).map_err(|e| format!("{variant}: {e}"))
 }
 
+/// The loose tenon sizes there are, for when a recipe asks for one there isn't.
+const LOOSE_TENON_SIZES: &str = "That isn't a loose tenon size: 5x30, 6x40, 8x40 or 10x50 (thickness x length, mm).";
+
+/// The `LOOSE_TENONS` entry a recipe names: `6x40` (thickness x length) or `6x20x40`, in mm.
+fn loose_tenon_named(name: &str) -> Option<usize> {
+    let given: Option<Vec<u32>> = name.split(|c: char| !c.is_ascii_digit()).filter(|s| !s.is_empty()).map(|s| s.parse().ok()).collect();
+    let given = given?;
+    crate::joinery::LOOSE_TENONS.iter().position(|(thick, wide, long)| match given.as_slice() {
+        [t, l] => t == thick && l == long,
+        [t, w, l] => t == thick && w == wide && l == long,
+        _ => false,
+    })
+}
+
+/// Where the slots go and how deep, for a machine whose stops don't match what WoodSketch would
+/// have picked: anything not asked for is left to the joint.
+fn set_out(slots: &mut Slots, asked: &dyn Fn(&str) -> Option<f64>) {
+    slots.face = asked("face_depth");
+    slots.end = asked("end_depth");
+    slots.offset = asked("offset");
+    slots.spacing = asked("spacing");
+}
+
+/// A slot joint's sizes in the order the Joinery panel and `recipe_of` read them.
+fn slot_sizes(size: usize, slots: &Slots) -> Vec<f64> {
+    vec![
+        size as f64,
+        f64::from(slots.count),
+        slots.fit,
+        slots.face.unwrap_or(0.0),
+        slots.end.unwrap_or(0.0),
+        slots.offset.unwrap_or(0.0),
+        slots.spacing.unwrap_or(0.0),
+    ]
+}
+
 /// Whether an angled joint cuts every copy of a shared component (`"every_copy": true`), not
 /// only the one named (which then gets a component of its own).
 fn every_copy(j: &JointSpec) -> bool {
@@ -1136,6 +1172,8 @@ fn every_copy(j: &JointSpec) -> bool {
 fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, mm: bool) -> Result<(), JoineryError> {
     let number = |key: &str| j.options.get(key).and_then(serde_json::Value::as_f64);
     let len = |key: &str, default: f64| number(key).map_or(default, |v| v / if mm { 25.4 } else { 1.0 });
+    // A length only when it was asked for: the joint works the rest out for itself.
+    let asked = |key: &str| number(key).map(|v| v / if mm { 25.4 } else { 1.0 });
     let kind = j.kind.to_ascii_lowercase().replace([' ', '-'], "_");
     // Each joint made with its sizes, kept on it in the Joinery panel's order (so Change, and a
     // recipe read back from the drawing, start from them).
@@ -1188,16 +1226,20 @@ fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, 
                     let mut slots = Slots::biscuits(size, wide);
                     slots.count = count(slots.count);
                     slots.fit = len("fit", 0.0);
-                    let sizes = vec![size as f64, f64::from(slots.count), slots.fit];
-                    (doc.slots(part, into, &slots), sizes)
+                    set_out(&mut slots, &asked);
+                    (doc.slots(part, into, &slots), slot_sizes(size, &slots))
                 }
                 "loose_tenons" => {
-                    let size = Slots::suggested_loose_tenon(thick);
+                    // The tenon to use, or the biggest the stock takes.
+                    let size = match j.options.get("tenon").and_then(serde_json::Value::as_str) {
+                        Some(name) => loose_tenon_named(name).ok_or(JoineryError::Size(LOOSE_TENON_SIZES))?,
+                        None => Slots::suggested_loose_tenon(thick),
+                    };
                     let mut slots = Slots::loose_tenons(size, wide);
                     slots.count = count(slots.count);
                     slots.fit = len("fit", 0.0);
-                    let sizes = vec![size as f64, f64::from(slots.count), slots.fit];
-                    (doc.slots(part, into, &slots), sizes)
+                    set_out(&mut slots, &asked);
+                    (doc.slots(part, into, &slots), slot_sizes(size, &slots))
                 }
                 "splines" | "spline" => (doc.slots(part, into, &Spline::for_stock(thick)), Vec::new()),
                 "pocket_screws" | "pocket_holes" => {
@@ -1522,6 +1564,45 @@ mod tests {
         assert!(doc.scene().joints.len() >= 8, "the table's mortises and tenons");
         let bad = parse(r#"{ "templates": [{ "kind": "table", "sizes": { "colour": 3 } }] }"#).unwrap();
         assert!(build(&bad).err().expect("an error")[0].contains("Table has no size \"colour\""));
+    }
+
+    #[test]
+    fn a_recipe_chooses_its_loose_tenons_and_where_they_go() {
+        // The reporter's Festool DF 500: a 6 x 40 tenon, the depths set to stops it has, and the
+        // mortises laid out from the reference edge rather than spread for us (#16).
+        let recipe = parse(
+            r#"{
+            "units": "mm",
+            "materials": [{ "id": "oak", "library": "White Oak" }],
+            "parts": [
+                { "name": "Side", "material": "oak", "size": [762, 286, 19], "at": [0, 0, 0], "length": "z", "width": "y" },
+                { "name": "Shelf", "material": "oak", "size": [508, 286, 19], "at": [19, 0, 305], "length": "x", "width": "y" }
+            ],
+            "joints": [{ "kind": "loose_tenons", "part": "Shelf", "into": "Side",
+                         "options": { "tenon": "6x40", "count": 3, "face_depth": 12, "end_depth": 28, "offset": 40, "spacing": 100 } }]
+        }"#,
+        )
+        .unwrap();
+        let doc = build(&recipe).unwrap_or_else(|e| panic!("{e:?}"));
+        let joint = &doc.scene().joints[0];
+        assert!(joint.detail.contains("3 x 6 x 20 x 40 mm loose tenon"), "{}", joint.detail);
+        assert!(joint.detail.contains("12mm deep in the face") && joint.detail.contains("28mm in the end"), "{}", joint.detail);
+        // Read back, the recipe says the same thing rather than the sizes we'd have guessed.
+        let (read, _notes) = crate::recipe_of::from_document(&doc);
+        let options = &read.joints[0].options;
+        assert_eq!(options.get("tenon").and_then(|v| v.as_str()), Some("6x40"));
+        for (key, inches) in [("face_depth", 12.0 / 25.4), ("end_depth", 28.0 / 25.4), ("offset", 40.0 / 25.4), ("spacing", 100.0 / 25.4)] {
+            let back = options.get(key).and_then(serde_json::Value::as_f64).unwrap_or_else(|| panic!("{key} comes back: {options:?}"));
+            assert!((back - inches).abs() < 0.01, "{key}: {back} vs {inches}");
+        }
+        let bad = parse(
+            r#"{ "materials": [{ "id": "oak", "library": "White Oak" }],
+                 "parts": [{ "name": "Side", "material": "oak", "size": [30, 11.25, 0.75], "at": [0, 0, 0], "length": "z", "width": "y" },
+                           { "name": "Shelf", "material": "oak", "size": [20, 11.25, 0.75], "at": [0.75, 0, 12], "length": "x", "width": "y" }],
+                 "joints": [{ "kind": "loose_tenons", "part": "Shelf", "into": "Side", "options": { "tenon": "7x45" } }] }"#,
+        )
+        .unwrap();
+        assert!(build(&bad).err().expect("an error")[0].contains("isn't a loose tenon size"), "{:?}", build(&bad).err());
     }
 
     #[test]

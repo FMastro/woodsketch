@@ -425,14 +425,28 @@ impl Reader<'_> {
                     put("finger", size(0));
                     "box_joint"
                 }
+                // The depths and the setting-out only come back when they were asked for: left
+                // out, the joint works them out from the stock, which is what most drawings want.
                 JointKind::Biscuits => {
                     put("count", size(1));
                     put("fit", size(2).filter(|v| *v > 0.0));
+                    put("face_depth", size(3).filter(|v| *v > 0.0));
+                    put("end_depth", size(4).filter(|v| *v > 0.0));
+                    put("offset", size(5).filter(|v| *v > 0.0));
+                    put("spacing", size(6).filter(|v| *v > 0.0));
                     "biscuits"
                 }
                 JointKind::LooseTenons => {
                     put("count", size(1));
                     put("fit", size(2).filter(|v| *v > 0.0));
+                    put("face_depth", size(3).filter(|v| *v > 0.0));
+                    put("end_depth", size(4).filter(|v| *v > 0.0));
+                    put("offset", size(5).filter(|v| *v > 0.0));
+                    put("spacing", size(6).filter(|v| *v > 0.0));
+                    // Which tenon, in the same words a recipe asks for it: 6x40.
+                    if let Some(&(thick, _, long)) = size(0).and_then(|i| crate::joinery::LOOSE_TENONS.get(i as usize)) {
+                        options.insert("tenon".into(), serde_json::json!(format!("{thick}x{long}")));
+                    }
                     "loose_tenons"
                 }
                 JointKind::PocketScrews => {

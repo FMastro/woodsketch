@@ -7,6 +7,13 @@ Write them short. One line per change, a sentence or two at most: what changed, 
 reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
 that belongs in the commit message, which is where it already is.
 
+## 0.1.78
+
+- Loose tenons can be chosen and placed: which tenon, how deep into each part, and where
+  the first one sits with what spacing. Depths are whole millimeters now, so a joiner can
+  actually be set to them, and the joint says them in millimeters rather than as a rounded
+  fraction of an inch (#16).
+
 ## 0.1.77
 
 - A panel goes into its frame whichever edge is grooved first. Letting a door's panel into
