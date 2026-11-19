@@ -7,6 +7,12 @@ Write them short. One line per change, a sentence or two at most: what changed, 
 reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
 that belongs in the commit message, which is where it already is.
 
+## 0.1.80
+
+- A project built from a recipe can have named numbers -- a width, a stock thickness -- and
+  work its sizes out from them: `width - 2*stile`. Change the one number and every part that
+  reads it follows, which is the first half of components that resize themselves (#9).
+
 ## 0.1.79
 
 - The Joinery panel takes the two mortise depths for biscuits and loose tenons, so a joint

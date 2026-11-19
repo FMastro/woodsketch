@@ -67,6 +67,37 @@ Two ways in:
 }
 ```
 
+### parameters
+
+Named numbers the rest of the recipe is worked out from, so a piece resizes by one line instead
+of twenty: `"parameters": [{ "name": "width", "value": 30 }, { "name": "stile", "value": 2.25 }]`.
+A parameter may read the ones beside it (`{ "name": "opening", "value": "width - 2*stile" }`), in
+any order; two that read each other are refused by name. `label` is what to call it on screen,
+`choices` the values it may take.
+
+Any length may then be arithmetic over them, written as text:
+
+```json
+{
+  "parameters": [
+    { "name": "width", "value": 30 },
+    { "name": "height", "value": 24 },
+    { "name": "stile", "value": 2.25 },
+    { "name": "rail", "value": 2.25 }
+  ],
+  "materials": [{ "id": "oak", "library": "White Oak" }],
+  "parts": [
+    { "name": "Panel", "material": "oak", "size": ["height - 2*rail", "width - 2*stile", 0.25],
+      "at": ["stile", 0.25, "rail"], "length": "z", "width": "x" }
+  ]
+}
+```
+
+`+ - * / ( )`, a comparison (`>`, `<`, `>=`, `<=`, `==`, `!=`) and `min`, `max`, `round`, `floor`,
+`ceil`, `abs`, `if(test, yes, no)`. A bare number is in the recipe's units; a number can carry its
+own (`300mm`, `24in`). Sizes people type -- `3/4"`, `1 1/2"`, `2'6` -- are read as lengths before
+any of this, so a fraction never means division; inside a sum write `0.75` or `19mm`.
+
 ### materials
 
 Each has an `id` the parts use. From the library: `{ "id": "oak", "library": "Red Oak" }`.

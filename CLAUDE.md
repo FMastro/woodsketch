@@ -551,7 +551,12 @@ points); keep general modeling working alongside it.
    (`Scene::guides_hidden`); `Model::dissolve_vertex` after seam merges; View > Units
    (`units::set_units`, per thread, inches or millimeters; bare numbers follow it).
 37. Agent-ready: `doc::recipe` (a project as JSON: materials, parts as boxes from their lowest corner,
-   templates with partial sizes, joints with suggested sizes, tags, groups; `build` lists every
+   templates with partial sizes, joints with suggested sizes, tags, groups; `parameters` are named numbers the rest is worked out
+   from, with `doc::expr` evaluating arithmetic over them in any length (`"width - 2*stile"`,
+   `floor`/`if`/`min`; a bare number is in the recipe's units, and a length a person would type is
+   read by `parse_length` first so `3/4"` never means division; parameters sort themselves out of
+   whatever order they were written in and a knot of them is named rather than guessed at -- the
+   first stage of parametric components, #9, the rest in `docs/BACKLOG.md`); `build` lists every
    problem by item; `summary`), `woodsketch-cli` (build, summary, cutlist, cutsheet, buildsheets,
    movement, export, render) packed beside the app by `release.yml`, `woodsketch-cli mcp` (tools:
    guide, build, open, save, summary, cut_list, movement, render, cut_sheet, build_sheets, export),

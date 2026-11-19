@@ -34,6 +34,10 @@ pub struct Recipe {
     /// `in` (the default) or `mm`: what a bare number means.
     #[serde(default)]
     pub units: Option<String>,
+    /// Named numbers the rest of it can be worked out from, so a piece resizes by one line
+    /// instead of twenty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parameters: Vec<ParameterSpec>,
     #[serde(default)]
     pub materials: Vec<MaterialSpec>,
     #[serde(default)]
@@ -89,6 +93,21 @@ pub struct MaterialSpec {
 pub enum Length {
     Number(f64),
     Text(String),
+}
+
+/// A named number: `{ "name": "width", "value": 600 }`. Its value may be worked out from the
+/// parameters beside it (`"value": "width - 2*stile"`), so one measurement can follow another.
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ParameterSpec {
+    pub name: String,
+    pub value: Length,
+    /// What to call it on screen, where the name isn't what a person would read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    /// The values it may take, where it is a choice rather than anything at all.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub choices: Vec<Length>,
 }
 
 /// A board, placed as a box.
@@ -501,15 +520,8 @@ fn build_in(recipe: &Recipe, mm: bool, progress: &mut dyn FnMut(usize, usize, &s
         step += 1;
     };
     let mut errors = Vec::new();
-    let length = |l: &Length, what: &str, errors: &mut Vec<String>| -> f64 {
-        match l {
-            Length::Number(n) => n / if mm { 25.4 } else { 1.0 },
-            Length::Text(t) => parse_length(t).unwrap_or_else(|e| {
-                errors.push(format!("{what}: {e}"));
-                0.0
-            }),
-        }
-    };
+    let values = parameters(recipe, mm, &mut errors);
+    let length = |l: &Length, what: &str, errors: &mut Vec<String>| -> f64 { as_length(l, what, mm, &values, errors) };
 
     // Materials.
     let mut materials: HashMap<String, MaterialId> = HashMap::new();
@@ -1161,6 +1173,77 @@ fn lengths(j: &JointSpec, key: &str, mm: bool) -> Vec<f64> {
 }
 
 
+/// A length: a number in the recipe's units, text with its own, or arithmetic over the
+/// parameters. A length a person would type (`3/4"`, `1 1/2"`, `2'6`) is read as one first, so a
+/// fraction never has to mean division and nothing people already write changes meaning.
+fn as_length(l: &Length, what: &str, mm: bool, values: &HashMap<String, f64>, errors: &mut Vec<String>) -> f64 {
+    match l {
+        Length::Number(n) => n / if mm { 25.4 } else { 1.0 },
+        Length::Text(t) => match parse_length(t) {
+            Ok(length) => length,
+            Err(not_a_length) => crate::expr::eval(t, mm, values).unwrap_or_else(|not_a_sum| {
+                errors.push(format!("{what}: {}", if crate::expr::looks_like_a_sum(t) { not_a_sum } else { not_a_length.to_string() }));
+                0.0
+            }),
+        },
+    }
+}
+
+/// Every parameter worked out. A value may read the parameters beside it, so they are taken in
+/// whatever order makes them all knowable rather than the order they were written, and a knot of
+/// parameters that read each other is named instead of guessed at.
+fn parameters(recipe: &Recipe, mm: bool, errors: &mut Vec<String>) -> HashMap<String, f64> {
+    let said = |i: usize, p: &ParameterSpec| format!("parameters[{i}] ({})", p.name);
+    let mut values: HashMap<String, f64> = HashMap::new();
+    let mut waiting: Vec<usize> = Vec::new();
+    for (i, p) in recipe.parameters.iter().enumerate() {
+        if p.name.is_empty() || !p.name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            errors.push(format!("{}: a parameter's name is letters, digits and underscores.", said(i, p)));
+        } else if recipe.parameters[..i].iter().any(|before| before.name == p.name) {
+            errors.push(format!("{}: there are two parameters called \"{}\".", said(i, p), p.name));
+        } else {
+            waiting.push(i);
+        }
+    }
+    loop {
+        let mut again = Vec::new();
+        let before = waiting.len();
+        for i in waiting {
+            let p = &recipe.parameters[i];
+            // Wait only on a parameter this one really reads: a name that is nobody's is a
+            // mistake to report, not something to wait for.
+            let reads = match &p.value {
+                Length::Text(t) => crate::expr::names_in(t, mm),
+                Length::Number(_) => Vec::new(),
+            };
+            let mine = |name: &String| recipe.parameters.iter().any(|other| other.name == *name);
+            if reads.iter().any(|name| !values.contains_key(name) && mine(name)) {
+                again.push(i);
+                continue;
+            }
+            let what = said(i, p);
+            let value = as_length(&p.value, &what, mm, &values, errors);
+            if !p.choices.is_empty() {
+                let allowed: Vec<f64> = p.choices.iter().map(|c| as_length(c, &what, mm, &values, errors)).collect();
+                if !allowed.iter().any(|a| (a - value).abs() < 1e-9) {
+                    let list: Vec<String> = allowed.iter().map(|a| format_length(*a)).collect();
+                    errors.push(format!("{what}: {} isn't one of its choices ({}).", format_length(value), list.join(", ")));
+                }
+            }
+            values.insert(p.name.clone(), value);
+        }
+        waiting = again;
+        if waiting.len() == before {
+            break;
+        }
+    }
+    for i in waiting {
+        let p = &recipe.parameters[i];
+        errors.push(format!("{}: it and another parameter read each other, so neither can be worked out.", said(i, p)));
+    }
+    values
+}
+
 /// Whether an angled joint cuts every copy of a shared component (`"every_copy": true`), not
 /// only the one named (which then gets a component of its own).
 fn every_copy(j: &JointSpec) -> bool {
@@ -1642,6 +1725,63 @@ mod tests {
     }
 
     #[test]
+    fn a_recipe_works_its_sizes_out_from_named_numbers() {
+        // The shape of a parametric component (#9): one number changes the piece. The panel is
+        // the opening, the stiles stay as wide as they are, and the shelves follow the height.
+        let door = |width: &str| {
+            parse(&format!(
+                r#"{{
+                "parameters": [
+                    {{ "name": "width", "value": {width} }},
+                    {{ "name": "height", "value": 24 }},
+                    {{ "name": "stile", "value": 2.25 }},
+                    {{ "name": "stock", "value": "3/4\"" }},
+                    {{ "name": "opening", "value": "width - 2*stile" }}
+                ],
+                "materials": [{{ "id": "oak", "library": "White Oak" }}],
+                "parts": [
+                    {{ "name": "Left stile", "called": "Stile", "material": "oak", "size": ["height", "stile", "stock"], "at": [0, 0, 0], "length": "z", "width": "x" }},
+                    {{ "name": "Right stile", "called": "Stile", "material": "oak", "size": ["height", "stile", "stock"], "at": ["width - stile", 0, 0], "length": "z", "width": "x" }},
+                    {{ "name": "Panel", "material": "oak", "size": ["height - 2*stile", "opening", 0.25], "at": ["stile", 0.25, "stile"], "length": "z", "width": "x" }}
+                ]
+            }}"#
+            ))
+            .unwrap()
+        };
+        let built = |width: &str| {
+            let doc = build(&door(width)).unwrap_or_else(|e| panic!("{e:?}"));
+            let (lo, hi) = doc.scene().bounds().expect("geometry");
+            (hi.x - lo.x, summary(&doc))
+        };
+        let (wide, summary) = built("16");
+        assert!((wide - 16.0).abs() < 1e-9, "16\" wide: {wide}");
+        assert!(summary.contains("Stile x2 (24\" x 2 1/4\" x 3/4\")"), "{summary}");
+        assert!(summary.contains("Panel x1 (19 1/2\" x 11 1/2\" x 1/4\")"), "the opening, worked out: {summary}");
+        // One number, and every part that reads it follows.
+        let (wide, summary) = built("30");
+        assert!((wide - 30.0).abs() < 1e-9, "30\" wide: {wide}");
+        assert!(summary.contains("Panel x1 (25 1/2\" x 19 1/2\" x 1/4\")"), "the cut list says the long way first: {summary}");
+        assert!(summary.contains("Stile x2 (24\" x 2 1/4\" x 3/4\")"), "the stiles stay put: {summary}");
+    }
+
+    #[test]
+    fn a_named_number_that_cant_be_worked_out_says_which_one() {
+        let bad = |parameters: &str| {
+            let recipe = parse(&format!(
+                r#"{{ "parameters": {parameters}, "materials": [{{ "id": "oak", "library": "White Oak" }}],
+                     "parts": [{{ "name": "Shelf", "material": "oak", "size": ["wide", 10, 0.75], "at": [0, 0, 0] }}] }}"#
+            ))
+            .unwrap();
+            build(&recipe).err().unwrap_or_default().join(" | ")
+        };
+        assert!(bad(r#"[{ "name": "wide", "value": "deep * 2" }]"#).contains("no parameter \"deep\""), "a name nobody has");
+        assert!(bad(r#"[{ "name": "wide", "value": "high" }, { "name": "high", "value": "wide" }]"#).contains("read each other"), "a knot");
+        assert!(bad(r#"[{ "name": "wide", "value": 10 }, { "name": "wide", "value": 20 }]"#).contains("two parameters called"), "the same name twice");
+        assert!(bad(r#"[{ "name": "wi de", "value": 10 }]"#).contains("letters, digits and underscores"), "a name with a space");
+        assert!(bad(r#"[{ "name": "wide", "value": 10, "choices": [12, 18, 24] }]"#).contains("isn't one of its choices"), "off the list");
+    }
+
+    #[test]
     fn a_door_is_a_template_of_its_own() {
         // A door to hang on something that isn't a WoodSketch cabinet (#17): its own sizes, in
         // the style and joint asked for.
@@ -1685,9 +1825,10 @@ mod guide {
             summaries.push(super::summary(&doc));
             rest = &after[example.len()..];
         }
-        assert_eq!(summaries.len(), 2, "the bookcase and the door");
+        assert_eq!(summaries.len(), 3, "the nightstand, the panel worked out from parameters, and the door");
         assert!(summaries[0].contains("Joints: 2 dado, 2 notch"), "{}", summaries[0]);
-        assert!(summaries[1].contains("Joints: 4 loose tenons, 4 groove"), "{}", summaries[1]);
+        assert!(summaries[1].contains("Panel x1 (25 1/2\" x 19 1/2\" x 1/4\")"), "worked out from the parameters: {}", summaries[1]);
+        assert!(summaries[2].contains("Joints: 4 loose tenons, 4 groove"), "{}", summaries[2]);
         assert!(summaries.iter().all(|s| s.contains("Wood movement: no conflicts")), "{summaries:?}");
     }
 }

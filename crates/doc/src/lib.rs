@@ -13,6 +13,7 @@ pub mod cutplan;
 pub mod cutsheet;
 mod document;
 pub mod export;
+pub mod expr;
 pub mod feedback;
 pub mod flat;
 pub mod file;
