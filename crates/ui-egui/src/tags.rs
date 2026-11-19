@@ -171,11 +171,8 @@ impl TagsPanel {
 fn move_menu(ui: &mut egui::Ui, scene: &woodsketch_doc::Scene, tag: TagId, changes: &mut Vec<Change>) {
     let current = scene.tag(tag).and_then(|t| t.parent);
     // Any folder but itself or one inside it.
-    let mut folders: Vec<(TagId, String)> = scene
-        .tags()
-        .filter(|(id, t)| t.folder && *id != tag && scene.tag_ancestors(*id).all(|a| a != tag))
-        .map(|(id, _)| (id, scene.tag_path(id)))
-        .collect();
+    let mut folders: Vec<(TagId, String)> =
+        scene.tags().filter(|(id, t)| t.folder && *id != tag && scene.tag_ancestors(*id).all(|a| a != tag)).map(|(id, _)| (id, scene.tag_path(id))).collect();
     folders.sort_by_key(|(_, path)| path.to_lowercase());
     ui.label(egui::RichText::new(t!("tags-move-to")).weak());
     if current.is_some() && ui.button(t!("tags-top-level")).clicked() {
@@ -244,8 +241,7 @@ pub fn entity_info(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
         None => "(mixed)".to_owned(),
     };
     let mut choices: Vec<(Option<TagId>, String)> = vec![(None, t!("tags-untagged"))];
-    let mut tags: Vec<(Option<TagId>, String)> =
-        doc.scene().tags().filter(|(_, t)| !t.folder).map(|(id, _)| (Some(id), doc.scene().tag_path(id))).collect();
+    let mut tags: Vec<(Option<TagId>, String)> = doc.scene().tags().filter(|(_, t)| !t.folder).map(|(id, _)| (Some(id), doc.scene().tag_path(id))).collect();
     tags.sort_by_key(|(_, path)| path.to_lowercase());
     choices.extend(tags);
 

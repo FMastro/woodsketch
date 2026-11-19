@@ -73,8 +73,7 @@ pub fn parse_length(input: &str) -> Result<f64, ParseLengthError> {
         parse_number(feet).ok_or_else(error)? * 12.0 + inches
     } else {
         // Longest suffixes first, so "mm" isn't read as "m".
-        const UNITS: [(&str, f64); 6] =
-            [("mm", 1.0 / 25.4), ("cm", 1.0 / 2.54), ("in", 1.0), ("ft", 12.0), ("\"", 1.0), ("m", 1.0 / 0.0254)];
+        const UNITS: [(&str, f64); 6] = [("mm", 1.0 / 25.4), ("cm", 1.0 / 2.54), ("in", 1.0), ("ft", 12.0), ("\"", 1.0), ("m", 1.0 / 0.0254)];
         let (number, scale) = UNITS
             .iter()
             .find_map(|(suffix, scale)| Some((s.strip_suffix(suffix)?, *scale)))
@@ -92,10 +91,7 @@ pub fn parse_length(input: &str) -> Result<f64, ParseLengthError> {
 /// the comma separates, as it always has, so `3,5` is still two lengths and not three and a
 /// half -- which is why someone writing decimals with a comma needs the semicolon to say so.
 pub fn parse_lengths(input: &str) -> Result<Vec<Option<f64>>, ParseLengthError> {
-    split_values(input)
-        .iter()
-        .map(|part| if part.is_empty() { Ok(None) } else { parse_length(part).map(Some) })
-        .collect()
+    split_values(input).iter().map(|part| if part.is_empty() { Ok(None) } else { parse_length(part).map(Some) }).collect()
 }
 
 /// Split typed input into its values: a semicolon anywhere makes the semicolon the separator and
@@ -145,10 +141,7 @@ fn parse_number(s: &str) -> Option<f64> {
         // so it holds for feet and inches, millimeters and the whole part of a fraction alike.
         let t = t.trim().replace(',', ".");
         let t = t.trim();
-        let valid = !t.is_empty()
-            && t != "."
-            && t.chars().all(|c| c.is_ascii_digit() || c == '.')
-            && t.matches('.').count() <= 1;
+        let valid = !t.is_empty() && t != "." && t.chars().all(|c| c.is_ascii_digit() || c == '.') && t.matches('.').count() <= 1;
         if valid { t.parse().ok() } else { None }
     };
     let Some((numerator, denominator)) = s.rsplit_once('/') else { return decimal(s) };

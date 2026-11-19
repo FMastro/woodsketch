@@ -128,34 +128,32 @@ impl TapeTool {
             self.hover = snap(model, screen, cursor, None);
             self.hints.note(self.hover.as_ref());
             // Measure mode reads out the length of the edge under the cursor.
-            self.edge_length = (self.mode == TapeMode::Measure)
-                .then(|| hit_edge(model, screen, cursor))
-                .flatten()
-                .and_then(|id| model.edge(id))
-                .map(|e| {
-                    let [a, b] = model.edge_points(e);
-                    a.distance(b)
-                });
+            self.edge_length = (self.mode == TapeMode::Measure).then(|| hit_edge(model, screen, cursor)).flatten().and_then(|id| model.edge(id)).map(|e| {
+                let [a, b] = model.edge_points(e);
+                a.distance(b)
+            });
             return;
         };
         let base = start.point;
-        let query = Query {
-            base,
-            hints: &self.hints,
-            lock: self.lock.or(self.shift_lock),
-            plane_normal: self.plane,
-            current: self.end.map_or(base, |t| t.point),
-        };
-        let target = infer::target(model, screen, cursor, &query, |_| false, |ray| {
-            let surface = snap(model, screen, cursor, None).filter(|s| s.kind == SnapKind::OnFace);
-            // Off any face: a guide line's offset stays level when its edge is level (laying out
-            // on the floor), otherwise the tape runs in the plane facing the camera.
-            let level = start.line.is_some_and(|d| d.z.abs() < 1e-9);
-            surface
-                .map(|s| (s.point, Some(s)))
-                .or_else(|| level.then(|| ray.hit_plane(base, DVec3::Z)).flatten().map(|p| (p, None)))
-                .or_else(|| ray.hit_plane(base, -screen.forward()).map(|p| (p, None)))
-        });
+        let query =
+            Query { base, hints: &self.hints, lock: self.lock.or(self.shift_lock), plane_normal: self.plane, current: self.end.map_or(base, |t| t.point) };
+        let target = infer::target(
+            model,
+            screen,
+            cursor,
+            &query,
+            |_| false,
+            |ray| {
+                let surface = snap(model, screen, cursor, None).filter(|s| s.kind == SnapKind::OnFace);
+                // Off any face: a guide line's offset stays level when its edge is level (laying out
+                // on the floor), otherwise the tape runs in the plane facing the camera.
+                let level = start.line.is_some_and(|d| d.z.abs() < 1e-9);
+                surface
+                    .map(|s| (s.point, Some(s)))
+                    .or_else(|| level.then(|| ray.hit_plane(base, DVec3::Z)).flatten().map(|p| (p, None)))
+                    .or_else(|| ray.hit_plane(base, -screen.forward()).map(|p| (p, None)))
+            },
+        );
         if self.shift && self.shift_lock.is_none() {
             self.shift_lock = target.direction;
         }

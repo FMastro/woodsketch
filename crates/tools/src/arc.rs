@@ -11,9 +11,9 @@ use woodsketch_i18n::t;
 
 use crate::carry::Carry;
 use crate::circle::parse_segments;
+use crate::infer::{self, Hints, Query, Target};
 use crate::move_tool::parse_offset;
 use crate::pick::{Screen, Snap, snap};
-use crate::infer::{self, Hints, Query, Target};
 use crate::{Guide, Overlay};
 
 pub struct ArcTool {
@@ -31,9 +31,18 @@ pub struct ArcTool {
 enum Stage {
     Start,
     /// The first end is placed; `end` follows the cursor.
-    End { a: DVec3, normal: DVec3, end: DVec3 },
+    End {
+        a: DVec3,
+        normal: DVec3,
+        end: DVec3,
+    },
     /// Both ends placed; `bulge` (signed across the chord) follows the cursor.
-    Bulge { a: DVec3, b: DVec3, normal: DVec3, bulge: f64 },
+    Bulge {
+        a: DVec3,
+        b: DVec3,
+        normal: DVec3,
+        bulge: f64,
+    },
 }
 
 #[derive(Clone, Copy)]

@@ -6,8 +6,8 @@
 
 use std::path::{Path, PathBuf};
 
-use woodsketch_doc::graphics::{self as rule, Tried};
 pub use woodsketch_doc::graphics::said;
+use woodsketch_doc::graphics::{self as rule, Tried};
 
 /// Beside the crash report and the autosaves.
 const FILE: &str = "graphics.txt";
@@ -112,10 +112,7 @@ impl Record {
     /// Starts the note for a run drawing on `backend` -- the one wgpu really gave us, which is
     /// the one worth writing down.
     pub fn new(dir: Option<&Path>, backend: wgpu::Backend) -> Self {
-        let record = Self {
-            dir: dir.filter(|_| asked_for().is_none()).map(Path::to_owned),
-            tried: Tried::starting(backend.to_str(), crate::updates::VERSION),
-        };
+        let record = Self { dir: dir.filter(|_| asked_for().is_none()).map(Path::to_owned), tried: Tried::starting(backend.to_str(), crate::updates::VERSION) };
         record.save();
         record
     }

@@ -60,7 +60,12 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         assert_eq!(left(&dir), None);
         std::fs::create_dir_all(&dir).unwrap();
-        let crash = Crash { message: "boom".into(), location: "crates/doc/src/model.rs:1:1".into(), frames: vec!["woodsketch_doc::model::Model::push_pull".into()], version: "0.1.47".into() };
+        let crash = Crash {
+            message: "boom".into(),
+            location: "crates/doc/src/model.rs:1:1".into(),
+            frames: vec!["woodsketch_doc::model::Model::push_pull".into()],
+            version: "0.1.47".into(),
+        };
         std::fs::write(dir.join(FILE), crash.to_text()).unwrap();
         assert_eq!(left(&dir), Some(crash));
         clear(&dir);

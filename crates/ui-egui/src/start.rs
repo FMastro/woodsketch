@@ -6,9 +6,9 @@
 //! has to be cleared before the app can be tried, and leaving the page costs one key.
 
 use eframe::egui;
-use woodsketch_i18n::t;
 use woodsketch_doc::samples::SAMPLES;
 use woodsketch_doc::units::Units;
+use woodsketch_i18n::t;
 
 use crate::files::Discard;
 use crate::thumbs::{Of, Thumbnails};
@@ -152,15 +152,7 @@ fn folder_name(path: &std::path::Path) -> String {
 /// Painted rather than built from a `Button` (which centres its text) or from labels in a frame
 /// (each of which would be a second thing a screen reader stops on). One card is one widget,
 /// describing itself by its title and its line, with the text laid out top-left.
-fn card(
-    ui: &mut egui::Ui,
-    width: f32,
-    height: f32,
-    title: &str,
-    under: &str,
-    hover: Option<&str>,
-    picture: Picture<'_>,
-) -> bool {
+fn card(ui: &mut egui::Ui, width: f32, height: f32, title: &str, under: &str, hover: Option<&str>, picture: Picture<'_>) -> bool {
     const MARGIN: f32 = 12.0;
     const RADIUS: f32 = 6.0;
     // A card keeps the same shape before and after its picture arrives, so the page doesn't
@@ -175,11 +167,7 @@ fn card(
 
     if ui.is_rect_visible(rect) {
         let visuals = ui.visuals();
-        let stroke = if response.hovered() {
-            egui::Stroke::new(1.5, visuals.selection.bg_fill)
-        } else {
-            visuals.widgets.noninteractive.bg_stroke
-        };
+        let stroke = if response.hovered() { egui::Stroke::new(1.5, visuals.selection.bg_fill) } else { visuals.widgets.noninteractive.bg_stroke };
         let painter = ui.painter();
         painter.rect(rect, RADIUS, visuals.extreme_bg_color, stroke, egui::StrokeKind::Inside);
 

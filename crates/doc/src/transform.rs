@@ -23,9 +23,7 @@ pub enum MoveError {
 impl fmt::Display for MoveError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::WouldBendFace => {
-                "That would bend a connected face. Select the whole piece (triple-click) to move it."
-            }
+            Self::WouldBendFace => "That would bend a connected face. Select the whole piece (triple-click) to move it.",
             Self::WouldCollapse => "That would collapse a face or edge",
         })
     }
@@ -41,9 +39,7 @@ impl Model {
             match entity {
                 Entity::Edge(id) => vertices.extend(self.edge(id).into_iter().flat_map(|e| [e.a, e.b])),
                 Entity::Instance(_) | Entity::Guide(_) => {}
-                Entity::Face(id) => {
-                    vertices.extend(self.face(id).into_iter().flat_map(|f| f.loops().flatten().copied()))
-                }
+                Entity::Face(id) => vertices.extend(self.face(id).into_iter().flat_map(|f| f.loops().flatten().copied())),
             }
         }
         vertices
@@ -57,22 +53,12 @@ impl Model {
 
     /// Rotate `vertices` by `angle` radians around the line through `center` along `axis`
     /// (counter-clockwise looking down the axis), stretching connected faces.
-    pub fn rotate_vertices(
-        &mut self,
-        vertices: &BTreeSet<VertexId>,
-        center: DVec3,
-        axis: DVec3,
-        angle: f64,
-    ) -> Result<(), MoveError> {
+    pub fn rotate_vertices(&mut self, vertices: &BTreeSet<VertexId>, center: DVec3, axis: DVec3, angle: f64) -> Result<(), MoveError> {
         self.transform_vertices(vertices, rotation(center, axis, angle))
     }
 
     /// Map `vertices` through `transform`. On error the model is unchanged.
-    pub fn transform_vertices(
-        &mut self,
-        vertices: &BTreeSet<VertexId>,
-        transform: impl Fn(DVec3) -> DVec3,
-    ) -> Result<(), MoveError> {
+    pub fn transform_vertices(&mut self, vertices: &BTreeSet<VertexId>, transform: impl Fn(DVec3) -> DVec3) -> Result<(), MoveError> {
         let original: Vec<(VertexId, DVec3)> = vertices.iter().map(|&v| (v, self.vertex(v))).collect();
         for &(v, p) in &original {
             self.set_vertex(v, transform(p));
@@ -87,13 +73,10 @@ impl Model {
     }
 
     fn check_after_move(&mut self, moved: &BTreeSet<VertexId>) -> Result<(), MoveError> {
-        if self.edges().any(|(_, e)| {
-            (moved.contains(&e.a) || moved.contains(&e.b)) && self.vertex(e.a).distance(self.vertex(e.b)) <= EPS
-        }) {
+        if self.edges().any(|(_, e)| (moved.contains(&e.a) || moved.contains(&e.b)) && self.vertex(e.a).distance(self.vertex(e.b)) <= EPS) {
             return Err(MoveError::WouldCollapse);
         }
-        let touched: Vec<FaceId> =
-            self.faces().filter(|(_, f)| f.loops().flatten().any(|v| moved.contains(v))).map(|(id, _)| id).collect();
+        let touched: Vec<FaceId> = self.faces().filter(|(_, f)| f.loops().flatten().any(|v| moved.contains(v))).map(|(id, _)| id).collect();
         let mut normals = Vec::with_capacity(touched.len());
         for &id in &touched {
             let face = self.face(id).expect("collected from live faces");
@@ -127,11 +110,7 @@ impl Model {
     /// inside out, so the side that was the front still is. A face only partly in `vertices` was
     /// stretched rather than mirrored, and keeps the winding it has.
     pub fn rewind_mirrored_faces(&mut self, vertices: &BTreeSet<VertexId>) {
-        let mirrored: Vec<FaceId> = self
-            .faces()
-            .filter(|(_, f)| f.loops().flatten().all(|v| vertices.contains(v)))
-            .map(|(id, _)| id)
-            .collect();
+        let mirrored: Vec<FaceId> = self.faces().filter(|(_, f)| f.loops().flatten().all(|v| vertices.contains(v))).map(|(id, _)| id).collect();
         for id in mirrored {
             self.reverse_face(id);
         }
@@ -147,14 +126,8 @@ impl Model {
 
     /// Copy `entities` of `source` into this model, mapped through `transform` (a move or
     /// rotation). Returns the copies.
-    pub fn copy_entities_with_from(
-        &mut self,
-        source: &Model,
-        entities: &[Entity],
-        transform: impl Fn(DVec3) -> DVec3,
-    ) -> Vec<Entity> {
-        let faces: Vec<FaceId> =
-            entities.iter().filter_map(|e| if let Entity::Face(id) = e { Some(*id) } else { None }).collect();
+    pub fn copy_entities_with_from(&mut self, source: &Model, entities: &[Entity], transform: impl Fn(DVec3) -> DVec3) -> Vec<Entity> {
+        let faces: Vec<FaceId> = entities.iter().filter_map(|e| if let Entity::Face(id) = e { Some(*id) } else { None }).collect();
         let face_edges: BTreeSet<_> = faces.iter().flat_map(|&f| source.face_edges(f)).collect();
         let mut copies = Vec::new();
         for face in faces {
@@ -193,12 +166,8 @@ impl Model {
         }
         // Include the copied faces' edges, so the copy is selected like the original.
         // Each edge borders two faces of a solid; list it once.
-        let copied_face_edges: BTreeSet<Entity> = copies
-            .iter()
-            .filter_map(|e| if let Entity::Face(id) = e { Some(*id) } else { None })
-            .flat_map(|f| self.face_edges(f))
-            .map(Entity::Edge)
-            .collect();
+        let copied_face_edges: BTreeSet<Entity> =
+            copies.iter().filter_map(|e| if let Entity::Face(id) = e { Some(*id) } else { None }).flat_map(|f| self.face_edges(f)).map(Entity::Edge).collect();
         let wanted_edges = entities.iter().any(|e| matches!(e, Entity::Edge(id) if face_edges.contains(id)));
         if wanted_edges {
             copies.extend(copied_face_edges);
@@ -324,8 +293,7 @@ mod tests {
     fn moving_one_corner_up_is_refused() {
         let mut model = Model::default();
         board(&mut model, DVec3::ZERO);
-        let corner: BTreeSet<VertexId> =
-            model.vertices().filter(|(_, p)| *p == DVec3::new(0.0, 0.0, 96.0)).map(|(id, _)| id).collect();
+        let corner: BTreeSet<VertexId> = model.vertices().filter(|(_, p)| *p == DVec3::new(0.0, 0.0, 96.0)).map(|(id, _)| id).collect();
         let before = model.bounds();
         assert_eq!(model.move_vertices(&corner, DVec3::Z * 3.0), Err(MoveError::WouldBendFace));
         assert_eq!(model.bounds(), before);

@@ -47,11 +47,7 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
         }
     });
     let mut auto_group = tools.auto_group();
-    if ui
-        .checkbox(&mut auto_group, t!("outliner-auto-group"))
-        .on_hover_text(t!("outliner-auto-group-hint"))
-        .changed()
-    {
+    if ui.checkbox(&mut auto_group, t!("outliner-auto-group")).on_hover_text(t!("outliner-auto-group-hint")).changed() {
         tools.set_auto_group(auto_group);
     }
 }
@@ -119,9 +115,7 @@ fn rows(ui: &mut egui::Ui, doc: &Document, at: &[InstanceId], inherited: Option<
         let response = if def.container.instances().next().is_some() {
             let open = doc.path().starts_with(&here);
             let state = egui::collapsing_header::CollapsingState::load_with_default_open(ui.ctx(), ui.make_persistent_id(("outliner", &here)), open);
-            let (_, header, _) = state
-                .show_header(ui, |ui| ui.horizontal(row).inner)
-                .body(|ui| rows(ui, doc, &here, material, action));
+            let (_, header, _) = state.show_header(ui, |ui| ui.horizontal(row).inner).body(|ui| rows(ui, doc, &here, material, action));
             header.inner
         } else {
             // Line up with rows that have a fold arrow.

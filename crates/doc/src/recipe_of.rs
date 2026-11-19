@@ -15,13 +15,24 @@ use glam::{DAffine3, DMat3, DVec3};
 use crate::joinery::JointKind;
 use crate::part::Cut;
 use crate::profile::{Edges, Profile};
-use crate::recipe::{CopySpec, GroupSpec, JointSpec, Length, MaterialSpec, OutlinePoint, PartSpec, ProfileSpec, Recipe, Reference, Shape, ShapeFace, TagSpec, TemplateSpec, Turn, Turns};
+use crate::recipe::{
+    CopySpec, GroupSpec, JointSpec, Length, MaterialSpec, OutlinePoint, PartSpec, ProfileSpec, Recipe, Reference, Shape, ShapeFace, TagSpec, TemplateSpec,
+    Turn, Turns,
+};
 use crate::{DefinitionId, DefinitionKind, Document, InstanceId, MaterialId, MaterialKind, Scene};
 
 /// The drawing as a recipe, and notes on what it leaves out.
 pub fn from_document(doc: &Document) -> (Recipe, Vec<String>) {
     let scene = doc.scene();
-    let mut out = Reader { scene, recipe: Recipe::default(), notes: Vec::new(), materials: HashMap::new(), names: HashSet::new(), parts: Vec::new(), tags: HashMap::new() };
+    let mut out = Reader {
+        scene,
+        recipe: Recipe::default(),
+        notes: Vec::new(),
+        materials: HashMap::new(),
+        names: HashSet::new(),
+        parts: Vec::new(),
+        tags: HashMap::new(),
+    };
     out.materials();
     out.tags();
     // Everything, hidden or not (its tags say so).
@@ -133,7 +144,14 @@ impl Reader<'_> {
                 if !members.is_empty() {
                     let name = self.unique(&def.name);
                     let called = (name != def.name).then(|| def.name.clone());
-                    self.recipe.groups.push(GroupSpec { name: name.clone(), parts: members, component: def.kind == DefinitionKind::Component, called, tag: self.tag_name(instance.tag), moves: def.moves });
+                    self.recipe.groups.push(GroupSpec {
+                        name: name.clone(),
+                        parts: members,
+                        component: def.kind == DefinitionKind::Component,
+                        called,
+                        tag: self.tag_name(instance.tag),
+                        moves: def.moves,
+                    });
                     names.push(name);
                 }
                 continue;
@@ -152,7 +170,14 @@ impl Reader<'_> {
                 if !members.is_empty() {
                     let name = self.unique(&def.name);
                     let called = (name != def.name).then(|| def.name.clone());
-                    self.recipe.groups.push(GroupSpec { name: name.clone(), parts: members, component: def.kind == DefinitionKind::Component, called, tag: self.tag_name(instance.tag), moves: def.moves });
+                    self.recipe.groups.push(GroupSpec {
+                        name: name.clone(),
+                        parts: members,
+                        component: def.kind == DefinitionKind::Component,
+                        called,
+                        tag: self.tag_name(instance.tag),
+                        moves: def.moves,
+                    });
                     names.push(name);
                 }
                 continue;
@@ -247,13 +272,15 @@ impl Reader<'_> {
             // A mirrored placement turns faces inside out: wind them back.
             let flip = to_local.matrix3.determinant() < 0.0;
             let ring = |ids: &[crate::VertexId]| -> Vec<[f64; 3]> {
-                let mut points: Vec<[f64; 3]> = ids.iter().map(|&v| to_local.transform_point3(model.vertex(v)).to_array().map(|c| (c * 100_000.0).round() / 100_000.0)).collect();
+                let mut points: Vec<[f64; 3]> =
+                    ids.iter().map(|&v| to_local.transform_point3(model.vertex(v)).to_array().map(|c| (c * 100_000.0).round() / 100_000.0)).collect();
                 if flip {
                     points.reverse();
                 }
                 points
             };
-            let faces: Vec<ShapeFace> = model.faces().map(|(_, f)| ShapeFace { outer: ring(&f.outer), holes: f.holes.iter().map(|h| ring(h)).collect() }).collect();
+            let faces: Vec<ShapeFace> =
+                model.faces().map(|(_, f)| ShapeFace { outer: ring(&f.outer), holes: f.holes.iter().map(|h| ring(h)).collect() }).collect();
             // (An outline only if it builds back: a loop that touches itself doesn't.)
             match extruded(&faces, size[2]).filter(|(o, c)| crate::recipe::outline_model(o, c, 1.0, size).is_ok()) {
                 Some((o, c)) => (outline, cutouts) = (o, c),
@@ -335,7 +362,8 @@ impl Reader<'_> {
                 Edges::AroundFace { axis, positive, sides } => {
                     let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
                     // Sides: u-, u+, v-, v+.
-                    let named = [(u, false), (u, true), (v, false), (v, true)].into_iter().zip(sides).filter(|(_, on)| *on).map(|((a, p), _)| facing(a, p).to_owned());
+                    let named =
+                        [(u, false), (u, true), (v, false), (v, true)].into_iter().zip(sides).filter(|(_, on)| *on).map(|((a, p), _)| facing(a, p).to_owned());
                     let edges = if sides.iter().all(|s| *s) { Vec::new() } else { named.collect() };
                     (Some(facing(axis, positive).to_owned()), None, edges)
                 }
@@ -349,12 +377,23 @@ impl Reader<'_> {
                     let way = axes.iter().position(|a| *a == axis).map(|k| ["length", "width", "thickness"][k].to_owned());
                     let (u, v) = ((axis + 1) % 3, (axis + 2) % 3);
                     // Corners: (u-, v-), (u+, v-), (u+, v+), (u-, v+).
-                    let named = [(false, false), (true, false), (true, true), (false, true)].into_iter().zip(corners).filter(|(_, on)| *on).map(|((pu, pv), _)| format!("{} {}", facing(u, pu), facing(v, pv)));
+                    let named = [(false, false), (true, false), (true, true), (false, true)]
+                        .into_iter()
+                        .zip(corners)
+                        .filter(|(_, on)| *on)
+                        .map(|((pu, pv), _)| format!("{} {}", facing(u, pu), facing(v, pv)));
                     let edges = if corners.iter().all(|c| *c) { Vec::new() } else { named.collect() };
                     (None, way, edges)
                 }
             };
-            self.recipe.profiles.push(ProfileSpec { part: placed.name.clone(), profile: profile.into(), size: Length::Number(round(record.size)), around, along, edges });
+            self.recipe.profiles.push(ProfileSpec {
+                part: placed.name.clone(),
+                profile: profile.into(),
+                size: Length::Number(round(record.size)),
+                around,
+                along,
+                edges,
+            });
         }
     }
 
@@ -367,7 +406,14 @@ impl Reader<'_> {
                     .iter()
                     .enumerate()
                     .filter(|(_, p)| p.definition == d)
-                    .map(|(i, p)| (i, corners(self.scene, p.definition, p.world).into_iter().fold((DVec3::INFINITY, DVec3::NEG_INFINITY), |(lo, hi), c| (lo.min(c), hi.max(c)))))
+                    .map(|(i, p)| {
+                        (
+                            i,
+                            corners(self.scene, p.definition, p.world)
+                                .into_iter()
+                                .fold((DVec3::INFINITY, DVec3::NEG_INFINITY), |(lo, hi), c| (lo.min(c), hi.max(c))),
+                        )
+                    })
                     .collect()
             };
             let (cuts, intos) = (boxes(joint.cut), boxes(joint.into));
@@ -482,7 +528,9 @@ fn base_corners(scene: &Scene, definition: DefinitionId, world: DAffine3) -> Vec
     let base = angled.or_else(|| scene.joint_bases.iter().find(|(d, _)| *d == definition).map(|(_, m)| m)).and_then(|m| m.bounds());
     let Some((lo, hi)) = base.or_else(|| scene.definition_bounds(definition)) else { return Vec::new() };
     (0..8)
-        .map(|i| world.transform_point3(DVec3::new(if i & 1 == 0 { lo.x } else { hi.x }, if i & 2 == 0 { lo.y } else { hi.y }, if i & 4 == 0 { lo.z } else { hi.z })))
+        .map(|i| {
+            world.transform_point3(DVec3::new(if i & 1 == 0 { lo.x } else { hi.x }, if i & 2 == 0 { lo.y } else { hi.y }, if i & 4 == 0 { lo.z } else { hi.z }))
+        })
         .collect()
 }
 
@@ -490,7 +538,9 @@ fn base_corners(scene: &Scene, definition: DefinitionId, world: DAffine3) -> Vec
 fn corners(scene: &Scene, definition: DefinitionId, world: DAffine3) -> Vec<DVec3> {
     let Some((lo, hi)) = scene.definition_bounds(definition) else { return Vec::new() };
     (0..8)
-        .map(|i| world.transform_point3(DVec3::new(if i & 1 == 0 { lo.x } else { hi.x }, if i & 2 == 0 { lo.y } else { hi.y }, if i & 4 == 0 { lo.z } else { hi.z })))
+        .map(|i| {
+            world.transform_point3(DVec3::new(if i & 1 == 0 { lo.x } else { hi.x }, if i & 2 == 0 { lo.y } else { hi.y }, if i & 4 == 0 { lo.z } else { hi.z }))
+        })
         .collect()
 }
 
@@ -509,7 +559,8 @@ fn extruded(faces: &[ShapeFace], thickness: f64) -> Option<(Vec<OutlinePoint>, V
     let tops: Vec<&ShapeFace> = faces.iter().filter(|f| at(thickness, f)).collect();
     let ([bottom], [top]) = (bottoms.as_slice(), tops.as_slice()) else { return None };
     let plan = |face: &ShapeFace| {
-        let mut points: Vec<[i64; 2]> = face.outer.iter().chain(face.holes.iter().flatten()).map(|p| [p[0], p[1]].map(|c| (c * 10_000.0).round() as i64)).collect();
+        let mut points: Vec<[i64; 2]> =
+            face.outer.iter().chain(face.holes.iter().flatten()).map(|p| [p[0], p[1]].map(|c| (c * 10_000.0).round() as i64)).collect();
         points.sort_unstable();
         points
     };
@@ -749,12 +800,20 @@ mod tests {
         let oak = doc.add_preset(crate::library::LIBRARY.iter().find(|p| p.name == "Red Oak").unwrap());
         let length_dir = DVec3::new(1.0, 1.0, 1.0).normalize();
         let width_dir = DVec3::new(-1.0, 1.0, 0.0).normalize();
-        doc.add_board(&crate::board::Board { origin: DVec3::new(3.0, 4.0, 5.0), length_dir, width_dir, length: 20.0, width: 4.0, thickness: 1.0 }, Some(oak)).unwrap();
+        doc.add_board(&crate::board::Board { origin: DVec3::new(3.0, 4.0, 5.0), length_dir, width_dir, length: 20.0, width: 4.0, thickness: 1.0 }, Some(oak))
+            .unwrap();
         let (read, notes) = from_document(&doc);
         assert!(notes.is_empty(), "{notes:?}");
         let part = &read.parts[0];
         assert!(part.shape.is_none() && part.turn.as_ref().is_some_and(|t| t.list().len() > 1), "a box at a compound angle: {part:?}");
-        assert_eq!(part.size.clone().map(|l| match l { Length::Number(n) => n, Length::Text(_) => 0.0 }), [20.0, 4.0, 1.0], "its own size");
+        assert_eq!(
+            part.size.clone().map(|l| match l {
+                Length::Number(n) => n,
+                Length::Text(_) => 0.0,
+            }),
+            [20.0, 4.0, 1.0],
+            "its own size"
+        );
         let again = build(&read).unwrap_or_else(|e| panic!("{e:?}"));
         let (a, b) = (corners_of(&again), corners_of(&doc));
         assert!(a.len() == b.len() && a.iter().zip(&b).all(|(p, q)| (0..3).all(|k| (p[k] - q[k]).abs() <= 1)), "in the same place: {a:?} {b:?}");
@@ -834,5 +893,4 @@ mod tests {
         assert_eq!(z_turn(DMat3::IDENTITY, DMat3::from_rotation_z(std::f64::consts::FRAC_PI_2)), Some(90.0));
         assert_eq!(z_turn(DMat3::IDENTITY, DMat3::from_rotation_x(0.3)), None);
     }
-
 }

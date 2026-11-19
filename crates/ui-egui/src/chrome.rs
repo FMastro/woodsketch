@@ -92,11 +92,8 @@ pub fn panel_header_fill(visuals: &egui::Visuals) -> egui::Color32 {
 }
 
 /// View > Theme's choices: the preference, its name, and how it's saved.
-pub const THEMES: [(egui::ThemePreference, &str); 3] = [
-    (egui::ThemePreference::Light, "light"),
-    (egui::ThemePreference::Dark, "dark"),
-    (egui::ThemePreference::System, "system"),
-];
+pub const THEMES: [(egui::ThemePreference, &str); 3] =
+    [(egui::ThemePreference::Light, "light"), (egui::ThemePreference::Dark, "dark"), (egui::ThemePreference::System, "system")];
 
 /// Which language the app speaks. Only shown once there is a choice: with English alone it would
 /// be a menu with one answer, and it appears by itself the day a translation is added. The choice
@@ -143,7 +140,23 @@ impl WoodSketchApp {
                 self.edit_menu(ui);
                 self.view_menu(ui);
                 self.camera_menu(ui);
-                tool_menu(ui, &mut self.tools, &t!("menu-draw"), &[ToolId::Line, ToolId::Arc, ToolId::CenterArc, ToolId::ThreePointArc, ToolId::Pie, ToolId::Rectangle, ToolId::RotatedRectangle, ToolId::Circle, ToolId::Polygon, ToolId::Board]);
+                tool_menu(
+                    ui,
+                    &mut self.tools,
+                    &t!("menu-draw"),
+                    &[
+                        ToolId::Line,
+                        ToolId::Arc,
+                        ToolId::CenterArc,
+                        ToolId::ThreePointArc,
+                        ToolId::Pie,
+                        ToolId::Rectangle,
+                        ToolId::RotatedRectangle,
+                        ToolId::Circle,
+                        ToolId::Polygon,
+                        ToolId::Board,
+                    ],
+                );
                 self.tools_menu(ui);
                 self.window_menu(ui);
                 self.help_menu(ui);
@@ -482,18 +495,14 @@ impl WoodSketchApp {
         // `open` holds a borrow of the flag, so What's New is asked for through a local.
         let mut show_about = self.show_about;
         let mut changes = false;
-        egui::Window::new(t!("about-title"))
-            .open(&mut show_about)
-            .collapsible(false)
-            .resizable(false)
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label(t!("about-version", "version" => crate::updates::VERSION));
-                    changes = ui.link(t!("about-whats-new")).clicked();
-                });
-                ui.label(t!("about-what-it-is"));
-                ui.label(t!("about-not-affiliated"));
+        egui::Window::new(t!("about-title")).open(&mut show_about).collapsible(false).resizable(false).show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(t!("about-version", "version" => crate::updates::VERSION));
+                changes = ui.link(t!("about-whats-new")).clicked();
             });
+            ui.label(t!("about-what-it-is"));
+            ui.label(t!("about-not-affiliated"));
+        });
         self.show_about = show_about;
         if changes {
             self.read_the_changes();
@@ -511,44 +520,39 @@ impl WoodSketchApp {
         let since = self.updated_from.clone();
         let mut open = true;
         let mut read = false;
-        egui::Window::new(t!("whats-new-title"))
-            .open(&mut open)
-            .collapsible(false)
-            .default_width(520.0)
-            .default_height(440.0)
-            .show(ctx, |ui| {
-                match (&since, releases.len()) {
-                    (Some(from), 1) => ui.label(t!("whats-new-one-since", "from" => from.as_str())),
-                    (Some(from), n) => ui.label(t!("whats-new-many-since", "count" => n, "from" => from.as_str())),
-                    (None, _) => ui.label(t!("whats-new-recent")),
-                };
-                ui.separator();
-                // Leave room for the buttons below: an unbounded scroll area takes the whole
-                // window and pushes them off the bottom, out of reach.
-                let room = (ui.available_height() - 36.0).max(80.0);
-                egui::ScrollArea::vertical().max_height(room).auto_shrink([false, false]).show(ui, |ui| {
-                    for release in &releases {
-                        ui.horizontal(|ui| {
-                            ui.heading(&release.version);
-                            if release.version == crate::updates::VERSION {
-                                ui.label(t!("whats-new-this-one"));
-                            }
-                        });
-                        for note in crate::updates::notes_items(&release.notes) {
-                            let job = note_line(ui, &note);
-                            ui.label(job);
+        egui::Window::new(t!("whats-new-title")).open(&mut open).collapsible(false).default_width(520.0).default_height(440.0).show(ctx, |ui| {
+            match (&since, releases.len()) {
+                (Some(from), 1) => ui.label(t!("whats-new-one-since", "from" => from.as_str())),
+                (Some(from), n) => ui.label(t!("whats-new-many-since", "count" => n, "from" => from.as_str())),
+                (None, _) => ui.label(t!("whats-new-recent")),
+            };
+            ui.separator();
+            // Leave room for the buttons below: an unbounded scroll area takes the whole
+            // window and pushes them off the bottom, out of reach.
+            let room = (ui.available_height() - 36.0).max(80.0);
+            egui::ScrollArea::vertical().max_height(room).auto_shrink([false, false]).show(ui, |ui| {
+                for release in &releases {
+                    ui.horizontal(|ui| {
+                        ui.heading(&release.version);
+                        if release.version == crate::updates::VERSION {
+                            ui.label(t!("whats-new-this-one"));
                         }
-                        ui.add_space(10.0);
+                    });
+                    for note in crate::updates::notes_items(&release.notes) {
+                        let job = note_line(ui, &note);
+                        ui.label(job);
                     }
-                });
-                ui.separator();
-                ui.horizontal(|ui| {
-                    // "Done" rather than "Close": it marks the notes read, which is why the
-                    // status bar stops offering them afterwards.
-                    read = ui.button(t!("whats-new-done")).on_hover_text(t!("whats-new-done-hint")).clicked();
-                    ui.hyperlink_to(t!("whats-new-every-version"), crate::updates::RELEASES_URL);
-                });
+                    ui.add_space(10.0);
+                }
             });
+            ui.separator();
+            ui.horizontal(|ui| {
+                // "Done" rather than "Close": it marks the notes read, which is why the
+                // status bar stops offering them afterwards.
+                read = ui.button(t!("whats-new-done")).on_hover_text(t!("whats-new-done-hint")).clicked();
+                ui.hyperlink_to(t!("whats-new-every-version"), crate::updates::RELEASES_URL);
+            });
+        });
         if read || !open {
             self.show_changes = false;
             // Read, so the status bar needn't keep offering it.
@@ -778,12 +782,15 @@ impl WoodSketchApp {
                     ui.add(egui::Spinner::new());
                 }
                 if let Some(crate::updates::UpdateState::Ready(version)) = &state {
-                    let label = egui::RichText::new(format!("{} {}", egui_phosphor::regular::ARROW_CIRCLE_UP, t!("status-restart-to-update", "version" => version.as_str())))
-                        .color(egui::Color32::WHITE)
-                        .strong();
-                    let restart = ui
-                        .add(egui::Button::new(label).fill(egui::Color32::from_rgb(34, 139, 34)))
-                        .on_hover_text(t!("status-restart-to-update-hint"));
+                    let label = egui::RichText::new(format!(
+                        "{} {}",
+                        egui_phosphor::regular::ARROW_CIRCLE_UP,
+                        t!("status-restart-to-update", "version" => version.as_str())
+                    ))
+                    .color(egui::Color32::WHITE)
+                    .strong();
+                    let restart =
+                        ui.add(egui::Button::new(label).fill(egui::Color32::from_rgb(34, 139, 34))).on_hover_text(t!("status-restart-to-update-hint"));
                     if restart.clicked() {
                         let ctx = ui.ctx().clone();
                         self.restart_to_update(&ctx);
@@ -804,8 +811,7 @@ impl WoodSketchApp {
                     // Reloaded because the file changed outside (an assistant working through
                     // woodsketch-cli, a synced folder): say so briefly, so it isn't a mystery.
                     if self.reloaded_recently() {
-                        ui.label(format!("{} {}", egui_phosphor::regular::ARROWS_CLOCKWISE, t!("status-reloaded")))
-                            .on_hover_text(t!("status-reloaded-hint"));
+                        ui.label(format!("{} {}", egui_phosphor::regular::ARROWS_CLOCKWISE, t!("status-reloaded"))).on_hover_text(t!("status-reloaded-hint"));
                         ui.separator();
                     }
                     // Drawing on another backend because the preferred one went wrong here: say
@@ -815,8 +821,12 @@ impl WoodSketchApp {
                         if ui.small_button(egui_phosphor::regular::X).on_hover_text(t!("status-dismiss")).clicked() {
                             self.fell_back = None;
                         }
-                        ui.label(format!("{} {}", egui_phosphor::regular::MONITOR, t!("status-graphics-fell-back", "backend" => backend, "failed" => failed.clone())))
-                            .on_hover_text(t!("status-graphics-fell-back-hint", "failed" => failed));
+                        ui.label(format!(
+                            "{} {}",
+                            egui_phosphor::regular::MONITOR,
+                            t!("status-graphics-fell-back", "backend" => backend, "failed" => failed.clone())
+                        ))
+                        .on_hover_text(t!("status-graphics-fell-back-hint", "failed" => failed));
                         ui.separator();
                     }
                     // Just updated: say so once, with everything the update brought.
@@ -838,10 +848,15 @@ impl WoodSketchApp {
                         ui.separator();
                     }
                     if let Some(crate::updates::UpdateState::Ready(version)) = self.update_state() {
-                        let label = egui::RichText::new(format!("{} {}", egui_phosphor::regular::ARROW_CIRCLE_UP, t!("status-restart-to-update", "version" => version.as_str()))).color(egui::Color32::WHITE).strong();
-                        let restart = ui
-                            .add(egui::Button::new(label).fill(egui::Color32::from_rgb(34, 139, 34)))
-                            .on_hover_text(t!("status-restart-to-update-hint"));
+                        let label = egui::RichText::new(format!(
+                            "{} {}",
+                            egui_phosphor::regular::ARROW_CIRCLE_UP,
+                            t!("status-restart-to-update", "version" => version.as_str())
+                        ))
+                        .color(egui::Color32::WHITE)
+                        .strong();
+                        let restart =
+                            ui.add(egui::Button::new(label).fill(egui::Color32::from_rgb(34, 139, 34))).on_hover_text(t!("status-restart-to-update-hint"));
                         if restart.clicked() {
                             let ctx = ui.ctx().clone();
                             self.restart_to_update(&ctx);

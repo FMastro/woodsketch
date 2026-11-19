@@ -7,7 +7,6 @@
 
 use std::collections::BTreeMap;
 
-
 use crate::{Container, MaterialId, MaterialKind, Scene};
 
 /// Sizes are compared to this precision (inches) when grouping identical parts.
@@ -86,7 +85,11 @@ impl CutList {
         }
         for material in self.materials.iter().filter(|m| m.kind == Some(MaterialKind::SolidWood)) {
             for part in &material.parts {
-                let (Some(boards), Some((piece, per_seam))) = (crate::cutplan::glue_up(part, &material.standard), part.edge_joint.seam(part.thickness, part.length)) else { continue };
+                let (Some(boards), Some((piece, per_seam))) =
+                    (crate::cutplan::glue_up(part, &material.standard), part.edge_joint.seam(part.thickness, part.length))
+                else {
+                    continue;
+                };
                 let seams = (boards - 1) * per_seam;
                 *total.entry(piece).or_default() += seams * part.count as u32;
             }
@@ -139,9 +142,7 @@ pub fn cut_list(scene: &Scene) -> CutList {
         .into_iter()
         .map(|(material, mut parts)| {
             // Thickest, then longest, then widest first, like a lumber list.
-            parts.sort_by(|a, b| {
-                b.thickness.total_cmp(&a.thickness).then(b.length.total_cmp(&a.length)).then(b.width.total_cmp(&a.width))
-            });
+            parts.sort_by(|a, b| b.thickness.total_cmp(&a.thickness).then(b.length.total_cmp(&a.length)).then(b.width.total_cmp(&a.width)));
             let info = material.and_then(|m| scene.material(m));
             MaterialParts {
                 material,
@@ -244,9 +245,9 @@ pub fn to_csv(list: &CutList) -> String {
 
 #[cfg(test)]
 mod tests {
-    use glam::DVec3;
     use super::*;
     use crate::{DefinitionKind, Document, Entity};
+    use glam::DVec3;
 
     /// A board of `l` × `w` × `t` made with Push/Pull (auto-grouped) at `at`.
     pub(crate) fn board(doc: &mut Document, at: DVec3, l: f64, w: f64, t: f64) -> crate::InstanceId {

@@ -62,9 +62,7 @@ impl Standard {
     /// US defaults for a type of material.
     pub fn for_kind(kind: MaterialKind) -> Self {
         match kind {
-            MaterialKind::SheetGood => {
-                Self { thicknesses: vec![0.25, 0.5, 0.75], sheets: vec![(96.0, 48.0)], ..Self::default() }
-            }
+            MaterialKind::SheetGood => Self { thicknesses: vec![0.25, 0.5, 0.75], sheets: vec![(96.0, 48.0)], ..Self::default() },
             // Surfaced hardwood: 4/4, 5/4, 6/4 and 8/4 rough, planed.
             MaterialKind::SolidWood => Self {
                 thicknesses: vec![0.75, 1.0, 1.25, 1.75],
@@ -72,11 +70,9 @@ impl Standard {
                 widths: vec![3.5, 5.5, 7.25, 9.25, 11.25],
                 ..Self::default()
             },
-            MaterialKind::DimensionalLumber => Self {
-                sections: lumber_sizes().into_iter().map(|(_, t, w)| (t, w)).collect(),
-                lengths: vec![96.0, 120.0, 144.0, 192.0],
-                ..Self::default()
-            },
+            MaterialKind::DimensionalLumber => {
+                Self { sections: lumber_sizes().into_iter().map(|(_, t, w)| (t, w)).collect(), lengths: vec![96.0, 120.0, 144.0, 192.0], ..Self::default() }
+            }
             MaterialKind::Hardware | MaterialKind::Other => Self::default(),
         }
     }
@@ -115,13 +111,7 @@ pub fn match_stock(part: &Part, kind: MaterialKind, standard: &Standard) -> Resu
             .copied()
             .find(|t| (t - part.thickness).abs() <= THICKNESS_MATCH)
             .map(|t| StockMatch { name: format!("{} sheet", format_length(t)), thickness: t, width: None })
-            .ok_or_else(|| {
-                format!(
-                    "{} thick isn't a standard thickness ({})",
-                    format_length(part.thickness),
-                    list(&standard.thicknesses)
-                )
-            }),
+            .ok_or_else(|| format!("{} thick isn't a standard thickness ({})", format_length(part.thickness), list(&standard.thicknesses))),
         // Planed down from the thinnest stock at least as thick.
         MaterialKind::SolidWood => standard
             .thicknesses
@@ -142,13 +132,7 @@ pub fn match_stock(part: &Part, kind: MaterialKind, standard: &Standard) -> Resu
             })
             .min_by(|a, b| (a.0 * a.1).total_cmp(&(b.0 * b.1)))
             .map(|(t, w)| StockMatch { name: section_name(t, w), thickness: t, width: Some(w) })
-            .ok_or_else(|| {
-                format!(
-                    "{} x {} is bigger than any standard section",
-                    format_length(part.thickness),
-                    format_length(part.width)
-                )
-            }),
+            .ok_or_else(|| format!("{} x {} is bigger than any standard section", format_length(part.thickness), format_length(part.width))),
         MaterialKind::Hardware | MaterialKind::Other => Err("not cut from stock".into()),
     }
 }
@@ -175,9 +159,7 @@ const LUMBER_WIDTHS: [(f64, u32); 7] = [(1.5, 2), (2.5, 3), (3.5, 4), (5.5, 6), 
 pub fn lumber_sizes() -> Vec<(String, f64, f64)> {
     LUMBER_THICKNESSES
         .iter()
-        .flat_map(|&(t, nt)| {
-            LUMBER_WIDTHS.iter().filter(move |&&(w, _)| w >= t).map(move |&(w, nw)| (format!("{nt}x{nw}"), t, w))
-        })
+        .flat_map(|&(t, nt)| LUMBER_WIDTHS.iter().filter(move |&&(w, _)| w >= t).map(move |&(w, nw)| (format!("{nt}x{nw}"), t, w)))
         .collect()
 }
 
@@ -300,10 +282,7 @@ pub fn plan(material: &MaterialParts, kerf: f64) -> Option<Plan> {
                 let pieces: Vec<Piece> = match boards {
                     Some(n) => {
                         let (length, width) = glue_up_board(part, n);
-                        (0..part.count)
-                            .flat_map(|_| 1..=n)
-                            .map(|i| Piece { label: format!("{}-{i}", part.label), length, width })
-                            .collect()
+                        (0..part.count).flat_map(|_| 1..=n).map(|i| Piece { label: format!("{}-{i}", part.label), length, width }).collect()
                     }
                     None => std::iter::repeat_n(Piece { label: part.label.clone(), length: part.length, width: part.width }, part.count).collect(),
                 };
@@ -343,10 +322,7 @@ fn plan_sheets(pieces: Vec<Piece>, stock: &StockMatch, standard: &Standard, grai
         })
         // Everything placed first, then the least stock.
         .min_by(|a, b| a.unplaced.len().cmp(&b.unplaced.len()).then(area(a).total_cmp(&area(b))))
-        .unwrap_or_else(|| Plan {
-            unplaced: pieces.into_iter().map(|p| (p.label, "the material lists no sheet sizes".into())).collect(),
-            ..Plan::default()
-        })
+        .unwrap_or_else(|| Plan { unplaced: pieces.into_iter().map(|p| (p.label, "the material lists no sheet sizes".into())).collect(), ..Plan::default() })
 }
 
 /// Solid wood of one thickness: boards wide and long enough for the biggest part.
@@ -355,14 +331,10 @@ fn plan_boards(pieces: Vec<Piece>, stock: &StockMatch, standard: &Standard, kerf
     let widest = pieces.iter().map(|p| p.width).fold(0.0, f64::max);
     let longest = pieces.iter().map(|p| p.length).fold(0.0, f64::max);
     let Some(width) = smallest_at_least(&standard.widths, widest).or_else(|| standard.widths.iter().copied().reduce(f64::max)) else {
-        return Plan {
-            unplaced: pieces.into_iter().map(|p| (p.label, "the material lists no board widths".into())).collect(),
-            ..Plan::default()
-        };
+        return Plan { unplaced: pieces.into_iter().map(|p| (p.label, "the material lists no board widths".into())).collect(), ..Plan::default() };
     };
     let name = |l: f64| format!("Board {thickness} x {} x {}", format_length(width), format_length(l));
-    let mut sizes: Vec<(f64, f64, String)> =
-        standard.lengths.iter().filter(|&&l| l >= longest).map(|&l| (l, width, name(l))).collect();
+    let mut sizes: Vec<(f64, f64, String)> = standard.lengths.iter().filter(|&&l| l >= longest).map(|&l| (l, width, name(l))).collect();
     if sizes.is_empty() {
         let l = standard.lengths.iter().copied().fold(0.0, f64::max);
         sizes.push((l, width, name(l)));
@@ -444,11 +416,7 @@ fn best_bins(pieces: &[Piece], lengths: &[f64], kerf: f64) -> Option<Boards> {
         for piece in sorted {
             let need = piece.length + kerf;
             let choice = if best_fit {
-                bins.iter()
-                    .enumerate()
-                    .filter(|(_, (u, _))| room(*u) >= need - 1e-9)
-                    .min_by(|a, b| room(a.1.0).total_cmp(&room(b.1.0)))
-                    .map(|(i, _)| i)
+                bins.iter().enumerate().filter(|(_, (u, _))| room(*u) >= need - 1e-9).min_by(|a, b| room(a.1.0).total_cmp(&room(b.1.0))).map(|(i, _)| i)
             } else {
                 bins.iter().position(|(u, _)| room(*u) >= need - 1e-9)
             };
@@ -462,9 +430,7 @@ fn best_bins(pieces: &[Piece], lengths: &[f64], kerf: f64) -> Option<Boards> {
         }
         let bought: Vec<f64> = bins.iter().map(|(used, _)| shortest_holding(lengths, *used, kerf)).collect();
         let cost = (bought.iter().sum::<f64>(), bought.iter().copied().fold(0.0, f64::max));
-        let better = best.as_ref().is_none_or(|((total, longest), _)| {
-            cost.0 < total - 1e-9 || ((cost.0 - total).abs() <= 1e-9 && cost.1 < longest - 1e-9)
-        });
+        let better = best.as_ref().is_none_or(|((total, longest), _)| cost.0 < total - 1e-9 || ((cost.0 - total).abs() <= 1e-9 && cost.1 < longest - 1e-9));
         if better {
             best = Some((cost, bins.into_iter().map(|(_, p)| p).collect()));
         }
@@ -524,9 +490,7 @@ struct Bin {
 /// if they still hold it (boards come in several lengths). Tries several orders and rules.
 fn pack_2d(pieces: Vec<Piece>, sizes: &[(f64, f64, String)], can_rotate: bool, kerf: f64) -> Plan {
     let Some(&(length, width, _)) = sizes.last() else { return Plan::default() };
-    let fits = |p: &Piece| {
-        (p.length <= length + 1e-9 && p.width <= width + 1e-9) || (can_rotate && p.width <= length + 1e-9 && p.length <= width + 1e-9)
-    };
+    let fits = |p: &Piece| (p.length <= length + 1e-9 && p.width <= width + 1e-9) || (can_rotate && p.width <= length + 1e-9 && p.length <= width + 1e-9);
     let (pieces, too_big): (Vec<Piece>, Vec<Piece>) = pieces.into_iter().partition(fits);
     let orders: [fn(&Piece, &Piece) -> std::cmp::Ordering; 3] = [
         |a, b| (b.length * b.width).total_cmp(&(a.length * a.width)),
@@ -693,8 +657,7 @@ mod tests {
         for axis in [0, 1] {
             for p in parts {
                 let cut = p[axis] + p[axis + 2];
-                let (before, after): (Vec<[f64; 4]>, Vec<[f64; 4]>) =
-                    parts.iter().partition(|r| r[axis] + r[axis + 2] <= cut + 1e-9);
+                let (before, after): (Vec<[f64; 4]>, Vec<[f64; 4]>) = parts.iter().partition(|r| r[axis] + r[axis + 2] <= cut + 1e-9);
                 let clean = after.iter().all(|r| r[axis] >= cut - 1e-9);
                 if clean && !before.is_empty() && !after.is_empty() && guillotine(&before) && guillotine(&after) {
                     return true;
@@ -836,11 +799,7 @@ mod tests {
     fn cabinet_sides_fit_two_sheets() {
         // Two cabinet carcasses: 4 sides 30" x 23.25", 2 bottoms and 2 tops 34.5" x 23.25",
         // 2 backs 34.5" x 30".
-        let m = material(
-            MaterialKind::SheetGood,
-            true,
-            &[("A", 4, 30.0, 23.25, 0.75), ("B", 4, 34.5, 23.25, 0.75), ("C", 2, 34.5, 30.0, 0.75)],
-        );
+        let m = material(MaterialKind::SheetGood, true, &[("A", 4, 30.0, 23.25, 0.75), ("B", 4, 34.5, 23.25, 0.75), ("C", 2, 34.5, 30.0, 0.75)]);
         let settings = Settings::default();
         let plan = plan(&m, settings.kerf).unwrap();
         assert_valid(&plan, settings.kerf);
@@ -955,13 +914,7 @@ mod tests {
         let m = material(
             MaterialKind::SheetGood,
             false,
-            &[
-                ("A", 2, 72.0, 11.25, 0.75),
-                ("B", 5, 34.5, 11.25, 0.75),
-                ("C", 1, 72.0, 36.0, 0.25),
-                ("D", 6, 14.0, 9.0, 0.75),
-                ("E", 3, 22.0, 17.5, 0.75),
-            ],
+            &[("A", 2, 72.0, 11.25, 0.75), ("B", 5, 34.5, 11.25, 0.75), ("C", 1, 72.0, 36.0, 0.25), ("D", 6, 14.0, 9.0, 0.75), ("E", 3, 22.0, 17.5, 0.75)],
         );
         let settings = Settings::default();
         let plan = plan(&m, settings.kerf).unwrap();

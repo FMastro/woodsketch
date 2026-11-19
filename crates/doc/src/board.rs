@@ -30,17 +30,11 @@ impl Stock {
 pub fn stock_options(material: &Material) -> Vec<(String, Stock)> {
     let standard = &material.standard;
     match material.kind {
-        MaterialKind::DimensionalLumber => standard
-            .sections
-            .iter()
-            .map(|&(thickness, width)| (section_name(thickness, width), Stock::Section { thickness, width }))
-            .collect(),
-        MaterialKind::SheetGood => {
-            standard.thicknesses.iter().map(|&t| (format!("{} sheet", format_length(t)), Stock::Thickness(t))).collect()
+        MaterialKind::DimensionalLumber => {
+            standard.sections.iter().map(|&(thickness, width)| (section_name(thickness, width), Stock::Section { thickness, width })).collect()
         }
-        MaterialKind::SolidWood => {
-            standard.thicknesses.iter().map(|&t| (format!("{} board", format_length(t)), Stock::Thickness(t))).collect()
-        }
+        MaterialKind::SheetGood => standard.thicknesses.iter().map(|&t| (format!("{} sheet", format_length(t)), Stock::Thickness(t))).collect(),
+        MaterialKind::SolidWood => standard.thicknesses.iter().map(|&t| (format!("{} board", format_length(t)), Stock::Thickness(t))).collect(),
         MaterialKind::Hardware | MaterialKind::Other => Vec::new(),
     }
 }
@@ -142,9 +136,7 @@ impl Board {
 /// A box `length` x `width` x `thickness` from the origin along X, Y and Z.
 fn board_model(length: f64, width: f64, thickness: f64) -> Model {
     let mut model = Model::default();
-    let bottom = model
-        .add_rectangle(DVec3::ZERO, DVec3::X * length, DVec3::Y * width, DVec3::Z)
-        .expect("a board has a size");
+    let bottom = model.add_rectangle(DVec3::ZERO, DVec3::X * length, DVec3::Y * width, DVec3::Z).expect("a board has a size");
     model.push_pull(bottom, thickness).expect("a board has a thickness");
     model
 }
@@ -248,8 +240,7 @@ mod tests {
         let mut doc = Document::default();
         let pine = doc.add_preset(LIBRARY.iter().find(|p| p.name == "Pine Lumber").unwrap());
         // A stud standing up: length up the blue axis, width along red, thickness along green.
-        let board =
-            Board { origin: DVec3::new(10.0, 0.0, 0.0), length_dir: DVec3::Z, width_dir: DVec3::X, length: 84.0, width: 3.5, thickness: 1.5 };
+        let board = Board { origin: DVec3::new(10.0, 0.0, 0.0), length_dir: DVec3::Z, width_dir: DVec3::X, length: 84.0, width: 3.5, thickness: 1.5 };
         let stud = doc.add_board(&board, Some(pine)).unwrap();
         assert_eq!(doc.part_size(stud), Some([84.0, 3.5, 1.5]));
         let (lo, hi) = doc.bounds().unwrap();

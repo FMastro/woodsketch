@@ -4,8 +4,8 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
-use woodsketch_i18n::t;
 use woodsketch_doc::{Document, Entity, FaceId, Model, Owner};
+use woodsketch_i18n::t;
 
 use crate::Overlay;
 use crate::pick::{Screen, Snap, closest_on_line, hit_face, snap_feature};
@@ -73,9 +73,7 @@ impl PushPullTool {
         let Some(op) = &mut self.op else {
             // Faces inside closed groups highlight too: clicking one opens its group first.
             let view = doc.view();
-            self.hover = hit_face(view.model(), &screen.ray(cursor))
-                .map(|(id, _)| id)
-                .filter(|&id| view.owner(Entity::Face(id)) != Owner::Outside);
+            self.hover = hit_face(view.model(), &screen.ray(cursor)).map(|(id, _)| id).filter(|&id| view.owner(Entity::Face(id)) != Owner::Outside);
             return;
         };
         let (model, view) = (doc.model(), doc.view().model());
@@ -297,11 +295,8 @@ mod tests {
     /// A 2x4 profile on the ground, seen from the front-left so vertical motion is visible.
     fn setup() -> (Document, OrbitCamera, FaceId) {
         let mut doc = Document::default();
-        let face = doc
-            .edit(|m| m.add_rectangle(DVec3::ZERO, DVec3::X * 1.5, DVec3::Y * 3.5, DVec3::Z))
-            .unwrap();
-        let mut camera =
-            OrbitCamera { target: glam::Vec3::new(0.75, 1.75, 0.0), distance: 40.0, ..Default::default() };
+        let face = doc.edit(|m| m.add_rectangle(DVec3::ZERO, DVec3::X * 1.5, DVec3::Y * 3.5, DVec3::Z)).unwrap();
+        let mut camera = OrbitCamera { target: glam::Vec3::new(0.75, 1.75, 0.0), distance: 40.0, ..Default::default() };
         camera.set_view(StandardView::Iso);
         (doc, camera, face)
     }

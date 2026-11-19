@@ -54,14 +54,7 @@ fn meshes(scene: &Scene) -> Vec<Mesh> {
     out
 }
 
-fn collect(
-    scene: &Scene,
-    container: &crate::Container,
-    name: &str,
-    transform: &DAffine3,
-    paint: Option<MaterialId>,
-    out: &mut Vec<Mesh>,
-) {
+fn collect(scene: &Scene, container: &crate::Container, name: &str, transform: &DAffine3, paint: Option<MaterialId>, out: &mut Vec<Mesh>) {
     let model = &container.model;
     let mut mesh = Mesh { name: name.to_owned(), triangles: Vec::new() };
     for (_, face) in model.faces() {
@@ -93,9 +86,7 @@ fn token(name: &str) -> String {
 /// The drawing as an OBJ file referring to `mtl_file` for its materials, and that MTL file.
 pub fn to_obj(scene: &Scene, units: ExportUnits, mtl_file: &str) -> (String, String) {
     let scale = units.scale();
-    let material_name = |id: Option<MaterialId>| {
-        id.and_then(|m| scene.material(m)).map_or_else(|| "Default".to_owned(), |m| token(&m.name))
-    };
+    let material_name = |id: Option<MaterialId>| id.and_then(|m| scene.material(m)).map_or_else(|| "Default".to_owned(), |m| token(&m.name));
 
     let mut obj = String::new();
     let _ = writeln!(obj, "# Exported from WoodSketch; units: {}", units.name());
@@ -130,10 +121,7 @@ pub fn to_obj(scene: &Scene, units: ExportUnits, mtl_file: &str) -> (String, Str
 
     let mut mtl = String::from("# Exported from WoodSketch\n");
     for name in used {
-        let color = scene
-            .materials()
-            .find(|(_, m)| token(&m.name) == name)
-            .map_or([250, 250, 246], |(_, m)| m.color);
+        let color = scene.materials().find(|(_, m)| token(&m.name) == name).map_or([250, 250, 246], |(_, m)| m.color);
         let [r, g, b] = color.map(|c| f64::from(c) / 255.0);
         let _ = writeln!(mtl, "newmtl {name}\nKd {r:.4} {g:.4} {b:.4}\n");
     }
@@ -189,10 +177,7 @@ mod tests {
         };
         let lines: Vec<&str> = stl.lines().collect();
         let far_corner = DVec3::new(38.1, 88.9, 254.0);
-        assert!(
-            lines.iter().filter(|l| l.trim_start().starts_with("vertex")).any(|l| numbers(l).abs_diff_eq(far_corner, 1e-9)),
-            "inches scaled to mm"
-        );
+        assert!(lines.iter().filter(|l| l.trim_start().starts_with("vertex")).any(|l| numbers(l).abs_diff_eq(far_corner, 1e-9)), "inches scaled to mm");
         for (i, line) in lines.iter().enumerate().filter(|(_, l)| l.contains("facet normal")) {
             let n = numbers(line);
             let [a, b, c] = [numbers(lines[i + 2]), numbers(lines[i + 3]), numbers(lines[i + 4])];

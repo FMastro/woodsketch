@@ -3,12 +3,12 @@
 //! Materials panel). Exports a CSV, or a cut sheet to print.
 
 use eframe::egui;
-use woodsketch_i18n::t;
 use egui_phosphor::regular as ph;
 use woodsketch_doc::cutlist::{self, CutList, MaterialParts};
 use woodsketch_doc::cutplan::{self, Plan, Settings, match_stock};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, MaterialKind, cutsheet};
+use woodsketch_i18n::t;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Tab {
@@ -73,15 +73,12 @@ impl CutListWindow {
                         }
                     }
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        let print = ui
-                            .button(format!("{} {}", ph::PRINTER, t!("cutlist-print-cut-sheet")))
-                            .on_hover_text(t!("cutlist-print-cut-sheet-hint"));
+                        let print = ui.button(format!("{} {}", ph::PRINTER, t!("cutlist-print-cut-sheet"))).on_hover_text(t!("cutlist-print-cut-sheet-hint"));
                         if print.clicked() {
                             self.export_sheet(doc);
                         }
-                        let build = ui
-                            .button(format!("{} {}", ph::NOTEBOOK, t!("cutlist-print-build-sheets")))
-                            .on_hover_text(t!("cutlist-print-build-sheets-hint"));
+                        let build =
+                            ui.button(format!("{} {}", ph::NOTEBOOK, t!("cutlist-print-build-sheets"))).on_hover_text(t!("cutlist-print-build-sheets-hint"));
                         if build.clicked() {
                             self.export_build_sheets(doc);
                         }
@@ -238,16 +235,10 @@ fn parts_tab(ui: &mut egui::Ui, list: &CutList, doc: &Document, edit: &mut Optio
     }
     let needs = list.needs_material();
     if needs > 0 {
-        ui.colored_label(
-            ui.visuals().warn_fg_color,
-            t!("cutlist-needs-material", "count" => needs, "warning" => ph::WARNING),
-        );
+        ui.colored_label(ui.visuals().warn_fg_color, t!("cutlist-needs-material", "count" => needs, "warning" => ph::WARNING));
     }
     if list.loose_faces > 0 {
-        ui.colored_label(
-            ui.visuals().warn_fg_color,
-            t!("cutlist-loose-faces", "count" => list.loose_faces),
-        );
+        ui.colored_label(ui.visuals().warn_fg_color, t!("cutlist-loose-faces", "count" => list.loose_faces));
     }
     // What still needs a material first: that's what to fix.
     let ordered = list.materials.iter().filter(|m| m.material.is_none()).chain(list.materials.iter().filter(|m| m.material.is_some()));
@@ -340,8 +331,7 @@ fn diagrams_tab(ui: &mut egui::Ui, list: &CutList, plans: &[Option<Plan>], doc: 
         ui.label(t!("cutlist-nothing-to-cut"));
     }
     // Metal, glass and such (type Other) aren't cut from stock: one line for all of them.
-    let not_wood: Vec<&str> =
-        list.materials.iter().filter(|m| m.kind == Some(MaterialKind::Other)).map(|m| m.name.as_str()).collect();
+    let not_wood: Vec<&str> = list.materials.iter().filter(|m| m.kind == Some(MaterialKind::Other)).map(|m| m.name.as_str()).collect();
     for (material, plan) in list.materials.iter().zip(plans) {
         if material.kind == Some(MaterialKind::Other) {
             continue;
@@ -412,10 +402,7 @@ fn movement_tab(ui: &mut egui::Ui, doc: &mut Document) {
     let mut swing = doc.scene().moisture_swing();
     ui.horizontal(|ui| {
         ui.label(t!("movement-swing"));
-        let changed = ui
-            .add(egui::DragValue::new(&mut swing).range(1.0..=12.0).speed(0.1).suffix("%"))
-            .on_hover_text(t!("movement-swing-hint"))
-            .changed();
+        let changed = ui.add(egui::DragValue::new(&mut swing).range(1.0..=12.0).speed(0.1).suffix("%")).on_hover_text(t!("movement-swing-hint")).changed();
         if changed {
             doc.edit_scene_merging("moisture swing", |scene, _| scene.moisture_swing = Some(swing));
         }
@@ -424,10 +411,7 @@ fn movement_tab(ui: &mut egui::Ui, doc: &mut Document) {
     ui.add_space(6.0);
     // Woods it can't speak for.
     if !report.unknown.is_empty() {
-        ui.colored_label(
-            ui.visuals().warn_fg_color,
-            t!("movement-unknown", "info" => ph::INFO, "materials" => report.unknown.join(", ")),
-        );
+        ui.colored_label(ui.visuals().warn_fg_color, t!("movement-unknown", "info" => ph::INFO, "materials" => report.unknown.join(", ")));
     }
     if report.parts.is_empty() {
         ui.weak(t!("movement-none-known"));

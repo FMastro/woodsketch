@@ -6,9 +6,9 @@
 use std::sync::{Arc, Mutex};
 
 use eframe::egui;
-use woodsketch_i18n::t;
 use woodsketch_doc::Document;
 use woodsketch_doc::feedback::{Crash, Drawing, Kind, RELAY, Sent, System, details, issue_url, reply, request, scrub, valid_email};
+use woodsketch_i18n::t;
 
 /// Where issues go.
 pub const REPO: &str = "https://github.com/FMastro/woodsketch";
@@ -148,10 +148,13 @@ impl FeedbackWindow {
                 let (title_id, what_id) = (ui.make_persistent_id("feedback_title"), ui.make_persistent_id("feedback_what"));
                 let focused = |id| ui.memory(|m| m.has_focus(id));
                 let (in_title, in_what) = (focused(title_id), focused(what_id));
-                if (in_title || in_what) && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab) || i.consume_key(egui::Modifiers::SHIFT, egui::Key::Tab)) {
+                if (in_title || in_what)
+                    && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Tab) || i.consume_key(egui::Modifiers::SHIFT, egui::Key::Tab))
+                {
                     ui.memory_mut(|m| m.request_focus(if in_title { what_id } else { title_id }));
                 }
-                let title = ui.add(egui::TextEdit::singleline(&mut self.title).id(title_id).lock_focus(true).desired_width(f32::INFINITY).hint_text("A few words"));
+                let title =
+                    ui.add(egui::TextEdit::singleline(&mut self.title).id(title_id).lock_focus(true).desired_width(f32::INFINITY).hint_text("A few words"));
                 if std::mem::take(&mut self.focus_title) {
                     title.request_focus();
                 }
@@ -168,8 +171,7 @@ impl FeedbackWindow {
                 ui.add(egui::TextEdit::singleline(&mut self.email).desired_width(f32::INFINITY).hint_text(t!("feedback-email-hint")));
                 ui.weak(t!("feedback-email-note"));
                 let mut with_drawing = !self.skip_drawing;
-                ui.checkbox(&mut with_drawing, t!("feedback-include-counts"))
-                    .on_hover_text(t!("feedback-include-counts-hint"));
+                ui.checkbox(&mut with_drawing, t!("feedback-include-counts")).on_hover_text(t!("feedback-include-counts-hint"));
                 self.skip_drawing = !with_drawing;
             });
 
@@ -221,11 +223,7 @@ impl FeedbackWindow {
                     ui.label(t!("feedback-sending"));
                 }
                 // Or submit it on GitHub (an account is needed there; the email doesn't go).
-                if ui
-                    .add_enabled(ready, egui::Button::new(t!("feedback-open-github")))
-                    .on_hover_text(t!("feedback-open-github-hint"))
-                    .clicked()
-                {
+                if ui.add_enabled(ready, egui::Button::new(t!("feedback-open-github"))).on_hover_text(t!("feedback-open-github-hint")).clicked() {
                     ui.ctx().open_url(egui::OpenUrl::new_tab(issue_url(REPO, self.kind, &title, &what, &text)));
                     close = true;
                 }

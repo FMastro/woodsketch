@@ -3,8 +3,8 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_lengths};
-use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS};
+use woodsketch_i18n::t;
 
 use crate::carry::Carry;
 use crate::infer::Hints;
@@ -166,7 +166,8 @@ impl RectangleTool {
             let corner = crate::move_tool::parse_offset(typed, DVec3::ZERO, DVec3::ZERO)?;
             let (u, v) = plane_axes(DVec3::Z);
             self.last = None;
-            self.sizing = Some(Sizing { frame: Frame { corner, normal: DVec3::Z, u, v }, extents: (0.0, 0.0), dragging: false, proportion: None, aligned: None });
+            self.sizing =
+                Some(Sizing { frame: Frame { corner, normal: DVec3::Z, u, v }, extents: (0.0, 0.0), dragging: false, proportion: None, aligned: None });
             return Ok(());
         }
         let values = parse_lengths(typed).map_err(|e| e.to_string())?;
@@ -199,11 +200,7 @@ impl RectangleTool {
     }
 
     pub fn status(&self) -> String {
-        if self.sizing.is_some() {
-            t!("tool-rect-opposite")
-        } else {
-            t!("tool-rect-first")
-        }
+        if self.sizing.is_some() { t!("tool-rect-opposite") } else { t!("tool-rect-first") }
     }
 
     /// Live dimensions for the Measurements box.
@@ -259,9 +256,7 @@ impl RectangleTool {
     }
 
     fn draw(&mut self, doc: &mut Document, frame: Frame, extents: (f64, f64)) {
-        doc.edit(|model| {
-            model.draw_rectangle(frame.corner, frame.u * extents.0, frame.v * extents.1, frame.normal)
-        });
+        doc.edit(|model| model.draw_rectangle(frame.corner, frame.u * extents.0, frame.v * extents.1, frame.normal));
         self.last = Some(Drawn { frame, extents, model_version: doc.model_version() });
     }
 }
@@ -452,11 +447,7 @@ mod tests {
         assert_eq!(doc.model().faces().count(), 2);
         // Shared edge: 4 + 3 edges.
         assert_eq!(doc.model().edges().count(), 7);
-        let shared = doc
-            .model()
-            .entities()
-            .filter(|e| matches!(e, Entity::Edge(id) if doc.model().edge_faces(*id).len() == 2))
-            .count();
+        let shared = doc.model().entities().filter(|e| matches!(e, Entity::Edge(id) if doc.model().edge_faces(*id).len() == 2)).count();
         assert_eq!(shared, 1);
     }
 

@@ -131,7 +131,16 @@ pub fn assemblies(scene: &Scene, list: &CutList) -> Vec<Assembly> {
 /// Adds the container's assembly page (after its sub-assemblies'), returning whether it got one.
 /// `paged` collects the definitions that got pages.
 #[allow(clippy::too_many_arguments)]
-fn walk(scene: &Scene, list: &CutList, container: &Container, name: &str, world: DAffine3, paint: Option<MaterialId>, (out, paged): (&mut Vec<Assembly>, &mut BTreeSet<DefinitionId>), depth: usize) -> bool {
+fn walk(
+    scene: &Scene,
+    list: &CutList,
+    container: &Container,
+    name: &str,
+    world: DAffine3,
+    paint: Option<MaterialId>,
+    (out, paged): (&mut Vec<Assembly>, &mut BTreeSet<DefinitionId>),
+    depth: usize,
+) -> bool {
     if depth > 32 {
         return false;
     }
@@ -147,11 +156,8 @@ fn walk(scene: &Scene, list: &CutList, container: &Container, name: &str, world:
             paged.insert(instance.definition);
         }
     }
-    let mut members: Vec<Member> = container
-        .instances()
-        .filter(|(_, i)| scene.is_visible(i))
-        .filter_map(|(_, i)| member(scene, list, i, world, paint, paged))
-        .collect();
+    let mut members: Vec<Member> =
+        container.instances().filter(|(_, i)| scene.is_visible(i)).filter_map(|(_, i)| member(scene, list, i, world, paint, paged)).collect();
     // An assembly is parts that meet: separate pieces side by side aren't one.
     let meet = (0..members.len()).any(|i| (0..members.len()).any(|j| i != j && touching(&members[i], &members[j])));
     if members.len() < 2 || !meet {
@@ -172,7 +178,8 @@ fn walk(scene: &Scene, list: &CutList, container: &Container, name: &str, world:
             continue;
         };
         // Mounted against others about as much (each slide of a pair on its own box side).
-        let others: Vec<String> = touching.iter().filter(|&&(j, m, a)| j != i && m == moves && a >= area * 0.5).map(|&(j, _, _)| members[j].name.clone()).collect();
+        let others: Vec<String> =
+            touching.iter().filter(|&&(j, m, a)| j != i && m == moves && a >= area * 0.5).map(|&(j, _, _)| members[j].name.clone()).collect();
         if !others.is_empty() {
             members[i].also_on.insert(piece.clone(), others);
         }
@@ -195,7 +202,14 @@ fn walk(scene: &Scene, list: &CutList, container: &Container, name: &str, world:
 }
 
 /// A part or sub-assembly of an assembly (hardware isn't one).
-fn member(scene: &Scene, list: &CutList, instance: &crate::Instance, world: DAffine3, paint: Option<MaterialId>, paged: &BTreeSet<DefinitionId>) -> Option<Member> {
+fn member(
+    scene: &Scene,
+    list: &CutList,
+    instance: &crate::Instance,
+    world: DAffine3,
+    paint: Option<MaterialId>,
+    paged: &BTreeSet<DefinitionId>,
+) -> Option<Member> {
     let def = scene.definition(instance.definition)?;
     if def.hardware.is_some() {
         return None;
@@ -337,7 +351,9 @@ fn slide_out<'a>(m: &Member, others: impl Iterator<Item = &'a Member> + Clone) -
     }
     // A member's extent along a direction: its faces' corners, else its box's.
     let extent = |o: &Member, w: DVec3| -> (f64, f64) {
-        let corners: Vec<DVec3> = (0..8).map(|i| DVec3::new(if i & 1 == 0 { o.lo.x } else { o.hi.x }, if i & 2 == 0 { o.lo.y } else { o.hi.y }, if i & 4 == 0 { o.lo.z } else { o.hi.z })).collect();
+        let corners: Vec<DVec3> = (0..8)
+            .map(|i| DVec3::new(if i & 1 == 0 { o.lo.x } else { o.hi.x }, if i & 2 == 0 { o.lo.y } else { o.hi.y }, if i & 4 == 0 { o.lo.z } else { o.hi.z }))
+            .collect();
         let points: Vec<DVec3> = o.faces.iter().flat_map(|(ps, _, _)| ps.iter().copied()).collect();
         let points = if points.is_empty() { corners } else { points };
         points.iter().fold((f64::INFINITY, f64::NEG_INFINITY), |(lo, hi), p| (lo.min(p.dot(w)), hi.max(p.dot(w))))
@@ -395,10 +411,12 @@ fn face_contact(a: &Member, b: &Member) -> f64 {
 /// The part of polygon `subject` inside polygon `window` (Sutherland-Hodgman; the window taken as
 /// convex, as boards' faces are).
 fn clip(subject: &[(f64, f64)], window: &[(f64, f64)]) -> Vec<(f64, f64)> {
-    let signed: f64 = (0..window.len()).map(|i| {
-        let (a, b) = (window[i], window[(i + 1) % window.len()]);
-        a.0 * b.1 - b.0 * a.1
-    }).sum();
+    let signed: f64 = (0..window.len())
+        .map(|i| {
+            let (a, b) = (window[i], window[(i + 1) % window.len()]);
+            a.0 * b.1 - b.0 * a.1
+        })
+        .sum();
     let turn = if signed < 0.0 { -1.0 } else { 1.0 };
     let mut out = subject.to_vec();
     for i in 0..window.len() {
@@ -434,16 +452,20 @@ fn joints_between(scene: &Scene, a: &Member, b: &Member) -> Vec<usize> {
         j.ops.is_empty()
             || j.ops.iter().any(|op| {
                 let (lo, hi) = (meeting.0 - DVec3::splat(op.distance.abs()), meeting.1 + DVec3::splat(op.distance.abs()));
-                a.places.iter().chain(&b.places).filter(|(d, _)| *d == op.part).any(|(_, place)| {
-                    op.points.iter().map(|p| place.transform_point3(*p)).any(|p| p.cmpge(lo).all() && p.cmple(hi).all())
-                })
+                a.places
+                    .iter()
+                    .chain(&b.places)
+                    .filter(|(d, _)| *d == op.part)
+                    .any(|(_, place)| op.points.iter().map(|p| place.transform_point3(*p)).any(|p| p.cmpge(lo).all() && p.cmple(hi).all()))
             })
     };
     scene
         .joints
         .iter()
         .enumerate()
-        .filter(|(_, j)| (a.definitions.contains(&j.cut) && b.definitions.contains(&j.into)) || (b.definitions.contains(&j.cut) && a.definitions.contains(&j.into)))
+        .filter(|(_, j)| {
+            (a.definitions.contains(&j.cut) && b.definitions.contains(&j.into)) || (b.definitions.contains(&j.cut) && a.definitions.contains(&j.into))
+        })
         .filter(|(_, j)| here(j))
         .map(|(n, _)| n)
         .collect()
@@ -489,10 +511,7 @@ fn joint_at_step(scene: &Scene, members: &[Member], joint: &Joint) -> JointAtSte
     JointAtStep {
         kind: joint.kind.name(),
         detail: joint.detail.clone(),
-        parts: vec![
-            cut_on(scene, members, joint, joint.cut, shaped, joint.kind.lets_in()),
-            cut_on(scene, members, joint, joint.into, recess, false),
-        ],
+        parts: vec![cut_on(scene, members, joint, joint.cut, shaped, joint.kind.lets_in()), cut_on(scene, members, joint, joint.into, recess, false)],
     }
 }
 
@@ -511,10 +530,7 @@ fn cut_on(scene: &Scene, members: &[Member], joint: &Joint, part: DefinitionId, 
 /// by its placement), and its cut-list letter. The member that is the part itself is preferred over
 /// a sub-assembly holding it, since only that one carries the letter.
 fn placed(members: &[Member], part: DefinitionId) -> (DVec3, Option<String>) {
-    let found = members
-        .iter()
-        .filter_map(|m| m.places.iter().find(|(d, _)| *d == part).map(|(_, place)| (m, *place)))
-        .min_by_key(|(m, _)| m.places.len());
+    let found = members.iter().filter_map(|m| m.places.iter().find(|(d, _)| *d == part).map(|(_, place)| (m, *place))).min_by_key(|(m, _)| m.places.len());
     match found {
         Some((m, place)) => (DVec3::from_array([0, 1, 2].map(|i| (place.matrix3 * DVec3::AXES[i]).length())), m.label.clone()),
         None => (DVec3::ONE, None),
@@ -583,13 +599,15 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
     // around them goes on, not glued up.
     let panel = |i: usize| joined[i].len() >= 2 && joined[i].iter().all(|(_, kinds)| kinds.iter().all(|k| *k == "Groove"));
     let panels: Vec<(usize, Vec<usize>)> = (0..n).filter(|&i| panel(i)).map(|i| (i, joined[i].iter().map(|(j, _)| *j).collect())).collect();
-    let joined: Vec<Vec<(usize, Vec<&'static str>)>> = (0..n)
-        .map(|i| if panel(i) { Vec::new() } else { joined[i].iter().filter(|(j, _)| !panel(*j)).cloned().collect() })
-        .collect();
+    let joined: Vec<Vec<(usize, Vec<&'static str>)>> =
+        (0..n).map(|i| if panel(i) { Vec::new() } else { joined[i].iter().filter(|(j, _)| !panel(*j)).cloned().collect() }).collect();
     let mut steps = Vec::new();
     let mut done = vec![false; n];
     if unjoined && joined.iter().any(|j| !j.is_empty()) {
-        steps.push(("No joints are made here yet, so this takes the parts as butt-joined: make joints in the Joinery panel for a better order.".to_owned(), Vec::new()));
+        steps.push((
+            "No joints are made here yet, so this takes the parts as butt-joined: make joints in the Joinery panel for a better order.".to_owned(),
+            Vec::new(),
+        ));
     }
     // Frames first, as a table is glued up: rails that each join two posts (not joined to each
     // other), every post once; the longest such rails, each glued up with its two posts.
@@ -647,13 +665,14 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
                 }
             }
             done[i] = true;
-            let to: Vec<String> = joined[i].iter().filter(|(j, _)| done[*j] && *j != i).map(|(j, kinds)| format!("{} ({})", members[*j].name, kinds.join(", ").to_lowercase())).collect();
-            // Butt joints: where the screws go.
-            let screws: Vec<String> = joined[i]
+            let to: Vec<String> = joined[i]
                 .iter()
-                .filter(|(j, kinds)| done[*j] && kinds.contains(&"butt joint"))
-                .map(|(j, _)| butt(&members[i], &members[*j]))
+                .filter(|(j, _)| done[*j] && *j != i)
+                .map(|(j, kinds)| format!("{} ({})", members[*j].name, kinds.join(", ").to_lowercase()))
                 .collect();
+            // Butt joints: where the screws go.
+            let screws: Vec<String> =
+                joined[i].iter().filter(|(j, kinds)| done[*j] && kinds.contains(&"butt joint")).map(|(j, _)| butt(&members[i], &members[*j])).collect();
             let screws = if screws.is_empty() { String::new() } else { format!(" {}", screws.join(" ")) };
             steps.push((format!("Glue {} to {}.{screws}", members[i].name, both(&to)), vec![i]));
         }
@@ -688,7 +707,11 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
             continue;
         }
         done[i] = true;
-        let how = if m.wide_solid && on_top { " with fasteners that let it move across its grain (tabletop buttons or figure-8s, or screws in slotted holes)" } else { "" };
+        let how = if m.wide_solid && on_top {
+            " with fasteners that let it move across its grain (tabletop buttons or figure-8s, or screws in slotted holes)"
+        } else {
+            ""
+        };
         steps.push((format!("Fasten {} to {}{how}.", m.name, list(&against)), vec![i]));
         if !m.hardware.is_empty() {
             steps.push((mount(m), Vec::new()));
@@ -779,9 +802,11 @@ fn pieces(hardware: &BTreeMap<String, u32>) -> String {
 fn frames(members: &[Member], joined: &[Vec<(usize, Vec<&'static str>)>]) -> Option<Vec<usize>> {
     let n = members.len();
     let length = |i: usize| (members[i].hi - members[i].lo).max_element();
-    let is_rail = |i: usize| joined[i].len() == 2 && {
-        let (a, b) = (joined[i][0].0, joined[i][1].0);
-        !joined[a].iter().any(|(j, _)| *j == b)
+    let is_rail = |i: usize| {
+        joined[i].len() == 2 && {
+            let (a, b) = (joined[i][0].0, joined[i][1].0);
+            !joined[a].iter().any(|(j, _)| *j == b)
+        }
     };
     let mut names: Vec<String> = (0..n).filter(|&i| is_rail(i)).map(|i| members[i].name.clone()).collect();
     names.sort_by(|a, b| {
@@ -973,15 +998,11 @@ fn drawing(members: &[Member], step: Option<(&[bool], &[usize])>) -> String {
                     .collect::<Vec<_>>()
             })
             .collect();
-        let best = spots
-            .iter()
-            .enumerate()
-            .flat_map(|(rank, &spot)| [true, false].map(|left| (rank, spot, left)))
-            .min_by_key(|&(rank, spot, left)| {
-                let edge = if left { x0 } else { x1 };
-                // Fewest crossings; then the nearer side; then the biggest face.
-                (crossings(owner, (edge, spot.1), spot), (spot.0 < middle_x) != left, rank)
-            });
+        let best = spots.iter().enumerate().flat_map(|(rank, &spot)| [true, false].map(|left| (rank, spot, left))).min_by_key(|&(rank, spot, left)| {
+            let edge = if left { x0 } else { x1 };
+            // Fewest crossings; then the nearer side; then the biggest face.
+            (crossings(owner, (edge, spot.1), spot), (spot.0 < middle_x) != left, rank)
+        });
         let (spot, left) = best.map_or((fallback, fallback.0 < middle_x), |(_, spot, left)| (spot, left));
         labels.push((spot, tag, left, owner));
     }
@@ -1016,7 +1037,14 @@ fn drawing(members: &[Member], step: Option<(&[bool], &[usize])>) -> String {
         let shade = 0.72 + 0.28 * facing;
         let c = |v: u8| ((f64::from(v) * 0.8 + 255.0 * 0.2) * shade).clamp(0.0, 255.0) as u8;
         let path: Vec<String> = points.iter().map(|(x, y)| format!("{x:.3},{y:.3}")).collect();
-        let _ = write!(svg, r##"<polygon points="{}" fill="rgb({},{},{})" stroke="#333" stroke-width="{stroke:.4}" stroke-linejoin="round"/>"##, path.join(" "), c(*r), c(*g), c(*b));
+        let _ = write!(
+            svg,
+            r##"<polygon points="{}" fill="rgb({},{},{})" stroke="#333" stroke-width="{stroke:.4}" stroke-linejoin="round"/>"##,
+            path.join(" "),
+            c(*r),
+            c(*g),
+            c(*b)
+        );
     }
     for ((x, y), (ax, ay), tag, owner) in placed {
         let w = width(tag);
@@ -1032,11 +1060,11 @@ fn drawing(members: &[Member], step: Option<(&[bool], &[usize])>) -> String {
             vec![(from, y), (from, above), (ax, above), (ax, ay)],
             vec![(from, y), (from, below), (ax, below), (ax, ay)],
         ]
-            .into_iter()
-            .map(|p| (route(&p), p))
-            .filter(|(n, _)| *n < route(&straight))
-            .min_by_key(|(n, _)| *n)
-            .map_or(straight, |(_, p)| p);
+        .into_iter()
+        .map(|p| (route(&p), p))
+        .filter(|(n, _)| *n < route(&straight))
+        .min_by_key(|(n, _)| *n)
+        .map_or(straight, |(_, p)| p);
         let points: Vec<String> = path.iter().map(|(px, py)| format!("{px:.3},{py:.3}")).collect();
         let _ = write!(
             svg,
@@ -1114,8 +1142,18 @@ mod tests {
     #[test]
     fn at_an_angle_parts_touch_only_where_their_faces_meet() {
         // A 4x4 square facing up at z = 1 and, below it, a 2x2 square facing down, half under it.
-        let up = member(&[DVec3::new(0.0, 0.0, 1.0), DVec3::new(4.0, 0.0, 1.0), DVec3::new(4.0, 4.0, 1.0), DVec3::new(0.0, 4.0, 1.0)], DVec3::Z, DVec3::ZERO, DVec3::new(4.0, 4.0, 1.0));
-        let down = member(&[DVec3::new(3.0, 1.0, 1.0), DVec3::new(3.0, 3.0, 1.0), DVec3::new(5.0, 3.0, 1.0), DVec3::new(5.0, 1.0, 1.0)], -DVec3::Z, DVec3::new(3.0, 1.0, 1.0), DVec3::new(5.0, 3.0, 2.0));
+        let up = member(
+            &[DVec3::new(0.0, 0.0, 1.0), DVec3::new(4.0, 0.0, 1.0), DVec3::new(4.0, 4.0, 1.0), DVec3::new(0.0, 4.0, 1.0)],
+            DVec3::Z,
+            DVec3::ZERO,
+            DVec3::new(4.0, 4.0, 1.0),
+        );
+        let down = member(
+            &[DVec3::new(3.0, 1.0, 1.0), DVec3::new(3.0, 3.0, 1.0), DVec3::new(5.0, 3.0, 1.0), DVec3::new(5.0, 1.0, 1.0)],
+            -DVec3::Z,
+            DVec3::new(3.0, 1.0, 1.0),
+            DVec3::new(5.0, 3.0, 2.0),
+        );
         assert!((face_contact(&up, &down) - 2.0).abs() < 1e-9, "1 x 2 of them meet");
         // A brace at 45 degrees: its box takes in the corner, but its face is clear of the first.
         let d = std::f64::consts::FRAC_1_SQRT_2;
@@ -1242,7 +1280,10 @@ mod tests {
         let all = assemblies(doc.scene(), &list);
         let table = all.iter().find(|a| a.name == "Table").expect("the table");
         let text = script(table);
-        assert!(table.steps[0].text.starts_with("Glue up a frame") && table.steps[0].text.contains("Make 2"), "two frames of a long apron between two legs first\n{text}");
+        assert!(
+            table.steps[0].text.starts_with("Glue up a frame") && table.steps[0].text.contains("Make 2"),
+            "two frames of a long apron between two legs first\n{text}"
+        );
         assert!(text.contains("Join the frames") && text.contains("Side apron") && text.contains("Do this 2 times"), "{text}");
         assert!(text.contains("mortise and tenon"), "{text}");
         assert!(text.contains("Fasten") && text.contains("Table top") && text.contains("move across its grain"), "the top goes on last, free to move\n{text}");
@@ -1312,10 +1353,7 @@ mod tests {
         // Both are placed, which is the whole point: the pair is marked out from the model at the
         // step it is cut, rather than drawn by hand beside it. A 4" x 3/4" apron, 1/4" shoulders
         // all round, into a 1 1/2" square leg 29" long.
-        assert_eq!(
-            tenon.place.as_deref(),
-            Some("at the left end, 3/4\" long; 1/4\" from the bottom edge, 3 1/2\" wide; 1/4\" to 1/2\" from the bottom face")
-        );
+        assert_eq!(tenon.place.as_deref(), Some("at the left end, 3/4\" long; 1/4\" from the bottom edge, 3 1/2\" wide; 1/4\" to 1/2\" from the bottom face"));
         assert_eq!(
             mortise.place.as_deref(),
             Some("25 1/2\" from the left end, 3 1/2\" long; 3/4\" in from the other edge; 1/2\" to 3/4\" from the bottom face")
@@ -1470,7 +1508,10 @@ mod tests {
         // Hardware at the step it's used: hinges as a door is hung, slides on the box's sides.
         assert!(text.contains("Hang Door on its hinges: ") && text.contains("Concealed hinge"), "{text}");
         let drawer = script(all.iter().find(|a| a.name == "Drawer").unwrap());
-        assert!(drawer.contains("slides (pair) on both ") && drawer.lines().any(|l| l.contains("slides") && l.ends_with("(Drawer box side).")), "on both box sides, not its front: {drawer}");
+        assert!(
+            drawer.contains("slides (pair) on both ") && drawer.lines().any(|l| l.contains("slides") && l.ends_with("(Drawer box side).")),
+            "on both box sides, not its front: {drawer}"
+        );
         assert!(drawer.lines().any(|l| l.contains("Bar pull") && l.ends_with("(Drawer front).")), "{drawer}");
         assert!(!text.contains("Install the hardware") && !drawer.contains("Install the hardware"), "nothing left over");
         // Each part or sub-assembly labeled, with a leader line to it.

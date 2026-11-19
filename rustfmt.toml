@@ -1,0 +1,12 @@
+# How WoodSketch is laid out, so nobody has to decide it twice.
+#
+# `max_width` is 160 rather than rustfmt's 100 because the code was written wide and reads better
+# that way: a match arm per line, a guard clause whole, a `write!` with its arguments beside it.
+# 160 is the width that leaves the most of it alone (0.4% of lines are longer), and anything past
+# it wraps rather than running off the side of a review.
+max_width = 160
+
+# Keep one-line things on one line up to that width, instead of rustfmt's much narrower limits for
+# arrays, function calls, structs and single-expression bodies. Without this, short `match` arms and
+# small struct literals explode into a dozen lines each and the density the code is written for goes.
+use_small_heuristics = "Max"

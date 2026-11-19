@@ -27,10 +27,7 @@ pub struct Leftover {
 impl Leftover {
     /// What the drawing was called: its file's name, or "Untitled".
     pub fn name(&self) -> String {
-        self.original
-            .as_deref()
-            .and_then(Path::file_stem)
-            .map_or_else(|| t!("files-untitled"), |s| s.to_string_lossy().into_owned())
+        self.original.as_deref().and_then(Path::file_stem).map_or_else(|| t!("files-untitled"), |s| s.to_string_lossy().into_owned())
     }
 
     /// Delete the autosaved copy (recovered or not wanted).
@@ -105,10 +102,7 @@ impl Autosave {
             .map(|e| e.path())
             .filter(|p| p.extension().is_some_and(|x| x == "woodsketch") && Some(p) != mine.as_ref())
             .map(|file| {
-                let original = std::fs::read_to_string(file.with_extension("path"))
-                    .ok()
-                    .filter(|s| !s.trim().is_empty())
-                    .map(|s| PathBuf::from(s.trim()));
+                let original = std::fs::read_to_string(file.with_extension("path")).ok().filter(|s| !s.trim().is_empty()).map(|s| PathBuf::from(s.trim()));
                 let when = std::fs::metadata(&file).and_then(|m| m.modified()).unwrap_or(SystemTime::UNIX_EPOCH);
                 Leftover { file, original, when }
             })

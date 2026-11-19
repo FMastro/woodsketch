@@ -53,12 +53,8 @@ impl SelectTool {
             }
             Entity::Instance(_) | Entity::Guide(_) => vec![entity],
             _ if count >= 3 => model.connected(entity).into_iter().collect(),
-            Entity::Face(id) if count == 2 => {
-                std::iter::once(Entity::Face(id)).chain(model.face_edges(id).into_iter().map(Entity::Edge)).collect()
-            }
-            Entity::Edge(id) if count == 2 => {
-                std::iter::once(Entity::Edge(id)).chain(model.edge_faces(id).into_iter().map(Entity::Face)).collect()
-            }
+            Entity::Face(id) if count == 2 => std::iter::once(Entity::Face(id)).chain(model.face_edges(id).into_iter().map(Entity::Edge)).collect(),
+            Entity::Edge(id) if count == 2 => std::iter::once(Entity::Edge(id)).chain(model.edge_faces(id).into_iter().map(Entity::Face)).collect(),
             _ => vec![entity],
         };
         apply(doc, picked, mods);
@@ -139,15 +135,13 @@ fn hits(model: &Model, screen: Screen<'_>, min: Vec2, max: Vec2, crossing: bool)
 
     // Geometry behind the camera can't be in the window.
     let edges = model.edges().map(|(id, edge)| {
-        let hit = project_all(&model.edge_points(edge)).is_some_and(|points| {
-            if crossing { touches(&points, false) } else { points.iter().all(|&p| inside(p)) }
-        });
+        let hit =
+            project_all(&model.edge_points(edge)).is_some_and(|points| if crossing { touches(&points, false) } else { points.iter().all(|&p| inside(p)) });
         (Entity::Edge(id), hit)
     });
     let faces = model.faces().map(|(id, face)| {
-        let hit = project_all(&model.loop_points(&face.outer)).is_some_and(|points| {
-            if crossing { touches(&points, true) } else { points.iter().all(|&p| inside(p)) }
-        });
+        let hit = project_all(&model.loop_points(&face.outer))
+            .is_some_and(|points| if crossing { touches(&points, true) } else { points.iter().all(|&p| inside(p)) });
         (Entity::Face(id), hit)
     });
     edges.chain(faces).collect()

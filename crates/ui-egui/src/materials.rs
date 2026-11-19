@@ -4,14 +4,13 @@
 
 use eframe::egui;
 use egui_phosphor::regular as ph;
+use woodsketch_doc::cutplan::Standard;
 use woodsketch_doc::cutplan::lumber_sizes;
 use woodsketch_doc::library::LIBRARY;
-use woodsketch_doc::cutplan::Standard;
 use woodsketch_doc::units::{format_length, parse_length, parse_lengths};
 use woodsketch_doc::{Document, Entity, MaterialId, MaterialKind};
 use woodsketch_i18n::t;
 use woodsketch_tools::{ToolId, Tools};
-
 
 #[derive(Default)]
 pub struct MaterialsPanel {
@@ -36,9 +35,7 @@ impl MaterialsPanel {
         // No material: the default look; painting with it removes paint.
         ui.horizontal(|ui| {
             swatch(ui, [250, 250, 246]);
-            let none = ui
-                .selectable_label(tools.active_material.is_none(), t!("materials-none"))
-                .on_hover_text(t!("materials-none-hint"));
+            let none = ui.selectable_label(tools.active_material.is_none(), t!("materials-none")).on_hover_text(t!("materials-none-hint"));
             if none.clicked() {
                 activate(tools, None);
             }
@@ -69,10 +66,7 @@ impl MaterialsPanel {
             ui.weak(t!("materials-empty", "plus" => ph::PLUS));
         } else if tools.active_material.is_none() && tools.active() == ToolId::PaintBucket {
             ui.add_space(2.0);
-            ui.colored_label(
-                ui.visuals().warn_fg_color,
-                t!("materials-none-selected"),
-            );
+            ui.colored_label(ui.visuals().warn_fg_color, t!("materials-none-selected"));
         }
 
         // Deleted (or undone away): close the editor.
@@ -312,13 +306,7 @@ fn activate(tools: &mut Tools, material: Option<MaterialId>) {
 
 fn swatch(ui: &mut egui::Ui, color: [u8; 3]) {
     let (rect, _) = ui.allocate_exact_size(egui::vec2(18.0, 18.0), egui::Sense::hover());
-    ui.painter().rect(
-        rect,
-        3.0,
-        egui::Color32::from_rgb(color[0], color[1], color[2]),
-        egui::Stroke::new(1.0, egui::Color32::GRAY),
-        egui::StrokeKind::Inside,
-    );
+    ui.painter().rect(rect, 3.0, egui::Color32::from_rgb(color[0], color[1], color[2]), egui::Stroke::new(1.0, egui::Color32::GRAY), egui::StrokeKind::Inside);
 }
 
 /// Entity Info's material picker for the selection.

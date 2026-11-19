@@ -239,10 +239,13 @@ fn default_words(doc: &Document, screen: Screen<'_>, cursor: Vec2) -> String {
         Some(Entity::Instance(id)) => doc.instance_name(id).unwrap_or("Note").to_owned(),
         Some(Entity::Edge(id)) => {
             let model = doc.model();
-            model.edge(id).map_or_else(|| "Note".to_owned(), |e| {
-                let [a, b] = model.edge_points(e);
-                format_length(a.distance(b))
-            })
+            model.edge(id).map_or_else(
+                || "Note".to_owned(),
+                |e| {
+                    let [a, b] = model.edge_points(e);
+                    format_length(a.distance(b))
+                },
+            )
         }
         _ => "Note".to_owned(),
     }

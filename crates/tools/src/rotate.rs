@@ -101,14 +101,7 @@ impl RotateTool {
 
     /// Start turning right away about the line through `center` along `normal`, measuring from
     /// the unit direction `from`. Used by Move's rotation grips.
-    pub fn begin(
-        &mut self,
-        entities: Vec<Entity>,
-        vertices: BTreeSet<VertexId>,
-        center: DVec3,
-        normal: DVec3,
-        from: DVec3,
-    ) {
+    pub fn begin(&mut self, entities: Vec<Entity>, vertices: BTreeSet<VertexId>, center: DVec3, normal: DVec3, from: DVec3) {
         self.last = None;
         self.hover = None;
         self.preview = None;
@@ -244,7 +237,11 @@ impl RotateTool {
         }
         match &self.last {
             Some(Done { copy: Some(Array { count, divide }), .. }) if *count > 1 => {
-                if *divide { format!("/{count}") } else { format!("{count}x") }
+                if *divide {
+                    format!("/{count}")
+                } else {
+                    format!("{count}x")
+                }
             }
             Some(last) => format_degrees(last.angle),
             None => String::new(),
@@ -258,8 +255,7 @@ impl RotateTool {
             if let Some(entity) = self.hover {
                 highlight_entity(doc.view(), entity, overlay);
             }
-            overlay.protractor =
-                self.preview.map(|(center, normal)| Protractor { center, normal, from: None, to: None });
+            overlay.protractor = self.preview.map(|(center, normal)| Protractor { center, normal, from: None, to: None });
             return;
         };
         let (from, to) = match op.stage {
@@ -304,9 +300,7 @@ impl RotateTool {
             Vec::new()
         } else if doc.selection().is_empty() {
             match pick_resolved(doc, screen, cursor) {
-                Some(Entity::Face(id)) => std::iter::once(Entity::Face(id))
-                    .chain(model.face_edges(id).into_iter().map(Entity::Edge))
-                    .collect(),
+                Some(Entity::Face(id)) => std::iter::once(Entity::Face(id)).chain(model.face_edges(id).into_iter().map(Entity::Edge)).collect(),
                 Some(entity) => vec![entity],
                 None => return Err(t!("tool-rotate-select")),
             }
@@ -371,9 +365,7 @@ impl RotateTool {
     fn apply(&mut self, doc: &mut Document, mut done: Done) -> Result<(), String> {
         let radians = done.angle.to_radians();
         let turn = |angle: f64| {
-            DAffine3::from_translation(done.center)
-                * DAffine3::from_axis_angle(done.normal.normalize(), angle)
-                * DAffine3::from_translation(-done.center)
+            DAffine3::from_translation(done.center) * DAffine3::from_axis_angle(done.normal.normalize(), angle) * DAffine3::from_translation(-done.center)
         };
         let transforms: Vec<DAffine3> = match done.copy {
             None => vec![turn(radians)],

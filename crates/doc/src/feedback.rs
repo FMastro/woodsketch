@@ -318,7 +318,13 @@ pub const RELAY: &str = "https://woodsketch.net/api/report";
 pub fn valid_email(text: &str) -> bool {
     let text = text.trim();
     let Some((name, domain)) = text.split_once('@') else { return false };
-    !name.is_empty() && !domain.contains('@') && domain.contains('.') && !domain.starts_with('.') && !domain.ends_with('.') && !text.contains(char::is_whitespace) && text.len() <= 200
+    !name.is_empty()
+        && !domain.contains('@')
+        && domain.contains('.')
+        && !domain.starts_with('.')
+        && !domain.ends_with('.')
+        && !text.contains(char::is_whitespace)
+        && text.len() <= 200
 }
 
 /// The report as the relay takes it (JSON). The email, if any, never goes in the public issue.
@@ -372,9 +378,16 @@ mod tests {
         let error = r#"Couldn't open "C:\Users\fred\Dropbox\Woodworking\drawer.woodsketch": access denied"#;
         assert_eq!(scrub(error, Some(r"C:\Users\fred"), Some("fred")), r#"Couldn't open "[path]": access denied"#);
         assert_eq!(scrub("Saved to /home/fred/bench.woodsketch.", None, Some("fred")), "Saved to [path].");
-        assert_eq!(scrub("The cabinet is too shallow for a drawer (10\" slides at least).", None, None), "The cabinet is too shallow for a drawer (10\" slides at least).");
+        assert_eq!(
+            scrub("The cabinet is too shallow for a drawer (10\" slides at least).", None, None),
+            "The cabinet is too shallow for a drawer (10\" slides at least)."
+        );
         assert_eq!(scrub("fred's table", None, Some("fred")), "[user]'s table");
-        assert_eq!(scrub("A 3/4\" dado, ~ 1/16\" off; see https://woodsketch.net/help", None, None), "A 3/4\" dado, ~ 1/16\" off; see https://woodsketch.net/help", "fractions and links stay");
+        assert_eq!(
+            scrub("A 3/4\" dado, ~ 1/16\" off; see https://woodsketch.net/help", None, None),
+            "A 3/4\" dado, ~ 1/16\" off; see https://woodsketch.net/help",
+            "fractions and links stay"
+        );
     }
 
     #[test]
@@ -396,7 +409,10 @@ mod tests {
         assert_eq!(crash.title(), "Crash: index out of bounds: the len is 3 but the index is 7");
         let text = details(&System::here("0.1.47", "GPU", "Inches"), None, None, Some(&crash));
         assert!(text.contains("Crashed (in 0.1.47): index out of bounds") && text.contains("  at crates/doc/src/model.rs:12:5"), "{text}");
-        assert!(text.contains("  from woodsketch_doc::model::Model::push_pull (crates/doc/src/push_pull.rs:62:13)\n  from woodsketch_tools::Tools::key"), "{text}");
+        assert!(
+            text.contains("  from woodsketch_doc::model::Model::push_pull (crates/doc/src/push_pull.rs:62:13)\n  from woodsketch_tools::Tools::key"),
+            "{text}"
+        );
         // Saved by the version before frames were kept: still read.
         let old = Crash::from_text("0.1.47\ncrates/doc/src/model.rs:12:5\nboom").unwrap();
         assert_eq!((old.message.as_str(), old.frames.len()), ("boom", 0));
@@ -434,7 +450,8 @@ mod tests {
 
     #[test]
     fn a_report_for_the_relay_and_its_answer() {
-        let json: serde_json::Value = serde_json::from_str(&request(Kind::Idea, "Bed", "A bed template", "WoodSketch 0.1.23", Some("maker@example.com"))).unwrap();
+        let json: serde_json::Value =
+            serde_json::from_str(&request(Kind::Idea, "Bed", "A bed template", "WoodSketch 0.1.23", Some("maker@example.com"))).unwrap();
         assert_eq!((json["kind"].as_str(), json["what"].as_str(), json["email"].as_str()), (Some("idea"), Some("A bed template"), Some("maker@example.com")));
         assert_eq!(
             reply(201, r#"{"number":42,"url":"https://github.com/FMastro/woodsketch/issues/42","emailed":true}"#),
@@ -442,7 +459,13 @@ mod tests {
         );
         assert_eq!(reply(429, r#"{"error":"That's a lot of reports"}"#), Err("That's a lot of reports".into()));
         assert!(reply(500, "<html>").unwrap_err().contains("error 500"));
-        assert!(valid_email("maker@example.com") && !valid_email("maker@example") && !valid_email("no at.com") && !valid_email("a b@c.com") && !valid_email("@c.com"));
+        assert!(
+            valid_email("maker@example.com")
+                && !valid_email("maker@example")
+                && !valid_email("no at.com")
+                && !valid_email("a b@c.com")
+                && !valid_email("@c.com")
+        );
     }
 
     /// The line a graphics report stands on. The "? ?" case is the one that came in from a real
@@ -450,10 +473,7 @@ mod tests {
     /// since that is the finding.
     #[test]
     fn a_graphics_line_says_what_the_driver_would_not() {
-        assert_eq!(
-            graphics_line("GeForce RTX 4060", "Vulkan", "discrete", "NVIDIA", "560.94"),
-            "GeForce RTX 4060 (Vulkan, discrete, NVIDIA 560.94)"
-        );
+        assert_eq!(graphics_line("GeForce RTX 4060", "Vulkan", "discrete", "NVIDIA", "560.94"), "GeForce RTX 4060 (Vulkan, discrete, NVIDIA 560.94)");
         assert_eq!(
             graphics_line("GeForce GTX 860M", "Vulkan", "discrete", "?", "?"),
             "GeForce GTX 860M (Vulkan, discrete, driver not reported)",
@@ -464,11 +484,7 @@ mod tests {
             "Apple M4 Max (Metal, integrated, driver not reported)",
             "nothing said at all reads the same as nothing worth saying"
         );
-        assert_eq!(
-            graphics_line("llvmpipe", "Gl", "cpu", "unknown", "Mesa 24.0"),
-            "llvmpipe (Gl, cpu, Mesa 24.0)",
-            "half an answer is still an answer"
-        );
+        assert_eq!(graphics_line("llvmpipe", "Gl", "cpu", "unknown", "Mesa 24.0"), "llvmpipe (Gl, cpu, Mesa 24.0)", "half an answer is still an answer");
         assert_eq!(graphics_line("", "", "", "", ""), "graphics card not reported (driver not reported)");
     }
 
@@ -482,10 +498,21 @@ mod tests {
         assert_eq!(drawing.materials.get("solid wood"), Some(&1));
         let system = System::here("0.1.21", "NVIDIA RTX 4060 (Vulkan, driver 560)", "Inches");
         let text = details(&system, Some(&drawing), Some("Something failed"), None);
-        assert!(text.contains("WoodSketch 0.1.21") && text.contains("Graphics: NVIDIA") && text.contains("8 joints") && text.contains("Last error shown: Something failed"), "{text}");
+        assert!(
+            text.contains("WoodSketch 0.1.21")
+                && text.contains("Graphics: NVIDIA")
+                && text.contains("8 joints")
+                && text.contains("Last error shown: Something failed"),
+            "{text}"
+        );
         assert!(!text.contains("Cherry") && !text.contains("Leg"), "no names of materials or parts");
         let url = issue_url("https://github.com/FMastro/woodsketch", Kind::Problem, "Crash & burn", "It closed.", &text);
-        assert!(url.starts_with("https://github.com/FMastro/woodsketch/issues/new?template=bug.yml&title=Crash%20%26%20burn&what=It%20closed.&details=WoodSketch%200.1.21%0A"), "{url}");
+        assert!(
+            url.starts_with(
+                "https://github.com/FMastro/woodsketch/issues/new?template=bug.yml&title=Crash%20%26%20burn&what=It%20closed.&details=WoodSketch%200.1.21%0A"
+            ),
+            "{url}"
+        );
         assert!(issue_url("r", Kind::Idea, "", "", "").contains("template=idea.yml"));
     }
 }

@@ -122,12 +122,8 @@ fn flatten(model: &Model, scale: DVec3, [l, w, t]: [usize; 3]) -> FlatPart {
         let loops: Vec<Vec<DVec2>> = face.loops().map(|l| model.loop_points(l).into_iter().map(|p| flat(p).0).collect()).collect();
         let height = flat(model.vertex(face.outer[0])).1;
         // A point inside: the middle of its biggest triangle.
-        let Some(inside) = model
-            .triangulate(face)
-            .into_iter()
-            .map(|tri| tri.map(|p| flat(p).0))
-            .max_by(|a, b| area(a).total_cmp(&area(b)))
-            .map(|[a, b, c]| (a + b + c) / 3.0)
+        let Some(inside) =
+            model.triangulate(face).into_iter().map(|tri| tri.map(|p| flat(p).0)).max_by(|a, b| area(a).total_cmp(&area(b))).map(|[a, b, c]| (a + b + c) / 3.0)
         else {
             continue;
         };
@@ -135,9 +131,9 @@ fn flatten(model: &Model, scale: DVec3, [l, w, t]: [usize; 3]) -> FlatPart {
     }
     // A face under another facing the same way is inside the part (a mortise in its edge, a
     // tenon's shoulder in its end): not seen from either face.
-    let hidden = levels.iter().any(|a| {
-        levels.iter().any(|b| a.up == b.up && b.covers(a.inside) && if a.up { b.height > a.height + DEPTH } else { b.height < a.height - DEPTH })
-    });
+    let hidden = levels
+        .iter()
+        .any(|a| levels.iter().any(|b| a.up == b.up && b.covers(a.inside) && if a.up { b.height > a.height + DEPTH } else { b.height < a.height - DEPTH }));
     if sloped {
         part.left_out.push("angled or curved cuts");
     }
@@ -161,7 +157,12 @@ fn flatten(model: &Model, scale: DVec3, [l, w, t]: [usize; 3]) -> FlatPart {
     let mut back: BTreeMap<i64, Vec<Region>> = BTreeMap::new();
     let key = |d: f64| (d / DEPTH).round() as i64;
     for (_, face) in plane.faces() {
-        let Some(q) = plane.triangulate(face).into_iter().map(|tri| tri.map(|p| p.truncate())).max_by(|a, b| area(a).total_cmp(&area(b))).map(|[a, b, c]| (a + b + c) / 3.0)
+        let Some(q) = plane
+            .triangulate(face)
+            .into_iter()
+            .map(|tri| tri.map(|p| p.truncate()))
+            .max_by(|a, b| area(a).total_cmp(&area(b)))
+            .map(|[a, b, c]| (a + b + c) / 3.0)
         else {
             continue;
         };
@@ -359,20 +360,29 @@ pub fn to_svg(parts: &[FlatPart], units: ExportUnits) -> String {
     let stroke = 0.01 * s;
     let mut svg = String::new();
     let _ = writeln!(svg, r#"<?xml version="1.0" encoding="UTF-8"?>"#);
-    let _ = writeln!(
-        svg,
-        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{width:.4}{unit}" height="{height:.4}{unit}" viewBox="0 0 {width:.4} {height:.4}">"#
-    );
+    let _ =
+        writeln!(svg, r#"<svg xmlns="http://www.w3.org/2000/svg" width="{width:.4}{unit}" height="{height:.4}{unit}" viewBox="0 0 {width:.4} {height:.4}">"#);
     let _ = writeln!(svg, "<title>Parts for CNC, seen from the face, in {}</title>", units.name());
     for (part, corner) in parts.iter().zip(&at) {
         let _ = writeln!(svg, r#"<g id="part-{}">"#, xml(&part.label));
         for (words, (above, size)) in texts(part).iter().zip([LABEL, NOTE]) {
             let at = point(*corner, DVec2::new(0.0, part.size[1] + above));
-            let _ = writeln!(svg, r##"<text x="{:.4}" y="{:.4}" font-family="sans-serif" font-size="{:.4}" fill="#0068ff">{}</text>"##, at.x, at.y, size * s, xml(words));
+            let _ = writeln!(
+                svg,
+                r##"<text x="{:.4}" y="{:.4}" font-family="sans-serif" font-size="{:.4}" fill="#0068ff">{}</text>"##,
+                at.x,
+                at.y,
+                size * s,
+                xml(words)
+            );
         }
         let _ = writeln!(svg, r##"<path class="outline" d="{}" fill="#000000" stroke="#000000" stroke-width="{stroke:.4}"/>"##, path(*corner, &part.outline));
         for hole in &part.holes {
-            let _ = writeln!(svg, r##"<path class="hole" d="{}" fill="#ffffff" stroke="#000000" stroke-width="{stroke:.4}"/>"##, path(*corner, std::slice::from_ref(hole)));
+            let _ = writeln!(
+                svg,
+                r##"<path class="hole" d="{}" fill="#ffffff" stroke="#000000" stroke-width="{stroke:.4}"/>"##,
+                path(*corner, std::slice::from_ref(hole))
+            );
         }
         for (depth, loops) in &part.pockets {
             let _ = writeln!(

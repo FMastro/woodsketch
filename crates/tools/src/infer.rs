@@ -87,10 +87,7 @@ impl Hints {
         if let Some(dir) = snap.line {
             self.edge = Some(dir);
         }
-        if matches!(
-            snap.kind,
-            SnapKind::Endpoint | SnapKind::Midpoint | SnapKind::GuidePoint | SnapKind::Intersection
-        ) {
+        if matches!(snap.kind, SnapKind::Endpoint | SnapKind::Midpoint | SnapKind::GuidePoint | SnapKind::Intersection) {
             self.point = Some(snap.point);
         }
     }
@@ -139,12 +136,8 @@ pub fn target(
             Some(s) => Some((s.point - base).dot(lock.dir)),
             None => closest_on_line(base, lock.dir, &ray),
         };
-        let mut target = Target {
-            point: base + lock.dir * t.unwrap_or((query.current - base).dot(lock.dir)),
-            direction: Some(lock),
-            snap: feature,
-            from: None,
-        };
+        let mut target =
+            Target { point: base + lock.dir * t.unwrap_or((query.current - base).dot(lock.dir)), direction: Some(lock), snap: feature, from: None };
         if feature.is_none() {
             target.align(screen, cursor, query, Some(lock.dir));
         }
@@ -254,13 +247,7 @@ fn line_crossing(p: DVec3, d: DVec3, q: DVec3, e: DVec3) -> Option<(f64, DVec3)>
 
 /// The direction through `base` the cursor is near on screen: an axis, or parallel or
 /// perpendicular to the remembered edge. Returns the point on it nearest the cursor.
-pub fn infer_direction(
-    screen: Screen<'_>,
-    base: DVec3,
-    cursor: Vec2,
-    hints: &Hints,
-    plane_normal: DVec3,
-) -> Option<(DVec3, Direction)> {
+pub fn infer_direction(screen: Screen<'_>, base: DVec3, cursor: Vec2, hints: &Hints, plane_normal: DVec3) -> Option<(DVec3, Direction)> {
     let mut candidates: Vec<Direction> = Axis::ALL.into_iter().map(Direction::axis).collect();
     let is_axis = |d: DVec3| Axis::ALL.iter().any(|a| d.cross(a.dir()).length() < 1e-6);
     if let Some(edge) = hints.edge {

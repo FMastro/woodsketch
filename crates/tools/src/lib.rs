@@ -6,17 +6,17 @@ mod arcs;
 mod board;
 mod carry;
 mod circle;
-mod notes;
 mod eraser;
 pub mod infer;
 mod line;
-pub mod pick;
 mod move_tool;
+mod notes;
 mod offset;
 mod paint;
+pub mod pick;
 mod push_pull;
-mod rotate;
 mod rectangle;
+mod rotate;
 mod rotated;
 mod scale;
 mod select;
@@ -27,21 +27,21 @@ use woodsketch_doc::{Document, units};
 use woodsketch_i18n::t;
 use woodsketch_view::OrbitCamera;
 
-pub use pick::{Snap, SnapKind};
 use arc::ArcTool;
-use carry::Carry;
 use board::BoardTool;
 pub use board::Picked;
+use carry::Carry;
 use circle::CircleTool;
 use eraser::EraserTool;
 use line::LineTool;
-use pick::Screen;
 use move_tool::MoveTool;
 use offset::OffsetTool;
 use paint::PaintTool;
+use pick::Screen;
+pub use pick::{Snap, SnapKind};
 use push_pull::PushPullTool;
-use rotate::RotateTool;
 use rectangle::RectangleTool;
+use rotate::RotateTool;
 use scale::ScaleTool;
 use select::SelectTool;
 use tape::TapeTool;
@@ -208,10 +208,22 @@ pub struct Modifiers {
 pub enum PointerEvent {
     Move(Vec2),
     /// Press and release without dragging; `count` is 2 or 3 for double and triple clicks.
-    Click { pos: Vec2, count: u8, mods: Modifiers },
-    DragStart { origin: Vec2 },
-    Drag { pos: Vec2, delta: Vec2 },
-    DragEnd { pos: Vec2, mods: Modifiers },
+    Click {
+        pos: Vec2,
+        count: u8,
+        mods: Modifiers,
+    },
+    DragStart {
+        origin: Vec2,
+    },
+    Drag {
+        pos: Vec2,
+        delta: Vec2,
+    },
+    DragEnd {
+        pos: Vec2,
+        mods: Modifiers,
+    },
 }
 
 /// What tools want drawn on top of the viewport.
@@ -866,9 +878,7 @@ impl Tools {
                 self.paint.hover(doc, screen, pos);
                 Ok(())
             }
-            (ToolId::PaintBucket, PointerEvent::Click { pos, mods, .. }) => {
-                self.paint.click(doc, screen, pos, mods, &mut self.active_material)
-            }
+            (ToolId::PaintBucket, PointerEvent::Click { pos, mods, .. }) => self.paint.click(doc, screen, pos, mods, &mut self.active_material),
             _ => Ok(()),
         };
         if let Err(message) = result {
@@ -888,9 +898,8 @@ impl Tools {
     /// group, which surprises people; the faded surroundings show the group is open.
     fn open_group_to_draw_on(&mut self, doc: &mut Document, camera: &OrbitCamera, size: Vec2, cursor: Vec2) {
         // Offset works on a selected face where one is selected.
-        let offsetting_selection = self.active == ToolId::Offset
-            && doc.selection().len() == 1
-            && doc.selection().iter().all(|e| matches!(e, woodsketch_doc::Entity::Face(_)));
+        let offsetting_selection =
+            self.active == ToolId::Offset && doc.selection().len() == 1 && doc.selection().iter().all(|e| matches!(e, woodsketch_doc::Entity::Face(_)));
         let drawing = matches!(
             self.active,
             ToolId::Line
@@ -1336,7 +1345,6 @@ impl Tools {
     }
 }
 
-
 /// The 12 edges of the axis-aligned box from `lo` to `hi`.
 fn box_edges(lo: DVec3, hi: DVec3) -> Vec<[DVec3; 2]> {
     let corner = |i: usize| DVec3::new(if i & 1 == 0 { lo.x } else { hi.x }, if i & 2 == 0 { lo.y } else { hi.y }, if i & 4 == 0 { lo.z } else { hi.z });
@@ -1402,7 +1410,6 @@ impl Tools {
     }
 }
 
-
 /// Right-click: SketchUp's context menu acts on the selection, so what's under the pointer is
 /// selected first unless it already is.
 impl Tools {
@@ -1421,7 +1428,6 @@ impl Tools {
         !doc.selection().is_empty()
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -1460,8 +1466,7 @@ mod tests {
             let face = m.add_rectangle(DVec3::new(10.0, 0.0, 0.0), DVec3::X * 1.5, DVec3::Y * 3.5, DVec3::Z).unwrap();
             m.push_pull(face, 10.0).unwrap();
         });
-        let mut camera =
-            OrbitCamera { target: glam::Vec3::new(10.75, 1.75, 5.0), distance: 60.0, ..Default::default() };
+        let mut camera = OrbitCamera { target: glam::Vec3::new(10.75, 1.75, 5.0), distance: 60.0, ..Default::default() };
         camera.set_view(StandardView::Iso);
         let size = Vec2::new(1000.0, 800.0);
         let mut tools = Tools::default();

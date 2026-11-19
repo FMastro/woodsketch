@@ -43,8 +43,7 @@ impl Sample {
     /// builds on a thread ([`ui_egui::building`]) and watches this rather than holding the frame.
     pub fn build_reporting(&self, progress: &mut dyn FnMut(usize, usize, &str)) -> Result<Document, String> {
         let recipe = self.recipe()?;
-        recipe::build_reporting(&recipe, progress)
-            .map_err(|problems| format!("{} couldn't be built: {}", self.name, problems.join("; ")))
+        recipe::build_reporting(&recipe, progress).map_err(|problems| format!("{} couldn't be built: {}", self.name, problems.join("; ")))
     }
 }
 
@@ -236,9 +235,7 @@ mod tests {
             ];
             let name = scene.definition(instance.definition).map_or("?", |d| d.name.as_str());
             let what = format!("{name} at x {:.1}..{:.1}, y {:.1}..{:.1}", at[0], at[2], at[1], at[3]);
-            let inside = BATHS.iter().any(|[x0, y0, x1, y1]| {
-                at[0] >= x0 - EPS && at[2] <= x1 + EPS && at[1] >= y0 - EPS && at[3] <= y1 + EPS
-            });
+            let inside = BATHS.iter().any(|[x0, y0, x1, y1]| at[0] >= x0 - EPS && at[2] <= x1 + EPS && at[1] >= y0 - EPS && at[3] <= y1 + EPS);
             assert!(inside, "{what} is not inside one bathroom's walls");
             fixtures.push((what, at));
         }
@@ -246,10 +243,8 @@ mod tests {
 
         for (bath, room) in BATHS.iter().enumerate() {
             let [rx0, ry0, rx1, ry1] = *room;
-            let mine: Vec<&(String, [f64; 4])> = fixtures
-                .iter()
-                .filter(|(_, b)| b[0] >= rx0 - EPS && b[2] <= rx1 + EPS && b[1] >= ry0 - EPS && b[3] <= ry1 + EPS)
-                .collect();
+            let mine: Vec<&(String, [f64; 4])> =
+                fixtures.iter().filter(|(_, b)| b[0] >= rx0 - EPS && b[2] <= rx1 + EPS && b[1] >= ry0 - EPS && b[3] <= ry1 + EPS).collect();
             assert_eq!(mine.len(), 3, "bath {} holds a tub, a vanity and a toilet", bath + 1);
 
             let half = PERSON / 2.0;
@@ -258,12 +253,7 @@ mod tests {
                     && x + half <= rx1 + EPS
                     && y - half >= ry0 - EPS
                     && y + half <= ry1 + EPS
-                    && mine.iter().all(|(_, b)| {
-                        x + half <= b[0] + EPS
-                            || x - half >= b[2] - EPS
-                            || y + half <= b[1] + EPS
-                            || y - half >= b[3] - EPS
-                    })
+                    && mine.iter().all(|(_, b)| x + half <= b[0] + EPS || x - half >= b[2] - EPS || y + half <= b[1] + EPS || y - half >= b[3] - EPS)
             };
             let nx = ((rx1 - rx0) / STEP) as usize;
             let ny = ((ry1 - ry0) / STEP) as usize;
@@ -326,13 +316,7 @@ mod tests {
             let scene = doc.scene();
             let report = crate::movement::check(scene, scene.moisture_swing.unwrap_or(crate::movement::DEFAULT_SWING));
             let expected = allowed.iter().find(|(name, _)| *name == sample.name).map_or(0, |(_, n)| *n);
-            assert_eq!(
-                report.conflicts.len(),
-                expected,
-                "{}: {:?}",
-                sample.name,
-                report.conflicts.iter().map(|c| format!("{c:?}")).collect::<Vec<_>>()
-            );
+            assert_eq!(report.conflicts.len(), expected, "{}: {:?}", sample.name, report.conflicts.iter().map(|c| format!("{c:?}")).collect::<Vec<_>>());
         }
     }
 

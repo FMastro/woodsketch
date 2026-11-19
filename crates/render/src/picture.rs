@@ -109,13 +109,7 @@ pub fn pixels(device: &wgpu::Device, queue: &wgpu::Queue, doc: &Document, option
 /// each one only projects eight points.
 fn fit_to_frame(camera: &mut OrbitCamera, lo: glam::Vec3, hi: glam::Vec3, viewport: Vec2, fraction: f32) {
     let corners: Vec<glam::Vec3> = (0..8)
-        .map(|i| {
-            glam::Vec3::new(
-                if i & 1 == 0 { lo.x } else { hi.x },
-                if i & 2 == 0 { lo.y } else { hi.y },
-                if i & 4 == 0 { lo.z } else { hi.z },
-            )
-        })
+        .map(|i| glam::Vec3::new(if i & 1 == 0 { lo.x } else { hi.x }, if i & 2 == 0 { lo.y } else { hi.y }, if i & 4 == 0 { lo.z } else { hi.z }))
         .collect();
     let target = fraction.clamp(0.1, 1.0);
     for _ in 0..3 {

@@ -27,10 +27,10 @@ pub fn angle(text: &str) -> Result<(f32, f32), String> {
 /// The drawing drawn as `options` say, as PNG bytes.
 pub fn render(doc: &Document, options: &Options) -> Result<Vec<u8>, String> {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
-    let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
-        .map_err(|e| format!("No graphics adapter to draw with: {e}"))?;
-    let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
-        .map_err(|e| format!("Couldn't open the graphics device: {e}"))?;
+    let adapter =
+        pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default())).map_err(|e| format!("No graphics adapter to draw with: {e}"))?;
+    let (device, queue) =
+        pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default())).map_err(|e| format!("Couldn't open the graphics device: {e}"))?;
 
     let (w, h, pixels) = woodsketch_render::picture::pixels(&device, &queue, doc, options)?;
     let mut png = Vec::new();

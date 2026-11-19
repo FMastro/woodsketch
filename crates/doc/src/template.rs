@@ -598,7 +598,15 @@ impl Parts<'_> {
     }
 
     /// A board `[length, width, thickness]`: thickness runs along `length_dir × width_dir`.
-    fn board(&mut self, name: &str, material: Option<MaterialId>, origin: DVec3, length_dir: DVec3, width_dir: DVec3, [length, width, thickness]: [f64; 3]) -> InstanceId {
+    fn board(
+        &mut self,
+        name: &str,
+        material: Option<MaterialId>,
+        origin: DVec3,
+        length_dir: DVec3,
+        width_dir: DVec3,
+        [length, width, thickness]: [f64; 3],
+    ) -> InstanceId {
         let id = self.doc.add_board(&Board { origin, length_dir, width_dir, length, width, thickness }, material).expect("templates check their sizes");
         self.doc.rename_instance(id, name);
         self.made.push(id);
@@ -758,7 +766,8 @@ impl Parts<'_> {
         let front = o.front(c.fronts);
         // The box starts behind an inset front, at the cabinet's front edge behind an overlay one.
         let behind = if c.fronts == Fronts::Inset { STOCK } else { 0.0 };
-        let length = crate::hardware::slide_for(o.deep - behind - 0.25).ok_or(JoineryError::Size("The cabinet is too shallow for a drawer (10\" slides at least)."))?;
+        let length =
+            crate::hardware::slide_for(o.deep - behind - 0.25).ok_or(JoineryError::Size("The cabinet is too shallow for a drawer (10\" slides at least)."))?;
         let width = o.x1 - o.x0 - 2.0 * crate::hardware::SLIDE_SPACE;
         let height = o.z1 - o.z0 - 1.0;
         if height < 2.0 || width < 4.0 {
@@ -768,7 +777,14 @@ impl Parts<'_> {
         self.drawer(Drawer { width, height, depth: length, joints: c.drawer_joints, stock: DRAWER_STOCK }, at)?;
         // The front: on the cabinet, or set in the opening.
         let wood = self.wood;
-        self.board("Drawer front", wood, DVec3::new(front.x0, front.y0 + STOCK, front.z0), DVec3::X, DVec3::Z, [front.x1 - front.x0, front.z1 - front.z0, STOCK]);
+        self.board(
+            "Drawer front",
+            wood,
+            DVec3::new(front.x0, front.y0 + STOCK, front.z0),
+            DVec3::X,
+            DVec3::Z,
+            [front.x1 - front.x0, front.z1 - front.z0, STOCK],
+        );
         // Slides on each side of the box, at its middle.
         let mid = o.z0 + 0.5 + height / 2.0;
         let tall = 1.75_f64.min(height);
@@ -896,7 +912,8 @@ impl Parts<'_> {
         let front = self.board("Drawer box front", wood, at + DVec3::new(0.0, t, 0.0), DVec3::X, DVec3::Z, [d.width, d.height, t]);
         let back = self.board("Drawer box back", wood, at + DVec3::new(d.width, d.depth - t, 0.0), -DVec3::X, DVec3::Z, [d.width, d.height, t]);
         let left = self.board("Drawer box side", wood, at + DVec3::new(t, t, d.height), DVec3::Y, -DVec3::Z, [d.depth - 2.0 * t, d.height, t]);
-        let right = self.board("Drawer box side", wood, at + DVec3::new(d.width - t, d.depth - t, d.height), -DVec3::Y, -DVec3::Z, [d.depth - 2.0 * t, d.height, t]);
+        let right =
+            self.board("Drawer box side", wood, at + DVec3::new(d.width - t, d.depth - t, d.height), -DVec3::Y, -DVec3::Z, [d.depth - 2.0 * t, d.height, t]);
         // The bottom, 1/2" up, between the sides, front and back; let into each 1/4".
         let plywood = Some(self.plywood());
         let up = 0.5;
@@ -959,23 +976,25 @@ impl Parts<'_> {
         let front_left = self.component(first, "Leg");
         self.made.push(front_left);
         let c = overhang + leg / 2.0;
-        let others = self.copies(front_left, DVec3::new(c, c, 0.0), &[
-            (DVec3::new(t.width - c, c, 0.0), 90.0),
-            (DVec3::new(t.width - c, t.depth - c, 0.0), 180.0),
-            (DVec3::new(c, t.depth - c, 0.0), 270.0),
-        ]);
+        let others = self.copies(
+            front_left,
+            DVec3::new(c, c, 0.0),
+            &[(DVec3::new(t.width - c, c, 0.0), 90.0), (DVec3::new(t.width - c, t.depth - c, 0.0), 180.0), (DVec3::new(c, t.depth - c, 0.0), 270.0)],
+        );
         let [front_right, back_right, back_left] = others[..] else { return Err(JoineryError::NotParts) };
 
         // Aprons set back from the legs' outside faces; the back a copy of the front turned
         // around, the right a copy of the left.
         let middle = DVec3::new(t.width / 2.0, t.depth / 2.0, 0.0);
         let inner = overhang + leg;
-        let front = self.board("Front apron", wood, DVec3::new(inner, overhang + set_back, legs_up), DVec3::X, -DVec3::Z, [t.width - 2.0 * inner, apron, thick]);
+        let front =
+            self.board("Front apron", wood, DVec3::new(inner, overhang + set_back, legs_up), DVec3::X, -DVec3::Z, [t.width - 2.0 * inner, apron, thick]);
         self.made.pop();
         let front = self.component(front, "Front and back apron");
         self.made.push(front);
         let back = self.copies(front, middle, &[(middle, 180.0)])[0];
-        let left = self.board("Side apron", wood, DVec3::new(overhang + set_back + thick, inner, legs_up), DVec3::Y, -DVec3::Z, [t.depth - 2.0 * inner, apron, thick]);
+        let left =
+            self.board("Side apron", wood, DVec3::new(overhang + set_back + thick, inner, legs_up), DVec3::Y, -DVec3::Z, [t.depth - 2.0 * inner, apron, thick]);
         self.made.pop();
         let left = self.component(left, "Side apron");
         self.made.push(left);
@@ -1131,7 +1150,8 @@ mod tests {
         assert!(names.contains(&("Side".into(), 2)), "{names:?}");
         assert!(names.contains(&("Bottom, Top, Shelf".into(), 4)), "same size: {names:?}");
         // Let in 1/4" at each end: 28 1/2" between the sides, 29" long.
-        let shelf = doc.scene().container(&[group]).unwrap().instances().find(|(_, i)| doc.scene().definition(i.definition).unwrap().name == "Shelf").unwrap().0;
+        let shelf =
+            doc.scene().container(&[group]).unwrap().instances().find(|(_, i)| doc.scene().definition(i.definition).unwrap().name == "Shelf").unwrap().0;
         doc.enter(group);
         assert_eq!(doc.part_size(shelf).unwrap()[0], 29.0);
         assert!(!doc.joint_list(shelf).is_empty());
@@ -1159,7 +1179,11 @@ mod tests {
                     assert_eq!(hardware.get("18\" side-mount drawer slides (pair)"), Some(&1), "{hardware:?}");
                     let leaves = if width > 24.0 { 2 } else { 1 };
                     assert_eq!(hardware.get(crate::hardware::HINGE), Some(&(2 * leaves)), "{width}: {hardware:?}");
-                    let pulls_count = match pulls { Pulls::Bar => hardware.get(crate::hardware::PULL), Pulls::Knob => hardware.get(crate::hardware::KNOB), Pulls::None => None };
+                    let pulls_count = match pulls {
+                        Pulls::Bar => hardware.get(crate::hardware::PULL),
+                        Pulls::Knob => hardware.get(crate::hardware::KNOB),
+                        Pulls::None => None,
+                    };
                     // Two pulls on a drawer front over 24" wide, one on each door.
                     let drawer_pulls = if width - 1.0 / 8.0 > 24.0 { 2 } else { 1 };
                     assert_eq!(pulls_count.copied(), if pulls == Pulls::None { None } else { Some(drawer_pulls + leaves) });
@@ -1212,7 +1236,8 @@ mod tests {
         let names = cut_list_names(&doc);
         // The opening is 18 1/2" wide (20 less two 3/4" sides): the box is 1" narrower for the slides.
         let list = crate::cutlist::cut_list(doc.scene());
-        let box_front = list.materials.iter().flat_map(|m| &m.parts).find(|p| p.names.iter().any(|n| n == "Drawer box front")).unwrap_or_else(|| panic!("{names:?}"));
+        let box_front =
+            list.materials.iter().flat_map(|m| &m.parts).find(|p| p.names.iter().any(|n| n == "Drawer box front")).unwrap_or_else(|| panic!("{names:?}"));
         assert_eq!(box_front.length, 17.5);
         // The overlay front covers the sides to 1/16" of their edges: 20" less 1/8".
         let front = list.materials.iter().flat_map(|m| &m.parts).find(|p| p.names.iter().any(|n| n == "Drawer front")).unwrap();
@@ -1265,7 +1290,8 @@ mod tests {
         assert!(err.contains("shelves"), "{err}");
         assert!(doc.container().instances().next().is_none());
     }
-}#[cfg(test)]
+}
+#[cfg(test)]
 mod probe {
     use super::*;
     fn closed(doc: &Document, part: InstanceId) -> bool {
@@ -1286,15 +1312,27 @@ mod probe {
             let top = p.board("R", None, DVec3::new(x0 + s, y + STOCK, z1 - s), DVec3::X, DVec3::Z, [w - 2.0 * s, s, STOCK]);
             let panel = p.board("P", None, DVec3::new(x0 + s, y + 0.5, z0 + s), DVec3::X, DVec3::Z, [w - 2.0 * s, h - 2.0 * s, PANEL]);
             let mut log = Vec::new();
-            let tenons = |doc: &mut Document, log: &mut Vec<String>| for rail in [bottom, top] { for stile in [left, right] {
-                let r = doc.mortise_and_tenon(rail, stile, Tenon { length: 0.375, thickness: PANEL, shoulder, haunch: 0.0, fit: 0.0 });
-                log.push(format!("mt {:?} L{}", r.err(), closed(doc, left)));
-            }};
-            let grooves = |doc: &mut Document, log: &mut Vec<String>| for into in [bottom, top, left, right] {
-                let r = doc.let_in(panel, into, 0.375);
-                log.push(format!("groove {:?} L{}", r.err(), closed(doc, left)));
+            let tenons = |doc: &mut Document, log: &mut Vec<String>| {
+                for rail in [bottom, top] {
+                    for stile in [left, right] {
+                        let r = doc.mortise_and_tenon(rail, stile, Tenon { length: 0.375, thickness: PANEL, shoulder, haunch: 0.0, fit: 0.0 });
+                        log.push(format!("mt {:?} L{}", r.err(), closed(doc, left)));
+                    }
+                }
             };
-            if tenons_first { tenons(&mut doc, &mut log); grooves(&mut doc, &mut log); } else { grooves(&mut doc, &mut log); tenons(&mut doc, &mut log); }
+            let grooves = |doc: &mut Document, log: &mut Vec<String>| {
+                for into in [bottom, top, left, right] {
+                    let r = doc.let_in(panel, into, 0.375);
+                    log.push(format!("groove {:?} L{}", r.err(), closed(doc, left)));
+                }
+            };
+            if tenons_first {
+                tenons(&mut doc, &mut log);
+                grooves(&mut doc, &mut log);
+            } else {
+                grooves(&mut doc, &mut log);
+                tenons(&mut doc, &mut log);
+            }
             println!("tenons_first={tenons_first} shoulder={shoulder}: {log:?}");
         }
     }

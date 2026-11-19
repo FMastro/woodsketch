@@ -389,9 +389,8 @@ fn rebuild(polys: &[Poly], original: &Model) -> Model {
         if l.len() < 3 {
             continue;
         }
-        let at = groups.iter().position(|g| {
-            g.material == p.material && g.plane.normal.dot(p.plane.normal) > 1.0 - 1e-9 && (g.plane.w - p.plane.w).abs() <= WELD
-        });
+        let at =
+            groups.iter().position(|g| g.material == p.material && g.plane.normal.dot(p.plane.normal) > 1.0 - 1e-9 && (g.plane.w - p.plane.w).abs() <= WELD);
         match at {
             Some(i) => groups[i].loops.push(l),
             None => groups.push(Group { plane: p.plane, material: p.material, loops: vec![l] }),
@@ -477,7 +476,8 @@ fn rebuild(polys: &[Poly], original: &Model) -> Model {
                 let o2: Vec<DVec2> = o.iter().map(|&i| project(points[i])).collect();
                 h.iter().all(|&i| locate(project(points[i]), &o2) != Location::Outside)
             };
-            let host = (0..faces_here.len()).filter(|&k| inside(&faces_here[k][0])).min_by(|&x, &y| area(&faces_here[x][0]).total_cmp(&area(&faces_here[y][0])));
+            let host =
+                (0..faces_here.len()).filter(|&k| inside(&faces_here[k][0])).min_by(|&x, &y| area(&faces_here[x][0]).total_cmp(&area(&faces_here[y][0])));
             if let Some(k) = host {
                 faces_here[k].push(h);
             }

@@ -138,20 +138,22 @@ impl BoardTool {
             return;
         }
         let base = start.point;
-        let query = Query {
-            base,
-            hints: &self.hints,
-            lock: self.lock.or(self.shift_lock),
-            plane_normal: start.normal,
-            current: self.end.map_or(base, |t| t.point),
-        };
-        let target = infer::target(model, screen, cursor, &query, |_| false, |ray| {
-            snap(model, screen, cursor, None)
-                .filter(|s| s.kind == crate::SnapKind::OnFace)
-                .map(|s| (s.point, Some(s)))
-                .or_else(|| ray.hit_plane(base, start.normal).map(|p| (p, None)))
-                .or_else(|| ray.hit_plane(base, -screen.forward()).map(|p| (p, None)))
-        });
+        let query =
+            Query { base, hints: &self.hints, lock: self.lock.or(self.shift_lock), plane_normal: start.normal, current: self.end.map_or(base, |t| t.point) };
+        let target = infer::target(
+            model,
+            screen,
+            cursor,
+            &query,
+            |_| false,
+            |ray| {
+                snap(model, screen, cursor, None)
+                    .filter(|s| s.kind == crate::SnapKind::OnFace)
+                    .map(|s| (s.point, Some(s)))
+                    .or_else(|| ray.hit_plane(base, start.normal).map(|p| (p, None)))
+                    .or_else(|| ray.hit_plane(base, -screen.forward()).map(|p| (p, None)))
+            },
+        );
         if self.shift && self.shift_lock.is_none() {
             self.shift_lock = target.direction;
         }
@@ -196,13 +198,7 @@ impl BoardTool {
         self.start = None;
         self.end = None;
         doc.add_board(&board, Some(picked.material)).ok_or_else(|| t!("tool-board-no-size"))?;
-        self.last = Some(Last {
-            start,
-            dir,
-            extents,
-            stock: picked.stock,
-            model_version: doc.model_version(),
-        });
+        self.last = Some(Last { start, dir, extents, stock: picked.stock, model_version: doc.model_version() });
         Ok(())
     }
 
@@ -230,8 +226,7 @@ impl BoardTool {
                     return None;
                 }
                 let (a, b) = (fu * eu.signum(), fv * ev.signum());
-                let (mut length_dir, mut width_dir, length, width) =
-                    if eu.abs() >= ev.abs() { (a, b, eu.abs(), ev.abs()) } else { (b, a, ev.abs(), eu.abs()) };
+                let (mut length_dir, mut width_dir, length, width) = if eu.abs() >= ev.abs() { (a, b, eu.abs(), ev.abs()) } else { (b, a, ev.abs(), eu.abs()) };
                 let mut origin = start.point;
                 // Rise off the surface (the thickness along its normal).
                 if length_dir.cross(width_dir).dot(n) < 0.0 {
@@ -284,9 +279,7 @@ impl BoardTool {
                 let (u, v) = plane_axes(start.normal);
                 (start, reach.normalize_or_zero(), (reach.dot(u), reach.dot(v)), false)
             }
-            (None, Some(last)) if last.model_version == doc.model_version() && last.stock == stock => {
-                (last.start, last.dir, last.extents, true)
-            }
+            (None, Some(last)) if last.model_version == doc.model_version() && last.stock == stock => (last.start, last.dir, last.extents, true),
             _ => return Err(t!("tool-board-click-start")),
         };
         let reach = match stock {
@@ -355,9 +348,7 @@ impl BoardTool {
     /// material lists is drawn from the current sheet or solid-wood material anyway.
     fn pick_matching(&mut self, doc: &mut Document, stock: Stock) -> Result<(), String> {
         let close = |a: Stock, b: Stock| match (a, b) {
-            (Stock::Section { thickness: t1, width: w1 }, Stock::Section { thickness: t2, width: w2 }) => {
-                (t1 - t2).abs() < 1e-6 && (w1 - w2).abs() < 1e-6
-            }
+            (Stock::Section { thickness: t1, width: w1 }, Stock::Section { thickness: t2, width: w2 }) => (t1 - t2).abs() < 1e-6 && (w1 - w2).abs() < 1e-6,
             (Stock::Thickness(a), Stock::Thickness(b)) => (a - b).abs() < 1e-6,
             _ => false,
         };
@@ -549,7 +540,10 @@ mod tests {
         let picked = tool.picked.clone().unwrap();
         assert_eq!(picked.stock, custom);
         assert_eq!(picked.name, "3\" x 6 1/2\" (custom)");
-        assert!(!stock_options(doc.scene().material(picked.material).unwrap()).iter().any(|(_, s)| *s == custom), "typing doesn't add it to Pine Lumber's sizes");
+        assert!(
+            !stock_options(doc.scene().material(picked.material).unwrap()).iter().any(|(_, s)| *s == custom),
+            "typing doesn't add it to Pine Lumber's sizes"
+        );
         assert_eq!(doc.scene().materials().count(), 1, "no new material");
         // A whole custom board, while drawing.
         tool.click(&mut doc, screen, at(screen, 0.0, 0.0)).unwrap();

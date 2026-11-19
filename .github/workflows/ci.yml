@@ -16,6 +16,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Layout is `rustfmt.toml`'s to decide, so nobody spends a review on it. One platform is enough:
+  # the same config gives the same answer everywhere.
+  fmt:
+    name: the code is laid out as rustfmt.toml says
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Check the formatting
+        run: cargo fmt --all --check
+
   check:
     name: ${{ matrix.os }}
     strategy:

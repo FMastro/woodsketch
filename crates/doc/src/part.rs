@@ -69,7 +69,13 @@ impl Side {
     /// The side whose outward direction is closest to `normal` (in the part's own axes).
     pub fn facing(normal: DVec3) -> Self {
         let a = normal.abs();
-        let index = if a.x >= a.y && a.x >= a.z { 0 } else if a.y >= a.z { 1 } else { 2 };
+        let index = if a.x >= a.y && a.x >= a.z {
+            0
+        } else if a.y >= a.z {
+            1
+        } else {
+            2
+        };
         Self { axis: PartAxis::ALL[index], positive: normal[index] > 0.0 }
     }
 

@@ -75,9 +75,7 @@ pub fn arc_points(a: DVec3, b: DVec3, normal: DVec3, bulge: f64, side: DVec3, se
 /// radians (counter-clockwise looking down `normal`): `segments + 1` of them.
 pub fn sweep_points(center: DVec3, start: DVec3, normal: DVec3, angle: f64, segments: u32) -> Vec<DVec3> {
     let segments = segments.max(1);
-    (0..=segments)
-        .map(|i| center + DQuat::from_axis_angle(normal, angle * f64::from(i) / f64::from(segments)) * (start - center))
-        .collect()
+    (0..=segments).map(|i| center + DQuat::from_axis_angle(normal, angle * f64::from(i) / f64::from(segments)) * (start - center)).collect()
 }
 
 /// The circle through three points: its center and the normal (right-handed a, b, c). `None`
@@ -119,11 +117,7 @@ mod tests {
     use super::*;
 
     fn area(model: &Model, face: FaceId) -> f64 {
-        model
-            .triangulate(model.face(face).unwrap())
-            .iter()
-            .map(|[a, b, c]| (*b - *a).cross(*c - *a).length() * 0.5)
-            .sum()
+        model.triangulate(model.face(face).unwrap()).iter().map(|[a, b, c]| (*b - *a).cross(*c - *a).length() * 0.5).sum()
     }
 
     #[test]
@@ -177,12 +171,8 @@ mod tests {
         let (a, b) = (DVec3::new(8.0, 10.0, 0.75), DVec3::new(10.0, 8.0, 0.75));
         let bulge = 2.0 - 2.0 * std::f64::consts::FRAC_1_SQRT_2;
         model.draw_polyline(&arc_points(a, b, DVec3::Z, bulge, DVec3::new(1.0, 1.0, 0.0), 12), DVec3::Z);
-        let corner = model
-            .faces()
-            .filter(|(_, f)| f.normal.z > 0.5)
-            .min_by(|(x, _), (y, _)| area(&model, *x).total_cmp(&area(&model, *y)))
-            .map(|(id, _)| id)
-            .unwrap();
+        let corner =
+            model.faces().filter(|(_, f)| f.normal.z > 0.5).min_by(|(x, _), (y, _)| area(&model, *x).total_cmp(&area(&model, *y))).map(|(id, _)| id).unwrap();
         model.push_pull(corner, -0.75).unwrap();
         // Top, bottom, two full sides, two shortened sides and 12 rounded facets; no leftovers.
         assert_eq!(model.faces().count(), 18);

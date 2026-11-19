@@ -33,13 +33,7 @@ pub struct OrbitCamera {
 impl Default for OrbitCamera {
     /// SketchUp's default view: looking from the front-left, slightly above, 35° field of view.
     fn default() -> Self {
-        let mut camera = Self {
-            target: Vec3::ZERO,
-            distance: 200.0,
-            yaw: 0.0,
-            pitch: 0.0,
-            fov_y: 35_f32.to_radians(),
-        };
+        let mut camera = Self { target: Vec3::ZERO, distance: 200.0, yaw: 0.0, pitch: 0.0, fov_y: 35_f32.to_radians() };
         camera.set_view(StandardView::Iso);
         camera
     }
@@ -147,8 +141,7 @@ impl OrbitCamera {
     }
 
     pub fn zoom_at(&mut self, steps: f32, cursor: Vec2, viewport: Vec2) {
-        let new_distance =
-            (self.distance * ZOOM_FACTOR_PER_STEP.powf(steps)).clamp(MIN_DISTANCE, MAX_DISTANCE);
+        let new_distance = (self.distance * ZOOM_FACTOR_PER_STEP.powf(steps)).clamp(MIN_DISTANCE, MAX_DISTANCE);
         let factor = new_distance / self.distance;
         // Pivot on where the cursor ray meets the plane through the target facing the camera,
         // so that point stays fixed on screen.
@@ -174,10 +167,7 @@ impl OrbitCamera {
 
     /// World-space ray through a screen point: (origin on the near plane, unit direction).
     pub fn ray(&self, cursor: Vec2, viewport: Vec2) -> (Vec3, Vec3) {
-        let ndc = Vec2::new(
-            2.0 * cursor.x / viewport.x.max(1.0) - 1.0,
-            1.0 - 2.0 * cursor.y / viewport.y.max(1.0),
-        );
+        let ndc = Vec2::new(2.0 * cursor.x / viewport.x.max(1.0) - 1.0, 1.0 - 2.0 * cursor.y / viewport.y.max(1.0));
         let inverse = self.view_proj(viewport).inverse();
         let near = inverse.project_point3(ndc.extend(0.0));
         let far = inverse.project_point3(ndc.extend(1.0));
@@ -191,10 +181,7 @@ impl OrbitCamera {
             return None;
         }
         let ndc = clip.truncate() / clip.w;
-        Some(Vec2::new(
-            (ndc.x + 1.0) * 0.5 * viewport.x,
-            (1.0 - ndc.y) * 0.5 * viewport.y,
-        ))
+        Some(Vec2::new((ndc.x + 1.0) * 0.5 * viewport.x, (1.0 - ndc.y) * 0.5 * viewport.y))
     }
 
     fn offset_dir(&self) -> Vec3 {

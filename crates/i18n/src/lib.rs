@@ -181,9 +181,7 @@ fn catalog(tag: &str) -> Option<&'static Catalog> {
 fn load(tag: &str) -> Speaking {
     let base = catalog(BASE).expect("English is always built in");
     match catalog(tag) {
-        Some(chosen) if chosen.tag != BASE => {
-            Speaking { tag: chosen.tag.to_owned(), bundles: vec![bundle_for(chosen), bundle_for(base)] }
-        }
+        Some(chosen) if chosen.tag != BASE => Speaking { tag: chosen.tag.to_owned(), bundles: vec![bundle_for(chosen), bundle_for(base)] },
         _ => Speaking { tag: base.tag.to_owned(), bundles: vec![bundle_for(base)] },
     }
 }
@@ -246,10 +244,7 @@ pub fn system_language() -> &'static str {
         return exact.tag;
     }
     let tongue = locale.split(['-', '_']).next().unwrap_or_default().to_ascii_lowercase();
-    CATALOGS
-        .iter()
-        .find(|c| c.tag.split('-').next().unwrap_or_default().eq_ignore_ascii_case(&tongue))
-        .map_or(BASE, |c| c.tag)
+    CATALOGS.iter().find(|c| c.tag.split('-').next().unwrap_or_default().eq_ignore_ascii_case(&tongue)).map_or(BASE, |c| c.tag)
 }
 
 /// What this key says. A key nothing defines comes back as itself, which is wrong on screen but
@@ -429,17 +424,7 @@ mod tests {
     /// never passed through the catalog. Comments are skipped, so a `.label("x")` written in
     /// documentation is not mistaken for one.
     fn screen_literals(text: &str) -> Vec<String> {
-        const CALLS: [&str; 9] = [
-            ".label(",
-            ".button(",
-            ".small_button(",
-            ".strong(",
-            ".weak(",
-            ".heading(",
-            ".on_hover_text(",
-            ".monospace(",
-            "Button::new(",
-        ];
+        const CALLS: [&str; 9] = [".label(", ".button(", ".small_button(", ".strong(", ".weak(", ".heading(", ".on_hover_text(", ".monospace(", "Button::new("];
         let bytes = text.as_bytes();
         let mut found = Vec::new();
         let mut i = 0;
@@ -520,12 +505,7 @@ mod tests {
             }
         }
         assert!(looked_at > 20, "only {looked_at} files scanned, so this test is proving nothing");
-        assert!(
-            stray.is_empty(),
-            "{} word(s) on screen never went through the catalog, so no translation can reach them:\n{}",
-            stray.len(),
-            stray.join("\n")
-        );
+        assert!(stray.is_empty(), "{} word(s) on screen never went through the catalog, so no translation can reach them:\n{}", stray.len(), stray.join("\n"));
     }
 
     #[test]
@@ -533,11 +513,7 @@ mod tests {
         let known = keys_in(catalog(BASE).expect("English is built in").source);
         let asked = keys_asked_for();
         assert!(!asked.is_empty(), "no t! calls found anywhere, so this test is proving nothing");
-        let missing: Vec<String> = asked
-            .iter()
-            .filter(|(key, _)| !known.contains(key))
-            .map(|(key, file)| format!("{key} (asked for in {file})"))
-            .collect();
+        let missing: Vec<String> = asked.iter().filter(|(key, _)| !known.contains(key)).map(|(key, file)| format!("{key} (asked for in {file})")).collect();
         assert!(missing.is_empty(), "keys the code asks for that English doesn't define:\n  {}", missing.join("\n  "));
     }
 

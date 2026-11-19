@@ -50,39 +50,46 @@ pub enum Entity {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Guide {
     /// An endless line through `point` along unit `dir`.
-    Line { point: DVec3, dir: DVec3 },
+    Line {
+        point: DVec3,
+        dir: DVec3,
+    },
     Point(DVec3),
     /// A construction line from `a` to `b` (SketchUp's, between two points).
-    Segment { a: DVec3, b: DVec3 },
+    Segment {
+        a: DVec3,
+        b: DVec3,
+    },
     /// A dimension (the Dimensions tool): the distance from `a` to `b`, shown on a line `offset`
     /// away from them (a vector, so it turns and scales with them). The length is always measured,
     /// never stored, so it stays right when the drawing changes.
-    Dimension { a: DVec3, b: DVec3, offset: DVec3 },
+    Dimension {
+        a: DVec3,
+        b: DVec3,
+        offset: DVec3,
+    },
     /// A text note (the Text tool): `text` at `at + offset`, with a leader line back to `at`
     /// (none when `offset` is zero).
-    Text { at: DVec3, offset: DVec3, text: String },
+    Text {
+        at: DVec3,
+        offset: DVec3,
+        text: String,
+    },
 }
 
 impl Guide {
     /// The guide mapped through `transform` (moved, turned or scaled with what it marks out).
     pub fn transformed(&self, transform: &DAffine3) -> Guide {
         match self {
-            Guide::Line { point, dir } => Guide::Line {
-                point: transform.transform_point3(*point),
-                dir: transform.transform_vector3(*dir).normalize(),
-            },
+            Guide::Line { point, dir } => Guide::Line { point: transform.transform_point3(*point), dir: transform.transform_vector3(*dir).normalize() },
             Guide::Point(p) => Guide::Point(transform.transform_point3(*p)),
             Guide::Segment { a, b } => Guide::Segment { a: transform.transform_point3(*a), b: transform.transform_point3(*b) },
-            Guide::Dimension { a, b, offset } => Guide::Dimension {
-                a: transform.transform_point3(*a),
-                b: transform.transform_point3(*b),
-                offset: transform.transform_vector3(*offset),
-            },
-            Guide::Text { at, offset, text } => Guide::Text {
-                at: transform.transform_point3(*at),
-                offset: transform.transform_vector3(*offset),
-                text: text.clone(),
-            },
+            Guide::Dimension { a, b, offset } => {
+                Guide::Dimension { a: transform.transform_point3(*a), b: transform.transform_point3(*b), offset: transform.transform_vector3(*offset) }
+            }
+            Guide::Text { at, offset, text } => {
+                Guide::Text { at: transform.transform_point3(*at), offset: transform.transform_vector3(*offset), text: text.clone() }
+            }
         }
     }
 
@@ -230,10 +237,7 @@ impl Model {
     }
 
     pub fn entities(&self) -> impl Iterator<Item = Entity> + '_ {
-        self.edges()
-            .map(|(id, _)| Entity::Edge(id))
-            .chain(self.faces().map(|(id, _)| Entity::Face(id)))
-            .chain(self.guides().map(|(id, _)| Entity::Guide(id)))
+        self.edges().map(|(id, _)| Entity::Edge(id)).chain(self.faces().map(|(id, _)| Entity::Face(id))).chain(self.guides().map(|(id, _)| Entity::Guide(id)))
     }
 
     pub fn edge_points(&self, edge: &Edge) -> [DVec3; 2] {
@@ -251,12 +255,7 @@ impl Model {
     /// The ids the next vertex, edge and face will get. Everything added later has ids at or
     /// above these.
     pub(crate) fn next_ids(&self) -> (VertexId, EdgeId, FaceId, GuideId) {
-        (
-            VertexId(self.vertices.next_id()),
-            EdgeId(self.edges.next_id()),
-            FaceId(self.faces.next_id()),
-            GuideId(self.guides.next_id()),
-        )
+        (VertexId(self.vertices.next_id()), EdgeId(self.edges.next_id()), FaceId(self.faces.next_id()), GuideId(self.guides.next_id()))
     }
 
     /// Copy all of `other`'s geometry in, mapped through `transform`, without merging it with
@@ -282,12 +281,7 @@ impl Model {
                 outer.reverse();
                 holes.iter_mut().for_each(|h| h.reverse());
             }
-            self.faces.insert(Face {
-                outer,
-                holes,
-                normal: transform.transform_vector3(face.normal).normalize(),
-                material: face.material,
-            });
+            self.faces.insert(Face { outer, holes, normal: transform.transform_vector3(face.normal).normalize(), material: face.material });
         }
         for (_, guide) in other.guides() {
             self.guides.insert(guide.transformed(transform));
@@ -349,9 +343,7 @@ impl Model {
     /// Returns `None` for degenerate input (fewer than 3 distinct points, or zero area).
     pub fn add_face(&mut self, points: &[DVec3]) -> Option<FaceId> {
         self.face_index.take();
-        let distinct = points.iter().enumerate().all(|(i, p)| {
-            points[i + 1..].iter().all(|q| p.distance_squared(*q) > EPS * EPS)
-        });
+        let distinct = points.iter().enumerate().all(|(i, p)| points[i + 1..].iter().all(|q| p.distance_squared(*q) > EPS * EPS));
         let normal = newell_normal(points);
         if points.len() < 3 || !distinct || normal.length() <= EPS {
             return None;
@@ -369,20 +361,13 @@ impl Model {
         let mut face = Face { outer: ids.clone(), holes: Vec::new(), normal, material: None };
         let coplanar: Vec<FaceId> = self
             .faces()
-            .filter(|(_, f)| {
-                f.normal.dot(normal).abs() > 1.0 - 1e-9
-                    && (self.vertex(f.outer[0]) - points[0]).dot(normal).abs() <= EPS
-            })
+            .filter(|(_, f)| f.normal.dot(normal).abs() > 1.0 - 1e-9 && (self.vertex(f.outer[0]) - points[0]).dot(normal).abs() <= EPS)
             .map(|(id, _)| id)
             .collect();
         for other_id in coplanar {
             let other = self.face(other_id).expect("collected from live faces").clone();
             let other_outer = self.loop_points(&other.outer);
-            let in_other = polygon_within(points, &other_outer, normal)
-                && !other
-                    .holes
-                    .iter()
-                    .any(|h| polygon_within(points, &self.loop_points(h), normal));
+            let in_other = polygon_within(points, &other_outer, normal) && !other.holes.iter().any(|h| polygon_within(points, &self.loop_points(h), normal));
             if in_other {
                 self.faces.get_mut(other_id.0).expect("live").holes.push(ids.clone());
             } else if polygon_within(&other_outer, points, normal) {
@@ -442,8 +427,18 @@ impl Model {
     /// (two edges meeting straight on), take it out and join the two edges into one, keeping the
     /// faces whole. `false` if it's a real corner.
     pub(crate) fn dissolve_vertex(&mut self, v: VertexId) -> bool {
-        let touching: Vec<(EdgeId, VertexId)> =
-            self.edges().filter_map(|(id, e)| if e.a == v { Some((id, e.b)) } else if e.b == v { Some((id, e.a)) } else { None }).collect();
+        let touching: Vec<(EdgeId, VertexId)> = self
+            .edges()
+            .filter_map(|(id, e)| {
+                if e.a == v {
+                    Some((id, e.b))
+                } else if e.b == v {
+                    Some((id, e.a))
+                } else {
+                    None
+                }
+            })
+            .collect();
         let [(e1, a), (e2, b)] = touching[..] else { return false };
         let p = self.vertex(v);
         let (da, db) = (self.vertex(a) - p, self.vertex(b) - p);
@@ -539,13 +534,7 @@ impl Model {
 
     /// Add the rectangle `corner`, `corner + u`, `corner + u + v`, `corner + v`, with its
     /// front side facing `normal`.
-    pub fn add_rectangle(
-        &mut self,
-        corner: DVec3,
-        u: DVec3,
-        v: DVec3,
-        normal: DVec3,
-    ) -> Option<FaceId> {
+    pub fn add_rectangle(&mut self, corner: DVec3, u: DVec3, v: DVec3, normal: DVec3) -> Option<FaceId> {
         let mut points = [corner, corner + u, corner + u + v, corner + v];
         if u.cross(v).dot(normal) < 0.0 {
             points.reverse();
@@ -578,11 +567,7 @@ impl Model {
                 }
                 Entity::Edge(id) => {
                     let Some(edge) = self.edges.remove(id.0) else { continue };
-                    let bounded: Vec<FaceId> = self
-                        .faces()
-                        .filter(|(_, f)| loop_has_edge(&f.outer, &edge))
-                        .map(|(id, _)| id)
-                        .collect();
+                    let bounded: Vec<FaceId> = self.faces().filter(|(_, f)| loop_has_edge(&f.outer, &edge)).map(|(id, _)| id).collect();
                     for face in bounded {
                         self.faces.remove(face.0);
                     }
@@ -593,8 +578,7 @@ impl Model {
             }
         }
         let used: BTreeSet<VertexId> = self.edges().flat_map(|(_, e)| [e.a, e.b]).collect();
-        let orphans: Vec<u32> =
-            self.vertices.iter().map(|(i, _)| i).filter(|&i| !used.contains(&VertexId(i))).collect();
+        let orphans: Vec<u32> = self.vertices.iter().map(|(i, _)| i).filter(|&i| !used.contains(&VertexId(i))).collect();
         for i in orphans {
             self.vertices.remove(i);
         }
@@ -603,9 +587,7 @@ impl Model {
     /// Every edge of every loop of `face`.
     pub fn face_edges(&self, face: FaceId) -> Vec<EdgeId> {
         let Some(face) = self.face(face) else { return Vec::new() };
-        face.loops()
-            .flat_map(|l| (0..l.len()).filter_map(|i| self.find_edge(l[i], l[(i + 1) % l.len()])))
-            .collect()
+        face.loops().flat_map(|l| (0..l.len()).filter_map(|i| self.find_edge(l[i], l[(i + 1) % l.len()]))).collect()
     }
 
     /// Faces that `edge` bounds, including faces it cuts a hole in.
@@ -635,11 +617,7 @@ impl Model {
         self.edges()
             .filter(|(_, e)| reached.contains(&e.a))
             .map(|(id, _)| Entity::Edge(id))
-            .chain(
-                self.faces()
-                    .filter(|(_, f)| reached.contains(&f.outer[0]))
-                    .map(|(id, _)| Entity::Face(id)),
-            )
+            .chain(self.faces().filter(|(_, f)| reached.contains(&f.outer[0])).map(|(id, _)| Entity::Face(id)))
             .collect()
     }
 
@@ -665,15 +643,10 @@ impl Model {
             points.extend(self.loop_points(l));
         }
         let mut indices: Vec<u32> = Vec::new();
-        earcut::Earcut::new().earcut(
-            points.iter().map(|&p| project(p).to_array()),
-            &hole_starts,
-            &mut indices,
-        );
+        earcut::Earcut::new().earcut(points.iter().map(|&p| project(p).to_array()), &hole_starts, &mut indices);
         indices.as_chunks::<3>().0.iter().map(|t| t.map(|i| points[i as usize])).collect()
     }
 }
-
 
 /// A face's plane and bounding box, for quickly ruling faces out when picking.
 #[derive(Clone, Copy, Debug)]
@@ -789,11 +762,7 @@ mod tests {
     use super::*;
 
     fn area(model: &Model, face: FaceId) -> f64 {
-        model
-            .triangulate(model.face(face).unwrap())
-            .iter()
-            .map(|[a, b, c]| (*b - *a).cross(*c - *a).length() * 0.5)
-            .sum()
+        model.triangulate(model.face(face).unwrap()).iter().map(|[a, b, c]| (*b - *a).cross(*c - *a).length() * 0.5).sum()
     }
 
     fn ground_rect(model: &mut Model, x: f64, y: f64, w: f64, h: f64) -> Option<FaceId> {
@@ -806,9 +775,7 @@ mod tests {
         let up = ground_rect(&mut model, 0.0, 0.0, 1.5, 3.5).unwrap();
         assert!(model.face(up).unwrap().normal.abs_diff_eq(DVec3::Z, 1e-12));
         // Negative extents flip the winding; the normal must still follow the request.
-        let down = model
-            .add_rectangle(DVec3::new(10.0, 0.0, 0.0), -DVec3::X * 2.0, DVec3::Y, -DVec3::Z)
-            .unwrap();
+        let down = model.add_rectangle(DVec3::new(10.0, 0.0, 0.0), -DVec3::X * 2.0, DVec3::Y, -DVec3::Z).unwrap();
         assert!(model.face(down).unwrap().normal.abs_diff_eq(-DVec3::Z, 1e-12));
     }
 
@@ -914,9 +881,7 @@ mod tests {
     #[test]
     fn vertical_rectangle_triangulates() {
         let mut model = Model::default();
-        let face = model
-            .add_rectangle(DVec3::ZERO, DVec3::X * 3.5, DVec3::Z * 96.0, -DVec3::Y)
-            .unwrap();
+        let face = model.add_rectangle(DVec3::ZERO, DVec3::X * 3.5, DVec3::Z * 96.0, -DVec3::Y).unwrap();
         assert!((area(&model, face) - 336.0).abs() < 1e-9);
     }
 }

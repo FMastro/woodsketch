@@ -3,10 +3,12 @@
 //! them. Entity Info lists the joints a part has.
 
 use eframe::egui;
-use woodsketch_i18n::t;
-use woodsketch_doc::joinery::{BISCUITS, DOVETAIL_HALF_PIN, DOVETAIL_PIN, Dovetails, Dowels, Fit, JointKind, LOOSE_TENONS, Slots, Spline, Tenon, pocket_screw_for, say_depth};
+use woodsketch_doc::joinery::{
+    BISCUITS, DOVETAIL_HALF_PIN, DOVETAIL_PIN, Dovetails, Dowels, Fit, JointKind, LOOSE_TENONS, Slots, Spline, Tenon, pocket_screw_for, say_depth,
+};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, Entity, InstanceId};
+use woodsketch_i18n::t;
 
 /// The two selected parts, if exactly two groups or components are selected.
 pub fn selected_pair(doc: &Document) -> Option<(InstanceId, InstanceId)> {
@@ -122,7 +124,12 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, Instance
     let joints = doc.joints_here(a, b);
     if joints.is_empty() {
         let other = doc.container().instance(b).map(|i| i.definition);
-        let elsewhere: Vec<String> = doc.joint_list(a).into_iter().filter(|(_, j, _)| Some(j.cut) == other || Some(j.into) == other).map(|(_, j, _)| j.kind.name().to_lowercase()).collect();
+        let elsewhere: Vec<String> = doc
+            .joint_list(a)
+            .into_iter()
+            .filter(|(_, j, _)| Some(j.cut) == other || Some(j.into) == other)
+            .map(|(_, j, _)| j.kind.name().to_lowercase())
+            .collect();
         if !elsewhere.is_empty() {
             ui.weak(t!("joinery-elsewhere", "joints" => elsewhere.join(", ")));
         }
@@ -261,9 +268,18 @@ fn picker(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
                             ],
                         );
                         ui.weak(t!("joinery-dovetail-note", "part" => pn.as_str(), "into" => inn.as_str()));
-                        if let (true, Some(tails), Some(pin), Some(half_pin)) = (button(ui, tails.is_some() && pin.is_some() && half_pin.is_some(), &t!("joinery-cut-dovetails")), tails, pin, half_pin) {
+                        if let (true, Some(tails), Some(pin), Some(half_pin)) =
+                            (button(ui, tails.is_some() && pin.is_some() && half_pin.is_some(), &t!("joinery-cut-dovetails")), tails, pin, half_pin)
+                        {
                             let style = Dovetails { tails: tails.round().max(0.0) as u32, half_blind, pin, half_pin };
-                            message = Some(result(sized(doc, |doc| doc.dovetails(part, into, style), vec![f64::from(style.tails), f64::from(u8::from(style.half_blind)), pin, half_pin]).map(|()| t!("joinery-dovetails-done", "part" => pn.as_str()))));
+                            message = Some(result(
+                                sized(
+                                    doc,
+                                    |doc| doc.dovetails(part, into, style),
+                                    vec![f64::from(style.tails), f64::from(u8::from(style.half_blind)), pin, half_pin],
+                                )
+                                .map(|()| t!("joinery-dovetails-done", "part" => pn.as_str())),
+                            ));
                         }
                     }
                     Choice::Splines => {
@@ -318,7 +334,10 @@ fn picker(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
                             slots.face = deep_face.filter(|d| *d > 0.0);
                             slots.end = deep_end.filter(|d| *d > 0.0);
                             let sizes = slots.recorded(size);
-                            message = Some(result(sized(doc, |doc| doc.slots(part, into, &slots), sizes).map(|()| t!("joinery-slots-done", "count" => slots.count, "piece" => slots.piece.as_str()))));
+                            message = Some(result(
+                                sized(doc, |doc| doc.slots(part, into, &slots), sizes)
+                                    .map(|()| t!("joinery-slots-done", "count" => slots.count, "piece" => slots.piece.as_str())),
+                            ));
                         }
                     }
                     Choice::PocketScrews => {
@@ -332,9 +351,14 @@ fn picker(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
                             ],
                         );
                         ui.weak(t!("joinery-pocket-note", "part" => pn.as_str()));
-                        if let (true, Some(count), Some(screw)) = (button(ui, count.is_some() && screw.is_some(), &t!("joinery-add-pocket-screws")), count, screw) {
+                        if let (true, Some(count), Some(screw)) =
+                            (button(ui, count.is_some() && screw.is_some(), &t!("joinery-add-pocket-screws")), count, screw)
+                        {
                             let n = count.round().max(0.0) as u32;
-                            message = Some(result(sized(doc, |doc| doc.pocket_screws(part, into, n, screw), vec![f64::from(n), screw]).map(|()| t!("joinery-pocket-done", "count" => n))));
+                            message = Some(result(
+                                sized(doc, |doc| doc.pocket_screws(part, into, n, screw), vec![f64::from(n), screw])
+                                    .map(|()| t!("joinery-pocket-done", "count" => n)),
+                            ));
                         }
                     }
                     Choice::MortiseAndTenon => {
@@ -360,7 +384,11 @@ fn picker(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
                             ],
                         );
                         if let (true, Some(length), Some(thickness), Some(shoulder), Some(allowance)) = (
-                            button(ui, length.is_some() && thickness.is_some() && shoulder.is_some() && allowance.is_some(), &t!("joinery-tenon-mortise", "part" => pn.as_str(), "into" => inn.as_str())),
+                            button(
+                                ui,
+                                length.is_some() && thickness.is_some() && shoulder.is_some() && allowance.is_some(),
+                                &t!("joinery-tenon-mortise", "part" => pn.as_str(), "into" => inn.as_str()),
+                            ),
                             length,
                             thickness,
                             shoulder,
@@ -368,9 +396,14 @@ fn picker(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
                         ) {
                             let length = if through { fit.depth } else { length };
                             let haunch = if haunched { 0.375f64.min(length / 2.0) } else { 0.0 };
-                            message = Some(result(sized(doc, |doc| doc.mortise_and_tenon(part, into, Tenon { length, thickness, shoulder, haunch, fit: allowance }), vec![length, thickness, shoulder, allowance, f64::from(u8::from(through)), f64::from(u8::from(haunched))]).map(|()| {
-                                t!("joinery-mortise-tenon-done", "part" => pn.as_str(), "length" => format_length(length))
-                            })));
+                            message = Some(result(
+                                sized(
+                                    doc,
+                                    |doc| doc.mortise_and_tenon(part, into, Tenon { length, thickness, shoulder, haunch, fit: allowance }),
+                                    vec![length, thickness, shoulder, allowance, f64::from(u8::from(through)), f64::from(u8::from(haunched))],
+                                )
+                                .map(|()| t!("joinery-mortise-tenon-done", "part" => pn.as_str(), "length" => format_length(length))),
+                            ));
                         }
                     }
                     _ => {
@@ -385,11 +418,18 @@ fn picker(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
                                 ("Fit", &t!("joinery-fit"), d.fit, &t!("joinery-fit-hint-dowels")),
                             ],
                         );
-                        if let (true, Some(count), Some(diameter), Some(depth), Some(allowance)) =
-                            (button(ui, count.is_some() && diameter.is_some() && depth.is_some() && allowance.is_some(), &t!("joinery-drill-dowels")), count, diameter, depth, allowance)
-                        {
+                        if let (true, Some(count), Some(diameter), Some(depth), Some(allowance)) = (
+                            button(ui, count.is_some() && diameter.is_some() && depth.is_some() && allowance.is_some(), &t!("joinery-drill-dowels")),
+                            count,
+                            diameter,
+                            depth,
+                            allowance,
+                        ) {
                             let dowels = Dowels { count: count.round().max(0.0) as u32, diameter, depth, fit: allowance };
-                            message = Some(result(sized(doc, |doc| doc.dowels(part, into, dowels), vec![f64::from(dowels.count), dowels.diameter, dowels.depth, dowels.fit]).map(|()| t!("joinery-dowels-done", "count" => dowels.count))));
+                            message = Some(result(
+                                sized(doc, |doc| doc.dowels(part, into, dowels), vec![f64::from(dowels.count), dowels.diameter, dowels.depth, dowels.fit])
+                                    .map(|()| t!("joinery-dowels-done", "count" => dowels.count)),
+                            ));
                         }
                     }
                 }
@@ -468,7 +508,10 @@ pub fn part_joints(ui: &mut egui::Ui, doc: &mut Document, part: InstanceId) {
         let (index, joint, other) = (row.index, row.joint, row.other);
         let at = row.at.map(|at| format!(" {}", t!("joinery-at", "at" => at))).unwrap_or_default();
         ui.horizontal_wrapped(|ui| {
-            ui.weak(format!("  {}", t!("joinery-row", "kind" => joint.kind.name(), "other" => other.as_str(), "at" => at.as_str(), "detail" => joint.detail.as_str())));
+            ui.weak(format!(
+                "  {}",
+                t!("joinery-row", "kind" => joint.kind.name(), "other" => other.as_str(), "at" => at.as_str(), "detail" => joint.detail.as_str())
+            ));
             if ui.small_button(t!("joinery-remove")).on_hover_text(t!("joinery-remove-hint")).clicked() {
                 remove = Some(index);
             }
@@ -551,8 +594,7 @@ fn angled(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
             let every_id = egui::Id::new(("angled_every", a, b));
             let mut every = ui.data(|d| d.get_temp::<bool>(every_id)).unwrap_or(false);
             if shared {
-                ui.checkbox(&mut every, t!("joinery-every-copy"))
-                    .on_hover_text(t!("joinery-every-copy-hint"));
+                ui.checkbox(&mut every, t!("joinery-every-copy")).on_hover_text(t!("joinery-every-copy-hint"));
                 ui.data_mut(|d| d.insert_temp(every_id, every));
             }
             let every = shared && every;
@@ -562,7 +604,10 @@ fn angled(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
                 for (part, into) in [(a, b), (b, a)] {
                     let (pn, inn) = (name(doc, part), name(doc, into));
                     if ui.button(t!("joinery-let-into", "part" => pn.as_str(), "into" => inn.as_str())).clicked() {
-                        message = Some(result(sized(doc, |doc| doc.angled_joint_on(part, into, AngledJoint::Housing, every), vec![0.0, 0.0, 1.0, 0.0, flag]).map(|()| t!("joinery-let-into-done", "part" => pn.as_str(), "into" => inn.as_str()))));
+                        message = Some(result(
+                            sized(doc, |doc| doc.angled_joint_on(part, into, AngledJoint::Housing, every), vec![0.0, 0.0, 1.0, 0.0, flag])
+                                .map(|()| t!("joinery-let-into-done", "part" => pn.as_str(), "into" => inn.as_str())),
+                        ));
                     }
                 }
             } else {
@@ -580,9 +625,14 @@ fn angled(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
                 for (part, into) in [(a, b), (b, a)] {
                     let (pn, inn) = (name(doc, part), name(doc, into));
                     let ready = thickness.is_some() && shoulder.is_some() && room.is_some();
-                    if let (true, Some(thickness), Some(shoulder), Some(fit)) = (button(ui, ready, &t!("joinery-tenon-mortise", "part" => pn.as_str(), "into" => inn.as_str())), thickness, shoulder, room) {
+                    if let (true, Some(thickness), Some(shoulder), Some(fit)) =
+                        (button(ui, ready, &t!("joinery-tenon-mortise", "part" => pn.as_str(), "into" => inn.as_str())), thickness, shoulder, room)
+                    {
                         let joint = AngledJoint::MortiseAndTenon { thickness, shoulder, fit };
-                        message = Some(result(sized(doc, |doc| doc.angled_joint_on(part, into, joint, every), vec![thickness, shoulder, 0.0, fit, flag]).map(|()| t!("joinery-angled-done", "part" => pn.as_str(), "into" => inn.as_str()))));
+                        message = Some(result(
+                            sized(doc, |doc| doc.angled_joint_on(part, into, joint, every), vec![thickness, shoulder, 0.0, fit, flag])
+                                .map(|()| t!("joinery-angled-done", "part" => pn.as_str(), "into" => inn.as_str())),
+                        ));
                     }
                 }
             }

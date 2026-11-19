@@ -40,14 +40,8 @@ impl Document {
         let built = crate::recipe::build(recipe).map_err(|problems| problems.join(" "))?;
         let clip = Clip::from_scene(built.scene().clone()).ok_or("That recipe builds nothing.")?;
         // To the right of everything there is, a foot away, as a template goes.
-        let beside = self
-            .bounds()
-            .map_or(DVec3::ZERO, |(lo, hi)| DVec3::new(hi.x + 12.0, lo.y, 0.0));
-        let name = if recipe.name.is_empty() {
-            "Component".to_owned()
-        } else {
-            recipe.name.clone()
-        };
+        let beside = self.bounds().map_or(DVec3::ZERO, |(lo, hi)| DVec3::new(hi.x + 12.0, lo.y, 0.0));
+        let name = if recipe.name.is_empty() { "Component".to_owned() } else { recipe.name.clone() };
         self.as_one_step(|doc| {
             let group = doc.paste_as_one(&clip, beside, &name)?;
             doc.remember(group, recipe);
@@ -120,28 +114,16 @@ impl Document {
     /// Refused when the component has been changed by hand, unless `anyway`. Where the design is
     /// placed more than once, only this placement changes: it becomes a component of its own, and
     /// the others are left as they were.
-    pub fn rebuild_parametric(
-        &mut self,
-        instance: InstanceId,
-        recipe: &Recipe,
-        anyway: bool,
-    ) -> Result<InstanceId, String> {
-        self.parametric_of(instance)
-            .ok_or("That isn't a component built from a recipe.")?;
+    pub fn rebuild_parametric(&mut self, instance: InstanceId, recipe: &Recipe, anyway: bool) -> Result<InstanceId, String> {
+        self.parametric_of(instance).ok_or("That isn't a component built from a recipe.")?;
         if !anyway && self.parametric_changed_by_hand(instance) {
             return Err("This one has been changed by hand since it was built, and building it again would lose that.".into());
         }
         let built = crate::recipe::build(recipe).map_err(|problems| problems.join(" "))?;
         let clip = Clip::from_scene(built.scene().clone()).ok_or("That recipe builds nothing.")?;
-        let old = self
-            .container()
-            .instance(instance)
-            .ok_or("That isn't in the group being edited.")?;
+        let old = self.container().instance(instance).ok_or("That isn't in the group being edited.")?;
         let (transform, tag, material) = (old.transform, old.tag, old.material);
-        let name = self
-            .instance_name(instance)
-            .unwrap_or("Component")
-            .to_owned();
+        let name = self.instance_name(instance).unwrap_or("Component").to_owned();
         self.as_one_step(|doc| {
             // Its own design from here on, so the other placements of the old one stay as they are.
             doc.edit_scene(|scene, path| {
@@ -150,10 +132,7 @@ impl Document {
             doc.erase(&[Entity::Instance(instance)]);
             let group = doc.paste_as_one(&clip, transform.translation, &name)?;
             doc.edit_scene(|scene, path| {
-                if let Some(placed) = scene
-                    .container_mut(path)
-                    .and_then(|c| c.instance_mut(group))
-                {
+                if let Some(placed) = scene.container_mut(path).and_then(|c| c.instance_mut(group)) {
                     placed.transform = transform;
                     placed.tag = tag;
                     placed.material = material;
@@ -171,16 +150,7 @@ impl Document {
     /// puts its parts in one group is that group, rather than a group holding a group.
     fn paste_as_one(&mut self, clip: &Clip, to: DVec3, name: &str) -> Result<InstanceId, String> {
         let pasted = self.paste(clip, to);
-        let instances: Vec<InstanceId> = pasted
-            .iter()
-            .filter_map(|e| {
-                if let Entity::Instance(i) = e {
-                    Some(*i)
-                } else {
-                    None
-                }
-            })
-            .collect();
+        let instances: Vec<InstanceId> = pasted.iter().filter_map(|e| if let Entity::Instance(i) = e { Some(*i) } else { None }).collect();
         let group = match instances[..] {
             [one] if pasted.len() == 1 => one,
             [] => return Err("That recipe builds nothing.".into()),
@@ -188,8 +158,7 @@ impl Document {
                 let selection = self.selection_mut();
                 selection.clear();
                 selection.extend(pasted);
-                self.group_selection(DefinitionKind::Group)
-                    .ok_or("Nothing was built.")?
+                self.group_selection(DefinitionKind::Group).ok_or("Nothing was built.")?
             }
         };
         self.rename_instance(group, name);
@@ -198,16 +167,10 @@ impl Document {
 
     /// Keep the recipe on the component's own design, with the geometry it was built with.
     fn remember(&mut self, group: InstanceId, recipe: &Recipe) {
-        let definition = self
-            .container()
-            .instance(group)
-            .map(|placed| placed.definition);
+        let definition = self.container().instance(group).map(|placed| placed.definition);
         let Some(definition) = definition else { return };
         let as_built = fingerprint(self.scene(), definition);
-        let made = Parametric {
-            recipe: recipe.clone(),
-            as_built,
-        };
+        let made = Parametric { recipe: recipe.clone(), as_built };
         self.edit_scene(|scene, _| {
             if let Some(design) = scene.definition_mut(definition) {
                 design.parametric = Some(Box::new(made));
@@ -240,13 +203,7 @@ fn fingerprint(scene: &Scene, definition: DefinitionId) -> u64 {
     hash
 }
 
-fn gather(
-    scene: &Scene,
-    definition: DefinitionId,
-    at: DAffine3,
-    numbers: &mut Vec<u64>,
-    depth: usize,
-) {
+fn gather(scene: &Scene, definition: DefinitionId, at: DAffine3, numbers: &mut Vec<u64>, depth: usize) {
     // A drawing cannot nest this far, and a definition that somehow holds itself stops here
     // rather than running for ever.
     if depth > 32 {
@@ -263,13 +220,7 @@ fn gather(
     numbers.push(0xface_u64 << 48 | model.faces().count() as u64);
     numbers.push(0xedda_u64 << 48 | model.edges().count() as u64);
     for (_, placed) in design.container.instances() {
-        gather(
-            scene,
-            placed.definition,
-            at * placed.transform,
-            numbers,
-            depth + 1,
-        );
+        gather(scene, placed.definition, at * placed.transform, numbers, depth + 1);
     }
 }
 
@@ -277,9 +228,7 @@ fn gather(
 /// enough from the last bit that building the same recipe twice gives the same answer.
 fn point_number(point: DVec3) -> u64 {
     let round = |v: f64| (v * 1e6).round() as i64 as u64;
-    round(point.x).wrapping_mul(0x9e37_79b9_7f4a_7c15)
-        ^ round(point.y).wrapping_mul(0xbf58_476d_1ce4_e5b9)
-        ^ round(point.z)
+    round(point.x).wrapping_mul(0x9e37_79b9_7f4a_7c15) ^ round(point.y).wrapping_mul(0xbf58_476d_1ce4_e5b9) ^ round(point.z)
 }
 
 #[cfg(test)]
@@ -319,11 +268,7 @@ mod tests {
     fn part(doc: &Document, group: InstanceId, name: &str) -> [f64; 3] {
         let scene = doc.scene();
         let design = scene.definition(doc.container().instance(group).expect("placed").definition).expect("a design");
-        let inner = design
-            .container
-            .instances()
-            .find(|(_, placed)| scene.definition(placed.definition).is_some_and(|d| d.name == name))
-            .expect("the part");
+        let inner = design.container.instances().find(|(_, placed)| scene.definition(placed.definition).is_some_and(|d| d.name == name)).expect("the part");
         let (lo, hi) = scene.definition_bounds(inner.1.definition).expect("its size");
         let mut size = [hi.x - lo.x, hi.y - lo.y, hi.z - lo.z];
         size.sort_by(f64::total_cmp);

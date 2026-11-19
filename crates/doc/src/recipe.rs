@@ -15,8 +15,8 @@ use glam::{DAffine3, DVec3};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::board::Board;
 use crate::angled::AngledJoint;
+use crate::board::Board;
 use crate::joinery::{Dovetails, JoineryError, JointKind, Slots, Spline};
 use crate::part::{Cut, PartAxis, Side};
 use crate::profile::{Edges, Profile};
@@ -568,7 +568,10 @@ fn build_in(recipe: &Recipe, mm: bool, progress: &mut dyn FnMut(usize, usize, &s
         let found = materials.get(id).copied();
         if found.is_none() {
             let known: Vec<&str> = recipe.materials.iter().map(|m| m.id.as_str()).collect();
-            errors.push(format!("{what}: no material \"{id}\" (the materials are: {}).", if known.is_empty() { "none yet".to_owned() } else { known.join(", ") }));
+            errors.push(format!(
+                "{what}: no material \"{id}\" (the materials are: {}).",
+                if known.is_empty() { "none yet".to_owned() } else { known.join(", ") }
+            ));
         }
         found
     };
@@ -831,7 +834,9 @@ fn build_in(recipe: &Recipe, mm: bool, progress: &mut dyn FnMut(usize, usize, &s
         }
         if let Err(e) = joint(&mut doc, j, part, into, mm, &values) {
             let said = match e {
-                JoineryError::NotTouching | JoineryError::NoOverlap => format!("{} doesn't touch {} (move one so they meet, or overlap by the joint's depth).", j.part, j.into),
+                JoineryError::NotTouching | JoineryError::NoOverlap => {
+                    format!("{} doesn't touch {} (move one so they meet, or overlap by the joint's depth).", j.part, j.into)
+                }
                 other => other.to_string(),
             };
             errors.push(format!("{what}: {said}"));
@@ -1199,7 +1204,6 @@ fn lengths(j: &JointSpec, key: &str, mm: bool) -> Vec<f64> {
     given.iter().filter_map(serde_json::Value::as_f64).map(|v| v / if mm { 25.4 } else { 1.0 }).collect()
 }
 
-
 /// A length: a number in the recipe's units, text with its own, or arithmetic over the
 /// parameters. A length a person would type (`3/4"`, `1 1/2"`, `2'6`) is read as one first, so a
 /// fraction never has to mean division and nothing people already write changes meaning.
@@ -1408,7 +1412,17 @@ pub fn summary(doc: &Document) -> String {
         let parts: Vec<String> = m
             .parts
             .iter()
-            .map(|p| format!("{} {} x{} ({} x {} x {})", p.label, p.names.join("/"), p.count, format_length(p.length), format_length(p.width), format_length(p.thickness)))
+            .map(|p| {
+                format!(
+                    "{} {} x{} ({} x {} x {})",
+                    p.label,
+                    p.names.join("/"),
+                    p.count,
+                    format_length(p.length),
+                    format_length(p.width),
+                    format_length(p.thickness)
+                )
+            })
             .collect();
         out.push_str(&parts.join("; "));
         out.push('\n');
@@ -1479,7 +1493,8 @@ mod tests {
         let doc = build(&recipe).unwrap_or_else(|e| panic!("{e:?}"));
         assert_eq!(doc.scene().joints.len(), 2);
         // A new part, a joint taken out, a part taken out with what names it.
-        let shelf: PartSpec = serde_json::from_value(serde_json::json!({ "name": "Shelf", "material": "cherry", "size": [16.5, 14, 0.75], "at": [0.75, 0, 12] })).unwrap();
+        let shelf: PartSpec =
+            serde_json::from_value(serde_json::json!({ "name": "Shelf", "material": "cherry", "size": [16.5, 14, 0.75], "at": [0.75, 0, 12] })).unwrap();
         recipe.add_part(shelf.clone(), false).unwrap();
         assert!(recipe.add_part(shelf, false).unwrap_err().contains("already a part named \"Shelf\""));
         assert_eq!(recipe.remove_joint("Lower shelf", "Right side", None), Ok(1));
@@ -1509,10 +1524,8 @@ mod tests {
         // Letting it into the stiles first grows it 1/4" past each rail's end -- which is what a
         // frame-and-panel door is -- so the rails have to groove it anyway.
         fn door(order: [&str; 4]) -> Recipe {
-            let lets: Vec<String> = order
-                .iter()
-                .map(|into| format!(r#"{{ "kind": "let_in", "part": "Panel", "into": "{into}", "options": {{ "depth": 0.25 }} }}"#))
-                .collect();
+            let lets: Vec<String> =
+                order.iter().map(|into| format!(r#"{{ "kind": "let_in", "part": "Panel", "into": "{into}", "options": {{ "depth": 0.25 }} }}"#)).collect();
             parse(&format!(
                 r#"{{
                 "materials": [{{ "id": "oak", "library": "White Oak" }}, {{ "id": "ply", "library": "Plywood" }}],
@@ -1532,11 +1545,7 @@ mod tests {
         // The panel's own size, smallest extent first, so its axes don't have to be guessed.
         fn panel(doc: &Document) -> [f64; 3] {
             let scene = doc.scene();
-            let (_, instance) = scene
-                .root
-                .instances()
-                .find(|(_, i)| scene.definition(i.definition).is_some_and(|d| d.name == "Panel"))
-                .expect("the panel");
+            let (_, instance) = scene.root.instances().find(|(_, i)| scene.definition(i.definition).is_some_and(|d| d.name == "Panel")).expect("the panel");
             let (lo, hi) = scene.definition_bounds(instance.definition).expect("its size");
             let mut size = [hi.x - lo.x, hi.y - lo.y, hi.z - lo.z];
             size.sort_by(f64::total_cmp);
@@ -1548,10 +1557,7 @@ mod tests {
             assert_eq!(doc.scene().joints.len(), 4, "four grooves, {order}");
             // 1/4" into each of the four, from an 11 1/2" x 19 1/2" opening.
             let size = panel(doc);
-            assert!(
-                (size[0] - 0.25).abs() < 1e-9 && (size[1] - 12.0).abs() < 1e-9 && (size[2] - 20.0).abs() < 1e-9,
-                "{order}: {size:?}"
-            );
+            assert!((size[0] - 0.25).abs() < 1e-9 && (size[1] - 12.0).abs() < 1e-9 && (size[2] - 20.0).abs() < 1e-9, "{order}: {size:?}");
         }
     }
 
@@ -1605,12 +1611,14 @@ mod tests {
         assert!(model.faces().count() > 20, "a curved edge of many faces");
         assert!(model.faces().any(|(_, f)| f.holes.len() == 1), "the hand hold goes through");
         // The cut list still knows each part's own size.
-        let parts: Vec<[f64; 3]> = crate::cutlist::cut_list(doc.scene()).materials.iter().flat_map(|m| m.parts.iter().map(|p| [p.length, p.width, p.thickness])).collect();
+        let parts: Vec<[f64; 3]> =
+            crate::cutlist::cut_list(doc.scene()).materials.iter().flat_map(|m| m.parts.iter().map(|p| [p.length, p.width, p.thickness])).collect();
         assert!(parts.iter().any(|s| (s[0] - 700.0 / 25.4).abs() < 1e-3 && (s[1] - 45.0 / 25.4).abs() < 1e-3), "{parts:?}");
         // Reading it back keeps the outline and the turns.
         let (read, _) = crate::recipe_of::from_document(&doc);
         let again = build(&read).unwrap_or_else(|e| panic!("{e:?}"));
-        let count = |d: &Document| d.scene().root.instances().map(|(_, i)| d.scene().definition(i.definition).unwrap().container.model.faces().count()).sum::<usize>();
+        let count =
+            |d: &Document| d.scene().root.instances().map(|(_, i)| d.scene().definition(i.definition).unwrap().container.model.faces().count()).sum::<usize>();
         assert_eq!(count(&again), count(&doc));
         let bad = parse(
             r#"{ "parts": [{ "name": "A", "size": [10, 4, 1], "outline": [{ "arc_to": [10, 0], "through": [5, 1] }, [10, 4], [0, 4]] },
@@ -1649,7 +1657,8 @@ mod tests {
         assert_eq!(scene.joints.len(), 1, "the brace tenoned into the post at 45 degrees");
         assert_eq!(scene.profiles.len(), 2);
         // Two legs, one design: the copy turned and put at its corner.
-        let legs: Vec<&crate::Instance> = scene.root.instances().map(|(_, i)| i).filter(|i| scene.definition(i.definition).is_some_and(|d| d.name == "Leg")).collect();
+        let legs: Vec<&crate::Instance> =
+            scene.root.instances().map(|(_, i)| i).filter(|i| scene.definition(i.definition).is_some_and(|d| d.name == "Leg")).collect();
         assert_eq!(legs.len(), 2);
         assert_eq!(legs[0].definition, legs[1].definition, "copies of one component");
         let lo = scene.instance_box_corners(legs[1]).into_iter().reduce(DVec3::min).unwrap();
@@ -1659,11 +1668,22 @@ mod tests {
         assert!(info.reference_face.is_some() && info.reference_edge.is_some());
         assert_eq!(info.grain, Some(PartAxis::X));
         // Mistakes in the new parts are named too.
-        let bad = parse(r#"{ "parts": [{ "name": "A", "size": [10, 4, 1], "reference": { "face": "sideways" }, "turn": { "axis": "w", "degrees": 5 } }],
-            "profiles": [{ "part": "A", "profile": "bead", "size": 0.25, "around": "top" }, { "part": "B", "profile": "cove", "size": 0.25 }] }"#).unwrap();
-        let all = build(&bad).err().expect("errors").join("
-");
-        assert!(all.contains("turn axis \"w\"") && all.contains("reference face \"sideways\"") && all.contains("\"bead\" isn't a profile") && all.contains("no part named \"B\""), "{all}");
+        let bad = parse(
+            r#"{ "parts": [{ "name": "A", "size": [10, 4, 1], "reference": { "face": "sideways" }, "turn": { "axis": "w", "degrees": 5 } }],
+            "profiles": [{ "part": "A", "profile": "bead", "size": 0.25, "around": "top" }, { "part": "B", "profile": "cove", "size": 0.25 }] }"#,
+        )
+        .unwrap();
+        let all = build(&bad).err().expect("errors").join(
+            "
+",
+        );
+        assert!(
+            all.contains("turn axis \"w\"")
+                && all.contains("reference face \"sideways\"")
+                && all.contains("\"bead\" isn't a profile")
+                && all.contains("no part named \"B\""),
+            "{all}"
+        );
     }
 
     #[test]

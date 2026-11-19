@@ -27,12 +27,8 @@ file-new = Novo
 ";
 
 fn app() -> Harness<'static, WoodSketchApp> {
-    let mut harness = Harness::builder()
-        .with_size([1200.0, 800.0])
-        .with_step_dt(1.0 / 60.0)
-        .with_theme(egui::Theme::Light)
-        .wgpu()
-        .build_eframe(|cc| WoodSketchApp::new(cc));
+    let mut harness =
+        Harness::builder().with_size([1200.0, 800.0]).with_step_dt(1.0 / 60.0).with_theme(egui::Theme::Light).wgpu().build_eframe(|cc| WoodSketchApp::new(cc));
     harness.run();
     harness
 }

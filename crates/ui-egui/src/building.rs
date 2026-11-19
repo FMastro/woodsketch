@@ -10,9 +10,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::{Receiver, channel};
 
 use eframe::egui;
-use woodsketch_i18n::t;
 use woodsketch_doc::Document;
 use woodsketch_doc::samples::Sample;
+use woodsketch_i18n::t;
 
 /// How often the builder asks for a repaint. The bar moves smoothly at this rate and the thread
 /// spends none of its time waking the UI up.
@@ -32,22 +32,20 @@ impl Building {
         let (tx, done) = channel();
         let (at, of) = (Arc::new(AtomicUsize::new(0)), Arc::new(AtomicUsize::new(1)));
         let (mine, theirs, ctx) = (Arc::clone(&at), Arc::clone(&of), ctx.clone());
-        let started = std::thread::Builder::new()
-            .name(format!("build {}", sample.name))
-            .spawn(move || {
-                let mut last = std::time::Instant::now();
-                let built = sample.build_reporting(&mut |i, n, _| {
-                    mine.store(i, Ordering::Relaxed);
-                    theirs.store(n.max(1), Ordering::Relaxed);
-                    if last.elapsed() >= TICK {
-                        last = std::time::Instant::now();
-                        ctx.request_repaint();
-                    }
-                });
-                // Boxed: a built drawing is megabytes, and this one is going down a channel.
-                let _ = tx.send(built.map(Box::new));
-                ctx.request_repaint();
+        let started = std::thread::Builder::new().name(format!("build {}", sample.name)).spawn(move || {
+            let mut last = std::time::Instant::now();
+            let built = sample.build_reporting(&mut |i, n, _| {
+                mine.store(i, Ordering::Relaxed);
+                theirs.store(n.max(1), Ordering::Relaxed);
+                if last.elapsed() >= TICK {
+                    last = std::time::Instant::now();
+                    ctx.request_repaint();
+                }
             });
+            // Boxed: a built drawing is megabytes, and this one is going down a channel.
+            let _ = tx.send(built.map(Box::new));
+            ctx.request_repaint();
+        });
         if started.is_err() {
             // No thread to be had: build it here rather than leaving the sample unopenable.
             let (tx, done) = channel();

@@ -49,10 +49,7 @@ impl<'a> Screen<'a> {
 
     pub fn ray(&self, cursor: Vec2) -> Ray {
         let (origin, dir) = self.camera.ray(cursor, self.size);
-        Ray {
-            origin: self.to_local.transform_point3(origin.as_dvec3()),
-            dir: self.to_local.transform_vector3(dir.as_dvec3()).normalize(),
-        }
+        Ray { origin: self.to_local.transform_point3(origin.as_dvec3()), dir: self.to_local.transform_vector3(dir.as_dvec3()).normalize() }
     }
 
     pub fn eye(&self) -> DVec3 {
@@ -96,10 +93,7 @@ pub fn hit_face(model: &Model, ray: &Ray) -> Option<(FaceId, DVec3)> {
         })
         .collect();
     crossings.sort_unstable_by(|a, b| a.0.total_cmp(&b.0));
-    crossings
-        .into_iter()
-        .find(|&(_, id, hit)| model.face(id).is_some_and(|face| model.face_contains(face, hit)))
-        .map(|(_, id, hit)| (id, hit))
+    crossings.into_iter().find(|&(_, id, hit)| model.face(id).is_some_and(|face| model.face_contains(face, hit))).map(|(_, id, hit)| (id, hit))
 }
 
 /// Whether a face (other than those `ignore` accepts) hides `point` from `eye`.
@@ -131,9 +125,7 @@ pub fn hit_edge(model: &Model, screen: Screen<'_>, cursor: Vec2) -> Option<EdgeI
                 return None;
             }
             let point = a.lerp(b, f64::from(t));
-            let hidden = occluded(model, eye, point, |f| {
-                model.face(f).is_some_and(|face| face.uses_edge(edge))
-            });
+            let hidden = occluded(model, eye, point, |f| model.face(f).is_some_and(|face| face.uses_edge(edge)));
             (!hidden).then_some((id, distance))
         })
         .min_by(|(_, a), (_, b)| a.total_cmp(b))
@@ -182,16 +174,7 @@ impl SnapKind {
 
     /// A point on existing geometry (as opposed to a surface or the drawing plane).
     pub fn is_feature(self) -> bool {
-        matches!(
-            self,
-            Self::Endpoint
-                | Self::Origin
-                | Self::GuidePoint
-                | Self::Intersection
-                | Self::Midpoint
-                | Self::OnEdge
-                | Self::OnGuide
-        )
+        matches!(self, Self::Endpoint | Self::Origin | Self::GuidePoint | Self::Intersection | Self::Midpoint | Self::OnEdge | Self::OnGuide)
     }
 }
 
@@ -207,12 +190,7 @@ pub struct Snap {
 
 /// The point the cursor indicates. With a `plane` (point, normal), the result is always on
 /// that plane. Features ([`snap_feature`]) win, then faces, then the ground.
-pub fn snap(
-    model: &Model,
-    screen: Screen<'_>,
-    cursor: Vec2,
-    plane: Option<(DVec3, DVec3)>,
-) -> Option<Snap> {
+pub fn snap(model: &Model, screen: Screen<'_>, cursor: Vec2, plane: Option<(DVec3, DVec3)>) -> Option<Snap> {
     let ray = screen.ray(cursor);
     let surface = match plane {
         Some((point, normal)) => ray.hit_plane(point, normal).map(|p| (p, normal, SnapKind::OnPlane)),
@@ -223,9 +201,7 @@ pub fn snap(
 
     match (snap_feature(model, screen, cursor, |_| false), plane) {
         // Snapped points off the drawing plane are projected onto it.
-        (Some(s), Some((origin, normal))) => {
-            Some(Snap { point: s.point - normal * (s.point - origin).dot(normal), normal, ..s })
-        }
+        (Some(s), Some((origin, normal))) => Some(Snap { point: s.point - normal * (s.point - origin).dot(normal), normal, ..s }),
         (Some(s), None) => Some(Snap { normal: surface.map_or(DVec3::Z, |s| s.1), ..s }),
         (None, _) => surface.map(|(point, normal, kind)| Snap { point, kind, normal, line: None }),
     }
@@ -236,18 +212,10 @@ pub fn snap(
 /// within [`SNAP_RADIUS`], else an edge midpoint within [`SNAP_RADIUS`], else the nearest point
 /// on an edge or guide line within [`EDGE_RADIUS`]. Hidden features, and those of edges
 /// touching vertices `exclude` accepts, are skipped. The snap's normal is +Z.
-pub fn snap_feature(
-    model: &Model,
-    screen: Screen<'_>,
-    cursor: Vec2,
-    exclude: impl Fn(VertexId) -> bool,
-) -> Option<Snap> {
+pub fn snap_feature(model: &Model, screen: Screen<'_>, cursor: Vec2, exclude: impl Fn(VertexId) -> bool) -> Option<Snap> {
     let eye = screen.eye();
     let nearest = |candidates: Vec<(f32, DVec3, SnapKind, Option<DVec3>)>| {
-        candidates
-            .into_iter()
-            .min_by(|a, b| a.0.total_cmp(&b.0))
-            .map(|(_, point, kind, line)| Snap { point, kind, normal: DVec3::Z, line })
+        candidates.into_iter().min_by(|a, b| a.0.total_cmp(&b.0)).map(|(_, point, kind, line)| Snap { point, kind, normal: DVec3::Z, line })
     };
     let near = |point: DVec3, radius: f32| screen.project(point).map(|s| s.distance(cursor)).filter(|&d| d <= radius);
     let guide_lines: Vec<(DVec3, DVec3)> = model
@@ -266,12 +234,17 @@ pub fn snap_feature(
             let hidden = occluded(model, eye, point, |f| model.face(f).is_some_and(|face| face.uses_vertex(id)));
             (!hidden).then_some((distance, point, SnapKind::Endpoint, None))
         })
-        .chain(model.guides().flat_map(|(_, g)| match *g {
-            Guide::Point(p) => vec![p],
-            // A construction line's ends.
-            Guide::Segment { a, b } => vec![a, b],
-            _ => Vec::new(),
-        }).filter_map(|p| near(p, SNAP_RADIUS).map(|d| (d, p, SnapKind::GuidePoint, None))))
+        .chain(
+            model
+                .guides()
+                .flat_map(|(_, g)| match *g {
+                    Guide::Point(p) => vec![p],
+                    // A construction line's ends.
+                    Guide::Segment { a, b } => vec![a, b],
+                    _ => Vec::new(),
+                })
+                .filter_map(|p| near(p, SNAP_RADIUS).map(|d| (d, p, SnapKind::GuidePoint, None))),
+        )
         .chain(near(DVec3::ZERO, SNAP_RADIUS).map(|d| (d, DVec3::ZERO, SnapKind::Origin, None)))
         .collect();
     if let Some(snap) = nearest(endpoints) {
@@ -279,9 +252,7 @@ pub fn snap_feature(
     }
 
     let edges: Vec<_> = model.edges().filter(|(_, e)| !exclude(e.a) && !exclude(e.b)).map(|(_, e)| e).collect();
-    let visible = |point: DVec3, edge: &woodsketch_doc::Edge| {
-        !occluded(model, eye, point, |f| model.face(f).is_some_and(|face| face.uses_edge(edge)))
-    };
+    let visible = |point: DVec3, edge: &woodsketch_doc::Edge| !occluded(model, eye, point, |f| model.face(f).is_some_and(|face| face.uses_edge(edge)));
 
     // Guide lines crossing edges and each other.
     let mut crossings = Vec::new();

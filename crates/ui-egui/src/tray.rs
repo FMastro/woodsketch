@@ -32,17 +32,8 @@ pub enum Panel {
 impl Panel {
     /// Every panel, top to bottom: the tray draws them in this order and the Window menu lists
     /// them in it.
-    pub const ALL: [Self; 9] = [
-        Self::Board,
-        Self::EntityInfo,
-        Self::Joinery,
-        Self::TemplateSizes,
-        Self::EdgeProfile,
-        Self::Templates,
-        Self::Materials,
-        Self::Tags,
-        Self::Outliner,
-    ];
+    pub const ALL: [Self; 9] =
+        [Self::Board, Self::EntityInfo, Self::Joinery, Self::TemplateSizes, Self::EdgeProfile, Self::Templates, Self::Materials, Self::Tags, Self::Outliner];
 
     /// What egui remembers the fold by. English and never translated: egui keys a fold by its id,
     /// so a translated one would forget whether the panel was folded on switching language.
@@ -179,12 +170,10 @@ pub fn section(ui: &mut egui::Ui, panel: Panel, title: &str, body: impl FnOnce(&
     // The body sits a little in from its header, so a long column reads as panels with contents
     // rather than as one list of everything.
     state.show_body_unindented(ui, |ui| {
-        egui::Frame::new()
-            .inner_margin(egui::Margin { left: 6, right: 2, top: 3, bottom: 3 })
-            .show(ui, |ui| {
-                ui.set_width(ui.available_width());
-                body(ui);
-            });
+        egui::Frame::new().inner_margin(egui::Margin { left: 6, right: 2, top: 3, bottom: 3 }).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            body(ui);
+        });
     });
     ui.add_space(4.0);
     close

@@ -93,11 +93,7 @@ mod tests {
     use super::*;
 
     fn area(model: &Model, face: FaceId) -> f64 {
-        model
-            .triangulate(model.face(face).unwrap())
-            .iter()
-            .map(|[a, b, c]| (*b - *a).cross(*c - *a).length() * 0.5)
-            .sum()
+        model.triangulate(model.face(face).unwrap()).iter().map(|[a, b, c]| (*b - *a).cross(*c - *a).length() * 0.5).sum()
     }
 
     fn door(model: &mut Model) -> FaceId {

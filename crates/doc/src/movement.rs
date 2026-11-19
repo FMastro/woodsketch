@@ -57,21 +57,21 @@ pub fn species(name: &str) -> Option<Movement> {
 /// Names (the usual one first), then the tangential and radial coefficients.
 #[allow(clippy::type_complexity)]
 const SPECIES: &[(&[&str], f64, f64)] = &[
-        (&["red oak"], 0.00369, 0.00158),
-        (&["white oak"], 0.00365, 0.00180),
-        (&["hard maple", "sugar maple"], 0.00353, 0.00165),
-        (&["soft maple", "red maple"], 0.00289, 0.00137),
-        (&["cherry"], 0.00248, 0.00126),
-        (&["walnut"], 0.00274, 0.00190),
-        (&["poplar", "tulip"], 0.00289, 0.00158),
-        (&["ash"], 0.00274, 0.00169),
-        (&["birch"], 0.00338, 0.00256),
-        (&["hickory"], 0.00411, 0.00259),
-        (&["mahogany"], 0.00172, 0.00125),
-        (&["cedar"], 0.00234, 0.00111),
-        (&["douglas fir", "fir"], 0.00267, 0.00165),
-        (&["pressure-treated", "southern pine", "southern yellow pine", "yellow pine"], 0.00259, 0.00165),
-        (&["pine"], 0.00212, 0.00071),
+    (&["red oak"], 0.00369, 0.00158),
+    (&["white oak"], 0.00365, 0.00180),
+    (&["hard maple", "sugar maple"], 0.00353, 0.00165),
+    (&["soft maple", "red maple"], 0.00289, 0.00137),
+    (&["cherry"], 0.00248, 0.00126),
+    (&["walnut"], 0.00274, 0.00190),
+    (&["poplar", "tulip"], 0.00289, 0.00158),
+    (&["ash"], 0.00274, 0.00169),
+    (&["birch"], 0.00338, 0.00256),
+    (&["hickory"], 0.00411, 0.00259),
+    (&["mahogany"], 0.00172, 0.00125),
+    (&["cedar"], 0.00234, 0.00111),
+    (&["douglas fir", "fir"], 0.00267, 0.00165),
+    (&["pressure-treated", "southern pine", "southern yellow pine", "yellow pine"], 0.00259, 0.00165),
+    (&["pine"], 0.00212, 0.00071),
 ];
 
 /// How much one part moves across its width.
@@ -320,7 +320,9 @@ pub fn check(scene: &Scene, swing: f64) -> Report {
             if b_moves {
                 continue;
             }
-            let why = if coefficient(scene, b.material, b.cut).is_some() || b.material.and_then(|m| scene.material(m)).is_some_and(|m| m.kind == MaterialKind::DimensionalLumber || m.kind == MaterialKind::SolidWood) {
+            let why = if coefficient(scene, b.material, b.cut).is_some()
+                || b.material.and_then(|m| scene.material(m)).is_some_and(|m| m.kind == MaterialKind::DimensionalLumber || m.kind == MaterialKind::SolidWood)
+            {
                 if b.grain == d { "runs the other way and won't move with it" } else { "won't move with it" }
             } else {
                 "is a stable sheet or other material that won't move with it"
@@ -379,7 +381,13 @@ fn floats(scene: &Scene, a: &Placed, b: &Placed, meeting: (DVec3, DVec3)) -> boo
     scene.joints.iter().filter(|j| j.kind == crate::joinery::JointKind::Groove && j.cut == a.definition && j.into == b.definition).any(|j| {
         j.ops.is_empty()
             || j.ops.iter().any(|op| {
-                let place = if op.part == a.definition { a.place } else if op.part == b.definition { b.place } else { return false };
+                let place = if op.part == a.definition {
+                    a.place
+                } else if op.part == b.definition {
+                    b.place
+                } else {
+                    return false;
+                };
                 let grow = DVec3::splat(op.distance.abs() + TOUCH);
                 let (lo, hi) = (meeting.0 - grow, meeting.1 + grow);
                 op.points.iter().map(|p| place.transform_point3(*p)).any(|p| p.cmpge(lo).all() && p.cmple(hi).all())
@@ -550,7 +558,8 @@ mod tests {
             m.name = "Bubinga".into();
             m.movement = None;
         });
-        doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::X, width_dir: DVec3::Y, length: 30.0, width: 16.0, thickness: 0.75 }, Some(wood)).unwrap();
+        doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::X, width_dir: DVec3::Y, length: 30.0, width: 16.0, thickness: 0.75 }, Some(wood))
+            .unwrap();
         let report = check(doc.scene(), 4.0);
         assert_eq!(report.unknown, ["Bubinga"]);
         assert!(report.parts.is_empty());

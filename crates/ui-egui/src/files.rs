@@ -3,11 +3,11 @@
 use std::path::{Path, PathBuf};
 
 use eframe::egui;
-use woodsketch_i18n::t;
 use woodsketch_doc::Document;
 use woodsketch_doc::export::{self, ExportUnits};
-use woodsketch_doc::flat;
 use woodsketch_doc::file::{self, EXTENSION, OLD_EXTENSION};
+use woodsketch_doc::flat;
+use woodsketch_i18n::t;
 
 /// Something that would discard the drawing, waiting on the "save changes?" answer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -69,7 +69,8 @@ impl Files {
 
     /// Write the drawing to `path` and remember it as the drawing's file.
     pub fn save_to(&mut self, doc: &Document, path: &Path) -> Result<(), String> {
-        crate::autosave::write_safely(path, file::to_string(doc.scene())).map_err(|e| t!("files-save-failed", "path" => path.display().to_string(), "error" => e.to_string()))?;
+        crate::autosave::write_safely(path, file::to_string(doc.scene()))
+            .map_err(|e| t!("files-save-failed", "path" => path.display().to_string(), "error" => e.to_string()))?;
         self.path = Some(path.to_owned());
         self.mark_saved(doc);
         Ok(())
@@ -279,7 +280,6 @@ pub fn import_dialog(current: Option<&Path>) -> Option<PathBuf> {
     }
     dialog.pick_file()
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -201,8 +201,12 @@ Blurb.
         let found = releases(SAMPLE);
         assert_eq!(found.iter().map(|r| r.version.as_str()).collect::<Vec<_>>(), ["0.1.3", "0.1.2", "0.1.1"]);
         assert_eq!(found[0].notes, "- Third.");
-        assert_eq!(found[1].notes, "- Second,
-  wrapped.", "wrapped lines stay together");
+        assert_eq!(
+            found[1].notes,
+            "- Second,
+  wrapped.",
+            "wrapped lines stay together"
+        );
         // The blurb above the first version isn't a release.
         assert!(!found.iter().any(|r| r.notes.contains("Blurb")));
     }

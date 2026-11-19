@@ -5,8 +5,7 @@ use std::ops::Range;
 
 use glam::{DAffine3, DMat4, DVec3, Mat4, Vec3};
 use woodsketch_doc::{
-    Container, DefinitionId, Document, EdgeId, Entity, Face, Guide, InstanceId, MaterialId, Model, Owner, Scene as SceneData, Selection, VertexId,
-    View,
+    Container, DefinitionId, Document, EdgeId, Entity, Face, Guide, InstanceId, MaterialId, Model, Owner, Scene as SceneData, Selection, VertexId, View,
 };
 
 /// Linear-space RGBA. The render target is sRGB, so colors are converted from sRGB on creation.
@@ -104,21 +103,14 @@ impl Scene {
                 continue; // The axes are drawn there.
             }
             let o = i as f32 * spacing;
-            for (a, b) in [
-                (Vec3::new(o, -extent, 0.0), Vec3::new(o, extent, 0.0)),
-                (Vec3::new(-extent, o, 0.0), Vec3::new(extent, o, 0.0)),
-            ] {
+            for (a, b) in [(Vec3::new(o, -extent, 0.0), Vec3::new(o, extent, 0.0)), (Vec3::new(-extent, o, 0.0), Vec3::new(extent, o, 0.0))] {
                 scene.background_lines.extend([line_vertex(a, grid_color), line_vertex(b, grid_color)]);
             }
         }
 
         // Solid on the positive side, faded on the negative side, as in SketchUp.
         let axis_len = 1.0e4;
-        for (dir, color) in [
-            (Vec3::X, srgb(220, 0, 0)),
-            (Vec3::Y, srgb(0, 160, 0)),
-            (Vec3::Z, srgb(0, 0, 220)),
-        ] {
+        for (dir, color) in [(Vec3::X, srgb(220, 0, 0)), (Vec3::Y, srgb(0, 160, 0)), (Vec3::Z, srgb(0, 0, 220))] {
             let faded = mix(color, srgb(255, 255, 255), 0.6);
             scene.add_line(Vec3::ZERO, dir * axis_len, color);
             scene.add_line(Vec3::ZERO, -dir * axis_len, faded);
@@ -209,9 +201,7 @@ impl Scene {
             let n = face.normal.as_vec3();
             for triangle in model.triangulate(face) {
                 for p in triangle.map(|p| p.as_vec3()) {
-                    self.mesh_faces.push([
-                        p.x, p.y, p.z, n.x, n.y, n.z, front[0], front[1], front[2], front[3], back[0], back[1], back[2], back[3],
-                    ]);
+                    self.mesh_faces.push([p.x, p.y, p.z, n.x, n.y, n.z, front[0], front[1], front[2], front[3], back[0], back[1], back[2], back[3]]);
                 }
             }
         }
@@ -269,14 +259,11 @@ impl Scene {
         let target = &mut self.selected_faces;
         for triangle in model.triangulate(face) {
             for p in triangle.map(|p| to_world.transform_point3(p).as_vec3()) {
-                target.push([
-                    p.x, p.y, p.z, n.x, n.y, n.z, front[0], front[1], front[2], front[3], back[0], back[1], back[2], back[3],
-                ]);
+                target.push([p.x, p.y, p.z, n.x, n.y, n.z, front[0], front[1], front[2], front[3], back[0], back[1], back[2], back[3]]);
             }
         }
     }
 }
-
 
 /// A guide to draw, in world coordinates.
 #[derive(Clone, Debug)]
@@ -350,7 +337,6 @@ pub fn guide_vertices(guides: &[SceneGuide], view_proj: Mat4, eye: Vec3) -> Vec<
     out
 }
 
-
 /// The point of segment `a`–`b` nearest the ray from `origin` along unit `dir`.
 fn closest_to_ray(a: DVec3, b: DVec3, origin: DVec3, dir: DVec3) -> DVec3 {
     let along = b - a;
@@ -365,7 +351,6 @@ fn closest_to_ray(a: DVec3, b: DVec3, origin: DVec3, dir: DVec3) -> DVec3 {
     let t = if denom < 1e-12 { 0.0 } else { (k * dir.dot(w) - d.dot(w)) / denom };
     a + d * t.clamp(0.0, length)
 }
-
 
 /// A face's front and back colors: SketchUp's default material (warm white front, blue-grey
 /// back), or its paint (its own, else its group's) on both sides.

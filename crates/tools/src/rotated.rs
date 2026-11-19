@@ -4,8 +4,8 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
-use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS};
+use woodsketch_i18n::t;
 
 use crate::carry::Carry;
 use crate::infer::{self, Hints, Query, Target};

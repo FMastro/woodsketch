@@ -129,11 +129,8 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, part: InstanceId) {
     }
 
     let size = parse_length(&c.size).ok().filter(|s| *s > 0.0);
-    let edges = if c.along {
-        Edges::Along { axis: longest, corners: c.corners }
-    } else {
-        Edges::AroundFace { axis: c.face.0, positive: c.face.1, sides: c.sides }
-    };
+    let edges =
+        if c.along { Edges::Along { axis: longest, corners: c.corners } } else { Edges::AroundFace { axis: c.face.0, positive: c.face.1, sides: c.sides } };
     let message_id = egui::Id::new(("profile_message", part));
     if ui.add_enabled(size.is_some(), egui::Button::new(t!("profile-rout", "profile" => c.profile.name().to_lowercase()))).clicked()
         && let Some(size) = size

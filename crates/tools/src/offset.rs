@@ -5,8 +5,8 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
-use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS, Entity, FaceId};
+use woodsketch_i18n::t;
 
 use crate::pick::{Screen, Snap, snap_feature};
 use crate::{Overlay, highlight_entity, pick_resolved};
@@ -120,11 +120,7 @@ impl OffsetTool {
     }
 
     pub fn status(&self) -> String {
-        if self.op.is_some() {
-            t!("tool-offset-move")
-        } else {
-            t!("tool-offset-pick")
-        }
+        if self.op.is_some() { t!("tool-offset-move") } else { t!("tool-offset-pick") }
     }
 
     pub fn measurement(&self) -> String {

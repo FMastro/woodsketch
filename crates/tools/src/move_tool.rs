@@ -295,8 +295,7 @@ impl MoveTool {
                 // Hovering a grip previews the protractor it would rotate with.
                 if let Some((f, g)) = grips.hovered {
                     let face = &grips.faces[f];
-                    overlay.protractor =
-                        Some(Protractor { center: face.center, normal: face.normal, from: Some(face.grips[g]), to: None });
+                    overlay.protractor = Some(Protractor { center: face.center, normal: face.normal, from: Some(face.grips[g]), to: None });
                     overlay.snap = None;
                 }
             }
@@ -322,9 +321,7 @@ impl MoveTool {
         let entities: Vec<Entity> = if doc.selection().is_empty() {
             match pick_resolved(doc, screen, cursor) {
                 // A face moves with its edges.
-                Some(Entity::Face(id)) => std::iter::once(Entity::Face(id))
-                    .chain(model.face_edges(id).into_iter().map(Entity::Edge))
-                    .collect(),
+                Some(Entity::Face(id)) => std::iter::once(Entity::Face(id)).chain(model.face_edges(id).into_iter().map(Entity::Edge)).collect(),
                 Some(entity) => vec![entity],
                 None => return Err(t!("tool-move-select")),
             }
@@ -347,17 +344,16 @@ impl MoveTool {
     fn target(&self, model: &Model, screen: Screen<'_>, cursor: Vec2) -> Target {
         let op = self.op.as_ref().expect("only called while moving");
         let base = op.base;
-        let query = Query {
-            base,
-            hints: &self.hints,
-            lock: self.lock.or(self.shift_lock),
-            plane_normal: DVec3::Z,
-            current: base + op.offset,
-        };
+        let query = Query { base, hints: &self.hints, lock: self.lock.or(self.shift_lock), plane_normal: DVec3::Z, current: base + op.offset };
         // Don't snap to the geometry being moved, unless copying (the original stays put).
-        infer::target(model, screen, cursor, &query, |v| !self.copy && op.vertices.contains(&v), |ray| {
-            ray.hit_plane(base, DVec3::Z).or_else(|| ray.hit_plane(base, -screen.forward())).map(|p| (p, None))
-        })
+        infer::target(
+            model,
+            screen,
+            cursor,
+            &query,
+            |v| !self.copy && op.vertices.contains(&v),
+            |ray| ray.hit_plane(base, DVec3::Z).or_else(|| ray.hit_plane(base, -screen.forward())).map(|p| (p, None)),
+        )
     }
 
     fn finish(&mut self, doc: &mut Document, typed: Option<DVec3>) -> Result<(), String> {
@@ -366,12 +362,7 @@ impl MoveTool {
         if offset.length() < EPS {
             return Err(t!("tool-move-away-from-base"));
         }
-        let done = Done {
-            entities: op.entities.clone(),
-            offset,
-            copy: self.copy.then_some(Array { count: 1, divide: false }),
-            model_version: 0,
-        };
+        let done = Done { entities: op.entities.clone(), offset, copy: self.copy.then_some(Array { count: 1, divide: false }), model_version: 0 };
         self.apply(doc, done)?;
         self.op = None;
         self.snap = None;
@@ -480,12 +471,7 @@ fn grips_for(doc: &Document, screen: Screen<'_>, entities: Vec<Entity>) -> Optio
             if (eye - face_center).dot(normal) <= 0.0 {
                 continue;
             }
-            let grips = [
-                face_center + u * hu * 0.5,
-                face_center - u * hu * 0.5,
-                face_center + v * hv * 0.5,
-                face_center - v * hv * 0.5,
-            ];
+            let grips = [face_center + u * hu * 0.5, face_center - u * hu * 0.5, face_center + v * hv * 0.5, face_center - v * hv * 0.5];
             // A pair close together on screen (across a thin board's edge) would crowd: left out.
             let on_screen = |a: DVec3, b: DVec3| match (screen.project(frame.transform_point3(a)), screen.project(frame.transform_point3(b))) {
                 (Some(a), Some(b)) => a.distance(b),
@@ -500,11 +486,7 @@ fn grips_for(doc: &Document, screen: Screen<'_>, entities: Vec<Entity>) -> Optio
             if kept.is_empty() {
                 continue;
             }
-            faces.push(GripFace {
-                center: frame.transform_point3(face_center),
-                normal: frame.transform_vector3(normal).normalize(),
-                grips: kept,
-            });
+            faces.push(GripFace { center: frame.transform_point3(face_center), normal: frame.transform_vector3(normal).normalize(), grips: kept });
         }
     }
     Some(Grips { entities, vertices, faces, hovered: None })
@@ -674,12 +656,7 @@ mod tests {
         tool.enter(&mut doc, "48").unwrap();
         tool.enter(&mut doc, "/3").unwrap();
         // Corners of the four boards' bottom-front edges, in half inches (boards are 1.5" wide).
-        let mut half_inches: Vec<i64> = doc
-            .model()
-            .vertices()
-            .filter(|(_, p)| p.y == 0.0 && p.z == 0.0)
-            .map(|(_, p)| (p.x * 2.0).round() as i64)
-            .collect();
+        let mut half_inches: Vec<i64> = doc.model().vertices().filter(|(_, p)| p.y == 0.0 && p.z == 0.0).map(|(_, p)| (p.x * 2.0).round() as i64).collect();
         half_inches.sort();
         half_inches.dedup();
         assert_eq!(half_inches, [0, 3, 32, 35, 64, 67, 96, 99]);

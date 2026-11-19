@@ -46,17 +46,10 @@ impl Model {
         let n = original.normal;
 
         // Faces sharing an edge with this one.
-        let neighbors: BTreeSet<FaceId> = self
-            .face_edges(face)
-            .into_iter()
-            .flat_map(|edge| self.edge_faces(edge))
-            .filter(|&other| other != face)
-            .collect();
+        let neighbors: BTreeSet<FaceId> = self.face_edges(face).into_iter().flat_map(|edge| self.edge_faces(edge)).filter(|&other| other != face).collect();
         let edge_count = self.face_edges(face).len();
         let every_edge_shared = self.face_edges(face).into_iter().all(|e| self.edge_faces(e).len() > 1);
-        let is_cap = edge_count > 0
-            && every_edge_shared
-            && neighbors.iter().all(|&f| self.face(f).is_some_and(|f| f.normal.dot(n).abs() < 1e-9));
+        let is_cap = edge_count > 0 && every_edge_shared && neighbors.iter().all(|&f| self.face(f).is_some_and(|f| f.normal.dot(n).abs() < 1e-9));
 
         if is_cap {
             self.move_cap(face, &neighbors, distance)
@@ -127,9 +120,9 @@ impl Model {
         // Closing up needs a surface facing the cap's way where it lands (the top around a
         // pocket); landing on the far side's back (a board's end pushed to its other end) is
         // through.
-        let flush = self.faces().any(|(id, f)| {
-            id != face && f.normal.dot(cap.normal) > 1.0 - 1e-9 && ((self.vertex(f.outer[0]) - origin).dot(cap.normal) - distance).abs() <= EPS
-        });
+        let flush = self
+            .faces()
+            .any(|(id, f)| id != face && f.normal.dot(cap.normal) > 1.0 - 1e-9 && ((self.vertex(f.outer[0]) - origin).dot(cap.normal) - distance).abs() <= EPS);
         if reached.iter().any(|height| height.abs() < distance.abs() - EPS) || (!reached.is_empty() && !flush) {
             return Err(PushPullError::ThroughGeometry);
         }
@@ -196,7 +189,10 @@ impl Model {
         }
         // A pocket's floor now fills its opening: the hole goes, and the floor with it.
         if let Some(floor) = self.face(cap).cloned() {
-            let host = self.faces().find(|(id, f)| *id != cap && f.normal.dot(floor.normal) > 1.0 - 1e-9 && f.holes.iter().any(|h| crate::model::same_loop(h, &floor.outer))).map(|(id, _)| id);
+            let host = self
+                .faces()
+                .find(|(id, f)| *id != cap && f.normal.dot(floor.normal) > 1.0 - 1e-9 && f.holes.iter().any(|h| crate::model::same_loop(h, &floor.outer)))
+                .map(|(id, _)| id);
             if let Some(host) = host
                 && let Some(mut f) = self.face(host).cloned()
             {
@@ -252,11 +248,9 @@ impl Model {
         let through = removing && {
             let outline: Vec<DVec3> = loops[0].iter().map(|&p| p + offset).collect();
             let center = outline.iter().sum::<DVec3>() / outline.len() as f64;
-            let far = self.faces().find(|(_, f)| {
-                f.normal.dot(n) < -1.0 + 1e-9
-                    && (self.vertex(f.outer[0]) - center).dot(n).abs() <= EPS
-                    && self.face_contains(f, center)
-            });
+            let far = self
+                .faces()
+                .find(|(_, f)| f.normal.dot(n) < -1.0 + 1e-9 && (self.vertex(f.outer[0]) - center).dot(n).abs() <= EPS && self.face_contains(f, center));
             far.is_some() && {
                 if let Some(opening) = self.draw_polygon(&outline, -n) {
                     self.remove_face(opening);
@@ -292,8 +286,7 @@ impl Model {
             points
         };
         let cap_outer = orient(loops[0].iter().map(|&p| p + offset).collect(), cap_normal);
-        let cap_holes: Vec<Vec<DVec3>> =
-            loops[1..].iter().map(|h| orient(h.iter().map(|&p| p + offset).collect(), -cap_normal)).collect();
+        let cap_holes: Vec<Vec<DVec3>> = loops[1..].iter().map(|h| orient(h.iter().map(|&p| p + offset).collect(), -cap_normal)).collect();
         if !through {
             // The moved end keeps the original face's paint; new walls start unpainted (SketchUp).
             if let Some(cap) = self.add_face_with_holes(&cap_outer, &cap_holes) {
@@ -324,7 +317,6 @@ impl Model {
         }
     }
 
-
     /// How far behind `face` the board's far side is: the nearest face facing the other way
     /// that lies straight behind the middle of `face`.
     fn depth_to_far_side(&self, face: &crate::Face) -> Option<f64> {
@@ -347,11 +339,9 @@ impl Model {
         let normal = newell_normal(&quad).normalize();
         let edge_ab = |m: &Self| m.find_edge(m.vertex_at(a)?, m.vertex_at(b)?);
         let flush = edge_ab(self).and_then(|edge| {
-            self.edge_faces(edge).into_iter().find(|&f| {
-                self.face(f).is_some_and(|f| {
-                    f.normal.dot(normal).abs() > 1.0 - 1e-9 && (self.vertex(f.outer[0]) - a).dot(normal).abs() <= EPS
-                })
-            })
+            self.edge_faces(edge)
+                .into_iter()
+                .find(|&f| self.face(f).is_some_and(|f| f.normal.dot(normal).abs() > 1.0 - 1e-9 && (self.vertex(f.outer[0]) - a).dot(normal).abs() <= EPS))
         });
         let Some(side) = flush else {
             self.add_face(&quad);
@@ -359,9 +349,9 @@ impl Model {
         };
         // The "side" may be the wall itself: neighbouring walls' edges can close its outline, which
         // fills it in. Keep it as the wall, facing the right way.
-        let is_wall = self.face(side).is_some_and(|f| {
-            f.outer.len() == 4 && f.holes.is_empty() && f.outer.iter().all(|&v| quad.iter().any(|q| q.distance(self.vertex(v)) <= EPS))
-        });
+        let is_wall = self
+            .face(side)
+            .is_some_and(|f| f.outer.len() == 4 && f.holes.is_empty() && f.outer.iter().all(|&v| quad.iter().any(|q| q.distance(self.vertex(v)) <= EPS)));
         if is_wall {
             if self.face(side).is_some_and(|f| f.normal.dot(normal) < 0.0) {
                 self.reverse_face(side);
@@ -402,9 +392,7 @@ impl Model {
             self.rebuild_plane(side_normal, origin, &[], &BTreeSet::from([side]), None);
         }
         let center = quad.iter().sum::<DVec3>() / 4.0;
-        let in_plane = |f: &crate::Face| {
-            f.normal.dot(normal).abs() > 1.0 - 1e-9 && (self.vertex(f.outer[0]) - center).dot(normal).abs() <= EPS
-        };
+        let in_plane = |f: &crate::Face| f.normal.dot(normal).abs() > 1.0 - 1e-9 && (self.vertex(f.outer[0]) - center).dot(normal).abs() <= EPS;
         let Some((wall, _)) = self.faces().find(|(_, f)| in_plane(f) && self.face_contains(f, center)) else {
             return;
         };
@@ -532,9 +520,7 @@ mod tests {
         let base = model.add_rectangle(DVec3::ZERO, DVec3::X * 10.0, DVec3::Y * 10.0, DVec3::Z).unwrap();
         model.push_pull(base, 2.0).unwrap();
         let top = top_face(&model);
-        let inner = model
-            .add_rectangle(DVec3::new(3.0, 3.0, 2.0), DVec3::X * 4.0, DVec3::Y * 4.0, DVec3::Z)
-            .unwrap();
+        let inner = model.add_rectangle(DVec3::new(3.0, 3.0, 2.0), DVec3::X * 4.0, DVec3::Y * 4.0, DVec3::Z).unwrap();
         assert_eq!(model.face(top).unwrap().holes.len(), 1);
         model.push_pull(inner, 1.0).unwrap();
         // Box (6) + block walls (4) + block top (1); the drawn face was absorbed.
@@ -548,18 +534,12 @@ mod tests {
         let mut model = Model::default();
         let base = model.add_rectangle(DVec3::ZERO, DVec3::X * 10.0, DVec3::Y * 10.0, DVec3::Z).unwrap();
         model.push_pull(base, 2.0).unwrap();
-        let inner = model
-            .add_rectangle(DVec3::new(3.0, 3.0, 2.0), DVec3::X * 4.0, DVec3::Y * 4.0, DVec3::Z)
-            .unwrap();
+        let inner = model.add_rectangle(DVec3::new(3.0, 3.0, 2.0), DVec3::X * 4.0, DVec3::Y * 4.0, DVec3::Z).unwrap();
         model.push_pull(inner, -1.0).unwrap();
         assert_eq!(model.faces().count(), 11);
         assert!((volume(&model) - (200.0 - 16.0)).abs() < 1e-6, "{}", volume(&model));
         // The pocket floor faces up, out of the pocket.
-        let floor = model
-            .faces()
-            .find(|(_, f)| (model.vertex(f.outer[0]).z - 1.0).abs() < 1e-9)
-            .map(|(_, f)| f.normal)
-            .unwrap();
+        let floor = model.faces().find(|(_, f)| (model.vertex(f.outer[0]).z - 1.0).abs() < 1e-9).map(|(_, f)| f.normal).unwrap();
         assert!(floor.abs_diff_eq(DVec3::Z, 1e-12));
     }
 
@@ -592,7 +572,9 @@ mod tests {
         let base = model.add_rectangle(DVec3::ZERO, DVec3::X * 10.0, DVec3::Y * 10.0, DVec3::Z).unwrap();
         model.push_pull(base, 2.0).unwrap();
         // Right across the top, edge to edge.
-        let strip = model.draw_polygon(&[DVec3::new(4.0, 0.0, 2.0), DVec3::new(5.0, 0.0, 2.0), DVec3::new(5.0, 10.0, 2.0), DVec3::new(4.0, 10.0, 2.0)], DVec3::Z).unwrap();
+        let strip = model
+            .draw_polygon(&[DVec3::new(4.0, 0.0, 2.0), DVec3::new(5.0, 0.0, 2.0), DVec3::new(5.0, 10.0, 2.0), DVec3::new(4.0, 10.0, 2.0)], DVec3::Z)
+            .unwrap();
         model.push_pull(strip, -0.5).unwrap();
         assert!((volume(&model) - 195.0).abs() < 1e-6);
         model.push_pull(floor_at(&model, 1.5), 0.5).unwrap();
@@ -610,9 +592,7 @@ mod tests {
     fn face_with_a_hole_extrudes_a_frame() {
         let mut model = Model::default();
         let outer = model.add_rectangle(DVec3::ZERO, DVec3::X * 10.0, DVec3::Y * 10.0, DVec3::Z).unwrap();
-        let inner = model
-            .add_rectangle(DVec3::new(4.0, 4.0, 0.0), DVec3::X * 2.0, DVec3::Y * 2.0, DVec3::Z)
-            .unwrap();
+        let inner = model.add_rectangle(DVec3::new(4.0, 4.0, 0.0), DVec3::X * 2.0, DVec3::Y * 2.0, DVec3::Z).unwrap();
         model.erase([Entity::Face(inner)]);
         model.push_pull(outer, 3.0).unwrap();
         // Base + cap + 4 outer walls + 4 hole walls.
@@ -625,11 +605,7 @@ mod tests {
         let base = model.add_rectangle(DVec3::ZERO, DVec3::X * 10.0, DVec3::Y * 4.0, DVec3::Z).unwrap();
         model.push_pull(base, 2.0).unwrap();
         model.add_line(DVec3::new(8.0, 0.0, 2.0), DVec3::new(8.0, 4.0, 2.0));
-        model
-            .faces()
-            .find(|(_, f)| f.normal.z > 0.5 && model.loop_points(&f.outer).iter().all(|p| p.x >= 8.0 - 1e-9))
-            .map(|(id, _)| id)
-            .unwrap()
+        model.faces().find(|(_, f)| f.normal.z > 0.5 && model.loop_points(&f.outer).iter().all(|p| p.x >= 8.0 - 1e-9)).map(|(id, _)| id).unwrap()
     }
 
     #[test]

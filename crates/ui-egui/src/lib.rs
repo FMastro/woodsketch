@@ -1,40 +1,40 @@
 //! The WoodSketch window: a 3D viewport inside SketchUp-style chrome (`chrome.rs`).
 
-mod chrome;
-pub mod crash;
-pub mod feedback;
-mod cutlist;
-pub mod files;
-mod icons;
-mod keys;
-mod gpu;
-pub mod graphics;
-mod materials;
-pub mod net;
 mod autosave;
-mod watch;
 mod board;
 mod building;
+mod chrome;
+pub mod crash;
+mod cutlist;
+pub mod feedback;
+pub mod files;
+mod gpu;
+pub mod graphics;
+mod icons;
 mod joinery;
+mod keys;
+mod materials;
+pub mod net;
 mod outliner;
-mod part;
 mod parametric;
+mod part;
 mod profile;
+pub mod start;
 mod tags;
 mod template;
-mod tray;
-pub mod start;
 pub mod thumbs;
+mod tray;
 pub mod updates;
 mod viewport;
+mod watch;
 
 use std::path::{Path, PathBuf};
 
 use eframe::egui;
-use woodsketch_i18n::t;
-use woodsketch_doc::Document;
-use woodsketch_tools::Tools;
 use viewport::Viewport;
+use woodsketch_doc::Document;
+use woodsketch_i18n::t;
+use woodsketch_tools::Tools;
 
 /// Where the recent-drawings list is kept in eframe's settings.
 const RECENT_KEY: &str = "recent_drawings";
@@ -127,10 +127,7 @@ impl WoodSketchApp {
         if let Some(units) = cc.storage.and_then(|s| eframe::get_value(s, UNITS_KEY)) {
             woodsketch_doc::units::set_units(units);
         }
-        let render_state = cc
-            .wgpu_render_state
-            .as_ref()
-            .expect("WoodSketch needs eframe's wgpu renderer");
+        let render_state = cc.wgpu_render_state.as_ref().expect("WoodSketch needs eframe's wgpu renderer");
         icons::install(&cc.egui_ctx);
         // Light and dark looks, and the one last chosen (View > Theme; light at first).
         cc.egui_ctx.set_visuals_of(egui::Theme::Light, chrome::visuals(false));
@@ -198,10 +195,7 @@ impl WoodSketchApp {
             reloaded: None,
             updater: None,
             check_updates: cc.storage.and_then(|s| eframe::get_value(s, UPDATES_KEY)).unwrap_or(true),
-            updated_from: cc
-                .storage
-                .and_then(|s| eframe::get_value::<String>(s, LAST_VERSION_KEY))
-                .filter(|last| last != updates::VERSION),
+            updated_from: cc.storage.and_then(|s| eframe::get_value::<String>(s, LAST_VERSION_KEY)).filter(|last| last != updates::VERSION),
             show_changes: false,
             update_started: false,
             update_asked: false,
@@ -820,13 +814,7 @@ impl eframe::App for WoodSketchApp {
             self.backend.trouble(&trouble);
             self.files.show_error(gpu::Trouble::said(&trouble));
         }
-        if !self.files.is_asking()
-            && self.leftovers.is_empty()
-            && self.crash.is_none()
-            && !self.reload_asking
-            && !self.start.open
-            && self.building.is_none()
-        {
+        if !self.files.is_asking() && self.leftovers.is_empty() && self.crash.is_none() && !self.reload_asking && !self.start.open && self.building.is_none() {
             self.keyboard.handle(&ctx, &mut self.doc, &mut self.tools, &mut self.viewport);
         }
 
@@ -886,7 +874,6 @@ impl eframe::App for WoodSketchApp {
         self.changes_window(&ctx);
         self.feedback.show(&ctx, &self.doc, &self.graphics, self.files.last_error.as_deref());
 
-        egui::CentralPanel::no_frame()
-            .show(ui, |ui| self.viewport.show(ui, frame, &mut self.doc, &mut self.tools));
+        egui::CentralPanel::no_frame().show(ui, |ui| self.viewport.show(ui, frame, &mut self.doc, &mut self.tools));
     }
 }

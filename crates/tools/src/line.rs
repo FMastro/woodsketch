@@ -11,8 +11,8 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::{format_length, parse_length};
-use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS};
+use woodsketch_i18n::t;
 
 use crate::carry::Carry;
 
@@ -104,22 +104,24 @@ impl LineTool {
             return;
         };
         let base = start.point;
-        let query = Query {
-            base,
-            hints: &self.hints,
-            lock: self.lock.or(self.shift_lock),
-            plane_normal: start.normal,
-            current: self.end.map_or(base, |t| t.point),
-        };
-        let target = infer::target(model, screen, cursor, &query, |_| false, |ray| {
-            // On a face under the cursor, else in the plane the chain started on, else facing
-            // the camera.
-            snap(model, screen, cursor, None)
-                .filter(|s| s.kind == crate::SnapKind::OnFace)
-                .map(|s| (s.point, Some(s)))
-                .or_else(|| ray.hit_plane(base, start.normal).map(|p| (p, None)))
-                .or_else(|| ray.hit_plane(base, -screen.forward()).map(|p| (p, None)))
-        });
+        let query =
+            Query { base, hints: &self.hints, lock: self.lock.or(self.shift_lock), plane_normal: start.normal, current: self.end.map_or(base, |t| t.point) };
+        let target = infer::target(
+            model,
+            screen,
+            cursor,
+            &query,
+            |_| false,
+            |ray| {
+                // On a face under the cursor, else in the plane the chain started on, else facing
+                // the camera.
+                snap(model, screen, cursor, None)
+                    .filter(|s| s.kind == crate::SnapKind::OnFace)
+                    .map(|s| (s.point, Some(s)))
+                    .or_else(|| ray.hit_plane(base, start.normal).map(|p| (p, None)))
+                    .or_else(|| ray.hit_plane(base, -screen.forward()).map(|p| (p, None)))
+            },
+        );
         if self.shift && self.shift_lock.is_none() {
             self.shift_lock = target.direction;
         }
@@ -174,9 +176,7 @@ impl LineTool {
     pub fn enter(&mut self, doc: &mut Document, typed: &str) -> Result<(), String> {
         // A new length right after a typed one: that line again, this long.
         let plain = !typed.contains([',', ';', '[', '<']);
-        if plain
-            && let Some(last) = self.retype.filter(|r| r.model_version == doc.model_version())
-        {
+        if plain && let Some(last) = self.retype.filter(|r| r.model_version == doc.model_version()) {
             let length = parse_length(typed).map_err(|e| e.to_string())?;
             if length.abs() < EPS {
                 return Err(t!("tool-line-length-positive"));
@@ -215,11 +215,7 @@ impl LineTool {
     }
 
     pub fn status(&self) -> String {
-        if self.start.is_some() {
-            t!("tool-line-end")
-        } else {
-            t!("tool-line-start")
-        }
+        if self.start.is_some() { t!("tool-line-end") } else { t!("tool-line-start") }
     }
 
     pub fn measurement(&self) -> String {

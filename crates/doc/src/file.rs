@@ -197,14 +197,8 @@ mod tests {
     fn other_files_are_rejected_clearly() {
         assert!(matches!(from_str("not json"), Err(FileError::NotWoodSketch)));
         assert!(matches!(from_str(r#"{"format":"other","version":1}"#), Err(FileError::NotWoodSketch)));
-        assert!(matches!(
-            from_str(r#"{"format":"woodsketch","version":99,"units":"inches","scene":{}}"#),
-            Err(FileError::TooNew(99))
-        ));
-        assert!(matches!(
-            from_str(r#"{"format":"woodsketch","version":1,"units":"inches","scene":42}"#),
-            Err(FileError::Corrupt(_))
-        ));
+        assert!(matches!(from_str(r#"{"format":"woodsketch","version":99,"units":"inches","scene":{}}"#), Err(FileError::TooNew(99))));
+        assert!(matches!(from_str(r#"{"format":"woodsketch","version":1,"units":"inches","scene":42}"#), Err(FileError::Corrupt(_))));
     }
     #[test]
     fn units_are_the_drawings_own_and_survive_a_save() {
@@ -215,8 +209,8 @@ mod tests {
 
         // Drawings saved before the unit was the drawing's own to choose all say "inches", which
         // is what they were drawn in, so they need no special case on the way in.
-        let older = r#"{"format":"woodsketch","version":1,"units":"inches","scene":%}"#
-            .replace('%', &serde_json::to_string(Document::default().scene()).unwrap());
+        let older =
+            r#"{"format":"woodsketch","version":1,"units":"inches","scene":%}"#.replace('%', &serde_json::to_string(Document::default().scene()).unwrap());
         assert_eq!(from_str(&older).unwrap().units, Some(Units::Inches));
 
         // A drawing from somewhere with no unit of its own (a SketchUp model) says nothing, and

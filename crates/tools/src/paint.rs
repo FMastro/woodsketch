@@ -21,14 +21,7 @@ impl PaintTool {
     }
 
     /// Paint what's under the cursor with `material`, or with Alt, sample it into `material`.
-    pub fn click(
-        &mut self,
-        doc: &mut Document,
-        screen: Screen<'_>,
-        cursor: Vec2,
-        mods: Modifiers,
-        material: &mut Option<MaterialId>,
-    ) -> Result<(), String> {
+    pub fn click(&mut self, doc: &mut Document, screen: Screen<'_>, cursor: Vec2, mods: Modifiers, material: &mut Option<MaterialId>) -> Result<(), String> {
         self.hover(doc, screen, cursor);
         let Some(target) = self.hover else {
             return Err(t!("tool-paint-click"));

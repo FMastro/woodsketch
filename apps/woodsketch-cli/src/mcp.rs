@@ -113,7 +113,9 @@ pub fn respond(line: &str, session: &mut Session, send: &mut dyn FnMut(Value)) {
             let token = params["_meta"]["progressToken"].clone();
             let mut progress = |done: usize, total: usize, what: &str| {
                 if !token.is_null() {
-                    send(json!({ "jsonrpc": "2.0", "method": "notifications/progress", "params": { "progressToken": token, "progress": done, "total": total, "message": what } }));
+                    send(
+                        json!({ "jsonrpc": "2.0", "method": "notifications/progress", "params": { "progressToken": token, "progress": done, "total": total, "message": what } }),
+                    );
                 }
             };
             progress(0, 1, "Working");
@@ -132,9 +134,13 @@ pub fn respond(line: &str, session: &mut Session, send: &mut dyn FnMut(Value)) {
         ] })),
         "resources/read" => match params["uri"].as_str().unwrap_or("") {
             uri @ "woodsketch://guide" => Ok(json!({ "contents": [{ "uri": uri, "mimeType": "text/markdown", "text": crate::GUIDE }] })),
-            uri @ "woodsketch://recipe-schema" => Ok(json!({ "contents": [{ "uri": uri, "mimeType": "application/schema+json", "text": recipe::schema().to_string() }] })),
+            uri @ "woodsketch://recipe-schema" => {
+                Ok(json!({ "contents": [{ "uri": uri, "mimeType": "application/schema+json", "text": recipe::schema().to_string() }] }))
+            }
             uri @ "woodsketch://recipe" => match &session.recipe {
-                Some(r) => Ok(json!({ "contents": [{ "uri": uri, "mimeType": "application/json", "text": serde_json::to_string_pretty(r).unwrap_or_default() }] })),
+                Some(r) => {
+                    Ok(json!({ "contents": [{ "uri": uri, "mimeType": "application/json", "text": serde_json::to_string_pretty(r).unwrap_or_default() }] }))
+                }
                 None => Err(json!({ "code": -32002, "message": "No drawing yet: build one from a recipe, or open a file." })),
             },
             other => Err(json!({ "code": -32002, "message": format!("No resource {other}") })),
@@ -180,7 +186,12 @@ fn tools() -> Vec<Value> {
             json!({ "recipe": { "type": "object", "description": "The project recipe (JSON object, or a string of JSON)" } }),
             &["recipe"],
         ),
-        tool("recipe", "The current drawing as a recipe (built from one, or read back from a file opened), with notes on anything a recipe can't say.", json!({}), &[]),
+        tool(
+            "recipe",
+            "The current drawing as a recipe (built from one, or read back from a file opened), with notes on anything a recipe can't say.",
+            json!({}),
+            &[],
+        ),
         tool("add_part", "Add a part to the drawing (a board as a box, as in the recipe's parts) and rebuild.", json!({ "part": def("PartSpec") }), &["part"]),
         tool(
             "change_part",
@@ -188,7 +199,12 @@ fn tools() -> Vec<Value> {
             json!({ "name": name, "changes": { "type": "object" } }),
             &["name", "changes"],
         ),
-        tool("remove", "Take out a part (with its copies), template or group, and the joints and profiles on it, and rebuild.", json!({ "name": name }), &["name"]),
+        tool(
+            "remove",
+            "Take out a part (with its copies), template or group, and the joints and profiles on it, and rebuild.",
+            json!({ "name": name }),
+            &["name"],
+        ),
         tool("add_joint", "Add a joint between two parts (as in the recipe's joints) and rebuild.", json!({ "joint": def("JointSpec") }), &["joint"]),
         tool(
             "remove_joint",
@@ -203,7 +219,12 @@ fn tools() -> Vec<Value> {
             json!({ "group": def("GroupSpec") }),
             &["group"],
         ),
-        tool("open", "Open a .woodsketch drawing, a recipe .json, or a SketchUp 2021+ .skp as the current drawing (read back as a recipe to change).", json!({ "path": path }), &["path"]),
+        tool(
+            "open",
+            "Open a .woodsketch drawing, a recipe .json, or a SketchUp 2021+ .skp as the current drawing (read back as a recipe to change).",
+            json!({ "path": path }),
+            &["path"],
+        ),
         tool("save", "Save the current drawing as a .woodsketch file (the WoodSketch app opens it).", json!({ "path": path }), &["path"]),
         tool("summary", "The current drawing's overall size, parts by material with sizes, joints and wood movement warnings.", json!({}), &[]),
         tool(
@@ -228,7 +249,12 @@ fn tools() -> Vec<Value> {
         ),
         tool("cut_sheet", "Write the printable cut sheet (parts, what to buy, cutting diagrams) as an HTML file.", json!({ "path": path }), &["path"]),
         tool("build_sheets", "Write the build sheets (a page per part with its steps, then assembly) as an HTML file.", json!({ "path": path }), &["path"]),
-        tool("export", "Export the current drawing as .obj (with .mtl) or .stl for other 3D programs, or as .dxf or .svg: each part flattened for CNC (its outline, through holes, and pockets on layers by depth; what a router can't cut from a face is listed, not drawn).", json!({ "path": path, "millimeters": { "type": "boolean" } }), &["path"]),
+        tool(
+            "export",
+            "Export the current drawing as .obj (with .mtl) or .stl for other 3D programs, or as .dxf or .svg: each part flattened for CNC (its outline, through holes, and pockets on layers by depth; what a router can't cut from a face is listed, not drawn).",
+            json!({ "path": path, "millimeters": { "type": "boolean" } }),
+            &["path"],
+        ),
     ]
 }
 
@@ -260,7 +286,8 @@ fn call(name: &str, args: &Value, session: &mut Session, progress: &mut dyn FnMu
                 return Err(theirs);
             }
             let said = change(&mut recipe)?;
-            let doc = recipe::build_reporting(&recipe, &mut *progress).map_err(|errors| format!("That doesn't build, so nothing changed:\n- {}", errors.join("\n- ")))?;
+            let doc = recipe::build_reporting(&recipe, &mut *progress)
+                .map_err(|errors| format!("That doesn't build, so nothing changed:\n- {}", errors.join("\n- ")))?;
             let summary = recipe::summary(&doc);
             (session.drawing, session.recipe) = (Some(doc), Some(recipe));
             // Write it back to its file, so the app beside you shows the change. Nothing to
@@ -328,9 +355,17 @@ fn call(name: &str, args: &Value, session: &mut Session, progress: &mut dyn FnMu
                     other => other.to_string(),
                 };
                 let parsed = recipe::parse(&json)?;
-                let doc = recipe::build_reporting(&parsed, &mut *progress).map_err(|errors| format!("The recipe has {} problem(s):
-- {}", errors.len(), errors.join("
-- ")))?;
+                let doc = recipe::build_reporting(&parsed, &mut *progress).map_err(|errors| {
+                    format!(
+                        "The recipe has {} problem(s):
+- {}",
+                        errors.len(),
+                        errors.join(
+                            "
+- "
+                        )
+                    )
+                })?;
                 let summary = recipe::summary(&doc);
                 (session.drawing, session.recipe) = (Some(doc), Some(parsed));
                 // A different drawing now, so any file the session was writing to is no longer
@@ -382,7 +417,8 @@ fn call(name: &str, args: &Value, session: &mut Session, progress: &mut dyn FnMu
                 session.path = Some(to.to_owned());
                 save_remembering(session, to)?;
                 // Worth saying once, so an assistant can pass it on to whoever it's working for.
-                let following = if first { " Changes from here on are saved to it as they're made, so the WoodSketch app will show them as you work." } else { "" };
+                let following =
+                    if first { " Changes from here on are saved to it as they're made, so the WoodSketch app will show them as you work." } else { "" };
                 let over = if overwrote { " This replaced changes something else had made to that file." } else { "" };
                 Ok(text(format!("Saved {}.{following}{over}", to.display()), false))
             }
@@ -473,7 +509,10 @@ mod tests {
         let mut session = Session::default();
         let init = ask(&mut session, json!({ "jsonrpc": "2.0", "id": 1, "method": "initialize", "params": { "protocolVersion": "2025-06-18" } }));
         assert_eq!(init["result"]["serverInfo"]["name"], "woodsketch");
-        assert!(handle(&json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }).to_string(), &mut session).is_empty(), "no answer to a notification");
+        assert!(
+            handle(&json!({ "jsonrpc": "2.0", "method": "notifications/initialized" }).to_string(), &mut session).is_empty(),
+            "no answer to a notification"
+        );
         let list = ask(&mut session, json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/list" }));
         let names: Vec<&str> = list["result"]["tools"].as_array().unwrap().iter().map(|t| t["name"].as_str().unwrap()).collect();
         assert!(names.contains(&"build") && names.contains(&"render") && names.contains(&"guide") && names.contains(&"change_part"), "{names:?}");
@@ -517,10 +556,15 @@ mod tests {
         let path = dir.join("hutch.woodsketch");
 
         let mut session = Session::default();
-        call_tool(&mut session, 1, "build", json!({ "recipe": {
+        call_tool(
+            &mut session,
+            1,
+            "build",
+            json!({ "recipe": {
             "materials": [{ "id": "oak", "library": "Red Oak" }],
             "parts": [{ "name": "Side", "material": "oak", "size": [30, 11.25, 0.75], "length": "z" }],
-        } }));
+        } }),
+        );
         call_tool(&mut session, 2, "save", json!({ "path": path.to_string_lossy() }));
 
         // Someone moves a part by hand in WoodSketch and saves.
@@ -602,12 +646,17 @@ mod tests {
         let path = dir.join("chest.woodsketch");
 
         let mut session = Session::default();
-        call_tool(&mut session, 1, "build", json!({ "recipe": { "parts": [
+        call_tool(
+            &mut session,
+            1,
+            "build",
+            json!({ "recipe": { "parts": [
             { "name": "Drawer Front", "size": [20, 6, 0.75] },
             { "name": "Drawer Side L", "size": [18, 6, 0.5] },
             { "name": "Drawer Side R", "size": [18, 6, 0.5] },
             { "name": "Case Side", "size": [24, 20, 0.75] },
-        ] } }));
+        ] } }),
+        );
         call_tool(&mut session, 2, "save", json!({ "path": path.to_string_lossy() }));
         let before = std::fs::read_to_string(&path).unwrap();
 
@@ -724,7 +773,11 @@ mod tests {
         let path = dir.join("quiet.woodsketch");
         let mut session = Session::default();
         call_tool(&mut session, 1, "build", json!({ "recipe": { "parts": [{ "name": "Shelf", "size": [20, 10, 0.75] }] } }));
-        let out = handle(&json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": { "name": "save", "arguments": { "path": path.to_string_lossy() } } }).to_string(), &mut session);
+        let out = handle(
+            &json!({ "jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": { "name": "save", "arguments": { "path": path.to_string_lossy() } } })
+                .to_string(),
+            &mut session,
+        );
         // Every message out is JSON-RPC; nothing stray rides along.
         for message in &out {
             assert_eq!(message["jsonrpc"], "2.0", "{message}");
@@ -750,7 +803,8 @@ mod tests {
         let joint = call_tool(&mut session, 3, "add_joint", json!({ "joint": { "kind": "dado", "part": "Shelf 2", "into": "Side" } }));
         assert!(said(&joint).contains("Joints: 1 dado"), "{joint}");
         assert_eq!(call_tool(&mut session, 4, "change_part", json!({ "name": "Shelf", "changes": { "at": [0.75, 0, 6] } }))["isError"], false);
-        let profile = call_tool(&mut session, 5, "add_profile", json!({ "profile": { "part": "Shelf", "profile": "chamfer", "size": 0.125, "around": "top" } }));
+        let profile =
+            call_tool(&mut session, 5, "add_profile", json!({ "profile": { "part": "Shelf", "profile": "chamfer", "size": 0.125, "around": "top" } }));
         assert_eq!(profile["isError"], false, "{profile}");
         let now = call_tool(&mut session, 6, "recipe", json!({}));
         assert!(said(&now).contains("\"Shelf 2\"") && said(&now).contains("chamfer"));
@@ -772,10 +826,17 @@ mod tests {
         assert!(schema["result"]["contents"][0]["text"].as_str().unwrap().contains("PartSpec"));
         let guide = ask(&mut session, json!({ "jsonrpc": "2.0", "id": 3, "method": "resources/read", "params": { "uri": "woodsketch://guide" } }));
         assert!(guide["result"]["contents"][0]["text"].as_str().unwrap().contains("recipe"));
-        let prompt = ask(&mut session, json!({ "jsonrpc": "2.0", "id": 4, "method": "prompts/get", "params": { "name": "design", "arguments": { "project": "a walnut side table" } } }));
+        let prompt = ask(
+            &mut session,
+            json!({ "jsonrpc": "2.0", "id": 4, "method": "prompts/get", "params": { "name": "design", "arguments": { "project": "a walnut side table" } } }),
+        );
         assert!(prompt["result"]["messages"][0]["content"]["text"].as_str().unwrap().contains("a walnut side table"));
         // Progress, for a client that asks for it, before the answer.
-        let out = handle(&json!({ "jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": { "name": "guide", "arguments": {}, "_meta": { "progressToken": "p1" } } }).to_string(), &mut session);
+        let out = handle(
+            &json!({ "jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": { "name": "guide", "arguments": {}, "_meta": { "progressToken": "p1" } } })
+                .to_string(),
+            &mut session,
+        );
         assert_eq!(out.len(), 3);
         assert_eq!(out[0]["method"], "notifications/progress");
         assert_eq!(out[2]["id"], 5);
@@ -785,7 +846,10 @@ mod tests {
             { "name": "Shelf", "size": [20, 12, 0.75], "at": [0.75, 0, 10] }
         ], "joints": [{ "kind": "let_in", "part": "Shelf", "into": "Side" }] });
         let out = handle(&json!({ "jsonrpc": "2.0", "id": 6, "method": "tools/call", "params": { "name": "build", "arguments": { "recipe": recipe }, "_meta": { "progressToken": "p2" } } }).to_string(), &mut session);
-        let steps: Vec<(u64, u64, &str)> = out[..out.len() - 1].iter().map(|m| (m["params"]["progress"].as_u64().unwrap(), m["params"]["total"].as_u64().unwrap(), m["params"]["message"].as_str().unwrap())).collect();
+        let steps: Vec<(u64, u64, &str)> = out[..out.len() - 1]
+            .iter()
+            .map(|m| (m["params"]["progress"].as_u64().unwrap(), m["params"]["total"].as_u64().unwrap(), m["params"]["message"].as_str().unwrap()))
+            .collect();
         assert_eq!(steps.len(), 5, "{steps:?}");
         assert_eq!(steps[3], (2, 3, "Building: joints[0] (let_in, Shelf into Side)"));
         assert_eq!(steps[4], (3, 3, "Done"));

@@ -2,9 +2,9 @@
 //! image, feeds pointer input to the tools, and draws their overlays.
 
 use eframe::egui;
-use woodsketch_i18n::t;
 use glam::{DVec3, Vec2};
 use woodsketch_doc::Document;
+use woodsketch_i18n::t;
 use woodsketch_render::{Scene, ViewportRenderer};
 use woodsketch_tools::infer::Along;
 use woodsketch_tools::{Axis, Modifiers, Overlay, PointerEvent, SnapKind, Tools};
@@ -111,20 +111,11 @@ impl Viewport {
             self.selection_version = Some(doc.version());
         }
         let pixels_per_point = ui.ctx().pixels_per_point();
-        let physical = [
-            (rect.width() * pixels_per_point).round() as u32,
-            (rect.height() * pixels_per_point).round() as u32,
-        ];
+        let physical = [(rect.width() * pixels_per_point).round() as u32, (rect.height() * pixels_per_point).round() as u32];
         // The sky follows the theme (View > Theme).
         self.renderer.sky = if ui.visuals().dark_mode { woodsketch_render::Sky::dark() } else { woodsketch_render::Sky::light() };
-        let resized = self.renderer.render(
-            &render_state.device,
-            &render_state.queue,
-            physical,
-            self.camera.view_proj(size),
-            self.camera.eye(),
-            pixels_per_point,
-        );
+        let resized =
+            self.renderer.render(&render_state.device, &render_state.queue, physical, self.camera.view_proj(size), self.camera.eye(), pixels_per_point);
 
         let view = self.renderer.output_view().expect("rendered at least once");
         let filter = egui_wgpu::wgpu::FilterMode::Linear;
@@ -141,12 +132,7 @@ impl Viewport {
         self.texture = Some(id);
 
         let painter = ui.painter_at(rect);
-        painter.image(
-            id,
-            rect,
-            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-            egui::Color32::WHITE,
-        );
+        painter.image(id, rect, egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)), egui::Color32::WHITE);
         let overlay = tools.overlay(doc);
         draw_notes(&painter, rect, &self.camera, size, doc);
         draw_overlay(&painter, rect, &self.camera, size, &overlay);
@@ -166,13 +152,7 @@ impl Viewport {
         if let (Some(note), Some(pointer)) = (overlay.cursor_note, ui.input(|i| i.pointer.hover_pos()))
             && rect.contains(pointer)
         {
-            painter.text(
-                pointer + egui::vec2(14.0, -14.0),
-                egui::Align2::LEFT_BOTTOM,
-                note,
-                egui::FontId::proportional(12.0),
-                gray(&painter, 40),
-            );
+            painter.text(pointer + egui::vec2(14.0, -14.0), egui::Align2::LEFT_BOTTOM, note, egui::FontId::proportional(12.0), gray(&painter, 40));
         }
     }
 
@@ -206,26 +186,16 @@ impl Viewport {
         let to_world = doc.context_transform();
         let screen = woodsketch_tools::pick::Screen::in_context(&self.camera, size, to_world);
         let ray = screen.ray(cursor);
-        let hit = woodsketch_tools::pick::hit_face(doc.view().model(), &ray)
-            .map(|(_, p)| to_world.transform_point3(p))
-            .or_else(|| {
-                let (origin, dir) = self.camera.ray(cursor, size);
-                let t = -origin.z / dir.z;
-                (dir.z.abs() > 1e-6 && t > 0.0).then(|| (origin + dir * t).as_dvec3())
-            })?;
+        let hit = woodsketch_tools::pick::hit_face(doc.view().model(), &ray).map(|(_, p)| to_world.transform_point3(p)).or_else(|| {
+            let (origin, dir) = self.camera.ray(cursor, size);
+            let t = -origin.z / dir.z;
+            (dir.z.abs() > 1e-6 && t > 0.0).then(|| (origin + dir * t).as_dvec3())
+        })?;
         Some((hit.as_vec3() - self.camera.eye()).dot(self.camera.forward()))
     }
 
     /// Left-button input goes to the active tool.
-    fn feed_tools(
-        &mut self,
-        ui: &egui::Ui,
-        response: &egui::Response,
-        rect: egui::Rect,
-        size: Vec2,
-        doc: &mut Document,
-        tools: &mut Tools,
-    ) {
+    fn feed_tools(&mut self, ui: &egui::Ui, response: &egui::Response, rect: egui::Rect, size: Vec2, doc: &mut Document, tools: &mut Tools) {
         let local = |p: egui::Pos2| to_vec2(p - rect.min);
         let (mods, press_origin, latest) = ui.input(|i| {
             let mods = Modifiers { shift: i.modifiers.shift, ctrl: i.modifiers.command, alt: i.modifiers.alt };
@@ -335,12 +305,7 @@ fn draw_protractor(
 }
 
 /// Guides: dashed endless lines and small crosses, blue when selected.
-fn draw_guides(
-    painter: &egui::Painter,
-    camera: &OrbitCamera,
-    screen: &impl Fn(DVec3) -> Option<egui::Pos2>,
-    overlay: &Overlay,
-) {
+fn draw_guides(painter: &egui::Painter, camera: &OrbitCamera, screen: &impl Fn(DVec3) -> Option<egui::Pos2>, overlay: &Overlay) {
     // How far guide lines reach either side of the camera, in inches; far beyond any furniture.
     const REACH: f64 = 20_000.0;
     let eye = camera.eye().as_dvec3();
@@ -450,13 +415,7 @@ fn editing_badge(painter: &egui::Painter, rect: egui::Rect, doc: &Document) {
     let text = t!("viewport-editing", "path" => names.join(" › "));
     let galley = painter.layout_no_wrap(text, egui::FontId::proportional(13.0), gray(painter, 30));
     let badge = egui::Rect::from_min_size(rect.min + egui::vec2(10.0, 10.0), galley.size()).expand2(egui::vec2(8.0, 5.0));
-    painter.rect(
-        badge.translate(egui::vec2(8.0, 5.0)),
-        4.0,
-        paper(painter, 230),
-        egui::Stroke::new(1.0, gray(painter, 150)),
-        egui::StrokeKind::Outside,
-    );
+    painter.rect(badge.translate(egui::vec2(8.0, 5.0)), 4.0, paper(painter, 230), egui::Stroke::new(1.0, gray(painter, 150)), egui::StrokeKind::Outside);
     painter.galley(rect.min + egui::vec2(18.0, 15.0), galley, gray(painter, 30));
 }
 
@@ -554,9 +513,7 @@ impl Viewport {
             if !self.flying {
                 self.stand_on_floor(doc);
             }
-            tools.set_message(
-                if self.flying { t!("viewport-flying") } else { t!("viewport-walking") },
-            );
+            tools.set_message(if self.flying { t!("viewport-flying") } else { t!("viewport-walking") });
         }
         if forward != 0.0 || across != 0.0 {
             self.camera.walk(forward * step, across * step);
@@ -593,10 +550,7 @@ impl Viewport {
 fn floor_under(doc: &Document, eye: DVec3) -> Option<f64> {
     let to_world = doc.context_transform();
     let to_local = to_world.inverse();
-    let ray = woodsketch_tools::pick::Ray {
-        origin: to_local.transform_point3(eye),
-        dir: to_local.transform_vector3(-DVec3::Z).normalize(),
-    };
+    let ray = woodsketch_tools::pick::Ray { origin: to_local.transform_point3(eye), dir: to_local.transform_vector3(-DVec3::Z).normalize() };
     let (_, hit) = woodsketch_tools::pick::hit_face(doc.view().model(), &ray)?;
     Some(to_world.transform_point3(hit).z)
 }
@@ -932,5 +886,9 @@ fn gray(painter: &egui::Painter, value: u8) -> egui::Color32 {
 
 /// A label's background: white in the light theme, charcoal in the dark one, `alpha` opaque.
 fn paper(painter: &egui::Painter, alpha: u8) -> egui::Color32 {
-    if painter.ctx().theme() == egui::Theme::Dark { egui::Color32::from_rgba_unmultiplied(40, 42, 46, alpha) } else { egui::Color32::from_rgba_unmultiplied(255, 255, 255, alpha) }
+    if painter.ctx().theme() == egui::Theme::Dark {
+        egui::Color32::from_rgba_unmultiplied(40, 42, 46, alpha)
+    } else {
+        egui::Color32::from_rgba_unmultiplied(255, 255, 255, alpha)
+    }
 }

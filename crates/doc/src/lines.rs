@@ -105,11 +105,7 @@ impl Model {
                 p.distance(a) <= TOL || p.distance(b) <= TOL || strictly_on_segment(p, a, b)
             })
         };
-        self.faces()
-            .find(|(_, f)| {
-                corners.iter().all(|c| f.outer.contains(c)) && f.outer.iter().all(|&v| on_outline(self.vertex(v)))
-            })
-            .map(|(id, _)| id)
+        self.faces().find(|(_, f)| corners.iter().all(|c| f.outer.contains(c)) && f.outer.iter().all(|&v| on_outline(self.vertex(v)))).map(|(id, _)| id)
     }
 
     /// [`Self::draw_polygon`] for the rectangle `corner`, `corner + u`, `corner + u + v`,
@@ -172,11 +168,8 @@ impl Model {
         }
         for (normal, origin) in planes {
             let on_plane = |p: DVec3| (p - origin).dot(normal).abs() <= TOL;
-            let new_here: Vec<EdgeId> = new
-                .iter()
-                .copied()
-                .filter(|&e| self.edge(e).is_some_and(|e| self.edge_points(e).iter().all(|&p| on_plane(p))))
-                .collect();
+            let new_here: Vec<EdgeId> =
+                new.iter().copied().filter(|&e| self.edge(e).is_some_and(|e| self.edge_points(e).iter().all(|&p| on_plane(p)))).collect();
             // Faces a new edge runs across get rebuilt.
             let affected: BTreeSet<FaceId> = self
                 .faces()
@@ -220,36 +213,20 @@ impl Model {
 
     /// Recompute the faces of one plane. `affected` faces are replaced by the regions inside
     /// them; regions bounded by a `new` edge outside every face become new faces.
-    pub(crate) fn rebuild_plane(
-        &mut self,
-        normal: DVec3,
-        origin: DVec3,
-        new: &[EdgeId],
-        affected: &BTreeSet<FaceId>,
-        facing: Option<DVec3>,
-    ) {
+    pub(crate) fn rebuild_plane(&mut self, normal: DVec3, origin: DVec3, new: &[EdgeId], affected: &BTreeSet<FaceId>, facing: Option<DVec3>) {
         let u = normal.any_orthonormal_vector();
         let v = normal.cross(u);
         let flat = |p: DVec3| DVec2::new((p - origin).dot(u), (p - origin).dot(v));
         let lift = |p: DVec2| origin + u * p.x + v * p.y;
         let on_plane = |p: DVec3| (p - origin).dot(normal).abs() <= TOL;
 
-        let edges: Vec<(VertexId, VertexId)> = self
-            .edges()
-            .filter(|(_, e)| on_plane(self.vertex(e.a)) && on_plane(self.vertex(e.b)))
-            .map(|(_, e)| (e.a, e.b))
-            .collect();
-        let points: HashMap<VertexId, DVec2> =
-            edges.iter().flat_map(|&(a, b)| [a, b]).map(|id| (id, flat(self.vertex(id)))).collect();
+        let edges: Vec<(VertexId, VertexId)> =
+            self.edges().filter(|(_, e)| on_plane(self.vertex(e.a)) && on_plane(self.vertex(e.b))).map(|(_, e)| (e.a, e.b)).collect();
+        let points: HashMap<VertexId, DVec2> = edges.iter().flat_map(|&(a, b)| [a, b]).map(|id| (id, flat(self.vertex(id)))).collect();
         let regions = regions(&edges, &points);
 
-        let new_edges: BTreeSet<(VertexId, VertexId)> = new
-            .iter()
-            .filter_map(|&e| self.edge(e))
-            .flat_map(|e| [(e.a, e.b), (e.b, e.a)])
-            .collect();
-        let old: Vec<FaceId> =
-            self.faces().filter(|(_, f)| self.in_plane(f, normal, origin)).map(|(id, _)| id).collect();
+        let new_edges: BTreeSet<(VertexId, VertexId)> = new.iter().filter_map(|&e| self.edge(e)).flat_map(|e| [(e.a, e.b), (e.b, e.a)]).collect();
+        let old: Vec<FaceId> = self.faces().filter(|(_, f)| self.in_plane(f, normal, origin)).map(|(id, _)| id).collect();
 
         let mut kept = BTreeSet::new();
         let mut created: Vec<Face> = Vec::new();
@@ -274,8 +251,7 @@ impl Model {
                 }
                 Some(_) => continue,
                 None => {
-                    let bounded_by_new = (0..region.outer.len())
-                        .any(|i| new_edges.contains(&(region.outer[i], region.outer[(i + 1) % region.outer.len()])));
+                    let bounded_by_new = (0..region.outer.len()).any(|i| new_edges.contains(&(region.outer[i], region.outer[(i + 1) % region.outer.len()])));
                     // Inside another face's outline but not on it: an opening, left open.
                     let in_opening = old.iter().any(|&id| {
                         let f = self.face(id).expect("live");
@@ -313,10 +289,8 @@ impl Model {
                 let face = self.face(id)?;
                 let triangles = self.triangulate(face);
                 let area: f64 = triangles.iter().map(|[a, b, c]| (*b - *a).cross(*c - *a).length()).sum();
-                let middle = triangles
-                    .iter()
-                    .max_by(|x, y| tri_area(&x.map(flat)).total_cmp(&tri_area(&y.map(flat))))
-                    .map(|[a, b, c]| flat((*a + *b + *c) / 3.0))?;
+                let middle =
+                    triangles.iter().max_by(|x, y| tri_area(&x.map(flat)).total_cmp(&tri_area(&y.map(flat)))).map(|[a, b, c]| flat((*a + *b + *c) / 3.0))?;
                 Some((id, area, middle))
             })
             .collect();
@@ -458,8 +432,7 @@ fn regions(edges: &[(VertexId, VertexId)], points: &HashMap<VertexId, DVec2>) ->
 
     let polygon = |cycle: &[VertexId]| -> Vec<DVec2> { cycle.iter().map(|v| points[v]).collect() };
     let area = |cycle: &[VertexId]| signed_area(&polygon(cycle));
-    let (loops, outlines): (Vec<Vec<VertexId>>, Vec<Vec<VertexId>>) =
-        cycles.into_iter().filter(|c| area(c).abs() > EPS * EPS).partition(|c| area(c) > 0.0);
+    let (loops, outlines): (Vec<Vec<VertexId>>, Vec<Vec<VertexId>>) = cycles.into_iter().filter(|c| area(c).abs() > EPS * EPS).partition(|c| area(c) > 0.0);
 
     let mut regions: Vec<Region> = loops.iter().map(|l| Region { outer: l.clone(), holes: Vec::new() }).collect();
     for outline in outlines {
@@ -535,13 +508,7 @@ fn interior_point(region: &Region, points: &HashMap<VertexId, DVec2>) -> Option<
     }
     let mut indices: Vec<u32> = Vec::new();
     earcut::Earcut::new().earcut(flat.iter().map(|p| p.to_array()), &hole_starts, &mut indices);
-    indices
-        .as_chunks::<3>()
-        .0
-        .iter()
-        .map(|t| t.map(|i| flat[i as usize]))
-        .max_by(|x, y| tri_area(x).total_cmp(&tri_area(y)))
-        .map(|[a, b, c]| (a + b + c) / 3.0)
+    indices.as_chunks::<3>().0.iter().map(|t| t.map(|i| flat[i as usize])).max_by(|x, y| tri_area(x).total_cmp(&tri_area(y))).map(|[a, b, c]| (a + b + c) / 3.0)
 }
 
 fn tri_area([a, b, c]: &[DVec2; 3]) -> f64 {
@@ -554,11 +521,7 @@ mod tests {
     use crate::Entity;
 
     fn area(model: &Model, face: FaceId) -> f64 {
-        model
-            .triangulate(model.face(face).unwrap())
-            .iter()
-            .map(|[a, b, c]| (*b - *a).cross(*c - *a).length() * 0.5)
-            .sum()
+        model.triangulate(model.face(face).unwrap()).iter().map(|[a, b, c]| (*b - *a).cross(*c - *a).length() * 0.5).sum()
     }
 
     fn p(x: f64, y: f64) -> DVec3 {
@@ -601,7 +564,8 @@ mod tests {
         let side = model.faces().find(|(_, f)| f.normal.abs_diff_eq(-DVec3::X, 1e-9)).map(|(id, _)| id).unwrap();
         model.remove_face(side);
         model.add_line(DVec3::ZERO, DVec3::new(0.0, 10.0, 10.0));
-        let closed: Vec<DVec3> = model.faces().filter(|(_, f)| f.normal.x.abs() > 0.5 && model.vertex(f.outer[0]).x.abs() < 1e-9).map(|(_, f)| f.normal).collect();
+        let closed: Vec<DVec3> =
+            model.faces().filter(|(_, f)| f.normal.x.abs() > 0.5 && model.vertex(f.outer[0]).x.abs() < 1e-9).map(|(_, f)| f.normal).collect();
         assert_eq!(closed.len(), 2, "two triangles");
         assert!(closed.iter().all(|n| n.abs_diff_eq(-DVec3::X, 1e-9)), "facing out: {closed:?}");
         assert_wound(&model);

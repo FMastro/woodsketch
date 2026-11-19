@@ -498,12 +498,10 @@ impl Scene {
         let container = self.container(path)?;
         let model = &container.model;
         let faces: Vec<FaceId> = entities.iter().filter_map(|e| if let Entity::Face(f) = e { Some(*f) } else { None }).collect();
-        let mut edges: BTreeSet<EdgeId> =
-            entities.iter().filter_map(|e| if let Entity::Edge(id) = e { Some(*id) } else { None }).collect();
+        let mut edges: BTreeSet<EdgeId> = entities.iter().filter_map(|e| if let Entity::Edge(id) = e { Some(*id) } else { None }).collect();
         // Faces take their edges along.
         edges.extend(faces.iter().flat_map(|&f| model.face_edges(f)));
-        let instances: Vec<InstanceId> =
-            entities.iter().filter_map(|e| if let Entity::Instance(i) = e { Some(*i) } else { None }).collect();
+        let instances: Vec<InstanceId> = entities.iter().filter_map(|e| if let Entity::Instance(i) = e { Some(*i) } else { None }).collect();
 
         // The origin: the bounding box's minimum corner, over geometry and instance boxes.
         let mut points: Vec<DVec3> = model.entity_vertices(edges.iter().map(|&e| Entity::Edge(e))).iter().map(|&v| model.vertex(v)).collect();
@@ -546,8 +544,16 @@ impl Scene {
                 format!("Component#{}", self.next_component)
             }
         };
-        let definition = DefinitionId(self.definitions.insert(Definition { name, kind, container: inside, part: Default::default(), template: None,
-            parametric: None, hardware: None, moves: false }));
+        let definition = DefinitionId(self.definitions.insert(Definition {
+            name,
+            kind,
+            container: inside,
+            part: Default::default(),
+            template: None,
+            parametric: None,
+            hardware: None,
+            moves: false,
+        }));
 
         // Take the originals out: faces, then edges no remaining face needs.
         let container = self.container_mut(path)?;
@@ -558,12 +564,7 @@ impl Scene {
         for &id in &instances {
             container.remove_instance(id);
         }
-        Some(container.add_instance(Instance {
-            definition,
-            transform: DAffine3::from_translation(origin),
-            tag: None,
-            material: None,
-        }))
+        Some(container.add_instance(Instance { definition, transform: DAffine3::from_translation(origin), tag: None, material: None }))
     }
 
     /// Replace `instance` (in the container at `path`) with its definition's contents, placed
@@ -604,9 +605,7 @@ impl Scene {
         } else {
             definition
         };
-        let default_name = |name: &str| {
-            ["Group#", "Component#"].iter().any(|p| name.strip_prefix(p).is_some_and(|n| n.parse::<u32>().is_ok()))
-        };
+        let default_name = |name: &str| ["Group#", "Component#"].iter().any(|p| name.strip_prefix(p).is_some_and(|n| n.parse::<u32>().is_ok()));
         let rename = self.definition(definition).is_some_and(|d| default_name(&d.name));
         let name = match kind {
             DefinitionKind::Group if rename => {
@@ -661,11 +660,7 @@ impl Scene {
         let Some((lo, hi)) = self.definition_bounds(instance.definition) else { return Vec::new() };
         (0..8)
             .map(|i| {
-                let corner = DVec3::new(
-                    if i & 1 == 0 { lo.x } else { hi.x },
-                    if i & 2 == 0 { lo.y } else { hi.y },
-                    if i & 4 == 0 { lo.z } else { hi.z },
-                );
+                let corner = DVec3::new(if i & 1 == 0 { lo.x } else { hi.x }, if i & 2 == 0 { lo.y } else { hi.y }, if i & 4 == 0 { lo.z } else { hi.z });
                 instance.transform.transform_point3(corner)
             })
             .collect()
@@ -764,14 +759,7 @@ impl View {
     }
 
     /// Hidden instances (tag turned off) are left out entirely: not drawn, picked or snapped to.
-    fn append_instance(
-        &mut self,
-        scene: &Scene,
-        instance: &Instance,
-        parent: &DAffine3,
-        owner: Owner,
-        inherited: Option<MaterialId>,
-    ) {
+    fn append_instance(&mut self, scene: &Scene, instance: &Instance, parent: &DAffine3, owner: Owner, inherited: Option<MaterialId>) {
         if !scene.is_visible(instance) {
             return;
         }
@@ -805,7 +793,6 @@ impl View {
         own.or_else(|| self.segment_where(|start| id >= start.2).map_or(self.active_paint, |s| s.paint))
     }
 
-
     pub fn vertex_owner(&self, id: VertexId) -> Owner {
         self.owner_where(|start| id >= start.0)
     }
@@ -832,12 +819,9 @@ impl View {
     /// The view's vertices belonging to `entities` of the edited container (instances bring all
     /// their geometry).
     pub fn vertices_of(&self, entities: &[Entity]) -> BTreeSet<VertexId> {
-        let instances: BTreeSet<InstanceId> =
-            entities.iter().filter_map(|e| if let Entity::Instance(i) = e { Some(*i) } else { None }).collect();
+        let instances: BTreeSet<InstanceId> = entities.iter().filter_map(|e| if let Entity::Instance(i) = e { Some(*i) } else { None }).collect();
         let mut vertices = self.model.entity_vertices(entities.iter().copied().filter(|e| self.owner(*e) == Owner::Active));
-        vertices.extend(
-            self.model.vertices().map(|(v, _)| v).filter(|&v| matches!(self.vertex_owner(v), Owner::Instance(i) if instances.contains(&i))),
-        );
+        vertices.extend(self.model.vertices().map(|(v, _)| v).filter(|&v| matches!(self.vertex_owner(v), Owner::Instance(i) if instances.contains(&i))));
         vertices
     }
 }
@@ -896,12 +880,7 @@ mod tests {
         assert_eq!(active.len(), 8);
         assert!(active.iter().all(|(_, p)| p.x <= 1.5));
         // The loose board outside is 10" further along, relative to the group.
-        let outside_min_x = view
-            .model()
-            .vertices()
-            .filter(|(v, _)| view.vertex_owner(*v) == Owner::Outside)
-            .map(|(_, p)| p.x)
-            .fold(f64::INFINITY, f64::min);
+        let outside_min_x = view.model().vertices().filter(|(v, _)| view.vertex_owner(*v) == Owner::Outside).map(|(_, p)| p.x).fold(f64::INFINITY, f64::min);
         assert_eq!(outside_min_x, 10.0);
     }
 

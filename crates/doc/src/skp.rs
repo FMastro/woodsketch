@@ -75,7 +75,15 @@ pub fn read(bytes: &[u8]) -> Result<Imported, SkpError> {
     };
     let model = entry("model.dat").ok_or_else(|| SkpError::Damaged("no model.dat".into()))?;
     let top = records(&model).next().ok_or_else(|| SkpError::Damaged("empty model.dat".into()))?;
-    let mut reader = Reader { scene: Scene::default(), materials: HashMap::new(), tags: HashMap::new(), definitions: HashMap::new(), skipped_faces: 0, hidden_tag: None, places: Places::default() };
+    let mut reader = Reader {
+        scene: Scene::default(),
+        materials: HashMap::new(),
+        tags: HashMap::new(),
+        definitions: HashMap::new(),
+        skipped_faces: 0,
+        hidden_tag: None,
+        places: Places::default(),
+    };
     reader.places = Places::of(top);
     reader.materials(top, &mut entry);
     reader.layers(top);
@@ -249,7 +257,7 @@ impl Reader {
                 container: Container::default(),
                 part: Default::default(),
                 template: None,
-            parametric: None,
+                parametric: None,
                 hardware: None,
                 moves: false,
             };
@@ -326,8 +334,7 @@ impl Reader {
                         .collect()
                 })
                 .collect();
-            let corners: Option<Vec<Vec<crate::VertexId>>> =
-                loops.iter().map(|l| walk(l, &edges)?.into_iter().map(|v| vertex(model, v)).collect()).collect();
+            let corners: Option<Vec<Vec<crate::VertexId>>> = loops.iter().map(|l| walk(l, &edges)?.into_iter().map(|v| vertex(model, v)).collect()).collect();
             let Some(mut corners) = corners.filter(|c| !c.is_empty()) else {
                 self.skipped_faces += 1;
                 continue;
@@ -628,8 +635,8 @@ fn xml_color(xml: &str) -> Option<[u8; 3]> {
 
 /// Words in a material's name that say it's wood: found anywhere in it, or as a whole word.
 const WOOD_PARTS: [&str; 18] = [
-    "wood", "lumber", "timber", "plank", "veneer", "mahogany", "walnut", "cherry", "maple", "cedar", "poplar", "hickory", "cypress",
-    "spruce", "bamboo", "sapele", "rosewood", "decking",
+    "wood", "lumber", "timber", "plank", "veneer", "mahogany", "walnut", "cherry", "maple", "cedar", "poplar", "hickory", "cypress", "spruce", "bamboo",
+    "sapele", "rosewood", "decking",
 ];
 const WOOD_WORDS: [&str; 14] = ["ash", "oak", "fir", "pine", "teak", "alder", "aspen", "birch", "beech", "elm", "board", "boards", "larch", "ipe"];
 
@@ -638,10 +645,7 @@ const WOOD_WORDS: [&str; 14] = ["ash", "oak", "fir", "pine", "teak", "alder", "a
 /// else not wood at all (metal, glass, grass, paint colors: never cut from stock).
 fn material_for(name: &str, color: [u8; 3]) -> Material {
     let plain = name.replace(['_', '[', ']'], " ").to_lowercase();
-    let preset = crate::library::LIBRARY
-        .iter()
-        .filter(|p| plain.contains(&p.name.to_lowercase()))
-        .max_by_key(|p| p.name.len());
+    let preset = crate::library::LIBRARY.iter().filter(|p| plain.contains(&p.name.to_lowercase())).max_by_key(|p| p.name.len());
     if let Some(preset) = preset {
         let mut material = preset.material();
         material.name = name.to_owned();
@@ -697,13 +701,21 @@ mod tests {
             .iter()
             .flat_map(|(e, a, b)| {
                 let flags = flagged.iter().find(|(f, _)| f == e).map(|(_, f)| rec(0x07d3, &[*f])).unwrap_or_default();
-                rec(0x0bb8, &[rec(0x07d0, &[id(*e), flags].concat()), rec(0x0bb9, &(*a as u16).to_le_bytes()), rec(0x0bba, &(*b as u16).to_le_bytes())].concat())
+                rec(
+                    0x0bb8,
+                    &[rec(0x07d0, &[id(*e), flags].concat()), rec(0x0bb9, &(*a as u16).to_le_bytes()), rec(0x0bba, &(*b as u16).to_le_bytes())].concat(),
+                )
             })
             .collect();
         let coedges: Vec<u8> = [20u16, 21, 22, 23].iter().flat_map(|e| rec(0x0fa0, &[rec(0x0fa1, &e.to_le_bytes()), rec(0x0fa2, &[0])].concat())).collect();
         let face = rec(
             0x0dac,
-            &[rec(0x07d0, &[id(30), rec(0x07d1, &77u16.to_le_bytes())].concat()), rec(0x0dad, &floats(&[0.0, 0.0, -1.0, 0.0])), rec(0x0dae, &rec(0x1194, &rec(0x1195, &coedges)))].concat(),
+            &[
+                rec(0x07d0, &[id(30), rec(0x07d1, &77u16.to_le_bytes())].concat()),
+                rec(0x0dad, &floats(&[0.0, 0.0, -1.0, 0.0])),
+                rec(0x0dae, &rec(0x1194, &rec(0x1195, &coedges))),
+            ]
+            .concat(),
         );
         rec(0x1388, &[rec(0x07d0, &id(entity)), rec(0x1389, &vertices), rec(0x138a, &edges), rec(0x138b, &face)].concat())
     }
@@ -767,7 +779,17 @@ mod tests {
         // Groups are listed apart from component instances: `138d` > `1d4c` > `1964`.
         let definitions = rec(
             0x01f9,
-            &rec(0x1770, &rec(0x1771, &[rec(0x157c, &[rectangle_entities(50), rec(0x157e, b"Group#7")].concat()), rec(0x157c, &[rectangle_entities(51), rec(0x157e, b"Group#8")].concat())].concat())),
+            &rec(
+                0x1770,
+                &rec(
+                    0x1771,
+                    &[
+                        rec(0x157c, &[rectangle_entities(50), rec(0x157e, b"Group#7")].concat()),
+                        rec(0x157c, &[rectangle_entities(51), rec(0x157e, b"Group#8")].concat()),
+                    ]
+                    .concat(),
+                ),
+            ),
         );
         let group = |definition: u16, name: &[u8]| {
             let m = floats(&[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
@@ -786,7 +808,8 @@ mod tests {
     fn hidden_objects_go_on_a_hidden_tag() {
         let definitions = rec(0x01f9, &rec(0x1770, &rec(0x1771, &rec(0x157c, &[rectangle_entities(50), rec(0x157e, b"Board")].concat()))));
         let m = floats(&[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
-        let instance = |flags: u8| rec(0x1964, &[rec(0x07d0, &[id(60), rec(0x07d3, &[flags])].concat()), rec(0x1966, &m), rec(0x1967, &50u16.to_le_bytes())].concat());
+        let instance =
+            |flags: u8| rec(0x1964, &[rec(0x07d0, &[id(60), rec(0x07d3, &[flags])].concat()), rec(0x1966, &m), rec(0x1967, &50u16.to_le_bytes())].concat());
         let root = rec(0x01f6, &rec(0x1388, &[rec(0x07d0, &id(1)), rec(0x138c, &[instance(6), instance(7)].concat())].concat()));
         let scene = read(&file(&rec(0x01f4, &[definitions, root].concat()), "")).unwrap().scene;
         let tags: Vec<Option<TagId>> = scene.root.instances().map(|(_, i)| i.tag).collect();
@@ -802,10 +825,13 @@ mod tests {
         let root = rec(0x01f6, &rec(0x1388, &[rec(0x07d0, &id(1)), rec(0x1391, &endless), rec(0x1392, &segment)].concat()));
         let scene = read(&file(&rec(0x01f4, &root), "")).unwrap().scene;
         let guides: Vec<Guide> = scene.root.model.guides().map(|(_, g)| g.clone()).collect();
-        assert_eq!(guides, vec![
-            Guide::Line { point: DVec3::new(5.0, 6.0, 7.0), dir: DVec3::X },
-            Guide::Segment { a: DVec3::new(1.0, 1.0, 10.0), b: DVec3::new(1.0, 1.0, 2.0) },
-        ]);
+        assert_eq!(
+            guides,
+            vec![
+                Guide::Line { point: DVec3::new(5.0, 6.0, 7.0), dir: DVec3::X },
+                Guide::Segment { a: DVec3::new(1.0, 1.0, 10.0), b: DVec3::new(1.0, 1.0, 2.0) },
+            ]
+        );
     }
 
     #[test]
@@ -824,7 +850,12 @@ mod tests {
         let path: Vec<u8> = path.iter().flat_map(|i| [&[2u8][..], &i.to_le_bytes()].concat()).collect();
         rec(
             0x5208,
-            &[rec(0x5209, &[kind, 0, 0, 0]), rec(0x520a, &floats(&point)), rec(0x520b, &rec(0x53fc, &[rec(0x53fd, &vertex.to_le_bytes()), rec(0x53fe, &path)].concat()))].concat(),
+            &[
+                rec(0x5209, &[kind, 0, 0, 0]),
+                rec(0x520a, &floats(&point)),
+                rec(0x520b, &rec(0x53fc, &[rec(0x53fd, &vertex.to_le_bytes()), rec(0x53fe, &path)].concat())),
+            ]
+            .concat(),
         )
     }
 
@@ -848,16 +879,17 @@ mod tests {
         // A point given in the top level's coordinates (type 12): no placement applied.
         let free = rec(0x5bcc, &[rec(0x5bcd, &reference(12, [5.0, 5.0, 0.0], 0, &[60])), rec(0x5bce, &reference(2, [0.0; 3], 13, &[60]))].concat());
         let text = rec(0x55f0, &[rec(0x55f1, b"Glue here"), rec(0x55f4, &reference(2, [0.0; 3], 12, &[60])), rec(0x55f5, &floats(&[1.0, 2.0, 3.0]))].concat());
-        let root = rec(
-            0x01f6,
-            &rec(0x1388, &[rec(0x07d0, &id(1)), rec(0x138c, &instance), rec(0x1398, &text), rec(0x1399, &[dimension, free].concat())].concat()),
-        );
+        let root =
+            rec(0x01f6, &rec(0x1388, &[rec(0x07d0, &id(1)), rec(0x138c, &instance), rec(0x1398, &text), rec(0x1399, &[dimension, free].concat())].concat()));
         let scene = read(&file(&rec(0x01f4, &[definitions, root].concat()), "")).unwrap().scene;
         let notes: Vec<Guide> = scene.root.model.guides().map(|(_, g)| g.clone()).collect();
         let up = DVec3::Z * 10.0;
         assert_eq!(notes.len(), 3, "{notes:?}");
         assert!(notes.contains(&Guide::Text { at: DVec3::new(2.0, 1.0, 0.0) + up, offset: DVec3::new(1.0, 2.0, 3.0), text: "Glue here".into() }));
-        let Some(Guide::Dimension { a, b, offset }) = notes.iter().find(|g| matches!(g, Guide::Dimension { a, .. } if a.z == 10.0 && a.x == 0.0 && a.y == 0.0)) else { panic!("{notes:?}") };
+        let Some(Guide::Dimension { a, b, offset }) = notes.iter().find(|g| matches!(g, Guide::Dimension { a, .. } if a.z == 10.0 && a.x == 0.0 && a.y == 0.0))
+        else {
+            panic!("{notes:?}")
+        };
         assert_eq!((*a, *b), (up, DVec3::X * 2.0 + up), "through the placement");
         assert!((offset.length() - 3.0).abs() < 1e-9 && offset.dot(DVec3::X).abs() < 1e-9, "3\" out, square to it: {offset}");
         assert!(notes.iter().any(|g| matches!(g, Guide::Dimension { a, .. } if *a == DVec3::new(5.0, 5.0, 0.0))), "type 12 taken as it is");
@@ -865,7 +897,9 @@ mod tests {
 
     /// A part's entities spanning `size` (one edge, corner to corner: enough for its box).
     fn sized_entities(entity: u16, size: [f64; 3]) -> Vec<u8> {
-        let vertices = [rec(0x09c4, &[id(entity + 1), rec(0x09c5, &floats(&[0.0; 3]))].concat()), rec(0x09c4, &[id(entity + 2), rec(0x09c5, &floats(&size))].concat())].concat();
+        let vertices =
+            [rec(0x09c4, &[id(entity + 1), rec(0x09c5, &floats(&[0.0; 3]))].concat()), rec(0x09c4, &[id(entity + 2), rec(0x09c5, &floats(&size))].concat())]
+                .concat();
         let edge = rec(0x0bb8, &[rec(0x07d0, &id(entity + 3)), rec(0x0bb9, &(entity + 1).to_le_bytes()), rec(0x0bba, &(entity + 2).to_le_bytes())].concat());
         rec(0x1388, &[rec(0x07d0, &id(entity)), rec(0x1389, &vertices), rec(0x138a, &edge)].concat())
     }
@@ -877,14 +911,28 @@ mod tests {
         let definition = |entity: u16, size: [f64; 3]| rec(0x157c, &[sized_entities(entity, size), rec(0x157e, b"Part")].concat());
         let definitions = rec(
             0x01f9,
-            &rec(0x1770, &rec(0x1771, &[definition(100, [1.5, 9.25, 144.0]), definition(110, [9.25, 1.5, 120.0]), definition(120, [0.75, 5.5, 30.0])].concat())),
+            &rec(
+                0x1770,
+                &rec(0x1771, &[definition(100, [1.5, 9.25, 144.0]), definition(110, [9.25, 1.5, 120.0]), definition(120, [0.75, 5.5, 30.0])].concat()),
+            ),
         );
         let m = floats(&[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]);
         let instance = |definition: u16, paint: u16| {
             rec(0x1964, &[rec(0x07d0, &[id(60), rec(0x07d1, &paint.to_le_bytes())].concat()), rec(0x1966, &m), rec(0x1967, &definition.to_le_bytes())].concat())
         };
         // Pine: a 2x4 frame (two lumber-sized parts) and three 3/4" slats.
-        let placed = [instance(100, 77), instance(110, 77), instance(120, 78), instance(120, 78), instance(100, 79), instance(110, 79), instance(120, 79), instance(120, 79), instance(120, 79)].concat();
+        let placed = [
+            instance(100, 77),
+            instance(110, 77),
+            instance(120, 78),
+            instance(120, 78),
+            instance(100, 79),
+            instance(110, 79),
+            instance(120, 79),
+            instance(120, 79),
+            instance(120, 79),
+        ]
+        .concat();
         let root = rec(0x01f6, &rec(0x1388, &[rec(0x07d0, &id(1)), rec(0x138c, &placed)].concat()));
         let scene = read(&file(&rec(0x01f4, &[materials, definitions, root].concat()), "")).unwrap().scene;
         let kind = |name: &str| scene.materials().find(|(_, m)| m.name == name).map(|(_, m)| m.kind).unwrap();

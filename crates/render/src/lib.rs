@@ -135,8 +135,7 @@ impl ViewportRenderer {
             depth_bias: wgpu::DepthBiasState::default(),
         };
         let line_pipeline = create_pipeline(device, &layout, &shader, line_spec("viewport lines", true));
-        let background_line_pipeline =
-            create_pipeline(device, &layout, &shader, line_spec("viewport background lines", false));
+        let background_line_pipeline = create_pipeline(device, &layout, &shader, line_spec("viewport background lines", false));
         let placed_line_pipeline = create_pipeline(
             device,
             &layout,
@@ -256,15 +255,7 @@ impl ViewportRenderer {
 
     /// Render one frame at `size` physical pixels. Returns `true` when the output texture was
     /// recreated, in which case the caller must re-register [`Self::output_view`] with egui.
-    pub fn render(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        size: [u32; 2],
-        view_proj: Mat4,
-        eye: Vec3,
-        pixels_per_point: f32,
-    ) -> bool {
+    pub fn render(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, size: [u32; 2], view_proj: Mat4, eye: Vec3, pixels_per_point: f32) -> bool {
         let size = [size[0].max(1), size[1].max(1)];
         let resized = self.targets.as_ref().is_none_or(|t| t.size != size);
         if resized {
@@ -284,9 +275,7 @@ impl ViewportRenderer {
         let dashed = GpuBuffer::new(device, "viewport guides", &guide_vertices(&all_guides, view_proj, eye));
         queue.write_buffer(&self.globals, 0, bytemuck::cast_slice(&globals));
 
-        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("viewport"),
-        });
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("viewport") });
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("viewport"),
@@ -294,17 +283,11 @@ impl ViewportRenderer {
                     view: &targets.msaa_color,
                     depth_slice: None,
                     resolve_target: Some(&targets.output),
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(self.background),
-                        store: wgpu::StoreOp::Discard,
-                    },
+                    ops: wgpu::Operations { load: wgpu::LoadOp::Clear(self.background), store: wgpu::StoreOp::Discard },
                 })],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &targets.depth,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Discard,
-                    }),
+                    depth_ops: Some(wgpu::Operations { load: wgpu::LoadOp::Clear(1.0), store: wgpu::StoreOp::Discard }),
                     stencil_ops: None,
                 }),
                 timestamp_writes: None,
@@ -371,7 +354,10 @@ impl ViewportRenderer {
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("viewport readback") });
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo { texture: &targets.output_texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
-            wgpu::TexelCopyBufferInfo { buffer: &buffer, layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(padded), rows_per_image: Some(height) } },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &buffer,
+                layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(padded), rows_per_image: Some(height) },
+            },
             wgpu::Extent3d { width, height, depth_or_array_layers: 1 },
         );
         queue.submit([encoder.finish()]);
@@ -394,11 +380,7 @@ impl GpuBuffer {
             buffer: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some(label),
                 // wgpu rejects zero-sized vertex buffers, so pad an empty scene.
-                contents: if vertices.is_empty() {
-                    &[0; 4]
-                } else {
-                    bytemuck::cast_slice(vertices)
-                },
+                contents: if vertices.is_empty() { &[0; 4] } else { bytemuck::cast_slice(vertices) },
                 usage: wgpu::BufferUsages::VERTEX,
             }),
             vertex_count: vertices.len() as u32,
@@ -410,17 +392,13 @@ impl Targets {
     fn new(device: &wgpu::Device, size: [u32; 2]) -> Self {
         let make = |label, format, sample_count, usage| {
             device.create_texture(&wgpu::TextureDescriptor {
-                    label: Some(label),
-                    size: wgpu::Extent3d {
-                        width: size[0],
-                        height: size[1],
-                        depth_or_array_layers: 1,
-                    },
-                    mip_level_count: 1,
-                    sample_count,
-                    dimension: wgpu::TextureDimension::D2,
-                    format,
-                    usage,
+                label: Some(label),
+                size: wgpu::Extent3d { width: size[0], height: size[1], depth_or_array_layers: 1 },
+                mip_level_count: 1,
+                sample_count,
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage,
                 view_formats: &[],
             })
         };
@@ -433,18 +411,8 @@ impl Targets {
         );
         Self {
             size,
-            msaa_color: texture(
-                "viewport msaa color",
-                OUTPUT_FORMAT,
-                SAMPLE_COUNT,
-                wgpu::TextureUsages::RENDER_ATTACHMENT,
-            ),
-            depth: texture(
-                "viewport depth",
-                DEPTH_FORMAT,
-                SAMPLE_COUNT,
-                wgpu::TextureUsages::RENDER_ATTACHMENT,
-            ),
+            msaa_color: texture("viewport msaa color", OUTPUT_FORMAT, SAMPLE_COUNT, wgpu::TextureUsages::RENDER_ATTACHMENT),
+            depth: texture("viewport depth", DEPTH_FORMAT, SAMPLE_COUNT, wgpu::TextureUsages::RENDER_ATTACHMENT),
             output: output_texture.create_view(&wgpu::TextureViewDescriptor::default()),
             output_texture,
         }
@@ -452,8 +420,7 @@ impl Targets {
 }
 
 /// A placement's matrix columns and fade (`vs_*_placed` in the shader).
-const PLACEMENT_ATTRIBUTES: [wgpu::VertexAttribute; 5] =
-    wgpu::vertex_attr_array![4 => Float32x4, 5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32];
+const PLACEMENT_ATTRIBUTES: [wgpu::VertexAttribute; 5] = wgpu::vertex_attr_array![4 => Float32x4, 5 => Float32x4, 6 => Float32x4, 7 => Float32x4, 8 => Float32];
 
 struct PipelineSpec<'a> {
     label: &'a str,
@@ -469,12 +436,7 @@ struct PipelineSpec<'a> {
     depth_bias: wgpu::DepthBiasState,
 }
 
-fn create_pipeline(
-    device: &wgpu::Device,
-    layout: &wgpu::PipelineLayout,
-    shader: &wgpu::ShaderModule,
-    spec: PipelineSpec<'_>,
-) -> wgpu::RenderPipeline {
+fn create_pipeline(device: &wgpu::Device, layout: &wgpu::PipelineLayout, shader: &wgpu::ShaderModule, spec: PipelineSpec<'_>) -> wgpu::RenderPipeline {
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: Some(spec.label),
         layout: Some(layout),
@@ -483,11 +445,7 @@ fn create_pipeline(
             entry_point: Some(spec.vertex_entry),
             compilation_options: Default::default(),
             buffers: &[
-                Some(wgpu::VertexBufferLayout {
-                    array_stride: spec.stride as u64,
-                    step_mode: wgpu::VertexStepMode::Vertex,
-                    attributes: spec.attributes,
-                }),
+                Some(wgpu::VertexBufferLayout { array_stride: spec.stride as u64, step_mode: wgpu::VertexStepMode::Vertex, attributes: spec.attributes }),
                 spec.placed.then_some(wgpu::VertexBufferLayout {
                     array_stride: size_of::<Placement>() as u64,
                     step_mode: wgpu::VertexStepMode::Instance,
@@ -521,20 +479,11 @@ fn create_pipeline(
 }
 
 /// The sky: one screen-covering triangle from the vertex index, behind everything.
-fn create_sky_pipeline(
-    device: &wgpu::Device,
-    layout: &wgpu::PipelineLayout,
-    shader: &wgpu::ShaderModule,
-) -> wgpu::RenderPipeline {
+fn create_sky_pipeline(device: &wgpu::Device, layout: &wgpu::PipelineLayout, shader: &wgpu::ShaderModule) -> wgpu::RenderPipeline {
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: Some("viewport sky"),
         layout: Some(layout),
-        vertex: wgpu::VertexState {
-            module: shader,
-            entry_point: Some("vs_sky"),
-            compilation_options: Default::default(),
-            buffers: &[],
-        },
+        vertex: wgpu::VertexState { module: shader, entry_point: Some("vs_sky"), compilation_options: Default::default(), buffers: &[] },
         primitive: wgpu::PrimitiveState::default(),
         depth_stencil: Some(wgpu::DepthStencilState {
             format: DEPTH_FORMAT,

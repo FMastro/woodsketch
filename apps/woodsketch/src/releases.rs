@@ -94,11 +94,8 @@ fn upload_url<'a>(release: &'a Release, name: &str) -> Option<&'a str> {
 fn get(url: &str, accept: &str) -> Result<String, Error> {
     let mut refused = None;
     for roots in net::roots() {
-        let agent: ureq::Agent = ureq::Agent::config_builder()
-            .tls_config(net::tls(roots.clone()))
-            .timeout_global(Some(std::time::Duration::from_secs(30)))
-            .build()
-            .into();
+        let agent: ureq::Agent =
+            ureq::Agent::config_builder().tls_config(net::tls(roots.clone())).timeout_global(Some(std::time::Duration::from_secs(30))).build().into();
         match agent.get(url).header("Accept", accept).call() {
             Ok(mut response) => return Ok(response.body_mut().read_to_string()?),
             Err(e) if net::untrusted_certificate(&e) => {
@@ -199,10 +196,7 @@ mod tests {
 
     #[test]
     fn a_repository_address_becomes_its_release_listing() {
-        assert_eq!(
-            listing_url("https://github.com/FMastro/woodsketch"),
-            "https://api.github.com/repos/FMastro/woodsketch/releases?per_page=10&page=1"
-        );
+        assert_eq!(listing_url("https://github.com/FMastro/woodsketch"), "https://api.github.com/repos/FMastro/woodsketch/releases?per_page=10&page=1");
         assert_eq!(
             listing_url("https://github.com/FMastro/woodsketch/"),
             listing_url("https://github.com/FMastro/woodsketch"),
@@ -254,10 +248,7 @@ mod tests {
         // the rest of the test would pass just as well on a silent fall-back every time.
         let [computer, _shipped] = net::roots();
         let own: ureq::Agent = ureq::Agent::config_builder().tls_config(net::tls(computer)).build().into();
-        own.get(&releases.listing)
-            .header("Accept", "application/vnd.github.v3+json")
-            .call()
-            .expect("the roots this computer trusts reach GitHub");
+        own.get(&releases.listing).header("Accept", "application/vnd.github.v3+json").call().expect("the roots this computer trusts reach GitHub");
         for channel in ["win-x64", "osx-arm64", "osx-x64", "linux-x64"] {
             let feed = releases.get_release_feed(channel, &Manifest::default(), "").expect(channel);
             let newest = feed.Assets.iter().filter(|a| a.Type.eq_ignore_ascii_case("Full")).max_by(|a, b| a.Version.cmp(&b.Version));

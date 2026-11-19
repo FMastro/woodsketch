@@ -110,8 +110,10 @@ svg text {{ font: 11px system-ui, sans-serif; fill: #333; }}
             write_joints(&mut html, &step.joints, &anchored);
             html.push_str("</li>");
         }
-        html.push_str("</ol></section>
-");
+        html.push_str(
+            "</ol></section>
+",
+        );
     }
     html.push_str("</body></html>\n");
     html
@@ -322,17 +324,21 @@ fn write_sheet(html: &mut String, scene: &Scene, sheet: &Sheet, label: &str, row
     });
     // Where each cut is: dimensioned on the views and listed, from the reference face and edge.
     let model = &def.container.model;
-    let placed: Vec<(String, (DVec3, DVec3))> = cuts(scene, sheet.definition)
-        .into_iter()
-        .filter_map(|cut| Some((cut.what, cut_box(model, sheet.scale, &cut.ops)?)))
-        .collect();
+    let placed: Vec<(String, (DVec3, DVec3))> =
+        cuts(scene, sheet.definition).into_iter().filter_map(|cut| Some((cut.what, cut_box(model, sheet.scale, &cut.ops)?))).collect();
     let profiles = scene
         .profiles
         .iter()
         .filter(|p| p.part == sheet.definition)
         .map(|p| (format!("{} {}", format_length(p.size), p.profile.name().to_lowercase()), profile_edges(model, &p.edges)))
         .collect();
-    let marks = Marks { face: def.part.reference_face, edge: def.part.reference_edge, end: def.part.reference_end, cuts: placed.iter().map(|(_, b)| *b).collect(), profiles };
+    let marks = Marks {
+        face: def.part.reference_face,
+        edge: def.part.reference_edge,
+        end: def.part.reference_end,
+        cuts: placed.iter().map(|(_, b)| *b).collect(),
+        profiles,
+    };
     html.push_str(&views(model, sheet.scale, axes, [length, width, thickness], glue.as_ref().map(|(n, _, _)| (*n as usize, label)), &marks));
     if !placed.is_empty() {
         let from = match (marks.face, marks.edge, marks.end) {
@@ -343,7 +349,9 @@ fn write_sheet(html: &mut String, scene: &Scene, sheet: &Sheet, label: &str, row
         let _ = writeln!(html, "<b>Where the cuts are</b> <span class=\"meta\">{}</span>", esc(from));
         if cut_rows(&marks.cuts, axes[0], length).len() > MAX_ROWS {
             // Too many to dimension on the views: a table, by the numbers on the face view.
-            html.push_str("<table class=\"cuts\"><tr><th>#</th><th>Cut</th><th>Along the length</th><th>Across the width</th><th>Into the thickness</th></tr>\n");
+            html.push_str(
+                "<table class=\"cuts\"><tr><th>#</th><th>Cut</th><th>Along the length</th><th>Across the width</th><th>Into the thickness</th></tr>\n",
+            );
             for (n, (what, b)) in placed.iter().enumerate() {
                 let place = where_is(*b, axes, [length, width, thickness], &def.part);
                 let cells: String = place.split("; ").map(|c| format!("<td>{}</td>", esc(c))).collect();
@@ -669,12 +677,24 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
         for k in 1..n {
             let y = y_face + face_h - k as f64 * strip * s;
             let x = x_end + k as f64 * strip * s;
-            let _ = write!(glue, r#"<line x1="{x0:.2}" y1="{y:.2}" x2="{:.2}" y2="{y:.2}"/><line x1="{x:.2}" y1="{y_edge:.2}" x2="{x:.2}" y2="{:.2}"/>"#, x0 + length * s, y_edge + edge_h);
+            let _ = write!(
+                glue,
+                r#"<line x1="{x0:.2}" y1="{y:.2}" x2="{:.2}" y2="{y:.2}"/><line x1="{x:.2}" y1="{y_edge:.2}" x2="{x:.2}" y2="{:.2}"/>"#,
+                x0 + length * s,
+                y_edge + edge_h
+            );
         }
         let _ = write!(svg, r##"<g class="glue-up" stroke="#b0703a" stroke-width="1">{glue}</g>"##);
         for k in 0..n {
             let y = y_face + face_h - (k as f64 + 0.5) * strip * s;
-            let _ = write!(svg, r##"<text x="{:.1}" y="{:.1}" text-anchor="middle" fill="#b0703a">{}-{}</text>"##, x0 + length * s / 2.0, y + 4.0, esc(label), k + 1);
+            let _ = write!(
+                svg,
+                r##"<text x="{:.1}" y="{:.1}" text-anchor="middle" fill="#b0703a">{}-{}</text>"##,
+                x0 + length * s / 2.0,
+                y + 4.0,
+                esc(label),
+                k + 1
+            );
             // Growth rings: an arc across the board's end, bowed up or down in turn.
             let (left, right) = (x_end + k as f64 * strip * s, x_end + (k + 1) as f64 * strip * s);
             let middle = y_edge + edge_h / 2.0;
@@ -699,11 +719,19 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
     let edge_y = if edge_far { y_face } else { y_face + face_h };
     let face_y = if face_far { y_edge } else { y_edge + edge_h };
     if marks.edge.is_some() {
-        let _ = write!(svg, r##"<line class="reference" x1="{x0:.1}" y1="{edge_y:.1}" x2="{:.1}" y2="{edge_y:.1}" stroke="{blue}" stroke-width="3"/>"##, x0 + length * s);
+        let _ = write!(
+            svg,
+            r##"<line class="reference" x1="{x0:.1}" y1="{edge_y:.1}" x2="{:.1}" y2="{edge_y:.1}" stroke="{blue}" stroke-width="3"/>"##,
+            x0 + length * s
+        );
         let _ = write!(svg, r##"<text x="{:.1}" y="{:.1}" fill="{blue}">ref. edge</text>"##, x0 + length * s + 4.0, edge_y + 4.0);
     }
     if marks.face.is_some() {
-        let _ = write!(svg, r##"<line class="reference" x1="{x0:.1}" y1="{face_y:.1}" x2="{:.1}" y2="{face_y:.1}" stroke="{blue}" stroke-width="3"/>"##, x0 + length * s);
+        let _ = write!(
+            svg,
+            r##"<line class="reference" x1="{x0:.1}" y1="{face_y:.1}" x2="{:.1}" y2="{face_y:.1}" stroke="{blue}" stroke-width="3"/>"##,
+            x0 + length * s
+        );
         let _ = write!(svg, r##"<text x="{:.1}" y="{:.1}" fill="{blue}">ref. face</text>"##, x0 + length * s + 4.0, face_y + 4.0);
     }
     let mut across_used: Vec<f64> = Vec::new();
@@ -740,12 +768,24 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
     }
     if marks.edge.is_some() {
         let mark = crate::part::edge_mark(thickness * 0.35, if face_far { 1.0 } else { -1.0 });
-        polyline(&mut svg, mark.iter().map(|p| DVec2::new(x0 + (length / 2.0 + p.x) * s, y_edge + edge_h - (thickness / 2.0 + p.y) * s)).collect(), "edge-mark");
+        polyline(
+            &mut svg,
+            mark.iter().map(|p| DVec2::new(x0 + (length / 2.0 + p.x) * s, y_edge + edge_h - (thickness / 2.0 + p.y) * s)).collect(),
+            "edge-mark",
+        );
     }
     // Edge profiles: their edges in orange, where a view sees them from the front, each named
     // once beside its first edge.
     let orange = "#c8641e";
-    let extent = |axis: usize| if axis == l { length } else if axis == w { width } else { thickness };
+    let extent = |axis: usize| {
+        if axis == l {
+            length
+        } else if axis == w {
+            width
+        } else {
+            thickness
+        }
+    };
     let views_on: [(usize, usize, usize, f64, f64, f64, f64); 3] =
         [(l, w, t, 1.0, x0, y_face, face_h), (l, t, w, -1.0, x0, y_edge, edge_h), (w, t, l, 1.0, x_end, y_edge, edge_h)];
     for (label, edges) in &marks.profiles {
@@ -759,7 +799,11 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
                 if fa.distance(fb) < 2.0 || !(near(pa[depth], front) && near(pb[depth], front)) {
                     continue;
                 }
-                let _ = write!(svg, r##"<line class="profile" x1="{:.1}" y1="{:.1}" x2="{:.1}" y2="{:.1}" stroke="{orange}" stroke-width="3" opacity="0.8"/>"##, fa.x, fa.y, fb.x, fb.y);
+                let _ = write!(
+                    svg,
+                    r##"<line class="profile" x1="{:.1}" y1="{:.1}" x2="{:.1}" y2="{:.1}" stroke="{orange}" stroke-width="3" opacity="0.8"/>"##,
+                    fa.x, fa.y, fb.x, fb.y
+                );
                 if !named {
                     named = true;
                     let mid = (fa + fb) / 2.0;
@@ -772,7 +816,11 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
     let end_far = marks.end.filter(|e| e.axis.index() == l).is_some_and(|e| e.positive);
     let end_x = if end_far { x0 + length * s } else { x0 };
     if marks.end.is_some() {
-        let _ = write!(svg, r##"<line class="reference" x1="{end_x:.1}" y1="{y_face:.1}" x2="{end_x:.1}" y2="{:.1}" stroke="{blue}" stroke-width="3"/>"##, y_face + face_h);
+        let _ = write!(
+            svg,
+            r##"<line class="reference" x1="{end_x:.1}" y1="{y_face:.1}" x2="{end_x:.1}" y2="{:.1}" stroke="{blue}" stroke-width="3"/>"##,
+            y_face + face_h
+        );
         let _ = write!(svg, r##"<text x="{end_x:.1}" y="{:.1}" text-anchor="middle" fill="{blue}">ref. end</text>"##, y_face + face_h + 26.0);
     }
     // Each cut's place along the length, a row apiece above the face (numbered as on the face):
@@ -783,7 +831,13 @@ fn views(model: &Model, scale: DVec3, [l, w, t]: [usize; 3], [length, width, thi
         let y = y_face - 16.0 - ROW * (row + 1) as f64;
         let (from, to) = (x0 + lo[l] * s, x0 + hi[l] * s);
         let close_side = if end_far { to } else { from };
-        let _ = write!(svg, r##"<text x="{:.1}" y="{:.1}" text-anchor="end" fill="{blue}">{}</text>"##, x0 - 22.0, y + 4.0, cuts.iter().map(|n| (n + 1).to_string()).collect::<Vec<_>>().join(", "));
+        let _ = write!(
+            svg,
+            r##"<text x="{:.1}" y="{:.1}" text-anchor="end" fill="{blue}">{}</text>"##,
+            x0 - 22.0,
+            y + 4.0,
+            cuts.iter().map(|n| (n + 1).to_string()).collect::<Vec<_>>().join(", ")
+        );
         if (close_side - end_x).abs() > 2.0 {
             dimension(&mut svg, DVec2::new(end_x.min(close_side), y), DVec2::new(end_x.max(close_side), y), &format_length((close_side - end_x).abs() / s));
         }
@@ -990,7 +1044,10 @@ mod tests {
         let steps = &html[html.find("Assemble:").expect("the assembly")..];
         assert_eq!(steps.matches("<table class=\"joints\">").count(), 1, "one step makes the joint: {steps}");
         assert!(steps.contains("<th colspan=\"3\">Dado <span class=\"meta\">(1/4\" deep)</span></th>"), "{steps}");
-        assert!(steps.contains("<td>Side: dado</td><td>12\" from the left end, 3/4\" long; across the full width; 1/4\" deep from the reference face</td>"), "{steps}");
+        assert!(
+            steps.contains("<td>Side: dado</td><td>12\" from the left end, 3/4\" long; across the full width; 1/4\" deep from the reference face</td>"),
+            "{steps}"
+        );
         assert!(steps.contains("<td>Shelf: made to size for the dado</td><td></td>"), "nothing to mark out on the shelf: {steps}");
         // Each letter links to the sheet the same cut is drawn on.
         assert!(steps.contains(r##"<a href="#sheet-A">A</a>"##) && steps.contains(r##"<a href="#sheet-B">B</a>"##), "{steps}");
@@ -1053,7 +1110,10 @@ mod tests {
         doc.let_in(shelf, side, 0.25).unwrap();
         let html = |doc: &Document| to_html(doc.scene(), &crate::cutlist::cut_list(doc.scene()), "Case");
         let before = html(&doc);
-        assert!(before.contains("Where the cuts are") && before.contains("pick the reference face and edge in Entity Info"), "measured from the drawing until picked");
+        assert!(
+            before.contains("Where the cuts are") && before.contains("pick the reference face and edge in Entity Info"),
+            "measured from the drawing until picked"
+        );
         doc.edit_part(side, |p| {
             p.reference_face = Some(Side { axis: PartAxis::Z, positive: false });
             p.reference_edge = Some(Side { axis: PartAxis::Y, positive: false });

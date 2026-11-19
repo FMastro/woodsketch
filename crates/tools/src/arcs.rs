@@ -41,9 +41,18 @@ pub struct CenterArcTool {
 enum CenterStage {
     Center,
     /// The center placed; the cursor sets where the arc starts (and its radius).
-    Start { center: DVec3, normal: DVec3, start: DVec3 },
+    Start {
+        center: DVec3,
+        normal: DVec3,
+        start: DVec3,
+    },
     /// Turning from `start` by `angle` (radians, either way, up to a full turn).
-    Sweep { center: DVec3, normal: DVec3, start: DVec3, angle: f64 },
+    Sweep {
+        center: DVec3,
+        normal: DVec3,
+        start: DVec3,
+        angle: f64,
+    },
 }
 
 impl CenterArcTool {
@@ -135,7 +144,8 @@ impl CenterArcTool {
             CenterStage::Center => Err(t!("tool-arc-click-center-first")),
             CenterStage::Start { center, normal, start } => {
                 let radius = parse_length(typed).map_err(|e| e.to_string())?.abs();
-                let toward = (start - center - normal * (start - center).dot(normal)).try_normalize().unwrap_or_else(|| woodsketch_doc::curves::plane_axes(normal).0);
+                let toward =
+                    (start - center - normal * (start - center).dot(normal)).try_normalize().unwrap_or_else(|| woodsketch_doc::curves::plane_axes(normal).0);
                 self.set_start(center, normal, center + toward * radius)
             }
             CenterStage::Sweep { center, normal, start, angle } => {

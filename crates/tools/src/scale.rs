@@ -11,8 +11,8 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::units::parse_lengths;
-use woodsketch_i18n::t;
 use woodsketch_doc::{Document, EPS, Entity, scaling};
+use woodsketch_i18n::t;
 
 use crate::pick::{Screen, Snap, closest_on_line, snap_feature};
 use crate::{Overlay, pick_resolved};
@@ -219,7 +219,6 @@ impl ScaleTool {
     }
 
     pub fn status(&self) -> String {
-
         if self.op.is_some() {
             if self.about_center { t!("tool-scale-move-center") } else { t!("tool-scale-move-opposite") }
         } else {

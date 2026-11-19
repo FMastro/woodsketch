@@ -4,9 +4,9 @@
 
 use glam::{DVec3, Vec2};
 use woodsketch_doc::curves::{CIRCLE_SEGMENTS, circle_points};
-use woodsketch_i18n::t;
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, EPS};
+use woodsketch_i18n::t;
 
 use crate::Overlay;
 use crate::carry::Carry;
@@ -43,7 +43,18 @@ struct Drawn {
 
 impl Default for CircleTool {
     fn default() -> Self {
-        Self { center: None, hover: None, radius: 0.0, segments: CIRCLE_SEGMENTS, last: None, polygon: false, lock: None, circumscribed: false, hints: Hints::default(), through: None }
+        Self {
+            center: None,
+            hover: None,
+            radius: 0.0,
+            segments: CIRCLE_SEGMENTS,
+            last: None,
+            polygon: false,
+            lock: None,
+            circumscribed: false,
+            hints: Hints::default(),
+            through: None,
+        }
     }
 }
 

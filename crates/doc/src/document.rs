@@ -4,9 +4,7 @@ use std::collections::BTreeSet;
 
 use glam::{DAffine3, DVec3};
 
-use crate::scene::{
-    Container, DefinitionKind, Instance, InstanceId, Material, MaterialId, MaterialKind, Scene, TagId, View,
-};
+use crate::scene::{Container, DefinitionKind, Instance, InstanceId, Material, MaterialId, MaterialKind, Scene, TagId, View};
 use crate::{Entity, FaceId, Model, MoveError, PushPullError};
 
 /// Snapshots kept for undo. Models are small enough that whole-model snapshots are cheap.
@@ -147,11 +145,7 @@ impl Document {
             return None;
         }
         let container = self.container();
-        let points = container
-            .model
-            .vertices()
-            .map(|(_, p)| p)
-            .chain(container.instances().flat_map(|(_, inst)| self.state.scene.instance_box_corners(inst)));
+        let points = container.model.vertices().map(|(_, p)| p).chain(container.instances().flat_map(|(_, inst)| self.state.scene.instance_box_corners(inst)));
         points.fold(None, |acc, p| Some(acc.map_or((p, p), |(lo, hi): (DVec3, DVec3)| (lo.min(p), hi.max(p)))))
     }
 
@@ -251,10 +245,7 @@ impl Document {
         let def = self.state.scene.definition(instance.definition)?;
         let extents = self.part_extents(id)?;
         let (lo, hi) = def.container.model.bounds()?;
-        let axis = def.part.grain.map_or_else(
-            || (0..3).max_by(|&a, &b| extents[a].total_cmp(&extents[b])).unwrap_or(0),
-            crate::part::PartAxis::index,
-        );
+        let axis = def.part.grain.map_or_else(|| (0..3).max_by(|&a, &b| extents[a].total_cmp(&extents[b])).unwrap_or(0), crate::part::PartAxis::index);
         let center = (lo + hi) * 0.5;
         let half = DVec3::AXES[axis] * (hi - lo)[axis] * 0.4;
         Some([center - half, center + half].map(|p| instance.transform.transform_point3(p)))
@@ -515,15 +506,13 @@ impl Document {
             return Err(MoveError::WouldCollapse);
         }
         let container = self.container();
-        let all: Vec<Entity> =
-            container.model.entities().chain(container.instances().map(|(id, _)| Entity::Instance(id))).collect();
+        let all: Vec<Entity> = container.model.entities().chain(container.instances().map(|(id, _)| Entity::Instance(id))).collect();
         self.transform_entities(&all, &[DAffine3::from_scale(DVec3::splat(factor))], false).map(|_| ())
     }
 
     pub fn select_all(&mut self) {
         let container = self.container();
-        let all: Vec<Entity> =
-            container.model.entities().chain(container.instances().map(|(id, _)| Entity::Instance(id))).collect();
+        let all: Vec<Entity> = container.model.entities().chain(container.instances().map(|(id, _)| Entity::Instance(id))).collect();
         let selection = self.selection_mut();
         selection.clear();
         selection.extend(all);
@@ -564,18 +553,11 @@ impl Document {
     /// definition. A mirroring transform turns loose geometry inside out, so the faces it moved
     /// whole are wound back and keep the side that was their front. One undoable step; on error
     /// nothing changes. Returns the copies.
-    pub fn transform_entities(
-        &mut self,
-        entities: &[Entity],
-        transforms: &[DAffine3],
-        copy: bool,
-    ) -> Result<Vec<Entity>, MoveError> {
+    pub fn transform_entities(&mut self, entities: &[Entity], transforms: &[DAffine3], copy: bool) -> Result<Vec<Entity>, MoveError> {
         let mut trial = self.container().clone();
         let loose: Vec<Entity> = entities.iter().copied().filter(|e| !matches!(e, Entity::Instance(_))).collect();
-        let instances: Vec<InstanceId> =
-            entities.iter().filter_map(|e| if let Entity::Instance(i) = e { Some(*i) } else { None }).collect();
-        let guides: Vec<crate::GuideId> =
-            entities.iter().filter_map(|e| if let Entity::Guide(g) = e { Some(*g) } else { None }).collect();
+        let instances: Vec<InstanceId> = entities.iter().filter_map(|e| if let Entity::Instance(i) = e { Some(*i) } else { None }).collect();
+        let guides: Vec<crate::GuideId> = entities.iter().filter_map(|e| if let Entity::Guide(g) = e { Some(*g) } else { None }).collect();
         let mut copies = Vec::new();
         if copy {
             for t in transforms {
@@ -622,20 +604,14 @@ impl Document {
     /// Add a tag named like SketchUp's defaults ("Tag", "Tag1", "Tag2", ...).
     pub fn add_tag(&mut self) -> TagId {
         let taken = |name: &str| self.state.scene.tags().any(|(_, t)| t.name == name);
-        let name = std::iter::once("Tag".to_owned())
-            .chain((1..).map(|i| format!("Tag{i}")))
-            .find(|n| !taken(n))
-            .expect("some name is free");
+        let name = std::iter::once("Tag".to_owned()).chain((1..).map(|i| format!("Tag{i}"))).find(|n| !taken(n)).expect("some name is free");
         self.edit_scene(|scene, _| scene.add_tag(name))
     }
 
     /// Add a tag folder at the top, with a free name ("Folder", "Folder1"...).
     pub fn add_tag_folder(&mut self) -> TagId {
         let taken = |name: &str| self.state.scene.tags().any(|(_, t)| t.name == name);
-        let name = std::iter::once("Folder".to_owned())
-            .chain((1..).map(|i| format!("Folder{i}")))
-            .find(|n| !taken(n))
-            .expect("some name is free");
+        let name = std::iter::once("Folder".to_owned()).chain((1..).map(|i| format!("Folder{i}"))).find(|n| !taken(n)).expect("some name is free");
         self.edit_scene(|scene, _| scene.add_tag_folder(name, None))
     }
 
@@ -694,8 +670,7 @@ impl Document {
     /// Tag the selected groups and components (loose geometry stays Untagged, as SketchUp
     /// recommends). Returns how many were tagged.
     pub fn tag_selection(&mut self, tag: Option<TagId>) -> usize {
-        let instances: Vec<InstanceId> =
-            self.selection.iter().filter_map(|e| if let Entity::Instance(i) = e { Some(i) } else { None }).collect();
+        let instances: Vec<InstanceId> = self.selection.iter().filter_map(|e| if let Entity::Instance(i) = e { Some(i) } else { None }).collect();
         if instances.is_empty() {
             return 0;
         }
@@ -731,10 +706,7 @@ impl Document {
             MaterialKind::Other => ("Material", PALETTE[6], false),
         };
         let taken = |name: &str| self.state.scene.materials().any(|(_, m)| m.name == name);
-        let name = std::iter::once(base.to_owned())
-            .chain((2..).map(|i| format!("{base} {i}")))
-            .find(|n| !taken(n))
-            .expect("some name is free");
+        let name = std::iter::once(base.to_owned()).chain((2..).map(|i| format!("{base} {i}"))).find(|n| !taken(n)).expect("some name is free");
         self.edit_scene(|scene, _| scene.add_material(Material::new(name, color, kind, grained)))
     }
 
@@ -764,12 +736,8 @@ impl Document {
     /// faces' own paint cleared so all of it shows the material; in loose geometry, every face
     /// connected to it.
     pub fn paint_object(&mut self, face: FaceId, material: Option<MaterialId>) {
-        let connected: Vec<FaceId> = self
-            .model()
-            .connected(Entity::Face(face))
-            .into_iter()
-            .filter_map(|e| if let Entity::Face(f) = e { Some(f) } else { None })
-            .collect();
+        let connected: Vec<FaceId> =
+            self.model().connected(Entity::Face(face)).into_iter().filter_map(|e| if let Entity::Face(f) = e { Some(f) } else { None }).collect();
         self.edit_scene(|scene, path| {
             let Some((&open, parent)) = path.split_last() else {
                 if let Some(container) = scene.container_mut(path) {
@@ -793,8 +761,7 @@ impl Document {
     /// Paint faces and groups/components of the container being edited (`None` = default).
     /// Edges can't be painted. Returns how many were painted.
     pub fn paint(&mut self, entities: &[Entity], material: Option<MaterialId>) -> usize {
-        let paintable: Vec<Entity> =
-            entities.iter().copied().filter(|e| !matches!(e, Entity::Edge(_)) && self.container().contains(*e)).collect();
+        let paintable: Vec<Entity> = entities.iter().copied().filter(|e| !matches!(e, Entity::Edge(_)) && self.container().contains(*e)).collect();
         if paintable.is_empty() {
             return 0;
         }
@@ -899,8 +866,7 @@ impl Document {
             _ => (DVec3::ZERO, [DVec3::X, DVec3::Y, DVec3::Z]),
         };
         let model = self.view.model();
-        let along =
-            |p: DVec3| DVec3::new((p - origin).dot(axes[0]), (p - origin).dot(axes[1]), (p - origin).dot(axes[2]));
+        let along = |p: DVec3| DVec3::new((p - origin).dot(axes[0]), (p - origin).dot(axes[1]), (p - origin).dot(axes[2]));
         let points: Vec<DVec3> = self.view.vertices_of(&sized).into_iter().map(|v| along(model.vertex(v))).collect();
         let Some(lo) = points.iter().copied().reduce(DVec3::min) else { return Ok(false) };
         let hi = points.iter().copied().reduce(DVec3::max).expect("the low corner found a point");
@@ -996,8 +962,7 @@ impl Document {
 
     /// Explode the selected groups and components back into loose geometry, selecting it.
     pub fn explode_selection(&mut self) -> bool {
-        let instances: Vec<InstanceId> =
-            self.selection.iter().filter_map(|e| if let Entity::Instance(i) = e { Some(i) } else { None }).collect();
+        let instances: Vec<InstanceId> = self.selection.iter().filter_map(|e| if let Entity::Instance(i) = e { Some(i) } else { None }).collect();
         if instances.is_empty() {
             return false;
         }
@@ -1433,10 +1398,7 @@ mod context_tests {
         let board = grouped_board(&mut doc, DVec3::ZERO);
         doc.selection_mut().extend([Entity::Instance(board)]);
         let part = doc.group_selection(DefinitionKind::Component).unwrap();
-        let Entity::Instance(copy) = doc
-            .transform_entities(&[Entity::Instance(part)], &[DAffine3::from_translation(DVec3::X * 12.0)], true)
-            .unwrap()[0]
-        else {
+        let Entity::Instance(copy) = doc.transform_entities(&[Entity::Instance(part)], &[DAffine3::from_translation(DVec3::X * 12.0)], true).unwrap()[0] else {
             panic!("the copy is an instance")
         };
         let definition = doc.container().instance(part).unwrap().definition;
@@ -1455,8 +1417,7 @@ mod context_tests {
         let board = grouped_board(&mut doc, DVec3::ZERO);
         doc.selection_mut().extend([Entity::Instance(board)]);
         let part = doc.group_selection(DefinitionKind::Component).unwrap();
-        doc.transform_entities(&[Entity::Instance(part)], &[DAffine3::from_translation(DVec3::X * 12.0)], true)
-            .unwrap();
+        doc.transform_entities(&[Entity::Instance(part)], &[DAffine3::from_translation(DVec3::X * 12.0)], true).unwrap();
         doc.selection_mut().clear();
         doc.selection_mut().extend([Entity::Instance(part)]);
         assert!(doc.flip_selection(2).unwrap());

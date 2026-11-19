@@ -12,116 +12,77 @@ use woodsketch_tools::{Picked, Tools};
 pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
     let board = tools.board_mut();
     board.ensure_stock(doc);
-    let woods: Vec<(MaterialId, String, MaterialKind)> = doc
-        .scene()
-        .materials()
-        .filter(|(_, m)| !stock_options(m).is_empty())
-        .map(|(id, m)| (id, m.name.clone(), m.kind))
-        .collect();
+    let woods: Vec<(MaterialId, String, MaterialKind)> =
+        doc.scene().materials().filter(|(_, m)| !stock_options(m).is_empty()).map(|(id, m)| (id, m.name.clone(), m.kind)).collect();
 
     let mut pick = None;
-    egui::Grid::new("board_stock")
-        .num_columns(2)
-        .spacing([8.0, 4.0])
-        .show(ui, |ui| {
-            ui.label(t!("board-material"));
-            let current = board
-                .picked
-                .as_ref()
-                .and_then(|p| woods.iter().find(|(id, _, _)| *id == p.material));
-            let shown = current.map_or_else(
-                || t!("board-pick-material"),
-                |(_, name, kind)| {
-                    // "Pine (boards)", but not "Pine Lumber (lumber)".
-                    if name
-                        .to_lowercase()
-                        .contains(noun(*kind).trim_end_matches('s'))
-                    {
-                        name.clone()
-                    } else {
-                        t!("board-with-noun", "name" => name.as_str(), "noun" => noun_shown(*kind))
+    egui::Grid::new("board_stock").num_columns(2).spacing([8.0, 4.0]).show(ui, |ui| {
+        ui.label(t!("board-material"));
+        let current = board.picked.as_ref().and_then(|p| woods.iter().find(|(id, _, _)| *id == p.material));
+        let shown = current.map_or_else(
+            || t!("board-pick-material"),
+            |(_, name, kind)| {
+                // "Pine (boards)", but not "Pine Lumber (lumber)".
+                if name.to_lowercase().contains(noun(*kind).trim_end_matches('s')) {
+                    name.clone()
+                } else {
+                    t!("board-with-noun", "name" => name.as_str(), "noun" => noun_shown(*kind))
+                }
+            },
+        );
+        egui::ComboBox::from_id_salt("board_material").selected_text(shown).height(520.0).show_ui(ui, |ui| {
+            // By type, so Pine Lumber (2x4s) and Pine (boards) don't get mixed up: the drawing's
+            // woods first, then the library's others (picking one adds it).
+            for (kind, salt) in KINDS {
+                ui.label(egui::RichText::new(kind_heading(kind)).strong());
+                // Indented under a salt that stays English: egui keys the indent by it,
+                // and an id that changed with the language would be a different widget.
+                ui.indent(salt, |ui| {
+                    for (id, name, _) in woods.iter().filter(|w| w.2 == kind) {
+                        if ui.selectable_label(current.is_some_and(|(c, _, _)| c == id), name.as_str()).clicked() {
+                            pick = Some(first_stock(doc, *id));
+                        }
                     }
-                },
-            );
-            egui::ComboBox::from_id_salt("board_material")
-                .selected_text(shown)
-                .height(520.0)
-                .show_ui(ui, |ui| {
-                    // By type, so Pine Lumber (2x4s) and Pine (boards) don't get mixed up: the drawing's
-                    // woods first, then the library's others (picking one adds it).
-                    for (kind, salt) in KINDS {
-                        ui.label(egui::RichText::new(kind_heading(kind)).strong());
-                        // Indented under a salt that stays English: egui keys the indent by it,
-                        // and an id that changed with the language would be a different widget.
-                        ui.indent(salt, |ui| {
-                            for (id, name, _) in woods.iter().filter(|w| w.2 == kind) {
-                                if ui
-                                    .selectable_label(
-                                        current.is_some_and(|(c, _, _)| c == id),
-                                        name.as_str(),
-                                    )
-                                    .clicked()
-                                {
-                                    pick = Some(first_stock(doc, *id));
-                                }
-                            }
-                            let library = LIBRARY.iter().filter(|p| {
-                                p.kind == kind && !woods.iter().any(|(_, name, _)| name == p.name)
-                            });
-                            for preset in library {
-                                if ui
-                                    .selectable_label(false, preset.name)
-                                    .on_hover_text(t!("board-from-library-hint"))
-                                    .clicked()
-                                {
-                                    let id = doc.add_preset(preset);
-                                    pick = Some(first_stock(doc, id));
-                                }
-                            }
-                        });
+                    let library = LIBRARY.iter().filter(|p| p.kind == kind && !woods.iter().any(|(_, name, _)| name == p.name));
+                    for preset in library {
+                        if ui.selectable_label(false, preset.name).on_hover_text(t!("board-from-library-hint")).clicked() {
+                            let id = doc.add_preset(preset);
+                            pick = Some(first_stock(doc, id));
+                        }
                     }
                 });
-            ui.end_row();
-
-            if let Some(picked) = board.picked.clone()
-                && let Some(material) = doc.scene().material(picked.material)
-            {
-                ui.label(t!("board-stock"));
-                egui::ComboBox::from_id_salt("board_stock_size")
-                    .selected_text(label(&picked.name, picked.stock))
-                    .height(560.0)
-                    .show_ui(ui, |ui| {
-                        // First, so it shows above a long list of sizes.
-                        if ui.selectable_label(false, t!("board-custom-size-open")).on_hover_text(t!("board-custom-size-open-hint")).clicked() {
-                            ui.data_mut(|d| d.insert_temp(custom_id(), true));
-                        }
-                        ui.separator();
-                        for (name, stock) in stock_options(material) {
-                            if ui
-                                .selectable_label(stock == picked.stock, label(&name, stock))
-                                .clicked()
-                            {
-                                pick = Some(Some(Picked {
-                                    material: picked.material,
-                                    stock,
-                                    name,
-                                }));
-                            }
-                        }
-                    });
-                ui.end_row();
-
-                if matches!(picked.stock, Stock::Section { .. }) {
-                    ui.label(t!("board-lay-it"));
-                    ui.horizontal(|ui| {
-                        ui.selectable_value(&mut board.on_edge, false, t!("board-flat"));
-                        ui.selectable_value(&mut board.on_edge, true, t!("board-on-edge"))
-                            .on_hover_text(t!("board-on-edge-hint"));
-                    });
-                    ui.end_row();
-                }
             }
         });
+        ui.end_row();
+
+        if let Some(picked) = board.picked.clone()
+            && let Some(material) = doc.scene().material(picked.material)
+        {
+            ui.label(t!("board-stock"));
+            egui::ComboBox::from_id_salt("board_stock_size").selected_text(label(&picked.name, picked.stock)).height(560.0).show_ui(ui, |ui| {
+                // First, so it shows above a long list of sizes.
+                if ui.selectable_label(false, t!("board-custom-size-open")).on_hover_text(t!("board-custom-size-open-hint")).clicked() {
+                    ui.data_mut(|d| d.insert_temp(custom_id(), true));
+                }
+                ui.separator();
+                for (name, stock) in stock_options(material) {
+                    if ui.selectable_label(stock == picked.stock, label(&name, stock)).clicked() {
+                        pick = Some(Some(Picked { material: picked.material, stock, name }));
+                    }
+                }
+            });
+            ui.end_row();
+
+            if matches!(picked.stock, Stock::Section { .. }) {
+                ui.label(t!("board-lay-it"));
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut board.on_edge, false, t!("board-flat"));
+                    ui.selectable_value(&mut board.on_edge, true, t!("board-on-edge")).on_hover_text(t!("board-on-edge-hint"));
+                });
+                ui.end_row();
+            }
+        }
+    });
     if let Some(picked) = pick {
         board.picked = picked;
     }
@@ -131,28 +92,17 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut Tools) {
     {
         board.picked = Some(added);
     }
-    if board
-        .picked
-        .as_ref()
-        .is_some_and(|p| matches!(p.stock, Stock::Section { .. }))
-    {
+    if board.picked.as_ref().is_some_and(|p| matches!(p.stock, Stock::Section { .. })) {
         ui.weak(t!("board-lumber-note"));
-    } else if board
-        .picked
-        .as_ref()
-        .is_some_and(|p| matches!(p.stock, Stock::Thickness(_)))
-    {
+    } else if board.picked.as_ref().is_some_and(|p| matches!(p.stock, Stock::Thickness(_))) {
         ui.weak(t!("board-sheet-note"));
     }
 }
 
 /// The kinds of material boards are drawn from, as the dropdown groups them, each with the id
 /// its group is indented under. The heading itself is `kind_heading`.
-const KINDS: [(MaterialKind, &str); 3] = [
-    (MaterialKind::DimensionalLumber, "lumber"),
-    (MaterialKind::SolidWood, "boards"),
-    (MaterialKind::SheetGood, "sheets"),
-];
+const KINDS: [(MaterialKind, &str); 3] =
+    [(MaterialKind::DimensionalLumber, "lumber"), (MaterialKind::SolidWood, "boards"), (MaterialKind::SheetGood, "sheets")];
 
 fn kind_heading(kind: MaterialKind) -> String {
     match kind {
@@ -243,20 +193,12 @@ fn label(name: &str, stock: Stock) -> String {
     match stock {
         // Custom sizes are already named by their actual size.
         Stock::Section { .. } if name.contains('"') => name.to_owned(),
-        Stock::Section { thickness, width } => format!(
-            "{name} ({} x {})",
-            format_length(thickness),
-            format_length(width)
-        ),
+        Stock::Section { thickness, width } => format!("{name} ({} x {})", format_length(thickness), format_length(width)),
         Stock::Thickness(_) => name.to_owned(),
     }
 }
 
 fn first_stock(doc: &Document, material: MaterialId) -> Option<Picked> {
     let (name, stock) = default_stock(doc.scene().material(material)?)?;
-    Some(Picked {
-        material,
-        stock,
-        name,
-    })
+    Some(Picked { material, stock, name })
 }

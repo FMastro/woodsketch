@@ -112,9 +112,7 @@ impl Document {
 /// where it was made).
 fn uses_only(clip: &Scene, scene: &Scene) -> bool {
     let instances = clip.root.instances().all(|(_, i)| {
-        scene.definition(i.definition).is_some()
-            && i.material.is_none_or(|m| scene.material(m).is_some())
-            && i.tag.is_none_or(|t| scene.tag(t).is_some())
+        scene.definition(i.definition).is_some() && i.material.is_none_or(|m| scene.material(m).is_some()) && i.tag.is_none_or(|t| scene.tag(t).is_some())
     });
     let faces = clip.root.model.faces().all(|(_, f)| f.material.is_none_or(|m| scene.material(m).is_some()));
     instances && faces
@@ -318,6 +316,9 @@ mod tests {
         assert_eq!(to.scene().joints.len(), joints);
         assert!(to.template_of(copy).is_some(), "still a template, to change its size");
         let list = crate::cutlist::cut_list(to.scene());
-        assert_eq!(list.materials.iter().map(|m| m.parts.len()).sum::<usize>(), crate::cutlist::cut_list(from.scene()).materials.iter().map(|m| m.parts.len()).sum::<usize>());
+        assert_eq!(
+            list.materials.iter().map(|m| m.parts.len()).sum::<usize>(),
+            crate::cutlist::cut_list(from.scene()).materials.iter().map(|m| m.parts.len()).sum::<usize>()
+        );
     }
 }

@@ -38,11 +38,8 @@ pub fn change(ui: &mut egui::Ui, doc: &mut Document, instance: InstanceId) {
         for i in 0..recipe.parameters.len() {
             let label = recipe.parameters[i].label.clone().unwrap_or_else(|| recipe.parameters[i].name.clone());
             ui.label(&label);
-            let how = if recipe.parameters[i].choices.is_empty() {
-                shown(&recipe.parameters[i].value)
-            } else {
-                Shown::Chosen(said(&recipe.parameters[i].value))
-            };
+            let how =
+                if recipe.parameters[i].choices.is_empty() { shown(&recipe.parameters[i].value) } else { Shown::Chosen(said(&recipe.parameters[i].value)) };
             match how {
                 Shown::WorkedOut(text) => {
                     ui.weak(t!("component-worked-out", "sum" => text.as_str()));
@@ -197,7 +194,12 @@ fn add_parameter(ui: &mut egui::Ui, instance: InstanceId, recipe: &mut Recipe) {
         ui.add(egui::TextEdit::singleline(&mut value).desired_width(60.0).hint_text(t!("component-new-value")));
         let good = !name.trim().is_empty() && !value.trim().is_empty() && !recipe.parameters.iter().any(|p| p.name == name.trim());
         if ui.add_enabled(good, egui::Button::new(t!("component-add"))).clicked() {
-            recipe.parameters.push(ParameterSpec { name: name.trim().to_owned(), value: Length::Text(value.trim().to_owned()), label: None, choices: Vec::new() });
+            recipe.parameters.push(ParameterSpec {
+                name: name.trim().to_owned(),
+                value: Length::Text(value.trim().to_owned()),
+                label: None,
+                choices: Vec::new(),
+            });
             name.clear();
             value.clear();
         }

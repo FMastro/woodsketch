@@ -142,7 +142,8 @@ impl Document {
         {
             let (cells, levels) = layout(&p, &q, &extra, &extra_levels);
             let (in_p, in_q) = (p.occupancy(&frame, &cells, &levels), q.occupancy(&frame, &cells, &levels));
-            let overlap: Vec<DVec2> = (0..cells.len()).filter(|&i| in_p[i].iter().zip(&in_q[i]).any(|(a, b)| *a && *b)).flat_map(|i| cells[i].iter().copied()).collect();
+            let overlap: Vec<DVec2> =
+                (0..cells.len()).filter(|&i| in_p[i].iter().zip(&in_q[i]).any(|(a, b)| *a && *b)).flat_map(|i| cells[i].iter().copied()).collect();
             if !overlap.is_empty() {
                 let ((a0, a1), (o0, o1)) = (extent(&p.corners, p.along), extent(&overlap, p.along));
                 // The end of the part that's in the other: keep the tenon short of it.
@@ -215,10 +216,7 @@ impl Document {
         let model_p = transformed(&new_part, &to_p);
         let model_q = transformed(&new_into, &to_q);
         let scene = self.scene();
-        let before: Vec<(DefinitionId, Model)> = [dp, dq]
-            .iter()
-            .filter_map(|&d| scene.definition(d).map(|def| (d, def.container.model.clone())))
-            .collect();
+        let before: Vec<(DefinitionId, Model)> = [dp, dq].iter().filter_map(|&d| scene.definition(d).map(|def| (d, def.container.model.clone()))).collect();
         let kind = match joint {
             AngledJoint::MortiseAndTenon { .. } => JointKind::MortiseAndTenon,
             AngledJoint::Housing => JointKind::Notch,
@@ -434,14 +432,16 @@ fn arrangement(shapes: &[&[DVec2]], lines: &[(DVec2, DVec2)]) -> Vec<Vec<DVec2>>
             .flat_map(|cell| {
                 let (left, right) = (halfplane(&cell, normal, offset), halfplane(&cell, -normal, -offset));
                 // A line through a corner leaves it doubled: drop the repeat.
-                [left, right].into_iter().map(|mut c| {
-                    c.dedup_by(|a, b| a.distance(*b) < TOL);
-                    if c.len() > 1 && c[0].distance(c[c.len() - 1]) < TOL {
-                        c.pop();
-                    }
-                    c
-                })
-                .filter(|c| c.len() >= 3 && area(c) > TOL * TOL)
+                [left, right]
+                    .into_iter()
+                    .map(|mut c| {
+                        c.dedup_by(|a, b| a.distance(*b) < TOL);
+                        if c.len() > 1 && c[0].distance(c[c.len() - 1]) < TOL {
+                            c.pop();
+                        }
+                        c
+                    })
+                    .filter(|c| c.len() >= 3 && area(c) > TOL * TOL)
             })
             .collect();
     }
@@ -537,10 +537,8 @@ fn solid(frame: &Frame, cells: &[Vec<DVec2>], levels: &[f64], occupied: &[Vec<bo
     let stray: Vec<Entity> = model.edges().map(|(id, _)| id).filter(|&id| model.edge_faces(id).is_empty()).map(Entity::Edge).collect();
     model.erase(stray);
     // Faces on painted faces of the part keep their paint.
-    let faces: Vec<(crate::FaceId, DVec3, DVec3)> = model
-        .faces()
-        .filter_map(|(id, f)| model.triangulate(f).first().map(|[a, b, c]| (id, (*a + *b + *c) / 3.0, f.normal)))
-        .collect();
+    let faces: Vec<(crate::FaceId, DVec3, DVec3)> =
+        model.faces().filter_map(|(id, f)| model.triangulate(f).first().map(|[a, b, c]| (id, (*a + *b + *c) / 3.0, f.normal))).collect();
     for (id, at, normal) in faces {
         let paint = painted.iter().find(|([a, b, c], n, _)| n.dot(normal) > 1.0 - 1e-6 && on_triangle(at, [*a, *b, *c], *n)).map(|(_, _, m)| *m);
         if paint.is_some() {

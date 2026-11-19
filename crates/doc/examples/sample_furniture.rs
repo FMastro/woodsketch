@@ -20,7 +20,15 @@ fn wood(doc: &mut Document, name: &str) -> MaterialId {
     doc.add_preset(LIBRARY.iter().find(|p| p.name == name).expect("a library wood"))
 }
 
-fn board(doc: &mut Document, material: MaterialId, name: &str, origin: DVec3, length_dir: DVec3, width_dir: DVec3, [length, width, thickness]: [f64; 3]) -> InstanceId {
+fn board(
+    doc: &mut Document,
+    material: MaterialId,
+    name: &str,
+    origin: DVec3,
+    length_dir: DVec3,
+    width_dir: DVec3,
+    [length, width, thickness]: [f64; 3],
+) -> InstanceId {
     let id = doc.add_board(&Board { origin, length_dir, width_dir, length, width, thickness }, Some(material)).expect("a board");
     doc.rename_instance(id, name);
     id
@@ -57,7 +65,12 @@ fn side_table(doc: &mut Document) {
     doc.profile_edges(leg, Profile::Chamfer, 0.125, Edges::Along { axis: 0, corners: [true; 4] }).expect("chamfer");
     let front_left = component(doc, leg, "Leg");
     let corner = DVec3::new(1.875, 1.875, 0.0);
-    let others = copies(doc, front_left, corner, &[(DVec3::new(34.125, 1.875, 0.0), 90.0), (DVec3::new(34.125, 18.125, 0.0), 180.0), (DVec3::new(1.875, 18.125, 0.0), 270.0)]);
+    let others = copies(
+        doc,
+        front_left,
+        corner,
+        &[(DVec3::new(34.125, 1.875, 0.0), 90.0), (DVec3::new(34.125, 18.125, 0.0), 180.0), (DVec3::new(1.875, 18.125, 0.0), 270.0)],
+    );
     let (front_right, back_right, back_left) = (others[0], others[1], others[2]);
 
     // Aprons: 4" wide, 3/4" thick, set back 1/4" from the legs' outside faces. The back is a
@@ -167,5 +180,11 @@ fn main() {
     std::fs::write(&path, woodsketch_doc::file::to_string(doc.scene())).expect("write the drawing");
     let list = woodsketch_doc::cutlist::cut_list(doc.scene());
     let report = woodsketch_doc::movement::check(doc.scene(), doc.scene().moisture_swing());
-    println!("Wrote {path}: {} materials, {} joints, {} profiles, {} movement warnings", list.materials.len(), doc.scene().joints.len(), doc.scene().profiles.len(), report.conflicts.len());
+    println!(
+        "Wrote {path}: {} materials, {} joints, {} profiles, {} movement warnings",
+        list.materials.len(),
+        doc.scene().joints.len(),
+        doc.scene().profiles.len(),
+        report.conflicts.len()
+    );
 }

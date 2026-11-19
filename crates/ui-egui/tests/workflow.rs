@@ -70,13 +70,7 @@ fn click(harness: &mut Harness<'_, WoodSketchApp>, pos: egui::Pos2) {
 fn ctrl_tap(harness: &mut Harness<'_, WoodSketchApp>) {
     harness.event(Event::ModifiersChanged(Modifiers::COMMAND));
     for pressed in [true, false] {
-        harness.event(Event::Key {
-            key: Key::ControlLeft,
-            physical_key: Some(Key::ControlLeft),
-            pressed,
-            repeat: false,
-            modifiers: Modifiers::COMMAND,
-        });
+        harness.event(Event::Key { key: Key::ControlLeft, physical_key: Some(Key::ControlLeft), pressed, repeat: false, modifiers: Modifiers::COMMAND });
     }
     harness.event(Event::ModifiersChanged(Modifiers::NONE));
     harness.run();
@@ -611,7 +605,6 @@ fn cut_list_shows_parts_and_cutting_diagrams() {
     snapshot(&mut harness, "cut_list_diagrams");
 }
 
-
 #[test]
 fn draw_a_line_across_a_boards_top_and_push_down_a_rabbet() {
     use glam::DVec3;
@@ -659,10 +652,7 @@ fn tape_a_guide_off_an_edge_then_draw_from_where_it_crosses() {
     use glam::DVec3;
     use woodsketch_doc::Guide;
     let mut harness = app();
-    harness
-        .state_mut()
-        .document_mut()
-        .edit(|m| m.add_rectangle(DVec3::ZERO, DVec3::X * 24.0, DVec3::Y * 12.0, DVec3::Z));
+    harness.state_mut().document_mut().edit(|m| m.add_rectangle(DVec3::ZERO, DVec3::X * 24.0, DVec3::Y * 12.0, DVec3::Z));
     harness.run();
     type_text(&mut harness, "Z");
 
@@ -856,15 +846,12 @@ fn offset_a_door_into_a_frame_and_recess_the_panel() {
     harness.key_press(Key::Enter);
     harness.run();
     let model = harness.state().document().model();
-    let floor = model
-        .faces()
-        .find(|(_, f)| f.normal.z > 0.5 && (model.vertex(f.outer[0]).z - 0.5).abs() < 1e-9)
-        .map(|(id, _)| id)
-        .expect("a recessed panel at 1/2\"");
-    let (lo, hi) = model.loop_points(&model.face(floor).unwrap().outer).iter().fold(
-        (DVec3::splat(f64::MAX), DVec3::splat(f64::MIN)),
-        |(lo, hi), p| (lo.min(*p), hi.max(*p)),
-    );
+    let floor =
+        model.faces().find(|(_, f)| f.normal.z > 0.5 && (model.vertex(f.outer[0]).z - 0.5).abs() < 1e-9).map(|(id, _)| id).expect("a recessed panel at 1/2\"");
+    let (lo, hi) = model
+        .loop_points(&model.face(floor).unwrap().outer)
+        .iter()
+        .fold((DVec3::splat(f64::MAX), DVec3::splat(f64::MIN)), |(lo, hi), p| (lo.min(*p), hi.max(*p)));
     assert!(lo.abs_diff_eq(DVec3::new(2.5, 2.5, 0.5), 1e-9) && hi.abs_diff_eq(DVec3::new(21.5, 33.5, 0.5), 1e-9));
     type_text(&mut harness, "Z");
     snapshot(&mut harness, "door_panel");
@@ -930,13 +917,20 @@ fn export_obj_with_materials_stl_and_flat_parts() {
     harness.state().export_to(&dir.join("bench.dxf"), ExportFormat::Dxf).unwrap();
     harness.state().export_to(&dir.join("bench.svg"), ExportFormat::Svg).unwrap();
     let dxf = std::fs::read_to_string(dir.join("bench.dxf")).unwrap();
-    assert!(dxf.contains("
+    assert!(
+        dxf.contains(
+            "
 OUTLINE
-") && dxf.contains("
+"
+        ) && dxf.contains(
+            "
 $INSUNITS
 70
 4
-"), "millimeters");
+"
+        ),
+        "millimeters"
+    );
     assert!(std::fs::read_to_string(dir.join("bench.svg")).unwrap().contains(r#"class="outline""#));
     let obj = std::fs::read_to_string(dir.join("bench.obj")).unwrap();
     assert!(obj.contains("mtllib bench.mtl") && obj.contains("units: millimeters"));
@@ -1319,9 +1313,7 @@ fn edit_flip_along_mirrors_the_selection() {
         let doc = harness.state_mut().document_mut();
         // Different heights, so the swap is something you can see.
         let mut board = |x: f64, tall: f64| {
-            let face = doc
-                .edit(|m| m.add_rectangle(DVec3::new(x, 0.0, 0.0), DVec3::X * 1.5, DVec3::Y * 3.5, DVec3::Z))
-                .unwrap();
+            let face = doc.edit(|m| m.add_rectangle(DVec3::new(x, 0.0, 0.0), DVec3::X * 1.5, DVec3::Y * 3.5, DVec3::Z)).unwrap();
             doc.push_pull(face, tall, true).unwrap().unwrap()
         };
         let (left, right) = (board(0.0, 30.0), board(20.0, 12.0));
@@ -1336,8 +1328,7 @@ fn edit_flip_along_mirrors_the_selection() {
         let xs: Vec<f64> = doc.scene().instance_box_corners(instance).iter().map(|p| p.x).collect();
         (xs.iter().copied().fold(f64::INFINITY, f64::min), xs.iter().copied().fold(f64::NEG_INFINITY, f64::max))
     };
-    let (before, was_left, was_right) =
-        (harness.state().document().bounds().unwrap(), span(&harness, left), span(&harness, right));
+    let (before, was_left, was_right) = (harness.state().document().bounds().unwrap(), span(&harness, left), span(&harness, right));
 
     harness.get_by_label("Edit").click();
     harness.run();
@@ -1741,8 +1732,12 @@ fn outliner_shows_the_whole_tree_and_picks_nested_parts() {
     let (assembly, legs) = {
         let doc = harness.state_mut().document_mut();
         let oak = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Red Oak").unwrap());
-        let painted = doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::X, length: 24.0, width: 1.5, thickness: 1.5 }, Some(oak)).unwrap();
-        let bare = doc.add_board(&Board { origin: DVec3::new(10.0, 0.0, 0.0), length_dir: DVec3::Z, width_dir: DVec3::X, length: 24.0, width: 1.5, thickness: 1.5 }, None).unwrap();
+        let painted = doc
+            .add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::X, length: 24.0, width: 1.5, thickness: 1.5 }, Some(oak))
+            .unwrap();
+        let bare = doc
+            .add_board(&Board { origin: DVec3::new(10.0, 0.0, 0.0), length_dir: DVec3::Z, width_dir: DVec3::X, length: 24.0, width: 1.5, thickness: 1.5 }, None)
+            .unwrap();
         doc.rename_instance(painted, "Front leg");
         doc.rename_instance(bare, "Back leg");
         doc.selection_mut().extend([woodsketch_doc::Entity::Instance(painted), woodsketch_doc::Entity::Instance(bare)]);
@@ -1780,14 +1775,27 @@ fn edge_profile_panel_rounds_over_a_tabletop_and_chamfers_a_leg() {
     let (top, leg) = {
         let doc = harness.state_mut().document_mut();
         let cherry = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Cherry").unwrap());
-        let top = doc.add_board(&Board { origin: DVec3::new(0.0, 0.0, 28.0), length_dir: DVec3::X, width_dir: DVec3::Y, length: 24.0, width: 16.0, thickness: 0.75 }, Some(cherry)).unwrap();
-        let leg = doc.add_board(&Board { origin: DVec3::new(30.0, 0.0, 0.0), length_dir: DVec3::Z, width_dir: DVec3::X, length: 28.0, width: 1.5, thickness: 1.5 }, Some(cherry)).unwrap();
+        let top = doc
+            .add_board(
+                &Board { origin: DVec3::new(0.0, 0.0, 28.0), length_dir: DVec3::X, width_dir: DVec3::Y, length: 24.0, width: 16.0, thickness: 0.75 },
+                Some(cherry),
+            )
+            .unwrap();
+        let leg = doc
+            .add_board(
+                &Board { origin: DVec3::new(30.0, 0.0, 0.0), length_dir: DVec3::Z, width_dir: DVec3::X, length: 28.0, width: 1.5, thickness: 1.5 },
+                Some(cherry),
+            )
+            .unwrap();
         doc.selection_mut().extend([woodsketch_doc::Entity::Instance(top)]);
         (top, leg)
     };
     harness.run();
     assert!(harness.query_by_label("Edge Profile").is_some());
-    assert!(harness.query(egui_kittest::kittest::by().role(egui::accesskit::Role::ComboBox).value("Around the top")).is_some(), "a tabletop starts with its top edges");
+    assert!(
+        harness.query(egui_kittest::kittest::by().role(egui::accesskit::Role::ComboBox).value("Around the top")).is_some(),
+        "a tabletop starts with its top edges"
+    );
     harness.get_by_label("Rout the roundover").click();
     harness.run();
     assert_eq!(harness.state().document().profiles_of(top).len(), 1);
@@ -1797,7 +1805,10 @@ fn edge_profile_panel_rounds_over_a_tabletop_and_chamfers_a_leg() {
     doc.selection_mut().clear();
     doc.selection_mut().extend([woodsketch_doc::Entity::Instance(leg)]);
     harness.run();
-    assert!(harness.query(egui_kittest::kittest::by().role(egui::accesskit::Role::ComboBox).value("Around the top")).is_none(), "a leg starts along its length");
+    assert!(
+        harness.query(egui_kittest::kittest::by().role(egui::accesskit::Role::ComboBox).value("Around the top")).is_none(),
+        "a leg starts along its length"
+    );
     harness.get(egui_kittest::kittest::by().role(egui::accesskit::Role::ComboBox).value("Roundover")).click();
     harness.run();
     harness.get_by_label("Chamfer").click();
@@ -1829,8 +1840,15 @@ fn build_sheets_for_a_small_table() {
         let leg = add("Leg", DVec3::ZERO, DVec3::Z, DVec3::X, [28.0, 1.75, 1.75]);
         let apron = add("Apron", DVec3::new(1.75, 0.25, 27.0), DVec3::X, -DVec3::Z, [18.0, 4.0, 0.75]);
         let top = add("Top", DVec3::new(-1.0, -1.0, 28.0), DVec3::X, DVec3::Y, [24.0, 16.0, 0.75]);
-        doc.profile_edges(leg, woodsketch_doc::profile::Profile::Chamfer, 0.125, woodsketch_doc::profile::Edges::Along { axis: 0, corners: [true; 4] }).unwrap();
-        doc.profile_edges(top, woodsketch_doc::profile::Profile::Roundover, 0.25, woodsketch_doc::profile::Edges::AroundFace { axis: 2, positive: true, sides: [true; 4] }).unwrap();
+        doc.profile_edges(leg, woodsketch_doc::profile::Profile::Chamfer, 0.125, woodsketch_doc::profile::Edges::Along { axis: 0, corners: [true; 4] })
+            .unwrap();
+        doc.profile_edges(
+            top,
+            woodsketch_doc::profile::Profile::Roundover,
+            0.25,
+            woodsketch_doc::profile::Edges::AroundFace { axis: 2, positive: true, sides: [true; 4] },
+        )
+        .unwrap();
         let fit = doc.joint_fit(apron, leg).unwrap();
         doc.mortise_and_tenon(apron, leg, fit.tenon).unwrap();
     }
@@ -1885,8 +1903,15 @@ fn joinery_panel_cuts_biscuits_and_the_cut_list_counts_them() {
     {
         let doc = harness.state_mut().document_mut();
         let oak = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Red Oak").unwrap());
-        let side = doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::Y, length: 30.0, width: 11.25, thickness: 0.75 }, Some(oak)).unwrap();
-        let shelf = doc.add_board(&Board { origin: DVec3::new(0.0, 0.0, 12.0), length_dir: DVec3::X, width_dir: DVec3::Y, length: 20.0, width: 11.25, thickness: 0.75 }, Some(oak)).unwrap();
+        let side = doc
+            .add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::Y, length: 30.0, width: 11.25, thickness: 0.75 }, Some(oak))
+            .unwrap();
+        let shelf = doc
+            .add_board(
+                &Board { origin: DVec3::new(0.0, 0.0, 12.0), length_dir: DVec3::X, width_dir: DVec3::Y, length: 20.0, width: 11.25, thickness: 0.75 },
+                Some(oak),
+            )
+            .unwrap();
         doc.selection_mut().extend([woodsketch_doc::Entity::Instance(shelf), woodsketch_doc::Entity::Instance(side)]);
     }
     harness.run();
@@ -1917,8 +1942,15 @@ fn joinery_panel_dovetails_a_drawer_corner_and_changes_and_removes_it() {
         let doc = harness.state_mut().document_mut();
         let maple = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Hard Maple").unwrap());
         // A drawer front and a side butting its back at its left end.
-        let front = doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::X, width_dir: DVec3::Z, length: 16.0, width: 6.0, thickness: 0.75 }, Some(maple)).unwrap();
-        let side = doc.add_board(&Board { origin: DVec3::new(0.0, -0.75, 6.0), length_dir: -DVec3::Y, width_dir: -DVec3::Z, length: 14.0, width: 6.0, thickness: 0.5 }, Some(maple)).unwrap();
+        let front = doc
+            .add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::X, width_dir: DVec3::Z, length: 16.0, width: 6.0, thickness: 0.75 }, Some(maple))
+            .unwrap();
+        let side = doc
+            .add_board(
+                &Board { origin: DVec3::new(0.0, -0.75, 6.0), length_dir: -DVec3::Y, width_dir: -DVec3::Z, length: 14.0, width: 6.0, thickness: 0.5 },
+                Some(maple),
+            )
+            .unwrap();
         doc.rename_instance(front, "Front");
         doc.rename_instance(side, "Side");
         doc.selection_mut().extend([woodsketch_doc::Entity::Instance(side), woodsketch_doc::Entity::Instance(front)]);
@@ -1977,7 +2009,10 @@ fn templates_panel_adds_a_drawer_and_changes_its_size() {
     assert!(doc.selection().contains(woodsketch_doc::Entity::Instance(group)), "the new drawer is selected");
     // Selected, its sizes show in their own panel: make it 6" tall.
     assert!(harness.query_by_label("Drawer Sizes").is_some());
-    let height = harness.get_all_by_role(egui::accesskit::Role::TextInput).find(|n| n.value().as_deref() == Some("5\"")).expect("the drawer's height (its own panel comes first)");
+    let height = harness
+        .get_all_by_role(egui::accesskit::Role::TextInput)
+        .find(|n| n.value().as_deref() == Some("5\""))
+        .expect("the drawer's height (its own panel comes first)");
     height.click();
     harness.run();
     harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
@@ -1997,9 +2032,14 @@ fn joinery_panel_takes_the_mortise_depths_a_machine_can_be_set_to() {
     {
         let doc = harness.state_mut().document_mut();
         let oak = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Red Oak").unwrap());
-        let side = doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::Y, length: 30.0, width: 11.25, thickness: 0.75 }, Some(oak)).unwrap();
+        let side = doc
+            .add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::Y, length: 30.0, width: 11.25, thickness: 0.75 }, Some(oak))
+            .unwrap();
         let shelf = doc
-            .add_board(&Board { origin: DVec3::new(0.0, 0.0, 12.0), length_dir: DVec3::X, width_dir: DVec3::Y, length: 20.0, width: 11.25, thickness: 0.75 }, Some(oak))
+            .add_board(
+                &Board { origin: DVec3::new(0.0, 0.0, 12.0), length_dir: DVec3::X, width_dir: DVec3::Y, length: 20.0, width: 11.25, thickness: 0.75 },
+                Some(oak),
+            )
             .unwrap();
         doc.selection_mut().extend([woodsketch_doc::Entity::Instance(shelf), woodsketch_doc::Entity::Instance(side)]);
     }
@@ -2045,7 +2085,10 @@ fn a_group_drawn_by_hand_is_given_numbers_and_resized_by_them() {
         let oak = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Red Oak").unwrap());
         for y in [0.0, 4.0] {
             let board = doc
-                .add_board(&Board { origin: DVec3::new(0.0, y, 0.0), length_dir: DVec3::X, width_dir: DVec3::Y, length: 24.0, width: 3.5, thickness: 0.75 }, Some(oak))
+                .add_board(
+                    &Board { origin: DVec3::new(0.0, y, 0.0), length_dir: DVec3::X, width_dir: DVec3::Y, length: 24.0, width: 3.5, thickness: 0.75 },
+                    Some(oak),
+                )
                 .unwrap();
             doc.selection_mut().extend([woodsketch_doc::Entity::Instance(board)]);
         }
@@ -2135,11 +2178,7 @@ fn the_sizes_panel_changes_a_components_own_numbers() {
     };
     assert!((was - 16.0).abs() < 1e-9, "16\" to start: {was}");
     // Type 30 into the width and build it again.
-    harness
-        .get_all_by_role(egui::accesskit::Role::TextInput)
-        .find(|n| n.value().as_deref() == Some("16\""))
-        .expect("the width box")
-        .click();
+    harness.get_all_by_role(egui::accesskit::Role::TextInput).find(|n| n.value().as_deref() == Some("16\"")).expect("the width box").click();
     harness.run();
     harness.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
     type_text(&mut harness, "30");
@@ -2587,9 +2626,20 @@ fn an_angled_brace_gets_a_mortise_and_tenon_from_the_joinery_panel() {
     let mut harness = app();
     {
         let doc = harness.state_mut().document_mut();
-        let post = doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::X, length: 48.0, width: 3.5, thickness: 1.5 }, None).unwrap();
+        let post =
+            doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::X, length: 48.0, width: 3.5, thickness: 1.5 }, None).unwrap();
         let brace = doc
-            .add_board(&Board { origin: DVec3::new(2.5, 1.5, 20.0), length_dir: DVec3::new(1.0, 0.0, 1.0).normalize(), width_dir: DVec3::new(-1.0, 0.0, 1.0).normalize(), length: 20.0, width: 3.5, thickness: 1.5 }, None)
+            .add_board(
+                &Board {
+                    origin: DVec3::new(2.5, 1.5, 20.0),
+                    length_dir: DVec3::new(1.0, 0.0, 1.0).normalize(),
+                    width_dir: DVec3::new(-1.0, 0.0, 1.0).normalize(),
+                    length: 20.0,
+                    width: 3.5,
+                    thickness: 1.5,
+                },
+                None,
+            )
             .unwrap();
         doc.rename_instance(post, "Post");
         doc.rename_instance(brace, "Brace");
@@ -2612,8 +2662,14 @@ fn change_starts_from_the_joints_own_sizes() {
     let mut harness = app();
     {
         let doc = harness.state_mut().document_mut();
-        let stile = doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::X, length: 30.0, width: 3.0, thickness: 1.5 }, None).unwrap();
-        let rail = doc.add_board(&Board { origin: DVec3::new(3.0, 0.0, 12.5), length_dir: DVec3::X, width_dir: -DVec3::Z, length: 20.0, width: 2.5, thickness: 1.5 }, None).unwrap();
+        let stile =
+            doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::X, length: 30.0, width: 3.0, thickness: 1.5 }, None).unwrap();
+        let rail = doc
+            .add_board(
+                &Board { origin: DVec3::new(3.0, 0.0, 12.5), length_dir: DVec3::X, width_dir: -DVec3::Z, length: 20.0, width: 2.5, thickness: 1.5 },
+                None,
+            )
+            .unwrap();
         doc.selection_mut().extend([rail, stile].map(woodsketch_doc::Entity::Instance));
     }
     harness.run();
@@ -2652,7 +2708,8 @@ fn right_click_selects_and_offers_make_unique() {
         let board = add_board(doc, glam::DVec3::ZERO, 24.0, 12.0, 12.0);
         doc.selection_mut().extend([board]);
         let part = doc.group_selection(woodsketch_doc::DefinitionKind::Component).unwrap();
-        let copy = doc.transform_entities(&[woodsketch_doc::Entity::Instance(part)], &[glam::DAffine3::from_translation(glam::DVec3::Y * 12.0)], true).unwrap()[0];
+        let copy =
+            doc.transform_entities(&[woodsketch_doc::Entity::Instance(part)], &[glam::DAffine3::from_translation(glam::DVec3::Y * 12.0)], true).unwrap()[0];
         doc.selection_mut().clear();
         (part, copy)
     };
@@ -2758,7 +2815,8 @@ fn pick_a_boards_reference_face_and_edge_on_the_model() {
     let board = {
         let doc = harness.state_mut().document_mut();
         // Flat: 24" along red, 6" wide along green, 3/4" thick, its top up.
-        let board = doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::X, width_dir: DVec3::Y, length: 24.0, width: 6.0, thickness: 0.75 }, None).unwrap();
+        let board =
+            doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::X, width_dir: DVec3::Y, length: 24.0, width: 6.0, thickness: 0.75 }, None).unwrap();
         doc.selection_mut().extend([woodsketch_doc::Entity::Instance(board)]);
         board
     };
@@ -2818,7 +2876,10 @@ fn report_a_problem_opens_a_github_issue_with_details_and_nothing_private() {
     assert!(harness.query_by_label_contains(&format!("WoodSketch {}", woodsketch_ui_egui::updates::VERSION)).is_some());
     assert!(harness.query_by_label_contains("1 groups/components").is_some());
     assert!(harness.query_by_label_contains("Couldn't open [path]: denied").is_some());
-    let shown = { use egui_kittest::kittest::NodeT; harness.get_by_label_contains("Graphics:").accesskit_node().label().unwrap_or_default() };
+    let shown = {
+        use egui_kittest::kittest::NodeT;
+        harness.get_by_label_contains("Graphics:").accesskit_node().label().unwrap_or_default()
+    };
     assert!(!shown.contains("Secret part") && !shown.contains("private.woodsketch") && !shown.contains("someone"), "{shown}");
     snapshot(&mut harness, "report_a_problem");
 
@@ -2844,7 +2905,12 @@ fn report_a_problem_opens_a_github_issue_with_details_and_nothing_private() {
         })
         .collect();
     let [url] = &opened[..] else { panic!("one link opened: {opened:?}") };
-    assert!(url.starts_with("https://github.com/FMastro/woodsketch/issues/new?template=bug.yml&title=Board%20gone%20again&what=The%20board%20vanished&details=WoodSketch%20"), "{url}");
+    assert!(
+        url.starts_with(
+            "https://github.com/FMastro/woodsketch/issues/new?template=bug.yml&title=Board%20gone%20again&what=The%20board%20vanished&details=WoodSketch%20"
+        ),
+        "{url}"
+    );
     assert!(!url.contains("Secret") && !url.contains("someone"), "{url}");
     harness.run();
     assert!(harness.query_by_label_contains("Open on GitHub instead").is_none(), "the form closes");
@@ -2875,7 +2941,11 @@ fn send_a_report_without_a_github_account_and_get_its_link() {
     type_text(&mut harness, "A queen bed, please");
 
     // A bad email holds it back; a good one lets it go.
-    let email = harness.query_all(egui_kittest::kittest::by().role(egui::accesskit::Role::TextInput)).find(|n| n.value().is_some_and(|v| v.is_empty())).map(|n| n.rect().center()).unwrap();
+    let email = harness
+        .query_all(egui_kittest::kittest::by().role(egui::accesskit::Role::TextInput))
+        .find(|n| n.value().is_some_and(|v| v.is_empty()))
+        .map(|n| n.rect().center())
+        .unwrap();
     click(&mut harness, email);
     type_text(&mut harness, "maker@example");
     assert!(harness.query_by_label_contains("doesn't look right").is_some());
@@ -2893,7 +2963,10 @@ fn send_a_report_without_a_github_account_and_get_its_link() {
     assert!(harness.query_by_label_contains("you'll get an email").is_some());
     snapshot(&mut harness, "feedback_sent");
     let body: serde_json::Value = serde_json::from_str(&posted.lock().unwrap()[0]).unwrap();
-    assert_eq!((body["kind"].as_str(), body["title"].as_str(), body["what"].as_str(), body["email"].as_str()), (Some("idea"), Some("Bed template"), Some("A queen bed, please"), Some("maker@example.com")));
+    assert_eq!(
+        (body["kind"].as_str(), body["title"].as_str(), body["what"].as_str(), body["email"].as_str()),
+        (Some("idea"), Some("Bed template"), Some("A queen bed, please"), Some("maker@example.com"))
+    );
     assert!(body["details"].as_str().unwrap().contains("WoodSketch "));
     harness.get_by_label("Close").click();
     harness.run();
@@ -2959,7 +3032,10 @@ fn wood_movement_on_the_model_and_a_top_fastened_to_move() {
     harness.get_by_label("Wood movement").click();
     harness.run();
     assert!(harness.query_by_label_contains("No parts fight each other's movement").is_some());
-    assert!(harness.query_by_label_contains("Top moves about").is_some_and(|_| harness.query_by_label_contains("is fastened so it can move").is_some()), "listed under Allowed for");
+    assert!(
+        harness.query_by_label_contains("Top moves about").is_some_and(|_| harness.query_by_label_contains("is fastened so it can move").is_some()),
+        "listed under Allowed for"
+    );
 }
 
 #[test]
@@ -2971,7 +3047,9 @@ fn view_theme_switches_to_dark_and_back() {
     {
         let doc = harness.state_mut().document_mut();
         let cherry = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Cherry").unwrap());
-        let board = doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::X, width_dir: DVec3::Y, length: 30.0, width: 16.0, thickness: 0.75 }, Some(cherry)).unwrap();
+        let board = doc
+            .add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::X, width_dir: DVec3::Y, length: 30.0, width: 16.0, thickness: 0.75 }, Some(cherry))
+            .unwrap();
         doc.selection_mut().extend([woodsketch_doc::Entity::Instance(board)]);
     }
     harness.run();
@@ -3051,7 +3129,14 @@ fn walk_looks_with_the_mouse_and_walks_with_the_keys() {
     let ahead = glam::DVec3::new(ahead.x, ahead.y, 0.0).normalize();
     let wall = eye + ahead * 30.0;
     let side = ahead.cross(glam::DVec3::Z) * 200.0;
-    harness.state_mut().document_mut().edit(|m| m.add_face(&[wall - side - glam::DVec3::Z * 66.0, wall + side - glam::DVec3::Z * 66.0, wall + side + glam::DVec3::Z * 60.0, wall - side + glam::DVec3::Z * 60.0]));
+    harness.state_mut().document_mut().edit(|m| {
+        m.add_face(&[
+            wall - side - glam::DVec3::Z * 66.0,
+            wall + side - glam::DVec3::Z * 66.0,
+            wall + side + glam::DVec3::Z * 60.0,
+            wall - side + glam::DVec3::Z * 60.0,
+        ])
+    });
     harness.event(Event::Key { key: Key::W, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE });
     harness.event(Event::Text("w".into()));
     harness.run_steps(120);
@@ -3076,9 +3161,7 @@ fn walking_stands_on_whatever_is_underfoot_and_f_flies() {
     let mut harness = app();
     // A floor 40" up, big enough that it's underfoot wherever the camera starts.
     let wide = 4000.0;
-    harness.state_mut().document_mut().edit(|m| {
-        m.add_rectangle(DVec3::new(-wide / 2.0, -wide / 2.0, 40.0), DVec3::X * wide, DVec3::Y * wide, DVec3::Z)
-    });
+    harness.state_mut().document_mut().edit(|m| m.add_rectangle(DVec3::new(-wide / 2.0, -wide / 2.0, 40.0), DVec3::X * wide, DVec3::Y * wide, DVec3::Z));
     harness.run();
     harness.get_by_label("Camera").click();
     harness.run();
@@ -3088,9 +3171,7 @@ fn walking_stands_on_whatever_is_underfoot_and_f_flies() {
     assert!((eye(&harness) - (40.0 + 68.0)).abs() < 1e-2, "stood on the floor at 5' 8\": {}", eye(&harness));
 
     // A floor above doesn't reach down and grab you: walking stays on the one underfoot.
-    harness.state_mut().document_mut().edit(|m| {
-        m.add_rectangle(DVec3::new(-wide / 2.0, -wide / 2.0, 140.0), DVec3::X * wide, DVec3::Y * wide, DVec3::Z)
-    });
+    harness.state_mut().document_mut().edit(|m| m.add_rectangle(DVec3::new(-wide / 2.0, -wide / 2.0, 140.0), DVec3::X * wide, DVec3::Y * wide, DVec3::Z));
     harness.run();
     hold(&mut harness, Key::W, "w", 6);
     assert!((eye(&harness) - 108.0).abs() < 1e-2, "still on the lower floor: {}", eye(&harness));

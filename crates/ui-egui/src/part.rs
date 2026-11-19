@@ -22,8 +22,7 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut woodsketch_tools:
 
     egui::Grid::new(("part_info", instance)).num_columns(2).spacing([8.0, 4.0]).show(ui, |ui| {
         ui.label(t!("part-size"));
-        ui.label(format!("{} x {} x {}", format_length(length), format_length(width), format_length(thickness)))
-            .on_hover_text(t!("part-size-hint"));
+        ui.label(format!("{} x {} x {}", format_length(length), format_length(width), format_length(thickness))).on_hover_text(t!("part-size-hint"));
         ui.end_row();
 
         ui.label(t!("part-stock"));
@@ -87,9 +86,7 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut woodsketch_tools:
             ui.label(t!("part-reference-end", "end" => named(info.reference_end, t!("part-reference-as-drawn"))));
             ui.horizontal(|ui| {
                 let picking = tools.picking_reference();
-                let pick = ui
-                    .selectable_label(picking, format!("{} {}", ph::CURSOR_CLICK, t!("part-pick")))
-                    .on_hover_text(t!("part-pick-hint"));
+                let pick = ui.selectable_label(picking, format!("{} {}", ph::CURSOR_CLICK, t!("part-pick"))).on_hover_text(t!("part-pick-hint"));
                 if pick.clicked() {
                     if picking {
                         tools.cancel();
@@ -97,7 +94,9 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut woodsketch_tools:
                         tools.pick_reference_on(instance);
                     }
                 }
-                if (info.reference_face.is_some() || info.reference_edge.is_some() || info.reference_end.is_some()) && ui.small_button(t!("part-clear")).clicked() {
+                if (info.reference_face.is_some() || info.reference_edge.is_some() || info.reference_end.is_some())
+                    && ui.small_button(t!("part-clear")).clicked()
+                {
                     doc.edit_part(instance, |p| {
                         p.reference_face = None;
                         p.reference_edge = None;
@@ -133,11 +132,7 @@ pub fn show(ui: &mut egui::Ui, doc: &mut Document, tools: &mut woodsketch_tools:
             // Glued solid, or fastened so it can move (the wood movement check lets it).
             ui.label(t!("part-movement"));
             let mut free = info.free_to_move;
-            if ui
-                .checkbox(&mut free, t!("part-free-to-move"))
-                .on_hover_text(t!("part-free-to-move-hint"))
-                .changed()
-            {
+            if ui.checkbox(&mut free, t!("part-free-to-move")).on_hover_text(t!("part-free-to-move-hint")).changed() {
                 doc.edit_part(instance, |p| p.free_to_move = free);
             }
             ui.end_row();

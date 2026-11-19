@@ -48,17 +48,19 @@ impl Profile {
         match self {
             Self::Chamfer => vec![(r, 0.0), (0.0, r)],
             // Convex: a quarter circle around a center `r` in from both faces.
-            Self::Roundover => (0..=STEPS).map(|i| {
-                let a = t(i) * quarter;
-                (r * (1.0 - a.sin()), r * (1.0 - a.cos()))
-            })
-            .collect(),
+            Self::Roundover => (0..=STEPS)
+                .map(|i| {
+                    let a = t(i) * quarter;
+                    (r * (1.0 - a.sin()), r * (1.0 - a.cos()))
+                })
+                .collect(),
             // Concave: a quarter circle around the corner itself.
-            Self::Cove => (0..=STEPS).map(|i| {
-                let a = t(i) * quarter;
-                (r * a.cos(), r * a.sin())
-            })
-            .collect(),
+            Self::Cove => (0..=STEPS)
+                .map(|i| {
+                    let a = t(i) * quarter;
+                    (r * a.cos(), r * a.sin())
+                })
+                .collect(),
             // An S: concave near one face, convex near the other.
             Self::Ogee => (0..=STEPS * 2)
                 .map(|i| {
@@ -362,9 +364,8 @@ mod tests {
     fn chamfered_leg_corners_run_its_length() {
         let mut doc = Document::default();
         // A 1 1/2" square leg, 28" tall.
-        let leg = doc
-            .add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::X, length: 28.0, width: 1.5, thickness: 1.5 }, None)
-            .unwrap();
+        let leg =
+            doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::X, length: 28.0, width: 1.5, thickness: 1.5 }, None).unwrap();
         // The leg's own length axis is its X.
         doc.profile_edges(leg, Profile::Chamfer, 0.125, Edges::Along { axis: 0, corners: [true; 4] }).unwrap();
         let m = model(&doc, leg);
