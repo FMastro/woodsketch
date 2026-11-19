@@ -249,6 +249,7 @@ impl Reader {
                 container: Container::default(),
                 part: Default::default(),
                 template: None,
+            parametric: None,
                 hardware: None,
                 moves: false,
             };

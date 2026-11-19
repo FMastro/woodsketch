@@ -13,6 +13,9 @@ that belongs in the commit message, which is where it already is.
   work its sizes and counts out from them: `width - 2*stile`, or a shelf every foot. Change the
   one number and every part that reads it follows, which is the first half of components that
   resize themselves (#9).
+- A component built from a recipe keeps it, so changing one of its numbers builds the piece
+  again rather than stretching it. Resizing one copy makes it its own component and leaves
+  the others alone, and one you've changed by hand isn't built over until you say so (#9).
 
 ## 0.1.79
 

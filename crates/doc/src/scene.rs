@@ -44,6 +44,10 @@ pub struct Definition {
     /// The template it was made from, so its sizes can be changed (see [`crate::template`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub template: Option<crate::template::Made>,
+    /// The recipe it was built from, so its own numbers can be changed and it can be built
+    /// again (see [`crate::parametric`]). A drawing from before these existed has none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parametric: Option<Box<crate::parametric::Parametric>>,
     /// Hardware (a drawer slide, a hinge, a pull): the piece it is, for the shopping list. Not a
     /// part to cut (see [`crate::hardware`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -479,6 +483,7 @@ impl Scene {
             container: contents,
             part: Default::default(),
             template: None,
+            parametric: None,
             hardware: None,
             moves: false,
         }));
@@ -541,7 +546,8 @@ impl Scene {
                 format!("Component#{}", self.next_component)
             }
         };
-        let definition = DefinitionId(self.definitions.insert(Definition { name, kind, container: inside, part: Default::default(), template: None, hardware: None, moves: false }));
+        let definition = DefinitionId(self.definitions.insert(Definition { name, kind, container: inside, part: Default::default(), template: None,
+            parametric: None, hardware: None, moves: false }));
 
         // Take the originals out: faces, then edges no remaining face needs.
         let container = self.container_mut(path)?;
