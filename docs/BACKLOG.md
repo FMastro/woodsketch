@@ -13,7 +13,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 |---|---|---|---|
 | 1 | Build sheets and assembly | 26 | Illustrated assembly steps, asked for by a user |
 | 2 | Joinery | 71 | Closes gaps in the core woodworking feature |
-| 3 | Templates | 189 | Parametric components (#9), then fast wins on the built-in ones |
+| 3 | Templates | 139 | Fast wins on the built-in templates; the parametric ones are in |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 21 | A live link to the open drawing |
 | 6 | Release polish | 66 | Both platforms signed; the rest is packaging and reach |
@@ -87,54 +87,31 @@ pair of those rather than what the stock works out to (#16).
 ## 3. Templates
 Done: cabinet (drawers and doors in its openings, adjustable shelves, hinge side), door, drawer,
 face frame (middle rails), table (leg, apron and top sizes); wood and stock choices; Change size.
-
-**Parametric components** (#9: a SketchUp user with a 2,975-component kitchen asking for dynamic
-components, the one SketchUp feature he named). A template is already a parametric component --
-`Definition.template` remembers what a group was built from and `rebuild_template` builds it again
-in place -- except that its parameters are written in Rust. These four stages make that data, so
-anyone can have one. Decisions taken up front, so they aren't rediscovered: conditionals are in
-from the start ("two doors over 24 inches" is a cabinet rule, and components authored without it
-would all need rewriting), but no strings and no onClick; resizing one copy makes it unique
-(`Scene::make_unique`), because sharing would silently resize the other five and the cut list has
-to tell them apart; a component edited by hand refuses to rebuild until you insist, unlike
-today's templates, which discard the edits (hand-fitting is worth more than a parameter change);
-and parameters drive counts as well as lengths, since "a shelf every 300mm" is most of why people
-reach for this. Reading SketchUp's own dynamic attributes on import is deliberately not here: its
-formulas speak to its own attribute model, and under the clean-room rule that is a research
-project on published documentation, not a feature.
-1. [13] `parameters` in a recipe (name, value, label, choices) and expressions in any length or
-   count field: `"width - 2*stile"`, `floor(height / 300mm)`, `if(width > 24, 2, 1)`. Arithmetic,
-   parentheses, units, `min`/`max`/`round`/`floor`/`ceil`/`abs`/`if`. Every number already arrives
-   through one place (`Length::Text` -> `parse_length`), so that is where it hooks in. Parameters
-   may read other parameters, so they sort topologically and a cycle is named, like every other
-   recipe problem, by the item it is in.
-2. [8] A group remembers the recipe and the parameter values it was built from, so changing a
-   value rebuilds it: `Made` gains a variant beside `Template`, which the file format carries and
-   older drawings upgrade past.
-3. [8] A Component Options panel: the "<Template> sizes" panel generalised, a box per parameter
-   and a dropdown where it has choices, with the unique-copy and hand-edited warnings above.
-4. [21] Authoring in the app: turn a drawn group into a parametric component. Read it back with
-   `recipe_of`, show the numbers it is made of, and promote one to a parameter or write an
-   expression for it. The hardest and most design-sensitive stage; stages 1-3 are usable without
-   it, since a recipe is a text file an assistant can write.
-5. [5] A new template goes where you click, not a foot to the right of everything.
-6. [3] Drill the rows of shelf-pin holes in the sides for adjustable shelves.
-7. [3] Drawer: notch the bottom's corners around the corner joints.
-8. [5] Choose the still-fixed sizes: 1/4" backs, bottoms and door panels; 3/4" fronts and
+Parametric components (#9): a recipe's `parameters` with arithmetic in any length or count
+(`doc::expr`), a group that keeps the recipe it was built from and is built again when one of its
+numbers changes (resizing one copy makes it its own; one edited by hand refuses until told twice),
+the Sizes panel holding either a template's sizes or a component's numbers, and reading a group
+somebody drew back into a recipe so its sizes can be named. Reading SketchUp's own dynamic
+attributes on import is deliberately not here: its formulas speak to its own attribute model, and
+under the clean-room rule that is a research project on published documentation, not a feature.
+1. [5] A new template goes where you click, not a foot to the right of everything.
+2. [3] Drill the rows of shelf-pin holes in the sides for adjustable shelves.
+3. [3] Drawer: notch the bottom's corners around the corner joints.
+4. [5] Choose the still-fixed sizes: 1/4" backs, bottoms and door panels; 3/4" fronts and
    doors; 3/4" aprons; 1/2" drawer boxes.
-9. [5] Cabinet: back set in a rabbet, not applied over the back edges.
-10. [5] Drawer: an applied false front.
-11. [3] Face frame: mullions (upright dividers).
-12. [5] Table: set the tenon's size by hand (it follows the leg now).
-13. [5] Cabinet: a toe kick.
-14. [8] Cabinet: dividers.
-15. [8] Cabinet: a face frame.
-16. [8] Table: stretchers.
-17. [8] Table: a drawer.
-18. [13] A bookcase template.
-19. [13] A workbench template.
-20. [21] A bed template.
-21. [21] Change size keeps edits made inside the group by hand (it rebuilds from scratch now; the
+5. [5] Cabinet: back set in a rabbet, not applied over the back edges.
+6. [5] Drawer: an applied false front.
+7. [3] Face frame: mullions (upright dividers).
+8. [5] Table: set the tenon's size by hand (it follows the leg now).
+9. [5] Cabinet: a toe kick.
+10. [8] Cabinet: dividers.
+11. [8] Cabinet: a face frame.
+12. [8] Table: stretchers.
+13. [8] Table: a drawer.
+14. [13] A bookcase template.
+15. [13] A workbench template.
+16. [21] A bed template.
+17. [21] Change size keeps edits made inside the group by hand (it rebuilds from scratch now; the
     button warns).
 
 ## 4. Drawers, doors and hardware

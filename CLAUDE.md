@@ -577,3 +577,21 @@ points); keep general modeling working alongside it.
    hidden; on parts, copies, groups, templates), `hardware` parts, `moves` groups and profile `edges`
    (`recipe::some_edges`); read-back keeps them all, hidden things included. Renders highlight by name
    at any depth (`picture::named`); `recipe::build_reporting` streams MCP progress (`mcp::respond`).
+38. Parametric components (#9, a SketchUp user asking for dynamic components): a group that
+   remembers the recipe it was built from, so changing one of its numbers builds the piece again
+   rather than stretching it. `doc::expr` is the arithmetic (four operators, brackets, a
+   comparison, `min`/`max`/`round`/`floor`/`ceil`/`abs`/`if`; a bare number is in the recipe's
+   units in a length and a plain count in a count, and a length people type is read by
+   `parse_length` first so `3/4"` never divides). `doc::parametric` keeps the recipe on the
+   definition (`Definition::parametric`, beside `template`), rides the clipboard's importer to
+   bring a built recipe in, and rebuilds through `make_unique` so resizing one copy leaves the
+   others alone. A component edited by hand refuses to rebuild until told twice, which it knows
+   from a `fingerprint` of the geometry as built -- sorted vertex positions and the edge and face
+   counts, hashed here rather than with the standard hasher, whose numbers may change between
+   Rust versions, because this one is saved in the drawing. `make_parametric` reads a drawn group
+   back (`recipe_of` on a copy of it alone) and says what it couldn't describe. The Sizes panel
+   (`ui-egui::parametric`, the renamed Template Sizes) holds a template's sizes or a component's
+   numbers: a box per parameter, the ones worked out from others shown as their sums, every part's
+   size and corner editable, and a row to name a new number. Reading SketchUp's own dynamic
+   attributes on import is deliberately not done (its formulas speak to its attribute model, and
+   the clean-room rule makes that research on published docs, not a feature).
