@@ -157,17 +157,14 @@ fn numbers(ui: &mut egui::Ui, instance: InstanceId, recipe: &mut Recipe) {
             ui.weak(t!("component-across"));
             ui.weak(t!("component-thick"));
             ui.end_row();
-            for p in 0..recipe.parts.len() {
-                let name = recipe.parts[p].name.clone();
-                ui.label(&name).on_hover_text(t!("component-size-hint"));
-                for k in 0..3 {
-                    let value = &mut recipe.parts[p].size[k];
+            for (p, part) in recipe.parts.iter_mut().enumerate() {
+                ui.label(part.name.clone()).on_hover_text(t!("component-size-hint"));
+                for (k, value) in part.size.iter_mut().enumerate() {
                     box_for(ui, ("parametric_size", instance, p, k), value);
                 }
                 ui.end_row();
                 ui.weak(t!("component-corner"));
-                for k in 0..3 {
-                    let value = &mut recipe.parts[p].at[k];
+                for (k, value) in part.at.iter_mut().enumerate() {
                     box_for(ui, ("parametric_at", instance, p, k), value);
                 }
                 ui.end_row();
