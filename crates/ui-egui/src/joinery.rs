@@ -4,7 +4,7 @@
 
 use eframe::egui;
 use woodsketch_i18n::t;
-use woodsketch_doc::joinery::{BISCUITS, DOVETAIL_HALF_PIN, DOVETAIL_PIN, Dovetails, Dowels, Fit, JointKind, LOOSE_TENONS, Slots, Spline, Tenon, pocket_screw_for};
+use woodsketch_doc::joinery::{BISCUITS, DOVETAIL_HALF_PIN, DOVETAIL_PIN, Dovetails, Dowels, Fit, JointKind, LOOSE_TENONS, Slots, Spline, Tenon, pocket_screw_for, say_depth};
 use woodsketch_doc::units::{format_length, parse_length};
 use woodsketch_doc::{Document, Entity, InstanceId};
 
@@ -294,19 +294,31 @@ fn picker(ui: &mut egui::Ui, doc: &mut Document, (a, b): (InstanceId, InstanceId
                         });
                         ui.data_mut(|d| d.insert_temp(size_id, size));
                         let mut slots = if biscuits { Slots::biscuits(size, wide) } else { Slots::loose_tenons(size, wide) };
-                        let [count, room] = fields(
+                        // What it would cut them at, to say in the hints: a machine that can't be
+                        // set to that is why the depths can be typed at all (#16).
+                        let (face, end) = slots.depths_in(thick);
+                        let (say_face, say_end) = (say_depth(slots.kind, face), say_depth(slots.kind, end));
+                        let [count, room, deep_face, deep_end] = fields(
                             ui,
                             ("slot_count", a, b),
                             [
                                 ("Count", &t!("joinery-count"), f64::from(slots.count), &t!("joinery-count-hint-slots")),
                                 ("Fit", &t!("joinery-fit"), 0.0, &t!("joinery-fit-hint-slots")),
+                                ("Face", &t!("joinery-face-depth"), 0.0, &t!("joinery-face-depth-hint", "depth" => say_face.as_str())),
+                                ("End", &t!("joinery-end-depth"), 0.0, &t!("joinery-end-depth-hint", "depth" => say_end.as_str())),
                             ],
                         );
                         let label = if biscuits { t!("joinery-cut-biscuit-slots") } else { t!("joinery-cut-loose-tenon-mortises") };
-                        if let (true, Some(count), Some(room)) = (button(ui, count.is_some() && room.is_some(), &label), count, room) {
+                        let ready = count.is_some() && room.is_some() && deep_face.is_some() && deep_end.is_some();
+                        if let (true, Some(count), Some(room)) = (button(ui, ready, &label), count, room) {
                             slots.count = count.round().max(0.0) as u32;
                             slots.fit = room;
-                            message = Some(result(sized(doc, |doc| doc.slots(part, into, &slots), vec![size as f64, f64::from(slots.count), slots.fit]).map(|()| t!("joinery-slots-done", "count" => slots.count, "piece" => slots.piece.as_str()))));
+                            // A box left empty is the depth it would have cut anyway, so the joint
+                            // records nothing and reads back as one nobody set by hand.
+                            slots.face = deep_face.filter(|d| *d > 0.0);
+                            slots.end = deep_end.filter(|d| *d > 0.0);
+                            let sizes = slots.recorded(size);
+                            message = Some(result(sized(doc, |doc| doc.slots(part, into, &slots), sizes).map(|()| t!("joinery-slots-done", "count" => slots.count, "piece" => slots.piece.as_str()))));
                         }
                     }
                     Choice::PocketScrews => {
@@ -412,7 +424,15 @@ fn button(ui: &mut egui::Ui, enabled: bool, text: &str) -> bool {
 fn fields<const N: usize>(ui: &mut egui::Ui, key: (&str, InstanceId, InstanceId), specs: [(&str, &str, f64, &str); N]) -> [Option<f64>; N] {
     let id = egui::Id::new(key);
     let mut texts: Vec<String> = ui.data(|d| d.get_temp::<Vec<String>>(id)).unwrap_or_else(|| {
-        specs.iter().map(|(salt, _, value, _)| if *salt == "Count" { format!("{value}") } else { format_length(*value) }).collect()
+        specs
+            .iter()
+            .map(|(salt, _, value, _)| match *salt {
+                "Count" => format!("{value}"),
+                // A depth starts empty, which means the one the joint works out for itself.
+                "Face" | "End" => String::new(),
+                _ => format_length(*value),
+            })
+            .collect()
     });
     egui::Grid::new(id).num_columns(2).show(ui, |ui| {
         for (i, (_, label, _, hint)) in specs.iter().enumerate() {
@@ -423,8 +443,15 @@ fn fields<const N: usize>(ui: &mut egui::Ui, key: (&str, InstanceId, InstanceId)
             ui.end_row();
         }
     });
-    // Sizes must be over 0; a fit allowance can be 0.
-    let parsed = std::array::from_fn(|i| parse_length(&texts[i]).ok().filter(|v| *v > 0.0 || (specs[i].0 == "Fit" && *v == 0.0)));
+    // Sizes must be over 0; a fit allowance can be 0; a depth left empty means the joint works it
+    // out, which is not the same as a depth typed wrong (which must still hold the button).
+    let parsed = std::array::from_fn(|i| {
+        let (salt, text) = (specs[i].0, texts[i].trim());
+        if text.is_empty() && matches!(salt, "Face" | "End") {
+            return Some(0.0);
+        }
+        parse_length(text).ok().filter(|v| *v > 0.0 || (salt == "Fit" && *v == 0.0))
+    });
     ui.data_mut(|d| d.insert_temp(id, texts));
     parsed
 }
@@ -599,7 +626,10 @@ fn restore(ui: &mut egui::Ui, kind: JointKind, sizes: &[f64], (a, b): (InstanceI
             let biscuits = kind == JointKind::Biscuits;
             let size = sizes.first().map_or(0, |v| *v as usize);
             ui.data_mut(|d| d.insert_temp(egui::Id::new(("slot_size", biscuits, a, b)), size));
-            texts("slot_count", vec![count(1), length(2)])
+            // A depth the joint chose for itself comes back as an empty box rather than a number
+            // in the wrong units: a 12mm mortise written "~ 1/2"" would read back as 1/2".
+            let depth = |i: usize| sizes.get(i).filter(|v| **v > 0.0).map_or_else(String::new, |v| say_depth(kind, *v));
+            texts("slot_count", vec![count(1), length(2), depth(3), depth(4)])
         }
         Choice::PocketScrews => texts("pocket", vec![count(0), length(1)]),
         Choice::MortiseAndTenon => {

@@ -583,6 +583,13 @@ joinery-count = Count
 joinery-count-hint-slots = Spread evenly across the joint
 joinery-fit = Fit
 joinery-fit-hint-slots = How much roomier the slots are than the pieces (thicker, longer, deeper); 0 for a tight fit
+# The two mortise depths, for a machine that can only be set to certain ones. $depth is the
+# depth WoodSketch would cut, in millimeters for a loose tenon and in the drawing's units
+# otherwise; it arrives ready to read.
+joinery-face-depth = Face depth
+joinery-face-depth-hint = How deep the slots go into the face. Leave it empty for { $depth }, or type what your machine can be set to
+joinery-end-depth = End depth
+joinery-end-depth-hint = How deep they go into the end of the part butting in. Leave it empty for { $depth }
 joinery-cut-biscuit-slots = Cut biscuit slots
 joinery-cut-loose-tenon-mortises = Cut loose tenon mortises
 joinery-slots-done = { $count } slots cut in each part, for { $count } x { $piece }.

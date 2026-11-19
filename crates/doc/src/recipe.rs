@@ -1160,21 +1160,6 @@ fn lengths(j: &JointSpec, key: &str, mm: bool) -> Vec<f64> {
     given.iter().filter_map(serde_json::Value::as_f64).map(|v| v / if mm { 25.4 } else { 1.0 }).collect()
 }
 
-/// A slot joint's sizes in the order the Joinery panel and `recipe_of` read them.
-fn slot_sizes(size: usize, slots: &Slots) -> Vec<f64> {
-    let mut sizes = vec![
-        size as f64,
-        f64::from(slots.count),
-        slots.fit,
-        slots.face.unwrap_or(0.0),
-        slots.end.unwrap_or(0.0),
-        slots.offset.unwrap_or(0.0),
-        slots.spacing.unwrap_or(0.0),
-    ];
-    // A center each, after the rest: `count` says how many follow.
-    sizes.extend(slots.centers.iter().copied());
-    sizes
-}
 
 /// Whether an angled joint cuts every copy of a shared component (`"every_copy": true`), not
 /// only the one named (which then gets a component of its own).
@@ -1241,7 +1226,7 @@ fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, 
                     slots.count = count(slots.count);
                     slots.fit = len("fit", 0.0);
                     set_out(&mut slots, j, &asked, mm);
-                    (doc.slots(part, into, &slots), slot_sizes(size, &slots))
+                    (doc.slots(part, into, &slots), slots.recorded(size))
                 }
                 "loose_tenons" => {
                     // The tenon to use, or the biggest the stock takes.
@@ -1253,7 +1238,7 @@ fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, 
                     slots.count = count(slots.count);
                     slots.fit = len("fit", 0.0);
                     set_out(&mut slots, j, &asked, mm);
-                    (doc.slots(part, into, &slots), slot_sizes(size, &slots))
+                    (doc.slots(part, into, &slots), slots.recorded(size))
                 }
                 "splines" | "spline" => (doc.slots(part, into, &Spline::for_stock(thick)), Vec::new()),
                 "pocket_screws" | "pocket_holes" => {

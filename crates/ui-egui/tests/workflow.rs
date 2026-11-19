@@ -1989,6 +1989,51 @@ fn templates_panel_adds_a_drawer_and_changes_its_size() {
 }
 
 #[test]
+fn joinery_panel_takes_the_mortise_depths_a_machine_can_be_set_to() {
+    use egui_kittest::kittest::Queryable;
+    use glam::DVec3;
+    use woodsketch_doc::board::Board;
+    let mut harness = app();
+    {
+        let doc = harness.state_mut().document_mut();
+        let oak = doc.add_preset(woodsketch_doc::library::LIBRARY.iter().find(|p| p.name == "Red Oak").unwrap());
+        let side = doc.add_board(&Board { origin: DVec3::ZERO, length_dir: DVec3::Z, width_dir: DVec3::Y, length: 30.0, width: 11.25, thickness: 0.75 }, Some(oak)).unwrap();
+        let shelf = doc
+            .add_board(&Board { origin: DVec3::new(0.0, 0.0, 12.0), length_dir: DVec3::X, width_dir: DVec3::Y, length: 20.0, width: 11.25, thickness: 0.75 }, Some(oak))
+            .unwrap();
+        doc.selection_mut().extend([woodsketch_doc::Entity::Instance(shelf), woodsketch_doc::Entity::Instance(side)]);
+    }
+    harness.run();
+    harness.get(egui_kittest::kittest::by().role(egui::accesskit::Role::ComboBox).value("Dado, groove or rabbet")).click();
+    harness.run();
+    harness.get_by_label("Loose tenons (Domino style)").click();
+    harness.run();
+    // Two boxes for the depths, empty, meaning the ones it would work out (12 and 28 mm here;
+    // the hint says so, but a hint is a tooltip and not a label a test can read).
+    assert!(harness.query_by_label("Face depth").is_some() && harness.query_by_label("End depth").is_some());
+    // 15 and 25 are stops on the same machine: type them into the two empty boxes. Clicking
+    // the label beside one wouldn't focus it, so they are found by being the empty ones.
+    let fill = |harness: &mut Harness<'_, WoodSketchApp>, text: &str| {
+        harness
+            .get_all_by_role(egui::accesskit::Role::TextInput)
+            .find(|n| n.value().as_deref().unwrap_or_default().is_empty())
+            .expect("a depth box still to fill")
+            .click();
+        harness.run();
+        type_text(harness, text);
+        harness.run();
+    };
+    fill(&mut harness, "15mm");
+    fill(&mut harness, "25mm");
+    harness.get_by_label("Cut loose tenon mortises").click();
+    harness.run();
+    let joint = harness.state().document().scene().joints[0].clone();
+    assert!(joint.detail.contains("15mm deep in the face") && joint.detail.contains("25mm in the end"), "{}", joint.detail);
+    // Kept on the joint, so Change comes back to them rather than to what it would have picked.
+    assert!(harness.query_by_label_contains("15mm deep in the face").is_some(), "the panel says so too");
+}
+
+#[test]
 fn templates_panel_adds_a_door_on_its_own() {
     use egui_kittest::kittest::Queryable;
     let mut harness = app();

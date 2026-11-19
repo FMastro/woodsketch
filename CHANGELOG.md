@@ -7,6 +7,12 @@ Write them short. One line per change, a sentence or two at most: what changed, 
 reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
 that belongs in the commit message, which is where it already is.
 
+## 0.1.79
+
+- The Joinery panel takes the two mortise depths for biscuits and loose tenons, so a joint
+  can be cut at a depth your machine has a stop for. Left empty they are what WoodSketch
+  works out, and the hint says what that is (#16).
+
 ## 0.1.78
 
 - Loose tenons can be chosen and placed: which tenon, how deep into each part, where each

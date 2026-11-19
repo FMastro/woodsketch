@@ -1615,6 +1615,34 @@ impl Slots {
         }
     }
 
+    /// How deep these go into the face and into the butting part's end in stock `thick`, when
+    /// nobody has said otherwise: two thirds of the way into the face, the rest of a loose
+    /// tenon's length in the end, and whole millimeters where the stock is what limits it (2/3
+    /// of 3/4" is 12.7mm, which no joiner has a stop for). What the Joinery panel offers.
+    pub fn depths_in(&self, thick: f64) -> (f64, f64) {
+        let loose = self.kind == JointKind::LooseTenons;
+        let room = self.depth.min(thick * 2.0 / 3.0);
+        let face = if loose && room < self.depth { (room / MM).floor() * MM } else { room };
+        (face, if loose { 2.0 * self.depth - face } else { self.depth })
+    }
+
+    /// The sizes a slot joint is recorded with, in the order the Joinery panel's Change and
+    /// `recipe_of` read them back: the size, the count, the fit, the two depths, the setting-out,
+    /// and then a center each (`count` of them).
+    pub fn recorded(&self, size: usize) -> Vec<f64> {
+        let mut sizes = vec![
+            size as f64,
+            f64::from(self.count),
+            self.fit,
+            self.face.unwrap_or(0.0),
+            self.end.unwrap_or(0.0),
+            self.offset.unwrap_or(0.0),
+            self.spacing.unwrap_or(0.0),
+        ];
+        sizes.extend(self.centers.iter().copied());
+        sizes
+    }
+
     /// The pair of `stops` to cut a `long` tenon with, the face mortise no deeper than `room`:
     /// the deepest face stop that fits, with a stop in the end that takes the rest of the tenon.
     /// `None` when no two of them hold it.
@@ -1675,6 +1703,13 @@ impl Slots {
     }
 }
 
+/// A slot's depth in the words the machine cutting it is set in: millimeters for a loose tenon,
+/// whose sizes are metric, and the drawing's own units for anything else. A metric mortise shown
+/// as `~ 1/2"` reads like a guess, and a report arrived asking what the depths really were (#16).
+pub fn say_depth(kind: JointKind, depth: f64) -> String {
+    if kind == JointKind::LooseTenons { format!("{}mm", (depth / MM).round()) } else { format_length(depth) }
+}
+
 /// The contact rectangle of `butt` pushed `depth` back into the butting part.
 fn extrude_back(butt: Butt, depth: f64) -> Box3 {
     let (mut lo, mut hi) = butt.contact;
@@ -1712,6 +1747,7 @@ impl Document {
             // of its length in the butting part's end (a biscuit goes in equally either way).
             let loose = slots.kind == JointKind::LooseTenons;
             let into_thick = o.1[butt.k] - o.0[butt.k];
+            let (worked_out_face, worked_out_end) = slots.depths_in(into_thick);
             let room = slots.depth.min(into_thick * 2.0 / 3.0);
             // The machine's own stops, when it has them: a pair of them that holds the tenon.
             let settable = if slots.stops.is_empty() || slots.face.is_some() && slots.end.is_some() {
@@ -1722,15 +1758,8 @@ impl Document {
                     None => return Err(JoineryError::Size("No two of those depth stops hold the tenon in this stock: use a shorter tenon.")),
                 }
             };
-            let face_depth = slots.face.or(settable.map(|(face, _)| face)).unwrap_or_else(|| {
-                // 2/3 of 3/4" stock is 1/2", which is 12.7 mm: a depth no joiner has a stop for.
-                // Whole millimeters for a metric tenon, so the mortise can actually be set.
-                if loose && room < slots.depth { (room / MM).floor() * MM } else { room }
-            });
-            let end_depth = slots
-                .end
-                .or(settable.map(|(_, end)| end))
-                .unwrap_or(if loose { 2.0 * slots.depth - face_depth } else { slots.depth });
+            let face_depth = slots.face.or(settable.map(|(face, _)| face)).unwrap_or(worked_out_face);
+            let end_depth = slots.end.or(settable.map(|(_, end)| end)).unwrap_or(worked_out_end);
             if end_depth + slots.fit.max(0.0) / 2.0 >= r.1[butt.k] - r.0[butt.k] - EPS
                 || face_depth + slots.fit.max(0.0) / 2.0 >= into_thick - EPS
             {
@@ -1781,10 +1810,7 @@ impl Document {
                 cut_box_in(scene, path, into, narrow(extrude(butt, face_depth + fit / 2.0)))?;
                 cut_box_in(scene, path, part, transform_box(&to_part, narrow(extrude_back(butt, end_depth + fit / 2.0))))?;
             }
-            // A loose tenon is a metric piece cut by a machine set in millimeters, so its
-            // mortises are said that way: 12 mm, not the "~ 1/2"" that reads like a guess and
-            // sent a report asking what the depths really were (#16).
-            let deep = |d: f64| if loose { format!("{}mm", (d / MM).round()) } else { format_length(d) };
+            let deep = |d: f64| say_depth(slots.kind, d);
             let detail = if (face_depth - end_depth).abs() < 1e-9 {
                 format!("{} x {}, {} deep each side", count, slots.piece, deep(face_depth))
             } else {

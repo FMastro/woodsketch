@@ -334,8 +334,10 @@ add it there; when you finish an item, remove it.
    rest of the tenon in the end, rounded down to whole millimeters because 2/3 of 3/4" is 12.7mm and
    no joiner has a stop for that; `face`, `end`, `offset`, `spacing` and `centers` are the machine's
    own settings when a recipe gives them, `stops` hands it the machine's depth stops and
-   `Slots::pair_from` takes the deepest pair that holds the tenon, and a loose tenon's depths are
-   said in mm, #16), pocket screws (a 3/8" bore at
+   `Slots::pair_from` takes the deepest pair that holds the tenon, and `say_depth` says a loose
+   tenon's depths in mm, #16; `Slots::depths_in` is the one rule for what it would cut and
+   `Slots::recorded` the one sizes layout, so the Joinery panel's own Face depth and End depth
+   boxes -- empty meaning "work it out" -- can't drift from what a recipe does), pocket screws (a 3/8" bore at
    15° stepping to a pilot, drilled with `doc::solid::drill`: BSP subtraction of `Rod`s, pieces merged back
    into faces per plane; `JointOp::drill`), through tenons; each joint's pieces (`Joint::hardware`) and glue-up seams
    (`PartInfo::edge_joint`) add up in `CutList::hardware` (Parts tab, cut sheet).
