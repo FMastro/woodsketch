@@ -11,7 +11,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 ## Summary (recommended order)
 | # | Category | Points | Why here |
 |---|---|---|---|
-| 1 | Build sheets and assembly | 26 | Illustrated assembly steps, asked for by a user |
+| 1 | Build sheets and assembly | 16 | The Steps panel, now the derived sequence is in |
 | 2 | Joinery | 71 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins on the built-in templates; the parametric ones are in |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
@@ -29,7 +29,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1414** | |
+| | **All** | **1404** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -44,12 +44,16 @@ sheet; which copies take which part. A glue-up order for parts with no joints
 made (taken as butt joints); a picture for each step; parts at an angle touch only where their faces
 meet. Step pictures pull each part out the way it goes in; butt joints say where the
 screws go; leaders bend around parts in their way; past four places, a table of where the cuts are. A part
-at an angle slides out along its own axes too.
-1. [13] A printable staged sequence: each stage with the parts added to it highlighted, their
-   cut-list letters and part sheets, and the modeled joints shown on both mating parts at the
-   step they are cut, dimensioned from the reference faces (#15). All of it derived, so it
-   can't drift from the drawing -- which is why it was asked for, by someone whose own
-   hand-drawn Domino layout disagreed with the model.
+at an angle slides out along its own axes too. The staged sequence: each step carries the joints it
+makes, said from both sides, with what is cut in each part and where, measured from that part's own
+reference face, edge and end and read by the same reckoning the part's sheet uses, so the layout on
+the page can't drift from the drawing (#15, which is why it was asked for); each part's letter links
+to its sheet.
+1. [3] A sheet shared by two parts drawn differently (a cabinet's two sides, mirror images on one
+   sheet, "Make 2, all the same") describes one of them, so a step may measure the same cut from
+   the other face than the sheet does. Both are right about the part in hand and the step is the
+   more useful of the two, but the pages read as if they disagree. The sheet should say which hand
+   it is drawn as and what changes for the other.
 2. [13] A Steps panel that owns the order and the notes and generates the document, rather than
    anyone editing the document itself: drag a step, group a few as "the doors", a note against
    one. The plan hangs on the parts and joints a step is about, never on step numbers -- a note

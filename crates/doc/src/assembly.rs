@@ -14,6 +14,12 @@
 //! front-left, above (like the Iso view), its faces filled and sorted back to front, each part
 //! labeled with its cut-list letter (a drawer or door with its name) in a column beside the
 //! drawing, with a leader line to a spot on it you can see.
+//!
+//! Each step also carries the joints it makes, said from both sides: what is cut in each of the
+//! two parts and where, measured from that part's own reference face, edge and end. That is the
+//! point of a staged sequence -- the layout to mark out is read off the drawing at the step it is
+//! cut, and from the same place the part's own sheet reads it ([`crate::buildsheet::cut_place`]),
+//! so a mortise on the page can't disagree with the one in the model.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -21,16 +27,53 @@ use std::fmt::Write;
 use glam::{DAffine3, DVec3};
 
 use crate::cutlist::CutList;
+use crate::joinery::{Joint, JointKind, JointOp};
 use crate::{Container, DefinitionId, MaterialId, Scene};
 
 /// One assembly: its name, its steps in order, and an exploded drawing (SVG).
 #[derive(Clone, Debug)]
 pub struct Assembly {
     pub name: String,
-    pub steps: Vec<String>,
-    /// For each step that puts something in: a picture of it going on to what's together.
-    pub pictures: Vec<Option<String>>,
+    pub steps: Vec<Step>,
     pub svg: String,
+}
+
+/// One step of an assembly.
+#[derive(Clone, Debug)]
+pub struct Step {
+    /// What to do: `Glue B (Front apron) to both A (Leg) (mortise and tenon).`
+    pub text: String,
+    /// A picture of it going on to what's already together, for steps that put something in.
+    pub picture: Option<String>,
+    /// The joints it makes, with their sizes on both parts; empty for a step that puts nothing in
+    /// (hardware, a note) or joins nothing (a part that only touches the rest).
+    pub joints: Vec<JointAtStep>,
+}
+
+/// A joint made at a step, from both sides: what is cut in each of the two parts and where.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct JointAtStep {
+    /// `Mortise and tenon`.
+    pub kind: &'static str,
+    /// The sizes it was made with, as the drawing kept them: `1/4" deep`.
+    pub detail: String,
+    /// The part shaped to fit first, then the one it goes into.
+    pub parts: Vec<CutOnPart>,
+}
+
+/// What one of a joint's two parts has cut in it, and where.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CutOnPart {
+    /// Its cut-list letter, where it has one (a sub-assembly doesn't).
+    pub label: Option<String>,
+    /// The part's name: `Front apron`.
+    pub part: String,
+    /// What is cut there (`mortise`, `tenon`), or how it is made to fit where nothing is cut in it.
+    pub cut: String,
+    /// Where it is, word for word as the part's own sheet says it: `2" from the reference end, 2"
+    /// long; ...`. `None` where there is nothing to place: a part made to size for the other's
+    /// recess, or a joint made before its cuts were kept.
+    pub place: Option<String>,
 }
 
 /// A part or sub-assembly in an assembly.
@@ -135,16 +178,19 @@ fn walk(scene: &Scene, list: &CutList, container: &Container, name: &str, world:
         }
         *members[i].hardware.entry(piece).or_default() += 1;
     }
-    let (mut texts, mut pictures) = (Vec::new(), Vec::new());
+    let mut staged = Vec::new();
     let mut done = vec![false; members.len()];
     for (text, put) in steps(scene, &members, &loose) {
-        pictures.push((!put.is_empty()).then(|| step_picture(&members, &done, &put)));
+        let picture = (!put.is_empty()).then(|| step_picture(&members, &done, &put));
+        // Worked out before the step counts as done, since a joint is between what it puts in and
+        // what that lands against.
+        let joints = joints_at(scene, &members, &done, &put);
         for i in put {
             done[i] = true;
         }
-        texts.push(text);
+        staged.push(Step { text, picture, joints });
     }
-    out.push(Assembly { name: name.to_owned(), steps: texts, pictures, svg: exploded(&members) });
+    out.push(Assembly { name: name.to_owned(), steps: staged, svg: exploded(&members) });
     true
 }
 
@@ -377,13 +423,14 @@ fn clip(subject: &[(f64, f64)], window: &[(f64, f64)]) -> Vec<(f64, f64)> {
     out
 }
 
-/// The joints between two members, by name (from the drawing's joints).
-fn joints_between(scene: &Scene, a: &Member, b: &Member) -> Vec<&'static str> {
+/// The joints between two members, as indices into [`Scene::joints`] (indices, so a step can
+/// gather them from several pairs without saying one twice).
+fn joints_between(scene: &Scene, a: &Member, b: &Member) -> Vec<usize> {
     // Joints are kept per design, so copies share them: only those with a cut where these two
     // meet count (a drawer of copies dovetailed at one corner isn't joined at the next).
     const TOL: f64 = 1e-3;
     let meeting = (a.lo.max(b.lo) - DVec3::splat(TOL), a.hi.min(b.hi) + DVec3::splat(TOL));
-    let here = |j: &crate::joinery::Joint| {
+    let here = |j: &Joint| {
         j.ops.is_empty()
             || j.ops.iter().any(|op| {
                 let (lo, hi) = (meeting.0 - DVec3::splat(op.distance.abs()), meeting.1 + DVec3::splat(op.distance.abs()));
@@ -392,16 +439,108 @@ fn joints_between(scene: &Scene, a: &Member, b: &Member) -> Vec<&'static str> {
                 })
             })
     };
-    let mut kinds: Vec<&'static str> = scene
+    scene
         .joints
         .iter()
-        .filter(|j| (a.definitions.contains(&j.cut) && b.definitions.contains(&j.into)) || (b.definitions.contains(&j.cut) && a.definitions.contains(&j.into)))
-        .filter(|j| here(j))
-        .map(|j| j.kind.name())
-        .collect();
+        .enumerate()
+        .filter(|(_, j)| (a.definitions.contains(&j.cut) && b.definitions.contains(&j.into)) || (b.definitions.contains(&j.cut) && a.definitions.contains(&j.into)))
+        .filter(|(_, j)| here(j))
+        .map(|(n, _)| n)
+        .collect()
+}
+
+/// The kinds of joint between two members, each once, for a step's wording.
+fn kinds_between(scene: &Scene, a: &Member, b: &Member) -> Vec<&'static str> {
+    let mut kinds: Vec<&'static str> = joints_between(scene, a, b).iter().filter_map(|&n| scene.joints.get(n)).map(|j| j.kind.name()).collect();
     kinds.sort_unstable();
     kinds.dedup();
     kinds
+}
+
+/// The joints a step makes: between what it puts in (`put`) and whatever that lands against,
+/// already together (`done`) or going in at the same step (a frame's rail and its two posts go in
+/// at once). Each joint once, in the order they were made.
+fn joints_at(scene: &Scene, members: &[Member], done: &[bool], put: &[usize]) -> Vec<JointAtStep> {
+    let mut found: BTreeSet<usize> = BTreeSet::new();
+    for (k, &i) in put.iter().enumerate() {
+        for j in 0..members.len() {
+            // A pair put in at this same step counts once: from the earlier of the two.
+            let also_now = put.iter().position(|&p| p == j).is_some_and(|at| at > k);
+            if j != i && (done.get(j).copied().unwrap_or(false) || also_now) {
+                found.extend(joints_between(scene, &members[i], &members[j]));
+            }
+        }
+    }
+    let mut out: Vec<JointAtStep> = Vec::new();
+    for joint in found.into_iter().filter_map(|n| scene.joints.get(n)) {
+        // Copies of one design joined the same way read alike: say it once, since the step itself
+        // already says how many times to do it.
+        let at = joint_at_step(scene, members, joint);
+        if !out.contains(&at) {
+            out.push(at);
+        }
+    }
+    out
+}
+
+/// One joint, said from both sides.
+fn joint_at_step(scene: &Scene, members: &[Member], joint: &Joint) -> JointAtStep {
+    let [shaped, recess] = cut_names(joint.kind);
+    JointAtStep {
+        kind: joint.kind.name(),
+        detail: joint.detail.clone(),
+        parts: vec![
+            cut_on(scene, members, joint, joint.cut, shaped, joint.kind.lets_in()),
+            cut_on(scene, members, joint, joint.into, recess, false),
+        ],
+    }
+}
+
+/// What a joint leaves in one of its two parts: the part's letter and name, what is cut there, and
+/// where, read from the part's own sheet so the two say the same thing. `to_fit` is the part that
+/// is only made to size for the other's recess, which has nothing of its own to place.
+fn cut_on(scene: &Scene, members: &[Member], joint: &Joint, part: DefinitionId, cut: &str, to_fit: bool) -> CutOnPart {
+    let name = scene.definition(part).map_or_else(|| "another part".to_owned(), |d| d.name.clone());
+    let (scale, label) = placed(members, part);
+    let ops: Vec<JointOp> = joint.ops.iter().filter(|op| op.part == part).cloned().collect();
+    let place = if to_fit { None } else { crate::buildsheet::cut_place(scene, part, scale, &ops) };
+    CutOnPart { label, part: name, cut: cut.to_owned(), place }
+}
+
+/// How much a part is stretched along its own axes where it stands in this assembly (a copy scaled
+/// by its placement), and its cut-list letter. The member that is the part itself is preferred over
+/// a sub-assembly holding it, since only that one carries the letter.
+fn placed(members: &[Member], part: DefinitionId) -> (DVec3, Option<String>) {
+    let found = members
+        .iter()
+        .filter_map(|m| m.places.iter().find(|(d, _)| *d == part).map(|(_, place)| (m, *place)))
+        .min_by_key(|(m, _)| m.places.len());
+    match found {
+        Some((m, place)) => (DVec3::from_array([0, 1, 2].map(|i| (place.matrix3 * DVec3::AXES[i]).length())), m.label.clone()),
+        None => (DVec3::ONE, None),
+    }
+}
+
+/// What a joint leaves in each of its two parts: in the one shaped to fit, then in the one it goes
+/// into. Where the first has nothing cut in it ([`JointKind::lets_in`]), the words say how it is
+/// made to fit instead, which is what its sheet says too.
+fn cut_names(kind: JointKind) -> [&'static str; 2] {
+    match kind {
+        JointKind::Dado => ["made to size for the dado", "dado"],
+        JointKind::Groove => ["made to size for the groove", "groove"],
+        JointKind::Rabbet => ["made to size for the rabbet", "rabbet"],
+        JointKind::Notch => ["made to size for the notch", "notch"],
+        JointKind::Mortise => ["made to size for the mortise", "mortise"],
+        JointKind::MortiseAndTenon => ["tenon", "mortise"],
+        JointKind::Dovetails => ["tails", "pins"],
+        JointKind::Dowels => ["dowel holes", "dowel holes"],
+        JointKind::Biscuits => ["biscuit slots", "biscuit slots"],
+        JointKind::LooseTenons => ["loose tenon mortise", "loose tenon mortise"],
+        JointKind::Splines => ["spline groove", "spline groove"],
+        JointKind::PocketScrews => ["pocket holes", "where the screws land"],
+        JointKind::BoxJoint => ["fingers", "fingers"],
+        JointKind::HalfLap => ["half lap", "half lap"],
+    }
 }
 
 /// The steps, each with the members it puts in (none for a note or for hardware).
@@ -412,7 +551,7 @@ fn steps(scene: &Scene, members: &[Member], loose: &BTreeMap<String, u32>) -> Ve
             (0..n)
                 .filter(|&j| j != i && !members[i].moves && !members[j].moves && touching(&members[i], &members[j]))
                 .filter_map(|j| {
-                    let kinds = joints_between(scene, &members[i], &members[j]);
+                    let kinds = kinds_between(scene, &members[i], &members[j]);
                     (!kinds.is_empty()).then_some((j, kinds))
                 })
                 .collect()
@@ -954,6 +1093,16 @@ mod tests {
     use crate::Document;
     use crate::template::{Cabinet, Fill, Table, Template};
 
+    /// An assembly's steps as one block of text, to read what it says.
+    fn script(assembly: &Assembly) -> String {
+        assembly.steps.iter().map(|s| s.text.as_str()).collect::<Vec<_>>().join("\n")
+    }
+
+    /// Every joint named at any step of an assembly.
+    fn at_steps(assembly: &Assembly) -> Vec<&JointAtStep> {
+        assembly.steps.iter().flat_map(|s| &s.joints).collect()
+    }
+
     /// A member made of one face (its loop and front) and the box given.
     fn member(points: &[DVec3], normal: DVec3, lo: DVec3, hi: DVec3) -> Member {
         let mut m = Member::new("Part".into(), false);
@@ -1075,8 +1224,9 @@ mod tests {
         part("Side", DVec3::new(12.0, 0.0, 0.75), DVec3::Z, DVec3::Y, [8.0, 6.0, 0.75]);
         let list = crate::cutlist::cut_list(doc.scene());
         let all = assemblies(doc.scene(), &list);
-        let text = all.last().unwrap().steps.join("
-");
+        let last = all.last().unwrap();
+        let text = script(last);
+        assert!(at_steps(last).is_empty(), "nothing is jointed, so no joint sizes to give");
         assert!(text.contains("butt-joined"), "says what it assumes: {text}");
         assert!(text.contains("(butt joint).") && text.contains("Start with"), "an order: {text}");
         assert!(text.contains("Screw through A (Bottom) into B (Side)'s end"), "up through the bottom into the sides' end grain: {text}");
@@ -1091,12 +1241,188 @@ mod tests {
         let list = crate::cutlist::cut_list(doc.scene());
         let all = assemblies(doc.scene(), &list);
         let table = all.iter().find(|a| a.name == "Table").expect("the table");
-        let text = table.steps.join("\n");
-        assert!(table.steps[0].starts_with("Glue up a frame") && table.steps[0].contains("Make 2"), "two frames of a long apron between two legs first\n{text}");
+        let text = script(table);
+        assert!(table.steps[0].text.starts_with("Glue up a frame") && table.steps[0].text.contains("Make 2"), "two frames of a long apron between two legs first\n{text}");
         assert!(text.contains("Join the frames") && text.contains("Side apron") && text.contains("Do this 2 times"), "{text}");
         assert!(text.contains("mortise and tenon"), "{text}");
         assert!(text.contains("Fasten") && text.contains("Table top") && text.contains("move across its grain"), "the top goes on last, free to move\n{text}");
         assert!(table.svg.starts_with("<svg") && table.svg.contains("<polygon"), "an exploded drawing");
+    }
+
+    #[test]
+    fn a_step_marks_out_the_dado_it_cuts_and_says_the_shelf_only_fits_it() {
+        use crate::board::Board;
+        use crate::part::{PartAxis, Side};
+        let mut doc = Document::default();
+        let oak = doc.add_preset(crate::library::LIBRARY.iter().find(|p| p.name == "Red Oak").unwrap());
+        let mut board = |origin: DVec3, length_dir: DVec3, width_dir: DVec3, [l, w, t]: [f64; 3]| {
+            doc.add_board(&Board { origin, length_dir, width_dir, length: l, width: w, thickness: t }, Some(oak)).unwrap()
+        };
+        let side = board(DVec3::ZERO, DVec3::Z, DVec3::Y, [30.0, 11.25, 0.75]);
+        let shelf = board(DVec3::new(0.0, 0.0, 12.0), DVec3::X, DVec3::Y, [20.0, 11.25, 0.75]);
+        doc.rename_instance(side, "Side");
+        doc.rename_instance(shelf, "Shelf");
+        doc.let_in(shelf, side, 0.25).unwrap();
+        doc.edit_part(side, |p| {
+            p.reference_face = Some(Side { axis: PartAxis::Z, positive: false });
+            p.reference_edge = Some(Side { axis: PartAxis::Y, positive: false });
+        });
+        let list = crate::cutlist::cut_list(doc.scene());
+        let all = assemblies(doc.scene(), &list);
+        let joints = at_steps(all.last().expect("the case"));
+        assert_eq!(joints.len(), 1, "one joint, at the step that makes it: {joints:#?}");
+        let joint = joints[0];
+        assert_eq!((joint.kind, joint.detail.as_str()), ("Dado", "1/4\" deep"));
+        // The shelf is sized for the dado, so it has nothing of its own to mark out.
+        let [fits, cut] = [&joint.parts[0], &joint.parts[1]];
+        assert_eq!((fits.part.as_str(), fits.cut.as_str(), &fits.place), ("Shelf", "made to size for the dado", &None));
+        // The side's dado, measured off the drawing: 12" up a 30" side, 3/4" for the shelf's
+        // thickness, across its full width, 1/4" deep from the face that was picked.
+        assert_eq!(cut.part, "Side");
+        assert_eq!(cut.cut, "dado");
+        assert_eq!(cut.place.as_deref(), Some("12\" from the left end, 3/4\" long; across the full width; 1/4\" deep from the reference face"));
+        assert_eq!((fits.label.as_deref(), cut.label.as_deref()), (Some("B"), Some("A")), "each part's cut-list letter");
+    }
+
+    #[test]
+    fn a_step_gives_both_the_mortise_and_the_tenon_that_goes_in_it() {
+        let mut doc = Document::default();
+        let cherry = doc.add_preset(crate::library::LIBRARY.iter().find(|p| p.name == "Cherry").unwrap());
+        doc.add_template(&Template::Table(Table::default()), Some(cherry)).unwrap();
+        let list = crate::cutlist::cut_list(doc.scene());
+        let all = assemblies(doc.scene(), &list);
+        let table = all.iter().find(|a| a.name == "Table").expect("the table");
+        // The frame step glues an apron between two legs: a tenon at each end of the apron, into a
+        // mortise in each leg.
+        let frame = &table.steps[0];
+        assert!(frame.text.starts_with("Glue up a frame"), "{}", frame.text);
+        assert_eq!(frame.joints.len(), 2, "both ends of the apron: {:#?}", frame.joints);
+        assert!(frame.joints.iter().all(|j| j.kind == "Mortise and tenon"), "{:#?}", frame.joints);
+        let at_end = |end: &str| {
+            frame
+                .joints
+                .iter()
+                .find(|j| j.parts.iter().any(|p| p.cut == "tenon" && p.place.as_deref().is_some_and(|w| w.starts_with(&format!("at the {end} end")))))
+                .unwrap_or_else(|| panic!("the {end}-hand joint: {:#?}", frame.joints))
+        };
+        let joint = at_end("left");
+        let tenon = joint.parts.iter().find(|p| p.cut == "tenon").expect("the tenon");
+        let mortise = joint.parts.iter().find(|p| p.cut == "mortise").expect("the mortise");
+        assert_eq!((tenon.part.as_str(), mortise.part.as_str()), ("Front and back apron", "Leg"));
+        // Both are placed, which is the whole point: the pair is marked out from the model at the
+        // step it is cut, rather than drawn by hand beside it. A 4" x 3/4" apron, 1/4" shoulders
+        // all round, into a 1 1/2" square leg 29" long.
+        assert_eq!(
+            tenon.place.as_deref(),
+            Some("at the left end, 3/4\" long; 1/4\" from the bottom edge, 3 1/2\" wide; 1/4\" to 1/2\" from the bottom face")
+        );
+        assert_eq!(
+            mortise.place.as_deref(),
+            Some("25 1/2\" from the left end, 3 1/2\" long; 3/4\" in from the other edge; 1/2\" to 3/4\" from the bottom face")
+        );
+        // And the two agree, which is what the joint being modeled once buys: the mortise is as
+        // long as the tenon is wide (3 1/2"), as deep as the tenon is long (3/4", out of the face
+        // the apron butts against), and as wide as the tenon is thick (1/4", between 1/2" and
+        // 3/4" of the leg). It ends at 29", the leg's top, where the apron sits.
+        let mortise = mortise.place.as_deref().expect("the mortise");
+        assert!(mortise.contains("3 1/2\" long"), "as long as the tenon is wide: {mortise}");
+        assert!(mortise.contains("3/4\" in from the other edge"), "as deep as the tenon is long: {mortise}");
+        assert!(mortise.contains("1/2\" to 3/4\" from"), "1/4\" wide, as thick as the tenon: {mortise}");
+        // The frame's other end goes into the leg's *other* mortise, since the four legs are
+        // turned round the table: one leg takes the front apron in the face the next takes the
+        // side apron in. Marking out from the model catches that; drawing it by hand is where it
+        // gets missed. Both mortises are at the same height, 3 1/2" long.
+        let other = at_end("right").parts.iter().find(|p| p.cut == "mortise").and_then(|p| p.place.clone()).expect("the other mortise");
+        assert_ne!(other, mortise, "the apron's two ends are not the same mortise on the leg");
+        assert!(other.starts_with("25 1/2\" from the left end, 3 1/2\" long;"), "same height, same length: {other}");
+        assert!(other.contains("1/4\" wide; 3/4\" deep from the other face"), "1/4\" x 3/4\", on the leg's other inward face: {other}");
+        // Four in all: both ends of the front-and-back apron, and both of the side apron. The
+        // step's own wording ("Make 2", "Do this 2 times") covers the copies.
+        assert_eq!(table.steps.iter().flat_map(|s| &s.joints).filter(|j| j.kind == "Mortise and tenon").count(), 4, "each end once, not once per leg");
+    }
+
+    /// A part's own sheet, cut out of the build-sheet page.
+    fn sheet_of<'a>(html: &'a str, part: &str) -> Option<&'a str> {
+        let at = html.find(&format!("</span>{part}</h2>"))?;
+        let rest = &html[at..];
+        Some(&rest[..rest.find("</section>").unwrap_or(rest.len())])
+    }
+
+    #[test]
+    fn what_a_step_says_to_cut_is_word_for_word_what_the_part_sheet_says() {
+        // Why the staged sequence was asked for (#15): a Domino layout drawn by hand beside the
+        // model disagreed with it. Every place a step gives is read off the drawing by the same
+        // reckoning the part's own sheet uses, so no cut can be told two ways. A table, where
+        // every part has a sheet to itself.
+        let mut doc = Document::default();
+        let cherry = doc.add_preset(crate::library::LIBRARY.iter().find(|p| p.name == "Cherry").unwrap());
+        doc.add_template(&Template::Table(Table::default()), Some(cherry)).unwrap();
+        let list = crate::cutlist::cut_list(doc.scene());
+        let html = crate::buildsheet::to_html(doc.scene(), &list, "Table");
+        let mut checked = 0;
+        for assembly in assemblies(doc.scene(), &list) {
+            for joint in assembly.steps.iter().flat_map(|s| &s.joints) {
+                for part in &joint.parts {
+                    let Some(place) = part.place.as_deref() else { continue };
+                    let sheet = sheet_of(&html, &part.part).unwrap_or_else(|| panic!("no sheet for {}", part.part));
+                    // The sheet lists each place in a sentence, or, where a part has many cuts,
+                    // splits it a clause to a cell.
+                    let listed = sheet.contains(place);
+                    let tabled = place.split("; ").all(|clause| sheet.contains(&format!("<td>{clause}</td>")));
+                    assert!(listed || tabled, "{} is placed differently at a step than on its sheet:\n  step: {place}\n  sheet: {sheet}", part.part);
+                    checked += 1;
+                }
+            }
+        }
+        assert_eq!(checked, 8, "both sides of the table's four mortise-and-tenon joints");
+    }
+
+    #[test]
+    fn a_step_that_makes_a_joint_always_gives_something_to_mark_out() {
+        // A cabinet brings dados, rabbets, grooves and a dovetailed drawer. Whatever the joint,
+        // the step that makes it has to place it on at least one of the two parts, or there is
+        // nothing to mark out and the step is no better than a sentence.
+        let mut doc = Document::default();
+        let cherry = doc.add_preset(crate::library::LIBRARY.iter().find(|p| p.name == "Cherry").unwrap());
+        let mut c = Cabinet { shelves: 2, depth: 18.0, height: 34.0, ..Default::default() };
+        c.fills[0] = Fill::Doors;
+        c.fills[2] = Fill::Drawer;
+        doc.add_template(&Template::Cabinet(c), Some(cherry)).unwrap();
+        let list = crate::cutlist::cut_list(doc.scene());
+        let mut kinds: Vec<&str> = Vec::new();
+        for assembly in assemblies(doc.scene(), &list) {
+            for joint in assembly.steps.iter().flat_map(|s| &s.joints) {
+                assert_eq!(joint.parts.len(), 2, "both sides of {}: {joint:#?}", joint.kind);
+                assert!(joint.parts.iter().any(|p| p.place.is_some()), "{} places nothing: {joint:#?}", joint.kind);
+                // A part with no cut of its own says how it is made to fit instead, and never
+                // stands there with an empty place and no reason for it.
+                for part in &joint.parts {
+                    assert!(part.place.is_some() || part.cut.starts_with("made to size for"), "{}: {part:#?}", joint.kind);
+                    assert!(!part.part.is_empty() && !part.cut.is_empty(), "{part:#?}");
+                }
+                kinds.push(joint.kind);
+            }
+        }
+        kinds.sort_unstable();
+        kinds.dedup();
+        assert!(kinds.contains(&"Dado") && kinds.contains(&"Rabbet") && kinds.contains(&"Dovetails"), "{kinds:?}");
+        // A shelf's dado, measured off the model: a third of the way up a 34" side, 3/4" long for
+        // the shelf's thickness, across the full width, 1/4" deep. Which face it is cut in is the
+        // one that turns inward, and the two sides are mirror images, so it is the bottom face of
+        // one and the other face of the other -- the step says which for the side in hand, where
+        // the shared sheet can only describe one of them.
+        let shelf = assemblies(doc.scene(), &list)
+            .into_iter()
+            .flat_map(|a| a.steps)
+            .flat_map(|s| s.joints)
+            .find(|j| j.kind == "Dado" && j.parts.iter().any(|p| p.part == "Shelf"))
+            .expect("a shelf's dado");
+        let side = shelf.parts.iter().find(|p| p.cut == "dado").expect("the dado");
+        let place = side.place.as_deref().expect("where the dado is");
+        assert!(place.starts_with("~ 11 1/16\" from the left end, 3/4\" long; across the full width; 1/4\" deep from "), "{place}");
+        assert!(place.ends_with(" face"), "cut in a face, named: {place}");
+        let fits = shelf.parts.iter().find(|p| p.part == "Shelf").expect("the shelf");
+        assert_eq!((fits.cut.as_str(), &fits.place), ("made to size for the dado", &None));
     }
 
     /// `WOODSKETCH_SHEET_OUT=<file.html>`: build sheets for a table and a cabinet, to look at.
@@ -1138,12 +1464,12 @@ mod tests {
         let names: Vec<&str> = all.iter().map(|a| a.name.as_str()).collect();
         let cabinet = names.iter().position(|n| *n == "Cabinet").unwrap();
         assert!(names.iter().position(|n| *n == "Drawer").unwrap() < cabinet, "the drawer is built before the cabinet: {names:?}");
-        let text = all[cabinet].steps.join("\n");
+        let text = script(&all[cabinet]);
         assert!(text.contains("Fit Drawer on its slides") && text.contains("Hang Door on its hinges"), "{text}");
         assert!(text.contains("Fasten") && text.contains("Back"), "the back is fastened: {text}");
         // Hardware at the step it's used: hinges as a door is hung, slides on the box's sides.
         assert!(text.contains("Hang Door on its hinges: ") && text.contains("Concealed hinge"), "{text}");
-        let drawer = all.iter().find(|a| a.name == "Drawer").unwrap().steps.join("\n");
+        let drawer = script(all.iter().find(|a| a.name == "Drawer").unwrap());
         assert!(drawer.contains("slides (pair) on both ") && drawer.lines().any(|l| l.contains("slides") && l.ends_with("(Drawer box side).")), "on both box sides, not its front: {drawer}");
         assert!(drawer.lines().any(|l| l.contains("Bar pull") && l.ends_with("(Drawer front).")), "{drawer}");
         assert!(!text.contains("Install the hardware") && !drawer.contains("Install the hardware"), "nothing left over");

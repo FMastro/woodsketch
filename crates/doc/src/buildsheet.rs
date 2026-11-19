@@ -72,6 +72,10 @@ h2 {{ font-size: 18px; margin: 0 0 2px; }}
 .facts td:first-child {{ color: #666; }}
 .cuts {{ border-collapse: collapse; margin: 4px 0 8px; }}
 .cuts th, .cuts td {{ border: 1px solid #ccc; padding: 2px 8px; text-align: left; vertical-align: top; }}
+.joints {{ border-collapse: collapse; margin: 4px 0 10px; }}
+.joints th {{ text-align: left; padding: 6px 10px 1px 0; border-bottom: 1px solid #ddd; font-weight: 600; }}
+.joints td {{ padding: 1px 12px 1px 0; vertical-align: top; }}
+.joints td:first-child {{ color: #666; white-space: nowrap; min-width: 18px; }}
 ol {{ margin: 6px 0 0 20px; padding: 0; }}
 li {{ margin: 2px 0; }}
 svg {{ display: block; margin: 10px 0; }}
@@ -88,19 +92,22 @@ svg text {{ font: 11px system-ui, sans-serif; fill: #333; }}
     if sheets.is_empty() {
         html.push_str("<p>No parts yet. Each group or component is a part.</p>");
     }
+    let mut anchored: std::collections::BTreeSet<&str> = std::collections::BTreeSet::new();
     for (label, sheet, row) in &sheets {
-        write_sheet(&mut html, scene, sheet, label, *row);
+        let first = anchored.insert(label.as_str());
+        write_sheet(&mut html, scene, sheet, label, *row, first);
     }
     // Then putting it together: each assembly, sub-assemblies first.
     for assembly in crate::assembly::assemblies(scene, list) {
         let _ = write!(html, "<section class=\"sheet assembly\"><h2>Assemble: {}</h2>", esc(&assembly.name));
         html.push_str(&assembly.svg);
         html.push_str("<ol>");
-        for (step, picture) in assembly.steps.iter().zip(&assembly.pictures) {
-            let _ = write!(html, "<li>{}", esc(step));
-            if let Some(svg) = picture {
+        for step in &assembly.steps {
+            let _ = write!(html, "<li>{}", esc(&step.text));
+            if let Some(svg) = &step.picture {
                 let _ = write!(html, "<div class=\"step-picture\">{svg}</div>");
             }
+            write_joints(&mut html, &step.joints, &anchored);
             html.push_str("</li>");
         }
         html.push_str("</ol></section>
@@ -108,6 +115,37 @@ svg text {{ font: 11px system-ui, sans-serif; fill: #333; }}
     }
     html.push_str("</body></html>\n");
     html
+}
+
+/// The joints a step makes, written under it: each one from both sides, saying what is cut in each
+/// part and where, measured from that part's own reference face, edge and end. This is the point of
+/// the staged sequence -- the layout to mark out is read off the model at the step it is cut, so a
+/// mortise on the page can't disagree with the one in the drawing. The letters link to the sheets
+/// the same cuts are drawn on.
+fn write_joints(html: &mut String, joints: &[crate::assembly::JointAtStep], anchored: &std::collections::BTreeSet<&str>) {
+    if joints.is_empty() {
+        return;
+    }
+    html.push_str("<table class=\"joints\">");
+    for joint in joints {
+        let sizes = if joint.detail.is_empty() { String::new() } else { format!(" <span class=\"meta\">({})</span>", esc(&joint.detail)) };
+        let _ = write!(html, "<tr><th colspan=\"3\">{}{sizes}</th></tr>", esc(joint.kind));
+        for part in &joint.parts {
+            let letter = match &part.label {
+                Some(label) if anchored.contains(label.as_str()) => format!(r##"<a href="#sheet-{0}">{0}</a>"##, esc(label)),
+                Some(label) => esc(label),
+                None => String::new(),
+            };
+            let _ = write!(
+                html,
+                "<tr><td>{letter}</td><td>{}: {}</td><td>{}</td></tr>",
+                esc(&part.part),
+                esc(&part.cut),
+                part.place.as_deref().map_or_else(String::new, esc)
+            );
+        }
+    }
+    html.push_str("</table>");
 }
 
 /// The parts to make, one per design, in cut-list order with their letters (and cut-list rows).
@@ -218,16 +256,20 @@ fn row_for<'a>(scene: &Scene, list: &'a CutList, sheet: &Sheet) -> Option<&'a Pa
         .find(|p| close(p.length, length) && close(p.width, width) && close(p.thickness, thickness))
 }
 
-fn write_sheet(html: &mut String, scene: &Scene, sheet: &Sheet, label: &str, row: Option<&Part>) {
+/// One part's sheet. `anchor`: this sheet is the one the assembly steps' letters link to (two
+/// cut-list rows can share a letter, so only the first takes it).
+fn write_sheet(html: &mut String, scene: &Scene, sheet: &Sheet, label: &str, row: Option<&Part>, anchor: bool) {
     let Some(def) = scene.definition(sheet.definition) else { return };
     let Some(extents) = crate::part::extents(def, DMat3::from_diagonal(sheet.scale)) else { return };
     let axes = crate::part::axes(extents, &def.part);
     let [length, width, thickness] = axes.map(|i| extents[i]);
     let material = sheet.material.and_then(|m| scene.material(m));
 
+    // The letter badge is where a step's joint sends you, so the anchor goes on it.
+    let id = if anchor { format!(r#" id="sheet-{}""#, esc(label)) } else { String::new() };
     let _ = write!(
         html,
-        r#"<section class="sheet"><h2><span class="label">{}</span>{}</h2>
+        r#"<section class="sheet"><h2><span class="label"{id}>{}</span>{}</h2>
 <div class="meta">Make {}</div>
 <table class="facts">
 "#,
@@ -303,7 +345,7 @@ fn write_sheet(html: &mut String, scene: &Scene, sheet: &Sheet, label: &str, row
             // Too many to dimension on the views: a table, by the numbers on the face view.
             html.push_str("<table class=\"cuts\"><tr><th>#</th><th>Cut</th><th>Along the length</th><th>Across the width</th><th>Into the thickness</th></tr>\n");
             for (n, (what, b)) in placed.iter().enumerate() {
-                let place = where_is(*b, axes, [length, width, thickness], &marks);
+                let place = where_is(*b, axes, [length, width, thickness], &def.part);
                 let cells: String = place.split("; ").map(|c| format!("<td>{}</td>", esc(c))).collect();
                 let _ = writeln!(html, "<tr><td>{}</td><td>{}</td>{cells}</tr>", n + 1, esc(what));
             }
@@ -311,7 +353,7 @@ fn write_sheet(html: &mut String, scene: &Scene, sheet: &Sheet, label: &str, row
         } else {
             html.push_str("<ol>");
             for (what, b) in &placed {
-                let _ = writeln!(html, "<li>{}: {}.</li>", esc(what), esc(&where_is(*b, axes, [length, width, thickness], &marks)));
+                let _ = writeln!(html, "<li>{}: {}.</li>", esc(what), esc(&where_is(*b, axes, [length, width, thickness], &def.part)));
             }
             html.push_str("</ol>\n");
         }
@@ -367,15 +409,31 @@ fn cut_box(model: &Model, scale: DVec3, ops: &[crate::joinery::JointOp]) -> Opti
     Some(points.iter().fold((first, first), |(lo, hi), p| (lo.min(*p), hi.max(*p))))
 }
 
+/// Where one joint's cut lands on one part, in the words the part's own sheet uses: measured from
+/// its reference face, edge and end, in its own axes, with `scale` the stretch of the copy that
+/// stands there. `None` where the joint kept no cuts on this part (one made before they were
+/// kept, or a part simply made to size for the other's recess).
+///
+/// The staged assembly sequence calls this so that the sizes it gives a step are the ones drawn on
+/// the part sheets, rather than a second reckoning of the same cut that could drift from them.
+pub(crate) fn cut_place(scene: &Scene, part: DefinitionId, scale: DVec3, ops: &[crate::joinery::JointOp]) -> Option<String> {
+    let def = scene.definition(part)?;
+    let extents = crate::part::extents(def, DMat3::from_diagonal(scale))?;
+    let axes = crate::part::axes(extents, &def.part);
+    let placed = cut_box(&def.container.model, scale, ops)?;
+    Some(where_is(placed, axes, axes.map(|i| extents[i]), &def.part))
+}
+
 /// Where a cut is, said from the reference face and edge (or, before they're picked, the bottom
-/// face and edge as the views draw them) and the left end as drawn.
-fn where_is((lo, hi): (DVec3, DVec3), [l, w, t]: [usize; 3], [length, width, thickness]: [f64; 3], marks: &Marks) -> String {
+/// face and edge as the views draw them) and the left end as drawn. The part's own sheet and the
+/// assembly step that cuts it both say it from here, so the two can't disagree.
+fn where_is((lo, hi): (DVec3, DVec3), [l, w, t]: [usize; 3], [length, width, thickness]: [f64; 3], part: &crate::part::PartInfo) -> String {
     const CLOSE: f64 = 1.0 / 64.0;
     let near = |a: f64, b: f64| (a - b).abs() < CLOSE;
-    let (face, edge) = (marks.face, marks.edge);
+    let (face, edge) = (part.reference_face, part.reference_edge);
     let mut said = Vec::new();
     // Along the length, from the reference end (or the left end as drawn).
-    let (end_far, end_name, other_end) = match marks.end.filter(|s| s.axis.index() == l) {
+    let (end_far, end_name, other_end) = match part.reference_end.filter(|s| s.axis.index() == l) {
         Some(side) => (side.positive, "the reference end", "the other end"),
         None => (false, "the left end", "the right end"),
     };
@@ -912,6 +970,32 @@ mod tests {
         let dado = html.find("Cut the dado").unwrap();
         let sand = html.rfind("Sand.").unwrap();
         assert!(mill < dado && dado < sand, "shop order");
+    }
+
+    #[test]
+    fn a_step_carries_its_joint_and_sends_you_to_the_sheets_it_is_cut_on() {
+        use crate::part::{PartAxis, Side};
+        let mut doc = Document::default();
+        let side = board(&mut doc, DVec3::ZERO, DVec3::Z, DVec3::Y, [30.0, 11.25, 0.75]);
+        let shelf = board(&mut doc, DVec3::new(0.0, 0.0, 12.0), DVec3::X, DVec3::Y, [20.0, 11.25, 0.75]);
+        doc.rename_instance(side, "Side");
+        doc.rename_instance(shelf, "Shelf");
+        doc.let_in(shelf, side, 0.25).unwrap();
+        doc.edit_part(side, |p| {
+            p.reference_face = Some(Side { axis: PartAxis::Z, positive: false });
+            p.reference_edge = Some(Side { axis: PartAxis::Y, positive: false });
+        });
+        let html = to_html(doc.scene(), &crate::cutlist::cut_list(doc.scene()), "Case");
+        // The step that makes the dado says where it is, measured from the side's reference face.
+        let steps = &html[html.find("Assemble:").expect("the assembly")..];
+        assert_eq!(steps.matches("<table class=\"joints\">").count(), 1, "one step makes the joint: {steps}");
+        assert!(steps.contains("<th colspan=\"3\">Dado <span class=\"meta\">(1/4\" deep)</span></th>"), "{steps}");
+        assert!(steps.contains("<td>Side: dado</td><td>12\" from the left end, 3/4\" long; across the full width; 1/4\" deep from the reference face</td>"), "{steps}");
+        assert!(steps.contains("<td>Shelf: made to size for the dado</td><td></td>"), "nothing to mark out on the shelf: {steps}");
+        // Each letter links to the sheet the same cut is drawn on.
+        assert!(steps.contains(r##"<a href="#sheet-A">A</a>"##) && steps.contains(r##"<a href="#sheet-B">B</a>"##), "{steps}");
+        assert!(html.contains(r#"<span class="label" id="sheet-A">A</span>"#), "the letter badge is the anchor");
+        assert_eq!(html.matches(" id=\"sheet-").count(), 2, "one anchor per letter");
     }
 
     #[test]

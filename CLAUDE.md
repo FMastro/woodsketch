@@ -369,6 +369,15 @@ add it there; when you finish an item, remove it.
    Wide solid-wood parts glue up from narrower boards (`PartInfo::glue_up`, `cutplan::glue_up`: auto
    when wider than the widest board, aiming for boards 7 1/4" or narrower; strips B-1, B-2... in the
    diagrams, a glue-up step on the build sheet; Entity Info picks Auto or 1-5 boards).
+   The staged sequence (#15): `assembly::Step` carries the joints a step makes (`joints_at`, from
+   the drawing's own `Scene::joints`), each said from both sides as a `JointAtStep` of two
+   `CutOnPart`s -- the letter, the part, what is cut there (`cut_names`; a part merely sized for the
+   other's recess says so, `JointKind::lets_in`) and where, from that part's reference face, edge
+   and end. **That place comes from `buildsheet::cut_place`, which is what the part's own sheet
+   calls**, so the layout at the step and the layout on the sheet are one reckoning and can't drift
+   -- the drift is what the sequence was asked for, by someone whose hand-drawn Domino layout
+   disagreed with his model. `what_a_step_says_to_cut_is_word_for_word_what_the_part_sheet_says`
+   holds it. The letters link to the sheets (`<span class="label" id="sheet-A">`).
 26. Wood movement: `doc::movement` (`species` coefficients from the USDA Wood Handbook on
    `Material::movement`, filled from the library and by name for older drawings; `check` gives each
    solid-wood part's movement across its grain for `Scene::moisture_swing`, default 4%, and

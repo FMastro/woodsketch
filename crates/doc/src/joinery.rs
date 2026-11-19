@@ -61,6 +61,13 @@ impl JointKind {
             Self::Splines => "Spline",
         }
     }
+
+    /// Whether the joint is a recess cut in one part that the other is simply made to fit: a shelf
+    /// let into a dado grows to fill it rather than being cut for it, so it has no cut of its own
+    /// to mark out. The rest cut both parts (a mortise and its tenon, pins and tails).
+    pub fn lets_in(self) -> bool {
+        matches!(self, Self::Dado | Self::Groove | Self::Rabbet | Self::Notch | Self::Mortise)
+    }
 }
 
 /// A joint made between two parts, for listing: `cut` was shaped to fit `into` (the shelf and

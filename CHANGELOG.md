@@ -15,6 +15,9 @@ What's New shows the lead in the strong colour, GitHub shows it in bold.
 
 ## 0.1.81
 
+- **Every assembly step shows the joints it cuts** - The build sheets now give each mortise and
+  its tenon where they are made, measured from both parts' reference faces, with a link to each
+  part's sheet.
 - **What's New can be read at a glance** - Every note opens with a line saying what it is, so you
   can skim the list and read the detail only where you want it.
 
