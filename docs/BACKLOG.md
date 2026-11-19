@@ -11,7 +11,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 ## Summary (recommended order)
 | # | Category | Points | Why here |
 |---|---|---|---|
-| 1 | Build sheets and assembly | 34 | Illustrated assembly steps, asked for by a user |
+| 1 | Build sheets and assembly | 26 | Illustrated assembly steps, asked for by a user |
 | 2 | Joinery | 71 | Closes gaps in the core woodworking feature |
 | 3 | Templates | 139 | Fast wins that make templates usable as-is |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
@@ -50,11 +50,17 @@ at an angle slides out along its own axes too.
    step they are cut, dimensioned from the reference faces (#15). All of it derived, so it
    can't drift from the drawing -- which is why it was asked for, by someone whose own
    hand-drawn Domino layout disagreed with the model.
-2. [21] An order and notes of your own on those steps: reordering, grouping into sub-assemblies
-   (each door), a short note against a step, and a flag on steps whose parts or joints have
-   changed or gone (#15). This would be the first thing a drawing keeps that nothing can
-   derive, so it needs saving, upgrading on open and a staleness model of its own; the derived
-   half above is worth having first, and may turn out to be enough.
+2. [13] A Steps panel that owns the order and the notes and generates the document, rather than
+   anyone editing the document itself: drag a step, group a few as "the doors", a note against
+   one. The plan hangs on the parts and joints a step is about, never on step numbers -- a note
+   on "step 4" lands on the wrong step as soon as a shelf is added, while one on "where the left
+   stile meets the bottom rail" survives any reordering, and when that joint goes the note goes
+   with it and says so. Ordering likewise: "the doors after the case", not "1, 2, 3, 4", so parts
+   added later fall where the worked-out order puts them instead of breaking the list. That turns
+   a change flag on every step into a short list of notes whose parts have gone, which is a
+   dialog rather than a model. The derived half above is worth having first and may be enough
+   (#15, both asked on the issue). What makes this creep is wanting each stage's picture beside
+   the list while arranging it, so settle that before starting.
 
 ## 2. Joinery
 Done: dado, groove, rabbet, mortise and tenon (through, haunched), dovetails (through,
