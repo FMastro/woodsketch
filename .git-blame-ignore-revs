@@ -1,0 +1,9 @@
+# Commits that only moved code around, so `git blame` steps over them and names whoever last
+# changed a line for a reason. Run this once per clone to use it:
+#
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# (GitHub's blame honours the file on its own.) Add a commit here only if it changed no behaviour.
+
+# Let rustfmt decide the layout, and have CI hold it: the one-time reformat of 84 files.
+821f3f7be3d8891e1c319907f212206cbe61fe54
