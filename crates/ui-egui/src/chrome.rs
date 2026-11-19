@@ -883,8 +883,10 @@ fn note_line(ui: &egui::Ui, note: &crate::updates::Note) -> egui::text::LayoutJo
     job.append(&format!("{} ", egui_phosphor::regular::DOT_OUTLINE), 0.0, plain.clone());
     if let Some(lead) = &note.lead {
         job.append(lead, 0.0, strong);
+        // The break between the two, in the ordinary colour so it reads as a gap rather than
+        // as part of either one.
         if !note.rest.is_empty() {
-            job.append(" ", 0.0, plain.clone());
+            job.append(" - ", 0.0, plain.clone());
         }
     }
     job.append(&note.rest, 0.0, plain);

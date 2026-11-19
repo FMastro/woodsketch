@@ -535,12 +535,14 @@ points); keep general modeling working alongside it.
    that ships). **Keep each note to a line, a sentence or two at most: what changed, from the
    reader's side.** Not why it broke, not what the code does now, not the reasoning -- that is the
    commit message's job, and writing it twice makes a release read like a postmortem.
-   **Every note opens with a lead in `**bold**`:** one plain sentence saying what the thing is,
-   then the detail for anyone who wants it, so the list can be read by its leads alone. What's New
-   shows the lead in the strong colour (`chrome::note_line`; there is no bold typeface in the
-   fonts the app ships), GitHub shows it in bold, and `updates::notes_items` splits the two.
+   **Every note is `**lead** - detail`:** the lead is one plain sentence saying what the thing is,
+   so the list can be read by its leads alone and the detail only where someone wants it. The
+   hyphen is the break, so the lead carries no stop of its own. What's New shows the lead in the
+   strong colour and puts the separator back in the ordinary one (`chrome::note_line`; there is no
+   bold typeface in the fonts the app ships, so colour is the only weight there is), GitHub shows
+   it in bold, and `updates::notes_items` splits the three apart.
    `every_note_the_window_can_show_leads_with_what_it_is` holds every version the window can still
-   reach to it: a lead, a sentence, 70 characters at most. `release.yml` puts the version's section into the GitHub release, then the nine
+   reach to it: a lead, unpunctuated, 70 characters at most. `release.yml` puts the version's section into the GitHub release, then the nine
    before it in a folded "Also in recent updates" block, since releases are small and frequent and
    one alone reads like nothing happened. The file is also built into the app
    (`updates::CHANGES`, parsed by `updates::releases` / `updates::since`): Help > What's New shows

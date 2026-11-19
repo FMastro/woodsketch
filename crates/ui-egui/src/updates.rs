@@ -145,11 +145,13 @@ pub fn notes_items(notes: &str) -> Vec<Note> {
     lines.iter().map(|line| split_lead(line)).collect()
 }
 
-/// A bullet split into its lead and the rest. `**Lead.** Detail` gives both; anything else is
-/// all rest, including a bullet whose `**` is never closed.
+/// A bullet split into its lead and the rest. `**Lead** - Detail` gives both; anything else is
+/// all rest, including a bullet whose `**` is never closed. The hyphen between the two is the
+/// separator and belongs to neither, so whoever shows them puts it back in its own colour.
 fn split_lead(line: &str) -> Note {
     match line.strip_prefix("**").and_then(|rest| rest.split_once("**")) {
         Some((lead, rest)) if !lead.trim().is_empty() => {
+            let rest = rest.trim_start().strip_prefix('-').unwrap_or(rest);
             Note { lead: Some(lead.trim().to_owned()), rest: rest.trim().to_owned() }
         }
         _ => Note { lead: None, rest: line.to_owned() },
@@ -238,14 +240,14 @@ Blurb.
 
     #[test]
     fn a_note_is_split_into_its_lead_and_the_rest() {
-        let notes = "- **Doors are a template of their own.** In the Templates panel,
+        let notes = "- **Doors are a template of their own** - In the Templates panel,
   beside the cabinet.
 - A note written without a lead.
 - **Never closed, so it is all rest.";
         let items = notes_items(notes);
         assert_eq!(items.len(), 3, "three bullets, wrapped lines joined");
-        assert_eq!(items[0].lead.as_deref(), Some("Doors are a template of their own."));
-        assert_eq!(items[0].rest, "In the Templates panel, beside the cabinet.");
+        assert_eq!(items[0].lead.as_deref(), Some("Doors are a template of their own"));
+        assert_eq!(items[0].rest, "In the Templates panel, beside the cabinet.", "the separator belongs to neither");
         assert_eq!(items[1].lead, None, "no lead is fine");
         assert_eq!(items[1].rest, "A note written without a lead.");
         assert_eq!(items[2].lead, None, "an unclosed ** is text, not a lead");
@@ -262,8 +264,9 @@ Blurb.
             for note in notes_items(&release.notes) {
                 let lead = note.lead.unwrap_or_default();
                 assert!(!lead.is_empty(), "{} has a note with no **lead**: {}", release.version, note.rest);
-                assert!(lead.ends_with('.'), "{}: a lead is a sentence: {lead}", release.version);
                 assert!(lead.len() <= 70, "{}: {} characters is too long to scan: {lead}", release.version, lead.len());
+                // The hyphen after it is the separator, so the lead carries no stop of its own.
+                assert!(!lead.ends_with(['.', ':', '-']), "{}: the lead ends without punctuation: {lead}", release.version);
             }
         }
     }

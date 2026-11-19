@@ -7,82 +7,83 @@ Write them short. One line per change, a sentence or two at most: what changed, 
 reader's side. Nobody reading a release note wants the cause, the code or the reasoning --
 that belongs in the commit message, which is where it already is.
 
-Start every note with a lead in `**bold**`: one plain sentence saying what it is, so the list
-can be read by its leads alone and the detail only where someone wants it. The lead is a
-sentence, not a label, and short enough to take in at a glance (70 characters is the limit a
-test holds it to). What's New shows it in the strong colour, GitHub shows it in bold.
+Start every note with a lead in `**bold**`, then ` - `, then the detail: the lead is one plain
+sentence saying what the thing is, so the list can be read by its leads alone and the detail
+only where someone wants it. It carries no full stop of its own, since the hyphen is the break,
+and it is short enough to take in at a glance (70 characters is the limit a test holds it to).
+What's New shows the lead in the strong colour, GitHub shows it in bold.
 
 ## 0.1.81
 
-- **What's New can be read at a glance.** Every note opens with a line saying what it is, so you
+- **What's New can be read at a glance** - Every note opens with a line saying what it is, so you
   can skim the list and read the detail only where you want it.
 
 ## 0.1.80
 
-- **Change one number and the whole piece resizes.** Name the numbers a design is built from, a
+- **Change one number and the whole piece resizes** - Name the numbers a design is built from, a
   width or a stock thickness, and every part that uses one follows it (#9).
-- **A component remembers how it was built.** Change a number and it is built again rather than
+- **A component remembers how it was built** - Change a number and it is built again rather than
   stretched. Resizing one copy leaves the others alone (#9).
-- **Select a component to change its numbers.** They are in the tray's Sizes panel, a box each
+- **Select a component to change its numbers** - They are in the tray's Sizes panel, a box each
   (#9).
-- **Anything you have drawn can be given numbers too.** Group it, and Entity Info offers to read
+- **Anything you have drawn can be given numbers too** - Group it, and Entity Info offers to read
   it back so its sizes can be named (#9).
 
 ## 0.1.79
 
-- **Set the mortise depth your machine can cut.** The Joinery panel takes both depths for
+- **Set the mortise depth your machine can cut** - The Joinery panel takes both depths for
   biscuits and loose tenons. Left empty, they are what WoodSketch works out (#16).
 
 ## 0.1.78
 
-- **Choose your loose tenon and where it goes.** The tenon, how deep it goes into each part,
+- **Choose your loose tenon and where it goes** - The tenon, how deep it goes into each part,
   where each mortise sits, and your joiner's own depth stops, so it picks a setting you have.
   Depths are in whole millimeters now (#16).
 
 ## 0.1.77
 
-- **A door's panel goes in whichever edge you groove first.** Letting it into the stiles no
+- **A door's panel goes in whichever edge you groove first** - Letting it into the stiles no
   longer stops the rails from taking it (#17).
-- **Doors are a template of their own.** Give it a size and get a frame-and-panel or slab door
+- **Doors are a template of their own** - Give it a size and get a frame-and-panel or slab door
   to hang on anything, not only a WoodSketch cabinet (#17).
 
 ## 0.1.76
 
-- **The Mac builds are signed and notarized by Apple.** App and installer both, so they open on
+- **The Mac builds are signed and notarized by Apple** - App and installer both, so they open on
   any Mac instead of macOS offering only to move them to the Bin.
 
 ## 0.1.75
 
-- **A graphics card that won't draw no longer stops WoodSketch.** It starts on another way of
+- **A graphics card that won't draw no longer stops WoodSketch** - It starts on another way of
   drawing by itself and says in the status bar which and why (#13).
-- **A graphics error keeps your drawing open.** The app stays up and saveable, and the card's
+- **A graphics error keeps your drawing open** - The app stays up and saveable, and the card's
   own words go into Help > Report a Problem (#13).
-- **Problem reports name the graphics driver.** Or say it wouldn't give one, instead of showing
+- **Problem reports name the graphics driver** - Or say it wouldn't give one, instead of showing
   two question marks.
 
 ## 0.1.74
 
-- **Every tray panel has a header bar with a ✕.** Window > Default Tray brings one back, or shows
+- **Every tray panel has a header bar with a ✕** - Window > Default Tray brings one back, or shows
   and hides them all, and what you leave open is remembered.
-- **Updates and reports work on a VPN or a managed network.** They trust the certificates your
+- **Updates and reports work on a VPN or a managed network** - They trust the certificates your
   computer trusts, so re-signed traffic no longer stops them (#14).
 
 ## 0.1.73
 
-- **Esc no longer throws away a shape you started on a group.** The corner you placed stays where
+- **Esc no longer throws away a shape you started on a group** - The corner you placed stays where
   it is and the shape finishes outside the group. Thanks to @clems71 (#11).
 
 ## 0.1.72
 
-- **Flip Along mirrors what's selected where it stands.** In the Edit menu and the right-click
+- **Flip Along mirrors what's selected where it stands** - In the Edit menu and the right-click
   menu, along red, green or blue, or a single group's own axes. One copy of a shared component
   becomes the other hand.
 
 ## 0.1.71
 
-- **WoodSketch speaks Portuguese.** View > Language is in the menu bar, and a computer set to
+- **WoodSketch speaks Portuguese** - View > Language is in the menu bar, and a computer set to
   Portuguese starts in it. Thanks to @jmartsdesign for writing it (#10).
-- **The Small house's baths can be walked into.** Fixtures down one wall, a 34" lane past them,
+- **The Small house's baths can be walked into** - Fixtures down one wall, a 34" lane past them,
   and the door at the end of its wall rather than the middle.
 
 ## 0.1.70
