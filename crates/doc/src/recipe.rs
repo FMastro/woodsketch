@@ -780,7 +780,7 @@ fn build_in(recipe: &Recipe, mm: bool, progress: &mut dyn FnMut(usize, usize, &s
         let name = t.name.clone().unwrap_or_else(|| t.kind.clone());
         let what = format!("templates[{i}] ({name})");
         report(&what);
-        let template = match template(&t.kind, &t.sizes, mm) {
+        let template = match template(&t.kind, &t.sizes, mm, &values) {
             Ok(template) => template,
             Err(e) => {
                 errors.push(format!("{what}: {e}"));
@@ -817,7 +817,19 @@ fn build_in(recipe: &Recipe, mm: bool, progress: &mut dyn FnMut(usize, usize, &s
             errors.push(format!("{what}: no part named {}.", missing.iter().map(|n| format!("\"{n}\"")).collect::<Vec<_>>().join(" or ")));
             continue;
         };
-        if let Err(e) = joint(&mut doc, j, part, into, mm) {
+        // A sum in an option is named here, where every other recipe problem is named: `joint`
+        // has nowhere to put a message of its own. Options that are words rather than numbers
+        // are left out of it.
+        for (key, given) in &j.options {
+            if let serde_json::Value::String(text) = given
+                && !WORDS.contains(&key.as_str())
+                && parse_length(text).is_err()
+                && let Err(said) = crate::expr::eval(text, mm, &values)
+            {
+                errors.push(format!("{what}: {key} is {said}"));
+            }
+        }
+        if let Err(e) = joint(&mut doc, j, part, into, mm, &values) {
             let said = match e {
                 JoineryError::NotTouching | JoineryError::NoOverlap => format!("{} doesn't touch {} (move one so they meet, or overlap by the joint's depth).", j.part, j.into),
                 other => other.to_string(),
@@ -1105,7 +1117,7 @@ fn axis(name: &str) -> Option<usize> {
 
 /// A template from its kind and the sizes that differ from its defaults (lengths in the
 /// recipe's units).
-fn template(kind: &str, sizes: &serde_json::Map<String, serde_json::Value>, mm: bool) -> Result<Template, String> {
+fn template(kind: &str, sizes: &serde_json::Map<String, serde_json::Value>, mm: bool, values: &HashMap<String, f64>) -> Result<Template, String> {
     let defaults = match kind.to_ascii_lowercase().replace([' ', '-'], "_").as_str() {
         "cabinet" => Template::Cabinet(Default::default()),
         "door" => Template::Door(Default::default()),
@@ -1128,6 +1140,17 @@ fn template(kind: &str, sizes: &serde_json::Map<String, serde_json::Value>, mm: 
         // openings) keeps the defaults for the rest.
         let value = match (value, &fields[key]) {
             (serde_json::Value::Number(n), default) if mm && default.is_f64() => serde_json::json!(n.as_f64().unwrap_or(0.0) / 25.4),
+            // Text where a number belongs is arithmetic over the parameters -- a length where the
+            // template keeps one, a count where it keeps a count. Text where the template keeps
+            // text (a joint's name, a door's style) is left alone.
+            (serde_json::Value::String(text), default) if default.is_f64() => {
+                let worked_out = parse_length(text).map_err(|e| e.to_string()).or_else(|_| crate::expr::eval(text, mm, values));
+                serde_json::json!(worked_out.map_err(|said| format!("{variant}'s {key} is {said}"))?)
+            }
+            (serde_json::Value::String(text), default) if default.is_u64() || default.is_i64() => {
+                let worked_out = crate::expr::eval(text, false, values).map_err(|said| format!("{variant}'s {key} is {said}"))?;
+                serde_json::json!(worked_out.max(0.0).round() as u64)
+            }
             (serde_json::Value::Array(given), serde_json::Value::Array(default)) if given.len() < default.len() => {
                 serde_json::Value::Array(given.iter().chain(&default[given.len()..]).cloned().collect())
             }
@@ -1137,6 +1160,10 @@ fn template(kind: &str, sizes: &serde_json::Map<String, serde_json::Value>, mm: 
     }
     serde_json::from_value(json).map_err(|e| format!("{variant}: {e}"))
 }
+
+/// Joint options that are a word rather than a number, so nobody tries to work them out as
+/// arithmetic. Anything added here must be read by `joint` as text.
+const WORDS: [&str; 1] = ["tenon"];
 
 /// The loose tenon sizes there are, for when a recipe asks for one there isn't.
 const LOOSE_TENON_SIZES: &str = "That isn't a loose tenon size: 5x30, 6x40, 8x40 or 10x50 (thickness x length, mm).";
@@ -1251,11 +1278,21 @@ fn every_copy(j: &JointSpec) -> bool {
 }
 
 /// Make one joint, with sizes given or suggested.
-fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, mm: bool) -> Result<(), JoineryError> {
-    let number = |key: &str| j.options.get(key).and_then(serde_json::Value::as_f64);
-    let len = |key: &str, default: f64| number(key).map_or(default, |v| v / if mm { 25.4 } else { 1.0 });
+fn joint(doc: &mut Document, j: &JointSpec, part: InstanceId, into: InstanceId, mm: bool, values: &HashMap<String, f64>) -> Result<(), JoineryError> {
+    // A count as it stands, or arithmetic over the parameters. In a count a bare number is a
+    // count and not a measurement, so a length inside one says its unit: `floor(height / 300mm)`.
+    let number = |key: &str| match j.options.get(key) {
+        Some(serde_json::Value::String(t)) => crate::expr::eval(t, false, values).ok(),
+        other => other.and_then(serde_json::Value::as_f64),
+    };
+    // A length in the recipe's units, text with its own, or arithmetic over the parameters.
+    let length_of = |key: &str| match j.options.get(key) {
+        Some(serde_json::Value::String(t)) => parse_length(t).ok().or_else(|| crate::expr::eval(t, mm, values).ok()),
+        other => other.and_then(serde_json::Value::as_f64).map(|v| v / if mm { 25.4 } else { 1.0 }),
+    };
+    let len = |key: &str, default: f64| length_of(key).unwrap_or(default);
     // A length only when it was asked for: the joint works the rest out for itself.
-    let asked = |key: &str| number(key).map(|v| v / if mm { 25.4 } else { 1.0 });
+    let asked = |key: &str| length_of(key);
     let kind = j.kind.to_ascii_lowercase().replace([' ', '-'], "_");
     // Each joint made with its sizes, kept on it in the Joinery panel's order (so Change, and a
     // recipe read back from the drawing, start from them).
@@ -1762,6 +1799,72 @@ mod tests {
         assert!((wide - 30.0).abs() < 1e-9, "30\" wide: {wide}");
         assert!(summary.contains("Panel x1 (25 1/2\" x 19 1/2\" x 1/4\")"), "the cut list says the long way first: {summary}");
         assert!(summary.contains("Stile x2 (24\" x 2 1/4\" x 3/4\")"), "the stiles stay put: {summary}");
+    }
+
+    #[test]
+    fn a_count_follows_the_parameters_too() {
+        // "A shelf every foot" and "two doors over 24 inches": the rules people actually have.
+        // In a count a bare number is a count, so a length inside one says its unit (#9).
+        let cabinet = |height: &str| {
+            parse(&format!(
+                r#"{{
+                "parameters": [{{ "name": "height", "value": {height} }}, {{ "name": "rise", "value": 12 }}],
+                "materials": [{{ "id": "oak", "library": "White Oak" }}],
+                "templates": [{{ "kind": "cabinet", "name": "Case", "wood": "oak",
+                                "sizes": {{ "height": "height", "width": 30, "depth": 12, "shelves": "floor(height / rise) - 1" }} }}]
+            }}"#
+            ))
+            .unwrap()
+        };
+        let shelves = |height: &str| {
+            let doc = build(&cabinet(height)).unwrap_or_else(|e| panic!("{e:?}"));
+            let scene = doc.scene();
+            // Every part the case is made of, counted by name.
+            scene
+                .root
+                .instances()
+                .filter_map(|(_, i)| scene.definition(i.definition))
+                .flat_map(|d| d.container.instances().filter_map(|(_, i)| scene.definition(i.definition)))
+                .filter(|d| d.name == "Shelf")
+                .count()
+        };
+        assert_eq!(shelves("36"), 2, "three feet, a shelf a foot, less the top");
+        assert_eq!(shelves("60"), 4, "five feet");
+        // A joint's count can follow them as well, and a length in one keeps its unit.
+        let recipe = parse(
+            r#"{
+            "parameters": [{ "name": "wide", "value": 11.25 }],
+            "materials": [{ "id": "oak", "library": "White Oak" }],
+            "parts": [
+                { "name": "Side", "material": "oak", "size": [30, "wide", 0.75], "at": [0, 0, 0], "length": "z", "width": "y" },
+                { "name": "Shelf", "material": "oak", "size": [20, "wide", 0.75], "at": [0.75, 0, 12], "length": "x", "width": "y" }
+            ],
+            "joints": [{ "kind": "dowels", "part": "Shelf", "into": "Side",
+                         "options": { "count": "floor(wide / 76mm)", "depth": "wide / 16" } }]
+        }"#,
+        )
+        .unwrap();
+        let doc = build(&recipe).unwrap_or_else(|e| panic!("{e:?}"));
+        let joint = &doc.scene().joints[0];
+        assert!(joint.detail.starts_with("3 x"), "11 1/4\" over 76mm is three dowels: {}", joint.detail);
+        assert!(joint.detail.contains("11/16\" deep"), "11 1/4 / 16: {}", joint.detail);
+    }
+
+    #[test]
+    fn a_sum_in_an_option_that_cant_be_worked_out_says_so() {
+        let recipe = parse(
+            r#"{
+            "materials": [{ "id": "oak", "library": "White Oak" }],
+            "parts": [
+                { "name": "Side", "material": "oak", "size": [30, 11.25, 0.75], "at": [0, 0, 0], "length": "z", "width": "y" },
+                { "name": "Shelf", "material": "oak", "size": [20, 11.25, 0.75], "at": [0.75, 0, 12], "length": "x", "width": "y" }
+            ],
+            "joints": [{ "kind": "dowels", "part": "Shelf", "into": "Side", "options": { "count": "wide / 2" } }]
+        }"#,
+        )
+        .unwrap();
+        let said = build(&recipe).err().unwrap_or_default().join(" | ");
+        assert!(said.contains("joints[0]") && said.contains("count is there is no parameter \"wide\""), "{said}");
     }
 
     #[test]

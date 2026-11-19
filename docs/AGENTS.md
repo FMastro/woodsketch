@@ -98,6 +98,15 @@ Any length may then be arithmetic over them, written as text:
 own (`300mm`, `24in`). Sizes people type -- `3/4"`, `1 1/2"`, `2'6` -- are read as lengths before
 any of this, so a fraction never means division; inside a sum write `0.75` or `19mm`.
 
+**Counts** follow them too -- a template's `shelves`, a joint's `count` -- so a case can hold a
+shelf every foot and a cabinet two doors once it is wide enough:
+
+    "sizes": { "height": "height", "shelves": "floor(height / 12) - 1" }
+    "options": { "count": "if(wide > 24, 4, 2)" }
+
+In a count a bare number *is* a count rather than a measurement, so a length inside one says its
+unit: `floor(wide / 300mm)`, not `floor(wide / 300)`.
+
 ### materials
 
 Each has an `id` the parts use. From the library: `{ "id": "oak", "library": "Red Oak" }`.

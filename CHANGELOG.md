@@ -10,8 +10,9 @@ that belongs in the commit message, which is where it already is.
 ## 0.1.80
 
 - A project built from a recipe can have named numbers -- a width, a stock thickness -- and
-  work its sizes out from them: `width - 2*stile`. Change the one number and every part that
-  reads it follows, which is the first half of components that resize themselves (#9).
+  work its sizes and counts out from them: `width - 2*stile`, or a shelf every foot. Change the
+  one number and every part that reads it follows, which is the first half of components that
+  resize themselves (#9).
 
 ## 0.1.79
 
