@@ -401,14 +401,11 @@ impl WoodSketchApp {
         self.updated_from.is_some()
     }
 
-    /// The versions to show in What's New: everything since the one that ran last, or the most
-    /// recent few when there's nothing to compare against (a first run, or a long way behind).
+    /// The versions to show in What's New: the most recent few, whether it was opened after an
+    /// update or from the Help menu. Releases come often enough that "since the version that ran
+    /// last" was usually one note, which told you less than the list around it.
     pub(crate) fn changes_to_show(&self) -> Vec<updates::Release> {
-        let all = updates::releases(updates::CHANGES);
-        let new = updates::since(&all, self.updated_from.as_deref());
-        // Nothing new (same version as last run): show the recent ones rather than a blank
-        // window, since Help > What's New can be opened any time.
-        if new.is_empty() { updates::since(&all, None).to_vec() } else { new.to_vec() }
+        updates::recent(&updates::releases(updates::CHANGES)).to_vec()
     }
 
     /// Open What's New, and stop saying "Updated to ..." in the status bar: it's been read.

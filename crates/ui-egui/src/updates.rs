@@ -158,20 +158,16 @@ fn split_lead(line: &str) -> Note {
     }
 }
 
-/// The versions worth showing: everything newer than `ran_last`, so someone who skipped four
-/// updates sees all four. `None` (a first run, or a version too old to be in the notes) shows
-/// the [`RECENT`] newest instead of nothing.
-pub fn since<'a>(releases: &'a [Release], ran_last: Option<&str>) -> &'a [Release] {
-    // How far back the list may reach: never past [`OLDEST`], and never more than [`RECENT`].
+/// The versions worth showing: the [`RECENT`] newest, never reaching past [`OLDEST`].
+///
+/// The window used to show only what was new since the version that ran last, which with a release
+/// every few days meant it almost always held one note. The last ten are a few seconds' reading
+/// when each opens with its lead, and they answer "what has changed lately?" as well as "what did
+/// I just get?", so there is one list rather than two.
+pub fn recent(releases: &[Release]) -> &[Release] {
     // Newest first, so the oldest allowed version's position is the count to stop at.
     let floor = releases.iter().position(|r| r.version == OLDEST).map_or(releases.len(), |at| at + 1);
-    let most = floor.min(RECENT);
-    match ran_last.and_then(|last| releases.iter().position(|r| r.version == last)) {
-        // The versions above the one that ran: what this update brought.
-        Some(0) => &[],
-        Some(at) => &releases[..at.min(most)],
-        None => &releases[..releases.len().min(most)],
-    }
+    &releases[..releases.len().min(floor.min(RECENT))]
 }
 
 #[cfg(test)]
@@ -212,22 +208,21 @@ Blurb.
     }
 
     #[test]
-    fn what_to_show_depends_on_the_version_that_ran_last() {
+    fn the_same_recent_versions_are_shown_however_the_window_was_opened() {
+        // There is one list now, not two: the window shows the recent versions whether it was
+        // opened after an update or from the Help menu, since a release every few days made
+        // "everything since the version that ran last" almost always a single note.
         let found = releases(SAMPLE);
-        // Skipped two updates: both are shown.
-        let since_oldest = since(&found, Some("0.1.1"));
-        assert_eq!(since_oldest.iter().map(|r| r.version.as_str()).collect::<Vec<_>>(), ["0.1.3", "0.1.2"]);
-        // Already on the newest: nothing is new.
-        assert!(since(&found, Some("0.1.3")).is_empty());
-        // No idea what ran last, or it's older than the notes go: show the recent ones.
-        assert_eq!(since(&found, None).len(), 3);
-        assert_eq!(since(&found, Some("0.0.1")).len(), 3);
+        assert_eq!(recent(&found).iter().map(|r| r.version.as_str()).collect::<Vec<_>>(), ["0.1.3", "0.1.2", "0.1.1"]);
+        // Fewer versions than the limit: all of them, and no panic reaching past the end.
+        assert_eq!(recent(&releases("## 0.1.1\n\n- Only one.\n")).len(), 1);
+        assert!(recent(&[]).is_empty());
     }
 
     #[test]
     fn the_list_reaches_back_to_the_oldest_version_worth_showing() {
         let all = releases(CHANGES);
-        let shown = since(&all, None);
+        let shown = recent(&all);
         let floor = all.iter().position(|r| r.version == OLDEST).expect("OLDEST is in the notes");
         assert!(shown.len() <= RECENT, "at most {RECENT}: {}", shown.len());
         assert!(shown.len() <= floor + 1, "nothing older than {OLDEST}");
@@ -237,9 +232,6 @@ Blurb.
             assert_eq!(shown.last().expect("something to show").version, OLDEST, "reaches {OLDEST}");
         }
         assert_eq!(shown[0].version, VERSION, "newest first");
-        // Someone a long way behind sees the same span, not every version since.
-        let old = all.last().expect("a first release");
-        assert_eq!(since(&all, Some(&old.version)).len(), shown.len().min(all.len() - 1));
     }
 
     #[test]
@@ -264,7 +256,7 @@ Blurb.
         // a note without one is a wall of text in the middle of the list. Only the versions the
         // window can reach are held to it: older ones scroll out of range on their own.
         let all = releases(CHANGES);
-        for release in since(&all, None) {
+        for release in recent(&all) {
             for note in notes_items(&release.notes) {
                 let lead = note.lead.unwrap_or_default();
                 assert!(!lead.is_empty(), "{} has a note with no **lead**: {}", release.version, note.rest);

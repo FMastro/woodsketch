@@ -517,15 +517,12 @@ impl WoodSketchApp {
             return;
         }
         let releases = self.changes_to_show();
-        let since = self.updated_from.clone();
         let mut open = true;
         let mut read = false;
         egui::Window::new(t!("whats-new-title")).open(&mut open).collapsible(false).default_width(520.0).default_height(440.0).show(ctx, |ui| {
-            match (&since, releases.len()) {
-                (Some(from), 1) => ui.label(t!("whats-new-one-since", "from" => from.as_str())),
-                (Some(from), n) => ui.label(t!("whats-new-many-since", "count" => n, "from" => from.as_str())),
-                (None, _) => ui.label(t!("whats-new-recent")),
-            };
+            // Always the recent versions, however the window was opened: the one you just got is
+            // marked "(this one)", so there is nothing a second kind of list would add.
+            ui.label(t!("whats-new-recent"));
             ui.separator();
             // Leave room for the buttons below: an unbounded scroll area takes the whole
             // window and pushes them off the bottom, out of reach.

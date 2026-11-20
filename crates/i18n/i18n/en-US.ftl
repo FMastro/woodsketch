@@ -151,7 +151,7 @@ status-reloaded = Reloaded: the file changed outside WoodSketch
 status-reloaded-hint = Ctrl+Z goes back to the drawing as it was before the reload
 status-dismiss = Dismiss
 status-whats-new = What's new
-status-whats-new-hint = What came in this update, and in any you skipped
+status-whats-new-hint = What this update brought, and the ones before it
 status-updated = Updated to { $version }
 status-downloading = Downloading WoodSketch { $version }...
 status-restart-to-update = Restart to update to { $version }
@@ -248,8 +248,6 @@ whats-new-title = What's New in WoodSketch
 whats-new-this-one = (this one)
 # How many versions have arrived since the one that ran last. Two messages rather than one with a
 # plural, because the singular drops the number altogether: "One update since 0.1.64:".
-whats-new-one-since = One update since { $from }:
-whats-new-many-since = { $count } updates since { $from }:
 whats-new-recent = The most recent updates:
 # "Done" rather than "Close", because clicking it marks the notes as read.
 whats-new-done = Done

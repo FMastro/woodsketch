@@ -559,11 +559,14 @@ points); keep general modeling working alongside it.
    reach to it: a lead, unpunctuated, 70 characters at most. `release.yml` puts the version's section into the GitHub release, then the nine
    before it in a folded "Also in recent updates" block, since releases are small and frequent and
    one alone reads like nothing happened. The file is also built into the app
-   (`updates::CHANGES`, parsed by `updates::releases` / `updates::since`): Help > What's New shows
-   the versions since the one that ran last (`last_version`, kept as `updated_from`, not just a
-   bool), back to `updates::OLDEST` (0.1.54) and at most `RECENT` (10); once ten versions have
+   (`updates::CHANGES`, parsed by `updates::releases` / `updates::recent`): Help > What's New shows
+   the `RECENT` (10) newest versions, back to `updates::OLDEST` (0.1.54); once ten versions have
    shipped since `OLDEST` that limit is the narrower one and `OLDEST` stops mattering, so it needs
-   no moving. The status bar's "What's new" after an update opens the window, not a browser tab.
+   no moving. **The same list however the window was opened**: it used to show only what came since
+   the version that ran last, which with a release every few days was almost always a single note,
+   and the version you are on is marked "(this one)" anyway. `updated_from` (from `last_version`,
+   not just a bool) is still what the status bar says you came from, and clearing it on Done is what
+   stops it offering the notes again. The status bar's "What's new" opens the window, not a browser tab.
    A test asserts the newest `## ` section is the running version, so a forgotten entry fails
    before it reaches a release. Help > Release Notes still opens every version on GitHub; the
    website links the releases page.

@@ -2305,13 +2305,13 @@ fn opens_a_sketchup_model() {
 }
 
 #[test]
-fn whats_new_gathers_every_update_you_skipped() {
+fn whats_new_shows_the_recent_versions_however_it_was_opened() {
     use egui_kittest::kittest::Queryable;
     let mut harness = app();
-    // Updated from three versions back, as someone who hadn't opened it in a while would be.
+    // Updated from one version back, which is the usual case: releases come every few days.
     let all = woodsketch_ui_egui::updates::releases(woodsketch_ui_egui::updates::CHANGES);
-    let three_back = all[3].version.clone();
-    harness.state_mut().came_from_version(&three_back);
+    let shown = woodsketch_ui_egui::updates::recent(&all);
+    harness.state_mut().came_from_version(&all[1].version);
     harness.run();
     // The status bar says so, and offers the notes.
     assert!(harness.query_by_label_contains("Updated to").is_some());
@@ -2319,12 +2319,17 @@ fn whats_new_gathers_every_update_you_skipped() {
     harness.get_by_label("What's new").click();
     harness.run();
     assert!(harness.query_by_label_contains("What's New in WoodSketch").is_some());
-    // All three, not just this version, each under its own number.
-    assert!(harness.query_by_label_contains(&format!("3 updates since {three_back}")).is_some());
-    for release in &all[..3] {
+    // The recent versions, not just the one this update brought: with a release every few days
+    // that was a window holding a single note, which said less than the list around it.
+    assert!(shown.len() > 1, "there are several recent versions to show");
+    assert!(harness.query_by_label_contains("The most recent updates").is_some());
+    for release in shown {
         assert!(harness.query_by_label(&release.version).is_some(), "{} is listed", release.version);
     }
-    assert!(harness.query_by_label_contains(&all[4].version).is_none(), "older versions are left out");
+    if let Some(older) = all.get(shown.len()) {
+        assert!(harness.query_by_label(&older.version).is_none(), "{} is past the recent few", older.version);
+    }
+    assert!(harness.query_by_label_contains("(this one)").is_some(), "the version you are running is marked");
     // Each note opens with its lead, which is what makes the window skimmable: the `**` around
     // it in the file is markup, so seeing it on screen would mean it never became a lead.
     let note = woodsketch_ui_egui::updates::notes_items(&all[0].notes).remove(0);

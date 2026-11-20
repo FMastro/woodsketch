@@ -13,6 +13,11 @@ only where someone wants it. It carries no full stop of its own, since the hyphe
 and it is short enough to take in at a glance (70 characters is the limit a test holds it to).
 What's New shows the lead in the strong colour, GitHub shows it in bold.
 
+## 0.1.82
+
+- **What's New always shows the last ten versions** - It used to show only what came since the
+  version you were on, which with a release every few days was usually one note.
+
 ## 0.1.81
 
 - **Every assembly step shows the joints it cuts** - The build sheets now give each mortise and
