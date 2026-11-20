@@ -44,6 +44,10 @@ pub struct Recipe {
     pub parts: Vec<PartSpec>,
     #[serde(default)]
     pub templates: Vec<TemplateSpec>,
+    /// Parametric components: groups that keep the recipe they were built from, so their numbers
+    /// can be changed and the piece built again.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<ComponentSpec>,
     #[serde(default)]
     pub joints: Vec<JointSpec>,
     #[serde(default)]
@@ -306,6 +310,23 @@ pub struct TemplateSpec {
     pub sizes: serde_json::Map<String, serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tag: Option<String>,
+}
+
+/// A parametric component (#9): a group built from a recipe of its own, which it keeps, so its
+/// numbers can be changed later and the piece built again rather than stretched. Its inner recipe
+/// is a whole recipe, `parameters` and all, and those parameters are the numbers the Sizes panel
+/// shows. The parts inside it are the inner recipe's to describe, so they are not written again
+/// out here.
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ComponentSpec {
+    /// Its group's name; the inner recipe's own name when it has none.
+    #[serde(default)]
+    pub name: Option<String>,
+    /// Its lowest corner.
+    #[serde(default = "origin")]
+    pub at: [Length; 3],
+    /// What it is built from, parameters and all.
+    pub recipe: Recipe,
 }
 
 /// A joint between two parts that touch or overlap.
@@ -805,6 +826,32 @@ fn build_in(recipe: &Recipe, mm: bool, progress: &mut dyn FnMut(usize, usize, &s
                 doc.rename_instance(id, &name);
                 if named.insert(name.clone(), id).is_some() {
                     errors.push(format!("{what}: another part or template is named \"{name}\"; names must be unique."));
+                }
+            }
+            Err(e) => errors.push(format!("{what}: {e}")),
+        }
+    }
+
+    // Parametric components: each built from its own recipe, which it keeps, then put where it
+    // goes. Its parts belong to that recipe, so nothing here describes them again.
+    for (i, c) in recipe.components.iter().enumerate() {
+        let name = c.name.clone().unwrap_or_else(|| if c.recipe.name.is_empty() { format!("Component {}", i + 1) } else { c.recipe.name.clone() });
+        let what = format!("components[{i}] ({name})");
+        report(&what);
+        let at = DVec3::from_array([0, 1, 2].map(|k| length(&c.at[k], &what, &mut errors)));
+        match doc.add_parametric(&c.recipe) {
+            Ok(id) => {
+                // Move it so its box starts at `at`, as a template is placed.
+                let corners = doc.scene().root.instance(id).map(|inst| doc.scene().instance_box_corners(inst)).unwrap_or_default();
+                let lo = corners.iter().copied().reduce(DVec3::min).unwrap_or(DVec3::ZERO);
+                doc.edit_scene(|scene, _| {
+                    if let Some(inst) = scene.root.instance_mut(id) {
+                        inst.transform.translation += at - lo;
+                    }
+                });
+                doc.rename_instance(id, &name);
+                if named.insert(name.clone(), id).is_some() {
+                    errors.push(format!("{what}: another part, template or component is named \"{name}\"; names must be unique."));
                 }
             }
             Err(e) => errors.push(format!("{what}: {e}")),

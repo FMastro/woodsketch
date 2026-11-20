@@ -137,6 +137,17 @@ impl Reader<'_> {
                 names.push(name);
                 continue;
             }
+            // A parametric component keeps the recipe it was built from, so that recipe is what
+            // describes it: write it whole, and don't walk into its parts. Without this the
+            // numbers were dropped on the way out, and an agent rebuilding from what it read got
+            // plain geometry back with no warning (#9).
+            if let Some(made) = &def.parametric {
+                let name = self.unique(&def.name);
+                let lo = corners(scene, instance.definition, placed).into_iter().reduce(DVec3::min).unwrap_or(DVec3::ZERO);
+                self.recipe.components.push(crate::recipe::ComponentSpec { name: Some(name.clone()), at: length3(lo), recipe: made.recipe.clone() });
+                names.push(name);
+                continue;
+            }
             if def.container.model.faces().next().is_none() {
                 // A group of parts: its members, then the group.
                 let inner: Vec<(InstanceId, DAffine3)> = def.container.instances().map(|(id, i)| (id, i.transform)).collect();
@@ -646,6 +657,49 @@ fn length3(p: DVec3) -> [Length; 3] {
 mod tests {
     use super::*;
     use crate::recipe::{build, parse};
+
+    /// A recipe with a named number the parts are worked out from.
+    const PARAMETRIC: &str = r#"{
+      "units": "in",
+      "name": "Shelf unit",
+      "parameters": [{ "name": "width", "value": 24 }, { "name": "thickness", "value": "3/4\"" }],
+      "materials": [{ "id": "pine", "library": "Pine" }],
+      "parts": [
+        { "name": "Shelf", "material": "pine", "at": [0, 0, 0], "size": ["width", 11.25, "thickness"] },
+        { "name": "Top", "material": "pine", "at": [0, 0, 4], "size": ["width", 11.25, "thickness"] }
+      ]
+    }"#;
+
+    #[test]
+    fn a_parametric_component_keeps_its_numbers_when_read_back() {
+        // An agent that opens a drawing over MCP gets it as a recipe. If reading back drops the
+        // numbers a component was built from, the agent cannot see them, cannot change one, and
+        // an edit that rebuilds from what it read would quietly turn a parametric component into
+        // plain geometry. The numbers are the whole of #9.
+        let recipe = parse(PARAMETRIC).expect("the recipe parses");
+        assert_eq!(recipe.parameters.len(), 2, "the recipe itself has them");
+        let mut doc = Document::default();
+        let group = doc.add_parametric(&recipe).expect("a parametric component");
+        assert!(doc.parametric_of(group).is_some(), "the drawing remembers the recipe");
+
+        let (read, _notes) = from_document(&doc);
+        // It comes back as a component with its own recipe, numbers and all, rather than as loose
+        // parts with the numbers dropped.
+        assert_eq!(read.components.len(), 1, "read back as a component: {read:#?}");
+        let component = &read.components[0];
+        let names: Vec<&str> = component.recipe.parameters.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, ["width", "thickness"], "its numbers survive the read-back");
+        assert!(read.parts.is_empty(), "its parts are the inner recipe's to describe, not written twice");
+
+        // And building what was read gives a component that is still parametric, which is the
+        // part that matters: an agent's edit rebuilds from this, and used to turn the piece into
+        // plain geometry without saying so.
+        let again = crate::recipe::build(&read).unwrap_or_else(|e| panic!("{e:?}"));
+        let group = again.scene().root.instances().next().map(|(id, _)| id).expect("the component");
+        let kept = again.parametric_of(group).expect("still parametric after the round trip");
+        assert_eq!(kept.recipe.parameters.len(), 2, "with both numbers");
+        assert_eq!(doc.scene().bounds(), again.scene().bounds(), "and the same size as before");
+    }
 
     /// What a drawing makes: its parts (sorted) and joints and profiles counted.
     fn made(doc: &Document) -> (String, usize, usize) {

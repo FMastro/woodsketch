@@ -15,6 +15,9 @@ What's New shows the lead in the strong colour, GitHub shows it in bold.
 
 ## 0.1.82
 
+- **An agent no longer loses a component's numbers** - Reading a drawing back as a recipe keeps
+  its parametric components whole, so an edit made by an assistant rebuilds the piece instead of
+  flattening it into plain parts (#9).
 - **A new template goes where you click** - It follows the cursor until you put it down, the way a
   paste does, instead of landing a foot to the right of everything.
 - **What's New always shows the last ten versions** - It used to show only what came since the

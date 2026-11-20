@@ -624,3 +624,10 @@ points); keep general modeling working alongside it.
    size and corner editable, and a row to name a new number. Reading SketchUp's own dynamic
    attributes on import is deliberately not done (its formulas speak to its attribute model, and
    the clean-room rule makes that research on published docs, not a feature).
+   A recipe carries one as `components` (`recipe::ComponentSpec`: a name, where its corner goes,
+   and a whole inner `Recipe`), `recipe_of` writes one out instead of walking into its parts
+   (the way a template is written), and `build` makes it with `add_parametric`. **That read-back
+   is not optional:** MCP `open` keeps what `recipe_of` gives it and every edit tool rebuilds
+   from it, so while the numbers were dropped on the way out an assistant's edit quietly turned
+   a parametric component into plain geometry.
+   `a_parametric_component_keeps_its_numbers_when_read_back` holds the whole round trip.

@@ -217,6 +217,25 @@ Ready-made assemblies, with only the sizes you change:
 - `drawer`: `width`, `height`, `depth`, `joints` (drawer joints), `stock`.
 - `face_frame`: `width`, `height`, `stile`, `rail`, `stock`, `middle_rails`, `joints`.
 
+### components
+
+A parametric component: a group that keeps the recipe it was built from, so changing one of its
+numbers builds the piece again rather than stretching it.
+
+```json
+{ "name": "Shelf unit", "at": [0, 0, 0],
+  "recipe": { "parameters": [{ "name": "width", "value": 24 }],
+              "materials": [{ "id": "pine", "library": "Pine" }],
+              "parts": [{ "name": "Shelf", "material": "pine", "size": ["width", 11.25, "3/4\""] }] } }
+```
+
+`recipe` is a whole recipe of its own, `parameters` and all, and those parameters are the numbers
+someone sees in the Sizes panel. The parts inside belong to that inner recipe, so they are not
+written again in the outer one: a drawing read back gives you the component, not its pieces.
+
+Change one of its numbers by editing `recipe.parameters` and building again. A component somebody
+has edited by hand refuses to rebuild until told twice, so read it back before you change it.
+
 ### groups
 
 `{ "name": "Case", "parts": ["Left side", "Right side"], "component": false }`, made last (joints
