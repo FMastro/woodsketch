@@ -410,6 +410,13 @@ add it there; when you finish an item, remove it.
    parameter** so the tests write to a scratch key and never change what this machine actually
    opens. The shell isn't told at once (`SHChangeNotify` is a Win32 call and `unsafe_code` is
    forbidden across the workspace), which a brand-new extension with no rival survives.
+   macOS gets a **DMG** as well as the `.pkg`, since dragging an app onto Applications is what a
+   Mac expects and vpk makes no DMG: the pack step expands the portable zip vpk did make with
+   `ditto` (not `unzip`, which drops the extended attributes a signature lives in), throws away the
+   `__MACOSX` folder, adds an `/Applications` symlink and runs `hdiutil create ... -format UDZO`.
+   The `.app` inside is already notarized and stapled, but the DMG is what gets downloaded and
+   quarantined, so it is signed, notarized and stapled in its own right and checked with
+   `spctl --assess --type open`.
    The app runs `VelopackApp` first, then checks GitHub Releases in the background at startup
    (Help > Check for updates at startup; Help > Check for Updates...), downloads quietly, and offers
    "Restart to update" in the status bar (after "Save changes?"; the open drawing reopens). The UI side (`ui-egui::updates`)

@@ -16,7 +16,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 3 | Templates | 134 | Fast wins on the built-in templates; the parametric ones are in |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 0 | Nothing outstanding; the live link was dropped |
-| 6 | Release polish | 64 | Both platforms signed; the rest is packaging and reach |
+| 6 | Release polish | 62 | Both platforms signed; the rest is packaging and reach |
 | 7 | Start page and samples | 10 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
 | 9 | Cut list and materials | 171 | Better buying and cutting |
@@ -29,7 +29,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1376** | |
+| | **All** | **1374** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -165,19 +165,23 @@ signed in CI over OIDC with no stored key); macOS signing and notarization with 
 Developer ID, the app and the `.pkg` installer both (`docs/MACOS-SIGNING.md`); delta updates
 (the previous release is fetched before packing, so an update is the difference, not the whole app)
 and a `SHA256SUMS.txt` beside every release; woodsketch.net offers one Download button for the
-computer you are on; on Windows, double-clicking a `.woodsketch` drawing opens it.
-1. [5] `.woodsketch` file association on macOS: the bundle needs `CFBundleDocumentTypes`, and
+computer you are on; on Windows, double-clicking a `.woodsketch` drawing opens it; a macOS DMG beside the `.pkg`,
+signed, notarized and stapled like everything else Apple sees.
+1. [1] Offer the DMG on woodsketch.net, in the download list and as the Mac button's target if
+   it proves to update as well as the `.pkg` does. Only **after** a release has actually
+   produced one: the site links `/releases/latest/download/...`, so linking it sooner is a
+   404 on the live site.
+2. [5] `.woodsketch` file association on macOS: the bundle needs `CFBundleDocumentTypes`, and
    vpk has no setting for it. `--plist` replaces the whole Info.plist it generates, so taking
    that over means maintaining the bundle id, version and icon keys per build; worth looking
    for a lighter way first. Windows is done.
-2. [3] `.woodsketch` file association on Linux: a `.desktop` file and a shared-mime-info entry.
+3. [3] `.woodsketch` file association on Linux: a `.desktop` file and a shared-mime-info entry.
    An AppImage can't register itself, so this is mostly a note telling people how, or a small
    installer script beside the download.
-3. [2] The Windows association can take a while to show in File Explorer: telling the shell at
+4. [2] The Windows association can take a while to show in File Explorer: telling the shell at
    once means `SHChangeNotify`, a Win32 call, and `unsafe_code` is forbidden workspace-wide. A
    brand-new extension with nothing else claiming it is picked up without being told, so this
    only matters if it proves annoying.
-4. [3] A macOS DMG.
 5. [5] Linux .deb and .rpm.
 6. [5] Windows ARM64 and Linux ARM64 builds.
 7. [3] Crash reports: a line number for each call that led there (names only in release builds:

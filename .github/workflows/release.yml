@@ -292,6 +292,33 @@ jobs:
             xcrun notarytool submit "releases/$cli_zip" --wait \
               --keychain-profile woodsketch-ci --keychain "$MACOS_KEYCHAIN"
           fi
+          # A DMG as well as the .pkg. Dragging an app onto Applications is what a Mac expects of
+          # a download, and vpk makes no DMG (it has no flag for one), so it is built here out of
+          # the portable zip vpk did make, which holds the signed and stapled .app.
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            stage="$RUNNER_TEMP/dmg"
+            rm -rf "$stage"
+            mkdir -p "$stage"
+            # `ditto`, not `unzip`: it keeps the extended attributes a signature lives in, which a
+            # plain unzip drops, and the app inside would then be broken rather than merely
+            # unsigned.
+            ditto -x -k "releases/WoodSketch-${{ matrix.channel }}-Portable.zip" "$stage"
+            # The resource-fork folder a zip picks up on macOS. It must not ship.
+            rm -rf "$stage/__MACOSX"
+            # The one thing that makes a DMG obvious: somewhere to drag the app to.
+            ln -s /Applications "$stage/Applications"
+            dmg="releases/WoodSketch-${{ matrix.channel }}.dmg"
+            hdiutil create -volname WoodSketch -srcfolder "$stage" -ov -format UDZO "$dmg"
+            # The .app inside is already notarized and stapled, but the DMG is what gets
+            # downloaded and quarantined, so it is signed and given a ticket of its own.
+            if [ -n "${MACOS_KEYCHAIN:-}" ]; then
+              codesign --force --timestamp --keychain "$MACOS_KEYCHAIN" --sign "$MACOS_IDENTITY" "$dmg"
+              xcrun notarytool submit "$dmg" --wait \
+                --keychain-profile woodsketch-ci --keychain "$MACOS_KEYCHAIN"
+              xcrun stapler staple "$dmg"
+              spctl --assess --type open --context context:primary-signature -vv "$dmg"
+            fi
+          fi
           # The previous release's package was only here to make the delta from. It stays attached
           # to its own release, where `releases.rs` still finds it by name (it searches the recent
           # releases, not just this one), so sending another copy with this release would be tens

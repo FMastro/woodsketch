@@ -15,6 +15,8 @@ What's New shows the lead in the strong colour, GitHub shows it in bold.
 
 ## 0.1.82
 
+- **A Mac disk image to drag into Applications** - The familiar way to install on a Mac, beside
+  the installer package that was already there.
 - **Double-click a drawing to open it** - On Windows, `.woodsketch` files now open in WoodSketch,
   with the app's icon on them.
 - **Updates download only what changed** - An update fetches the difference from the version you
