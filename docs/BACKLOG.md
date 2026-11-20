@@ -13,9 +13,9 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 |---|---|---|---|
 | 1 | Build sheets and assembly | 16 | The Steps panel, now the derived sequence is in |
 | 2 | Joinery | 71 | Closes gaps in the core woodworking feature |
-| 3 | Templates | 139 | Fast wins on the built-in templates; the parametric ones are in |
+| 3 | Templates | 134 | Fast wins on the built-in templates; the parametric ones are in |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
-| 5 | Agent-ready | 21 | A live link to the open drawing |
+| 5 | Agent-ready | 0 | Nothing outstanding; the live link was dropped |
 | 6 | Release polish | 66 | Both platforms signed; the rest is packaging and reach |
 | 7 | Start page and samples | 10 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
@@ -29,7 +29,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1404** | |
+| | **All** | **1378** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -91,31 +91,31 @@ pair of those rather than what the stock works out to (#16).
 ## 3. Templates
 Done: cabinet (drawers and doors in its openings, adjustable shelves, hinge side), door, drawer,
 face frame (middle rails), table (leg, apron and top sizes); wood and stock choices; Change size.
-Parametric components (#9): a recipe's `parameters` with arithmetic in any length or count
+A new template is carried by Move until a click puts it down, as a paste is, so it goes where you
+want it. Parametric components (#9): a recipe's `parameters` with arithmetic in any length or count
 (`doc::expr`), a group that keeps the recipe it was built from and is built again when one of its
 numbers changes (resizing one copy makes it its own; one edited by hand refuses until told twice),
 the Sizes panel holding either a template's sizes or a component's numbers, and reading a group
 somebody drew back into a recipe so its sizes can be named. Reading SketchUp's own dynamic
 attributes on import is deliberately not here: its formulas speak to its own attribute model, and
 under the clean-room rule that is a research project on published documentation, not a feature.
-1. [5] A new template goes where you click, not a foot to the right of everything.
-2. [3] Drill the rows of shelf-pin holes in the sides for adjustable shelves.
-3. [3] Drawer: notch the bottom's corners around the corner joints.
-4. [5] Choose the still-fixed sizes: 1/4" backs, bottoms and door panels; 3/4" fronts and
+1. [3] Drill the rows of shelf-pin holes in the sides for adjustable shelves.
+2. [3] Drawer: notch the bottom's corners around the corner joints.
+3. [5] Choose the still-fixed sizes: 1/4" backs, bottoms and door panels; 3/4" fronts and
    doors; 3/4" aprons; 1/2" drawer boxes.
-5. [5] Cabinet: back set in a rabbet, not applied over the back edges.
-6. [5] Drawer: an applied false front.
-7. [3] Face frame: mullions (upright dividers).
-8. [5] Table: set the tenon's size by hand (it follows the leg now).
-9. [5] Cabinet: a toe kick.
-10. [8] Cabinet: dividers.
-11. [8] Cabinet: a face frame.
-12. [8] Table: stretchers.
-13. [8] Table: a drawer.
-14. [13] A bookcase template.
-15. [13] A workbench template.
-16. [21] A bed template.
-17. [21] Change size keeps edits made inside the group by hand (it rebuilds from scratch now; the
+4. [5] Cabinet: back set in a rabbet, not applied over the back edges.
+5. [5] Drawer: an applied false front.
+6. [3] Face frame: mullions (upright dividers).
+7. [5] Table: set the tenon's size by hand (it follows the leg now).
+8. [5] Cabinet: a toe kick.
+9. [8] Cabinet: dividers.
+10. [8] Cabinet: a face frame.
+11. [8] Table: stretchers.
+12. [8] Table: a drawer.
+13. [13] A bookcase template.
+14. [13] A workbench template.
+15. [21] A bed template.
+16. [21] Change size keeps edits made inside the group by hand (it rebuilds from scratch now; the
     button warns).
 
 ## 4. Drawers, doors and hardware
@@ -149,16 +149,12 @@ groups, templates and copies too; hardware parts; drawer and door groups; profil
 render highlights at any depth; build progress step by step over MCP. The app follows a drawing
 the MCP server is editing: it watches the open file, reloads it as one undo step, and the server
 writes every edit back to the file it was opened from or saved to (#6).
-1. [21] A live connection to the running app, so MCP tools act on the drawing on screen instead of
-   a copy on disk (#6, the half not built). The app would own the drawing and listen on a local
-   socket (a named pipe on Windows), the CLI forwarding to it. The work isn't the writes, it's
-   that every *read* has to go the same way or the assistant reasons about a model that no longer
-   exists: `summary`, `cut_list`, `movement`, `cut_sheet`, `build_sheets`, `export` and `render`
-   (which means the app renders and sends a PNG back). Also: finding the app (a port file in the
-   settings folder), which window wins when two are open, a token so only this machine's user can
-   drive it, what happens when the person is mid-drag or a modal is up, and reconciling a drawing
-   they edited by hand (the recipe no longer describes it). File watching stays useful either way
-   (synced folders, a checkout, editing the recipe by hand), so none of it is wasted.
+
+Nothing outstanding. A live connection to the running app (MCP acting on the drawing on screen
+rather than a copy on disk) was here and was dropped: the file-watching half already lands an
+agent's edits in the open drawing as one undo step, and making every *read* go the same way is a
+lot of socket, token and which-window-wins work to close a gap that only bites when somebody edits
+by hand between an agent's write and its next read.
 
 ## 6. Release polish
 Done: installers, auto-update, icons, release notes, the site's download links; Help > Report a

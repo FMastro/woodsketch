@@ -505,7 +505,8 @@ pub struct Made {
 
 impl Document {
     /// Build `template` in `wood` beside the drawing, as one group and one undo step, and
-    /// select it.
+    /// select it. A recipe places its templates itself; the Templates panel builds it with
+    /// [`Document::build_template`] instead and lets you carry it to where it goes.
     pub fn add_template(&mut self, template: &Template, wood: Option<MaterialId>) -> Result<InstanceId, String> {
         template.check()?;
         // To the right of everything there is, a foot away.
@@ -516,6 +517,15 @@ impl Document {
             doc.place(group, DAffine3::from_translation(to));
             Ok(group)
         })
+    }
+
+    /// Build `template` in `wood` at the origin of whatever is being edited, as one group and one
+    /// undo step, and select it. Where it goes is the caller's to say: the Templates panel hands
+    /// it to Move to carry until a click, the way a paste is carried, since a cabinet that lands
+    /// a foot to the right of everything is a cabinet you then have to go and find.
+    pub fn build_template(&mut self, template: &Template, wood: Option<MaterialId>) -> Result<InstanceId, String> {
+        template.check()?;
+        self.as_one_step(|doc| doc.build(template, wood))
     }
 
     /// Build `template` again in place of `instance` (a template group), in `wood`, as one undo
@@ -1077,6 +1087,40 @@ fn pocket_count(wide: f64) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_template_to_be_carried_starts_at_the_origin_not_beside_the_drawing() {
+        let table = Template::Table(Table::default());
+        // On its own, its corner is the origin.
+        let mut doc = Document::default();
+        doc.build_template(&table, None).expect("a table");
+        let (lo, hi) = doc.bounds().expect("the table");
+        assert!(lo.abs().max_element() < 1e-9, "corner at the origin: {lo}");
+        let width = hi.x - lo.x;
+
+        // A 10" board already drawn, and a second template built to be carried: still the origin,
+        // so nothing has to be stepped around. The drawing reaches no further right than the wider
+        // of the two.
+        let board = |doc: &mut Document| {
+            let pine = doc.add_preset(crate::library::LIBRARY.iter().find(|p| p.name == "Pine").unwrap());
+            let board = crate::board::Board { origin: DVec3::ZERO, length_dir: DVec3::X, width_dir: DVec3::Y, length: 10.0, width: 6.0, thickness: 0.75 };
+            doc.add_board(&board, Some(pine)).expect("a board");
+        };
+        let mut carried = Document::default();
+        board(&mut carried);
+        carried.build_template(&table, None).expect("a table");
+        let (lo, hi) = carried.bounds().expect("board and table");
+        assert!(lo.abs().max_element() < 1e-9, "still the origin: {lo}");
+        assert!((hi.x - width.max(10.0)).abs() < 1e-9, "no gap to the right: {} with a {width} table", hi.x);
+
+        // `add_template`, which recipes still place with, does step past everything: a foot clear
+        // of the board's far end, so the table's far end lands at 10 + 12 + its own width.
+        let mut beside = Document::default();
+        board(&mut beside);
+        beside.add_template(&table, None).expect("a table");
+        let (_, hi) = beside.bounds().expect("board and table");
+        assert!((hi.x - (10.0 + 12.0 + width)).abs() < 1e-9, "a foot to the right: {} with a {width} table", hi.x);
+    }
 
     fn closed(doc: &Document, part: InstanceId, path: &[InstanceId]) -> bool {
         let container = doc.scene().container(path).unwrap();

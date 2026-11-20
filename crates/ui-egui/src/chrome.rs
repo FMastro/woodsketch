@@ -723,11 +723,9 @@ impl WoodSketchApp {
                                     crate::profile::show(ui, &mut self.doc, part);
                                 }
                             }
-                            Panel::Templates => {
-                                if crate::template::new(ui, &mut self.doc) {
-                                    self.viewport.request_zoom_extents();
-                                }
-                            }
+                            // No Zoom Extents after making one any more: it is carried to the
+                            // cursor, so it is already where you are looking.
+                            Panel::Templates => crate::template::new(ui, &mut self.doc, &mut self.tools),
                             Panel::Materials => self.materials.show(ui, &mut self.doc, &mut self.tools),
                             Panel::Tags => self.tags.show(ui, &mut self.doc),
                             Panel::Outliner => outliner::show(ui, &mut self.doc, &mut self.tools),

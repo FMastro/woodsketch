@@ -1387,6 +1387,25 @@ impl Tools {
         self.move_tool.carry(doc, pasted, clip.bounds().0);
     }
 
+    /// Build a template and carry it with Move until a click puts it down, as a paste is carried.
+    /// It used to land a foot to the right of everything, which meant going to look for it; now it
+    /// goes where you click. Esc while carrying undoes the build, since it is one step.
+    pub fn place_template(
+        &mut self,
+        doc: &mut Document,
+        template: &woodsketch_doc::template::Template,
+        wood: Option<woodsketch_doc::MaterialId>,
+    ) -> Result<(), String> {
+        self.cancel();
+        let group = doc.build_template(template, wood)?;
+        // Built with its corner at the origin of whatever is being edited; Move carries it by a
+        // world point, which inside a group is not the world origin.
+        let base = doc.context_transform().transform_point3(DVec3::ZERO);
+        self.active = ToolId::Move;
+        self.move_tool.carry(doc, vec![woodsketch_doc::Entity::Instance(group)], base);
+        Ok(())
+    }
+
     /// Paste where it was copied from.
     pub fn paste_in_place(&mut self, doc: &mut Document) {
         let Some(clip) = self.clip.clone() else {
@@ -1446,6 +1465,23 @@ mod tests {
     #[test]
     fn shortcut_letters_never_start_values() {
         assert!(ToolId::ALL.iter().all(|t| !Tools::starts_value(t.shortcut())));
+    }
+
+    #[test]
+    fn a_new_template_is_carried_by_move_until_a_click_puts_it_down() {
+        use woodsketch_doc::template::{Cabinet, Template};
+        let mut tools = Tools::default();
+        let mut doc = Document::default();
+        tools.activate(ToolId::Line);
+        tools.place_template(&mut doc, &Template::Cabinet(Cabinet::default()), None).expect("a cabinet");
+        // Move has it, the way a paste is held, so the next click in the drawing places it.
+        assert_eq!(tools.active(), ToolId::Move, "Move takes over to carry it");
+        assert!(tools.move_tool.is_pasting(), "it is being carried, not already put down");
+        assert!(tools.status().contains("Click to put it down"), "and says so: {}", tools.status());
+        // Esc takes it out again, since building it was one undo step.
+        tools.escape(&mut doc);
+        assert!(doc.bounds().is_none(), "the drawing is empty again");
+        assert!(!tools.move_tool.is_pasting());
     }
 
     #[test]

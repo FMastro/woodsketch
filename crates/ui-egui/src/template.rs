@@ -16,9 +16,9 @@ struct Draft {
     wood: String,
 }
 
-/// The panel for making a new template. `true` when one was added (to zoom out to it).
-pub fn new(ui: &mut egui::Ui, doc: &mut Document) -> bool {
-    let mut added = false;
+/// The panel for making a new template. The new one is carried by the Move tool until a click
+/// puts it down, so it goes where you want it rather than a foot to the right of everything.
+pub fn new(ui: &mut egui::Ui, doc: &mut Document, tools: &mut woodsketch_tools::Tools) {
     let id = egui::Id::new("template_draft");
     let mut draft = ui.data(|d| d.get_temp::<Draft>(id)).unwrap_or_else(|| Draft { template: Template::all()[0], wood: "Pine".into() });
     ui.horizontal_wrapped(|ui| {
@@ -50,19 +50,19 @@ pub fn new(ui: &mut egui::Ui, doc: &mut Document) -> bool {
     let make = ui.add_enabled(valid && check.is_ok(), egui::Button::new(t!("template-add", "template" => draft.template.name().to_lowercase())));
     if make.on_hover_text(t!("template-add-hint")).clicked() {
         let wood = wood_id_for(doc, &draft.wood);
-        added = true;
-        if let Err(e) = doc.add_template(&draft.template, wood) {
-            added = false;
-            ui.data_mut(|d| d.insert_temp(egui::Id::new("template_error"), e));
-        } else {
-            ui.data_mut(|d| d.remove::<String>(egui::Id::new("template_error")));
+        match tools.place_template(doc, &draft.template, wood) {
+            Err(e) => {
+                ui.data_mut(|d| d.insert_temp(egui::Id::new("template_error"), e));
+            }
+            Ok(()) => {
+                ui.data_mut(|d| d.remove::<String>(egui::Id::new("template_error")));
+            }
         }
     }
     if let Some(e) = ui.data(|d| d.get_temp::<String>(egui::Id::new("template_error"))) {
         ui.colored_label(ui.visuals().error_fg_color, e);
     }
     ui.data_mut(|d| d.insert_temp(id, draft));
-    added
 }
 
 /// The panel for a selected template group: its sizes, to change.

@@ -496,7 +496,11 @@ points); keep general modeling working alongside it.
 28. Templates: `doc::template` (`Template` cabinet / door / drawer / face frame / table, each from a
    few sizes and a joint choice, built from boards and the joinery API, grouped, one undo step via
    `Document::as_one_step`, sizes kept on the definition as `Made` so `rebuild_template` changes
-   them in place). Templates panel in the tray; "<Template> sizes" for a selected one. A cabinet's
+   them in place). Templates panel in the tray; "<Template> sizes" for a selected one. A new one is
+   **carried to where you click**: `Tools::place_template` builds it at the origin with
+   `Document::build_template` and hands it to `MoveTool::carry`, exactly as Paste is carried, so Esc
+   undoes the build and the status bar says "Click to put it down". `Document::add_template` (build
+   plus a foot to the right of everything) stays for recipes, which place their own. A cabinet's
    own doors are sized by its openings (`doors_in`); `Door` is the same builder (`door_at`) asked
    for a size instead, for a door to hang on something that isn't a WoodSketch cabinet (#17).
 29. Copy and paste: `doc::clipboard` (`Clip` = the source scene with only the copies at the top, in
