@@ -223,10 +223,29 @@ A parametric component: a group that keeps the recipe it was built from, so chan
 numbers builds the piece again rather than stretching it.
 
 ```json
-{ "name": "Shelf unit", "at": [0, 0, 0],
-  "recipe": { "parameters": [{ "name": "width", "value": 24 }],
-              "materials": [{ "id": "pine", "library": "Pine" }],
-              "parts": [{ "name": "Shelf", "material": "pine", "size": ["width", 11.25, "3/4\""] }] } }
+{
+  "units": "in",
+  "name": "Shelf unit",
+  "components": [
+    {
+      "name": "Shelf unit",
+      "at": [0, 0, 0],
+      "recipe": {
+        "units": "in",
+        "name": "Shelf unit",
+        "parameters": [
+          { "name": "width", "value": 24 },
+          { "name": "thickness", "value": "3/4\"" }
+        ],
+        "materials": [{ "id": "pine", "library": "Pine" }],
+        "parts": [
+          { "name": "Shelf", "material": "pine", "at": [0, 0, 0], "size": ["width", 11.25, "thickness"] },
+          { "name": "Top", "material": "pine", "at": [0, 0, 12], "size": ["width", 11.25, "thickness"] }
+        ]
+      }
+    }
+  ]
+}
 ```
 
 `recipe` is a whole recipe of its own, `parameters` and all, and those parameters are the numbers

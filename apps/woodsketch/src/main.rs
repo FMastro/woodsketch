@@ -6,12 +6,21 @@ use std::path::{Path, PathBuf};
 use eframe::egui;
 use woodsketch_ui_egui::{WoodSketchApp, graphics};
 
+mod fileassoc;
 mod releases;
 mod update;
 
 fn main() -> eframe::Result {
     // First: the installer and updater run their setup steps through the app, and exit there.
-    velopack::VelopackApp::build().run();
+    // Double-clicking a `.woodsketch` drawing opens it, which Velopack has no setting for, so the
+    // association is written here: after an install, again after an update in case the app moved,
+    // and taken out before an uninstall. These hooks only run on Windows; macOS and Linux need
+    // their own machinery and are still on the backlog.
+    velopack::VelopackApp::build()
+        .on_after_install_fast_callback(|_| fileassoc::register())
+        .on_after_update_fast_callback(|_| fileassoc::register())
+        .on_before_uninstall_fast_callback(|_| fileassoc::unregister())
+        .run();
     env_logger::init();
     // A crash is saved to the settings folder, and the next start offers to report it.
     let dir = eframe::storage_dir("WoodSketch");

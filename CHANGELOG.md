@@ -15,6 +15,8 @@ What's New shows the lead in the strong colour, GitHub shows it in bold.
 
 ## 0.1.82
 
+- **Double-click a drawing to open it** - On Windows, `.woodsketch` files now open in WoodSketch,
+  with the app's icon on them.
 - **Updates download only what changed** - An update fetches the difference from the version you
   already have instead of the whole app again.
 - **Every download has a checksum** - A `SHA256SUMS.txt` beside the installers, so you can check

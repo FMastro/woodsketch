@@ -1995,10 +1995,14 @@ mod guide {
             summaries.push(super::summary(&doc));
             rest = &after[example.len()..];
         }
-        assert_eq!(summaries.len(), 3, "the nightstand, the panel worked out from parameters, and the door");
+        assert_eq!(summaries.len(), 4, "the nightstand, the panel worked out from parameters, the component, and the door");
         assert!(summaries[0].contains("Joints: 2 dado, 2 notch"), "{}", summaries[0]);
         assert!(summaries[1].contains("Panel x1 (25 1/2\" x 19 1/2\" x 1/4\")"), "worked out from the parameters: {}", summaries[1]);
-        assert!(summaries[2].contains("Joints: 4 loose tenons, 4 groove"), "{}", summaries[2]);
+        // The parametric component: both its parts come out 24" long because its own `width` says
+        // so, which is the point of it being a component rather than two loose boards. Alike, so
+        // the cut list puts them on one row.
+        assert!(summaries[2].contains("Shelf/Top x2 (24\" x 11 1/4\" x 3/4\")"), "built from the component's numbers: {}", summaries[2]);
+        assert!(summaries[3].contains("Joints: 4 loose tenons, 4 groove"), "{}", summaries[3]);
         assert!(summaries.iter().all(|s| s.contains("Wood movement: no conflicts")), "{summaries:?}");
     }
 }

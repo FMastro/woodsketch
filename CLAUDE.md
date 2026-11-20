@@ -400,6 +400,16 @@ add it there; when you finish an item, remove it.
    recent releases, not just the newest). A channel with nothing released yet warns and exits 0,
    so a new channel needs no special case, and `assets.<channel>.json` is the check on what should
    be there. The release job writes `SHA256SUMS.txt` over everything it is about to upload.
+   Double-clicking a `.woodsketch` drawing opens it on **Windows**: Velopack has no setting for
+   file associations on any platform, so `apps/woodsketch/src/fileassoc.rs` writes it from the
+   install hooks (`on_after_install_fast_callback`, again on `on_after_update_fast_callback` in
+   case the app moved, `on_before_uninstall_fast_callback` to take it out), which only fire on
+   Windows. Under `HKEY_CURRENT_USER\Software\Classes`, never HKLM: no administrator needed, and
+   an uninstall can undo it. Uninstalling leaves the extension alone if something else has claimed
+   it since, and only drops our line from its "Open with" list. **The registry root is a
+   parameter** so the tests write to a scratch key and never change what this machine actually
+   opens. The shell isn't told at once (`SHChangeNotify` is a Win32 call and `unsafe_code` is
+   forbidden across the workspace), which a brand-new extension with no rival survives.
    The app runs `VelopackApp` first, then checks GitHub Releases in the background at startup
    (Help > Check for updates at startup; Help > Check for Updates...), downloads quietly, and offers
    "Restart to update" in the status bar (after "Save changes?"; the open drawing reopens). The UI side (`ui-egui::updates`)
