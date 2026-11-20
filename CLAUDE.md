@@ -176,6 +176,15 @@ writes no note: a backend asked for by hand shouldn't decide what the next run d
 - `cargo run -p woodsketch-cli -- help` (build a recipe, render, MCP)
 - `cargo test --workspace`
 - `cargo clippy --workspace --all-targets` (keep it warning-free)
+- **Platform-gated code is only checked by CI unless you force it.** `cargo clippy` here compiles
+  the Windows side, so a `#[cfg(windows)]` block can pass locally and fail on macOS and Linux (the
+  file association did: Velopack's install-hook methods are themselves `#[cfg(target_os =
+  "windows")]`, so calling them unconditionally compiled on Windows and on nothing else). Cross
+  compiling doesn't help -- `ring` wants a Linux C toolchain. What does: flip the attributes to
+  `#[cfg(any())]` / `#[cfg(not(any()))]` in a scratch copy and run clippy. Code behind a false
+  `cfg` is never type-checked, so if the other branch compiles on Windows it compiles everywhere.
+  Watch for `dead_code` too: a module the other platform never calls into is a warning, and
+  warnings are errors in CI, which is why `mod fileassoc;` is gated rather than its contents.
 - `cargo fmt --all` before committing. `rustfmt.toml` decides the layout (160 columns,
   `use_small_heuristics = "Max"`, so the code stays as wide and dense as it was written) and CI's
   `fmt` job holds it, so an unformatted commit fails. rustfmt occasionally needs a second pass to

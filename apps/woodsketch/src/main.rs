@@ -6,6 +6,8 @@ use std::path::{Path, PathBuf};
 use eframe::egui;
 use woodsketch_ui_egui::{WoodSketchApp, graphics};
 
+// Windows only: Velopack's install hooks, and the registry, exist nowhere else.
+#[cfg(windows)]
 mod fileassoc;
 mod releases;
 mod update;
@@ -16,11 +18,17 @@ fn main() -> eframe::Result {
     // association is written here: after an install, again after an update in case the app moved,
     // and taken out before an uninstall. These hooks only run on Windows; macOS and Linux need
     // their own machinery and are still on the backlog.
-    velopack::VelopackApp::build()
+    // The hook methods themselves are `#[cfg(target_os = "windows")]` in Velopack, so this is
+    // written twice rather than relying on them being no-ops elsewhere: on macOS and Linux they
+    // do not exist at all.
+    #[cfg(windows)]
+    let mut installer = velopack::VelopackApp::build()
         .on_after_install_fast_callback(|_| fileassoc::register())
         .on_after_update_fast_callback(|_| fileassoc::register())
-        .on_before_uninstall_fast_callback(|_| fileassoc::unregister())
-        .run();
+        .on_before_uninstall_fast_callback(|_| fileassoc::unregister());
+    #[cfg(not(windows))]
+    let mut installer = velopack::VelopackApp::build();
+    installer.run();
     env_logger::init();
     // A crash is saved to the settings folder, and the next start offers to report it.
     let dir = eframe::storage_dir("WoodSketch");

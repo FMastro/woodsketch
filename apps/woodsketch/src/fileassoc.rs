@@ -2,9 +2,10 @@
 //!
 //! Velopack has nothing for this (no flag on any platform), so the app does it itself from the
 //! install hooks: [`register`] after an install or an update, [`unregister`] before an uninstall.
-//! The hooks only fire on Windows, and everywhere else these are no-ops; macOS and Linux want
-//! quite different machinery (a bundle's `CFBundleDocumentTypes`, a `.desktop` file and a MIME
-//! database) and are their own backlog items.
+//! Velopack's hook methods are themselves Windows-only, so `main.rs` compiles this whole module
+//! in only there; macOS and Linux want quite different machinery (a bundle's
+//! `CFBundleDocumentTypes`, a `.desktop` file and a MIME database) and are their own backlog
+//! items.
 //!
 //! Everything goes under `HKEY_CURRENT_USER`, never `HKEY_LOCAL_MACHINE`: it is this user's choice
 //! about this user's app, it needs no administrator, and an uninstall can undo it cleanly.
@@ -17,22 +18,18 @@
 
 /// Where the association is written. `Software\Classes` is the real one; tests pass their own
 /// so that running them never touches what the machine actually opens.
-#[cfg(windows)]
 const CLASSES: &str = r"Software\Classes";
 
 /// The extension WoodSketch claims. Not `.scraft`: that name belongs to the Craft apps this was
 /// renamed from, and taking it over would be claiming someone else's files.
-#[cfg(windows)]
 const EXTENSION: &str = ".woodsketch";
 
 /// The program id the extension points at, and which carries the icon and the open command.
-#[cfg(windows)]
 const PROG_ID: &str = "WoodSketch.Drawing";
 
 /// Make Windows open `.woodsketch` files with this build. Safe to run again: every write replaces
 /// what was there, so an update that moved the app simply points at the new place.
 pub fn register() {
-    #[cfg(windows)]
     if let Err(e) = windows_impl::write(CLASSES, &exe_path()) {
         log::warn!("couldn't register the .woodsketch file association: {e}");
     }
@@ -40,7 +37,6 @@ pub fn register() {
 
 /// Take it back out, before the app is uninstalled.
 pub fn unregister() {
-    #[cfg(windows)]
     if let Err(e) = windows_impl::remove(CLASSES) {
         log::warn!("couldn't remove the .woodsketch file association: {e}");
     }
@@ -49,12 +45,10 @@ pub fn unregister() {
 /// The program to open drawings with: this one, wherever it was installed. Velopack keeps the
 /// running build in a `current` folder whose name doesn't change between versions, so what is
 /// written here survives updates and only the contents of that folder are swapped.
-#[cfg(windows)]
 fn exe_path() -> String {
     std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default()
 }
 
-#[cfg(windows)]
 mod windows_impl {
     use std::io;
 
@@ -112,7 +106,7 @@ mod windows_impl {
     }
 }
 
-#[cfg(all(test, windows))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use winreg::RegKey;
