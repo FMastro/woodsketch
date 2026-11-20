@@ -77,6 +77,10 @@ jobs:
       id-token: write
     env:
       VERSION: ${{ needs.version.outputs.version }}
+      # For `vpk download github`, which fetches the previous release to make a delta against.
+      # The repository is public, so this is only to avoid the anonymous rate limit that a shared
+      # runner address runs into; `contents: read` is all it needs.
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -255,6 +259,13 @@ jobs:
               sign_args+=(--signInstallIdentity "$MACOS_INSTALLER")
             fi
           fi
+          # The previous release on this channel, so `vpk pack` can work out a delta against it and
+          # an update downloads the difference instead of the whole app again. It writes the old
+          # full package into `releases`, which is also pack's output directory, which is how pack
+          # finds it. A channel with nothing released yet warns and exits 0, so the first build on
+          # a new channel needs no special case.
+          vpk download github --repoUrl "https://github.com/$GITHUB_REPOSITORY" \
+            --channel "${{ matrix.channel }}" --outputDir releases --token "$GH_TOKEN"
           vpk pack \
             --packId WoodSketch \
             --packVersion "$VERSION" \
@@ -281,6 +292,12 @@ jobs:
             xcrun notarytool submit "releases/$cli_zip" --wait \
               --keychain-profile woodsketch-ci --keychain "$MACOS_KEYCHAIN"
           fi
+          # The previous release's package was only here to make the delta from. It stays attached
+          # to its own release, where `releases.rs` still finds it by name (it searches the recent
+          # releases, not just this one), so sending another copy with this release would be tens
+          # of megabytes to say the same thing. `assets.<channel>.json` lists what belongs here and
+          # already leaves it out; this is the same rule applied to the files.
+          find releases -name '*.nupkg' ! -name "*-$VERSION-*" -print -delete
           ls -l releases
       - uses: actions/upload-artifact@v4
         with:
@@ -330,6 +347,19 @@ jobs:
               echo "</details>"
             } >> changes.md
           fi
+          # Checksums for everything that ships, so a download can be checked against what was
+          # built here. Linux needs them most (its AppImage carries no signature at all), but
+          # they cost nothing for the rest. Written outside `release` first, or the glob would
+          # try to include the file being written.
+          ( cd release && sha256sum * ) > SHA256SUMS.txt
+          mv SHA256SUMS.txt release/
+          cat release/SHA256SUMS.txt
+          {
+            echo
+            echo "---"
+            echo
+            echo "To check a download: \`sha256sum -c SHA256SUMS.txt --ignore-missing\` (macOS: \`shasum -a 256 -c\`)."
+          } >> changes.md
           # The release notes: this version, then what came just before it.
           gh release create "v$VERSION" release/* \
             --repo "$GITHUB_REPOSITORY" \

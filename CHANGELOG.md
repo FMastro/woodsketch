@@ -15,6 +15,10 @@ What's New shows the lead in the strong colour, GitHub shows it in bold.
 
 ## 0.1.82
 
+- **Updates download only what changed** - An update fetches the difference from the version you
+  already have instead of the whole app again.
+- **Every download has a checksum** - A `SHA256SUMS.txt` beside the installers, so you can check
+  that what you downloaded is what was built.
 - **An agent no longer loses a component's numbers** - Reading a drawing back as a recipe keeps
   its parametric components whole, so an edit made by an assistant rebuilds the piece instead of
   flattening it into plain parts (#9).

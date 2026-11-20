@@ -393,7 +393,14 @@ add it there; when you finish an item, remove it.
 27. Releases and updates: a `v*` tag (matching Cargo.toml's version) runs `.github/workflows/release.yml`:
    Windows x64, macOS arm64 and x64, Linux x64 builds, each packed by Velopack (`vpk`, version
    pinned to the `velopack` crate) on its own channel, into a DRAFT GitHub release (publish it to
-   ship). The app runs `VelopackApp` first, then checks GitHub Releases in the background at startup
+   ship). Before packing, `vpk download github` fetches that channel's previous release into the
+   same output directory, which is how `vpk pack` works out a **delta** so an update downloads the
+   difference rather than the whole app; the old package is then deleted before upload, since it
+   stays attached to its own release and `releases.rs` finds it there by name (it searches the
+   recent releases, not just the newest). A channel with nothing released yet warns and exits 0,
+   so a new channel needs no special case, and `assets.<channel>.json` is the check on what should
+   be there. The release job writes `SHA256SUMS.txt` over everything it is about to upload.
+   The app runs `VelopackApp` first, then checks GitHub Releases in the background at startup
    (Help > Check for updates at startup; Help > Check for Updates...), downloads quietly, and offers
    "Restart to update" in the status bar (after "Save changes?"; the open drawing reopens). The UI side (`ui-egui::updates`)
    has no Velopack dependency; `apps/woodsketch/src/update.rs` plugs it in, with
