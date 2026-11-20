@@ -34,7 +34,7 @@ use eframe::egui;
 use viewport::Viewport;
 use woodsketch_doc::Document;
 use woodsketch_i18n::t;
-use woodsketch_tools::Tools;
+use woodsketch_tools::{ToolId, Tools};
 
 /// Where the recent-drawings list is kept in eframe's settings.
 const RECENT_KEY: &str = "recent_drawings";
@@ -215,7 +215,10 @@ impl WoodSketchApp {
             woodsketch_doc::units::set_units(units);
         }
         self.doc = doc;
-        self.tools.cancel();
+        // A drawing opens on Select, as a fresh window does. Keeping the last tool means the
+        // Eraser or the Paint Bucket is live over somebody else's drawing the moment it appears,
+        // and a click meant to look around changes it.
+        self.tools.activate(ToolId::Select);
         self.tools.active_material = None;
         self.tags = tags::TagsPanel::default();
         self.materials = materials::MaterialsPanel::default();
@@ -603,10 +606,10 @@ impl WoodSketchApp {
     }
 
     /// Save to the drawing's file, asking where if it has none. Returns whether it saved.
-    fn save(&mut self, choose: bool) -> bool {
+    fn save(&mut self, ctx: &egui::Context, choose: bool) -> bool {
         let path = match (&self.files.path, choose) {
             (Some(path), false) => path.clone(),
-            _ => match files::save_dialog(self.files.path.as_deref()) {
+            _ => match files::save_dialog(ctx, self.files.path.as_deref()) {
                 Some(path) => path,
                 None => return false,
             },
@@ -654,7 +657,7 @@ impl WoodSketchApp {
                 }
             }
             files::Discard::Open => {
-                if let Some(path) = files::open_dialog(self.files.path.as_deref())
+                if let Some(path) = files::open_dialog(ctx, self.files.path.as_deref())
                     && let Err(error) = self.open_path(&path)
                 {
                     self.files.show_error(error);
@@ -702,9 +705,9 @@ impl WoodSketchApp {
             )
         });
         if save_as {
-            self.save(true);
+            self.save(ctx, true);
         } else if save {
-            self.save(false);
+            self.save(ctx, false);
         }
         if open {
             self.request(ctx, files::Discard::Open);
@@ -714,7 +717,7 @@ impl WoodSketchApp {
         }
         match self.files.dialogs(ctx) {
             Some(files::FileAction::SaveThen(action)) => {
-                if self.save(false) {
+                if self.save(ctx, false) {
                     self.carry_out(ctx, action);
                 }
             }
@@ -831,7 +834,7 @@ impl eframe::App for WoodSketchApp {
                     // Importing pastes into the drawing underneath rather than replacing it, so
                     // nothing else closes the page: it closes here, and only once a model has
                     // actually been read. Cancelling the dialog leaves you where you were.
-                    if let Some(path) = files::import_dialog(self.files.path.as_deref()) {
+                    if let Some(path) = files::import_dialog(&ctx, self.files.path.as_deref()) {
                         match self.import_sketchup(&path) {
                             Ok(()) => self.start.open = false,
                             Err(error) => self.files.show_error(error),

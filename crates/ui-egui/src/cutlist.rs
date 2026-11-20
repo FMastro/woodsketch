@@ -75,15 +75,15 @@ impl CutListWindow {
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         let print = ui.button(format!("{} {}", ph::PRINTER, t!("cutlist-print-cut-sheet"))).on_hover_text(t!("cutlist-print-cut-sheet-hint"));
                         if print.clicked() {
-                            self.export_sheet(doc);
+                            self.export_sheet(&ui.ctx().clone(), doc);
                         }
                         let build =
                             ui.button(format!("{} {}", ph::NOTEBOOK, t!("cutlist-print-build-sheets"))).on_hover_text(t!("cutlist-print-build-sheets-hint"));
                         if build.clicked() {
-                            self.export_build_sheets(doc);
+                            self.export_build_sheets(&ui.ctx().clone(), doc);
                         }
                         if ui.button(format!("{} {}", ph::FILE_CSV, t!("cutlist-export-csv"))).clicked() {
-                            self.export_csv(doc);
+                            self.export_csv(&ui.ctx().clone(), doc);
                         }
                     });
                 });
@@ -108,10 +108,10 @@ impl CutListWindow {
         edit
     }
 
-    fn export_csv(&mut self, doc: &Document) {
+    fn export_csv(&mut self, ctx: &egui::Context, doc: &Document) {
         let (list, _) = self.refresh(doc);
         let csv = cutlist::to_csv(list);
-        let Some(path) = rfd::FileDialog::new().add_filter("CSV", &["csv"]).set_file_name("cut list.csv").save_file() else {
+        let Some(path) = crate::files::write_dialog(ctx, "CSV", "csv", "cut list.csv") else {
             return;
         };
         self.message = match std::fs::write(&path, csv) {
@@ -121,9 +121,9 @@ impl CutListWindow {
     }
 
     /// Save the printable cut sheet and open it in the browser to print.
-    fn export_sheet(&mut self, doc: &Document) {
+    fn export_sheet(&mut self, ctx: &egui::Context, doc: &Document) {
         let html = self.cut_sheet(doc, &t!("cutlist-sheet-title"));
-        let Some(path) = rfd::FileDialog::new().add_filter("Web page", &["html"]).set_file_name("cut sheet.html").save_file() else {
+        let Some(path) = crate::files::write_dialog(ctx, "Web page", "html", "cut sheet.html") else {
             return;
         };
         self.message = match std::fs::write(&path, html) {
@@ -132,9 +132,9 @@ impl CutListWindow {
         };
     }
 
-    pub fn export_build_sheets(&mut self, doc: &Document) {
+    pub fn export_build_sheets(&mut self, ctx: &egui::Context, doc: &Document) {
         let html = self.build_sheets(doc, &t!("cutlist-build-sheets-title"));
-        let Some(path) = rfd::FileDialog::new().add_filter("Web page", &["html"]).set_file_name("build sheets.html").save_file() else {
+        let Some(path) = crate::files::write_dialog(ctx, "Web page", "html", "build sheets.html") else {
             return;
         };
         self.message = match std::fs::write(&path, html) {

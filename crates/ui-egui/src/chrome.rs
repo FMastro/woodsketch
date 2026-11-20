@@ -198,16 +198,16 @@ impl WoodSketchApp {
             ui.separator();
             if ui.add(egui::Button::new(t!("file-save")).shortcut_text("Ctrl+S")).clicked() {
                 ui.close();
-                self.save(false);
+                self.save(&ui.ctx().clone(), false);
             }
             if ui.add(egui::Button::new(t!("file-save-as")).shortcut_text("Ctrl+Shift+S")).clicked() {
                 ui.close();
-                self.save(true);
+                self.save(&ui.ctx().clone(), true);
             }
             ui.separator();
             if ui.button(t!("file-import-skp")).on_hover_text(t!("file-import-skp-hint")).clicked() {
                 ui.close();
-                if let Some(path) = files::import_dialog(self.files.path.as_deref())
+                if let Some(path) = files::import_dialog(&ui.ctx().clone(), self.files.path.as_deref())
                     && let Err(e) = self.import_sketchup(&path)
                 {
                     self.files.show_error(e);
@@ -215,7 +215,7 @@ impl WoodSketchApp {
             }
             if ui.button(t!("file-print-build-sheets")).on_hover_text(t!("file-print-build-sheets-hint")).clicked() {
                 ui.close();
-                self.cut_list.export_build_sheets(&self.doc);
+                self.cut_list.export_build_sheets(&ui.ctx().clone(), &self.doc);
             }
             ui.menu_button(t!("file-export"), |ui| {
                 // Built here rather than as a const, so each label is a `t!` the catalog test
@@ -232,7 +232,7 @@ impl WoodSketchApp {
                     }
                     if ui.button(label).on_hover_text(hint).clicked() {
                         ui.close();
-                        if let Some(path) = files::export_dialog(self.files.path.as_deref(), format)
+                        if let Some(path) = files::export_dialog(&ui.ctx().clone(), self.files.path.as_deref(), format)
                             && let Err(error) = self.export_to(&path, format)
                         {
                             self.files.show_error(error);
@@ -570,7 +570,7 @@ impl WoodSketchApp {
                     self.request(&ctx, files::Discard::Open);
                 }
                 if icon_button(ui, icons::SAVE, false, true, &t!("toolbar-save-hint")) {
-                    self.save(false);
+                    self.save(&ctx, false);
                 }
                 ui.separator();
                 if icon_button(ui, icons::UNDO, false, true, &t!("toolbar-undo-hint")) {

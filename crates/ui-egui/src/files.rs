@@ -177,18 +177,38 @@ pub enum FileAction {
     Discard(Discard),
 }
 
+/// Show a native dialog, and take the keyboard back when it closes.
+///
+/// A dialog here is opened with no owner window, because owning one means handing `rfd` a window
+/// handle and the only way to build one is `unsafe`, which is forbidden across this workspace. An
+/// unowned dialog on Windows leaves the window it came from without the keyboard when it closes:
+/// the mouse still orbits the drawing and the menus still open, so nothing looks wrong, but every
+/// shortcut silently does nothing until you click in the window or leave it and come back. That
+/// reads as a broken keyboard rather than as lost focus, and it was reported as one -- opening a
+/// drawing and then pressing T, which did nothing until the reporter alt-tabbed away and back. So
+/// every native dialog goes through here, and the window asks for the keyboard the moment the
+/// dialog is gone.
+///
+/// The ceremony is the point: a dialog function that takes the [`egui::Context`] can't be written
+/// without the means to ask, and nothing calls `rfd` outside this module.
+fn asking<T>(ctx: &egui::Context, dialog: impl FnOnce() -> Option<T>) -> Option<T> {
+    let picked = dialog();
+    ctx.send_viewport_cmd(egui::ViewportCommand::Focus);
+    picked
+}
+
 /// The native dialog for choosing where to save.
-pub fn save_dialog(current: Option<&Path>) -> Option<PathBuf> {
+pub fn save_dialog(ctx: &egui::Context, current: Option<&Path>) -> Option<PathBuf> {
     let name = current.and_then(Path::file_name).map_or_else(|| format!("{}.{EXTENSION}", t!("files-untitled")), |n| n.to_string_lossy().into_owned());
     let mut dialog = rfd::FileDialog::new().add_filter(t!("files-filter-drawing"), &[EXTENSION]).set_file_name(name);
     if let Some(dir) = current.and_then(Path::parent) {
         dialog = dialog.set_directory(dir);
     }
-    dialog.save_file()
+    asking(ctx, || dialog.save_file())
 }
 
 /// The native dialog for choosing a drawing to open.
-pub fn open_dialog(current: Option<&Path>) -> Option<PathBuf> {
+pub fn open_dialog(ctx: &egui::Context, current: Option<&Path>) -> Option<PathBuf> {
     let mut dialog = rfd::FileDialog::new()
         .add_filter(t!("files-filter-drawings-and-skp"), &[EXTENSION, OLD_EXTENSION, SKETCHUP])
         .add_filter(t!("files-filter-drawing"), &[EXTENSION, OLD_EXTENSION])
@@ -196,7 +216,14 @@ pub fn open_dialog(current: Option<&Path>) -> Option<PathBuf> {
     if let Some(dir) = current.and_then(Path::parent) {
         dialog = dialog.set_directory(dir);
     }
-    dialog.pick_file()
+    asking(ctx, || dialog.pick_file())
+}
+
+/// The native dialog for choosing where to put something the app writes beside a drawing (a cut
+/// list, a cut sheet, the build sheets), named `name` and filtered to its one kind.
+pub fn write_dialog(ctx: &egui::Context, label: &str, ext: &str, name: &str) -> Option<PathBuf> {
+    let dialog = rfd::FileDialog::new().add_filter(label, &[ext]).set_file_name(name);
+    asking(ctx, || dialog.save_file())
 }
 
 /// An export format (File > Export): a 3D model, or each part flat for CNC.
@@ -237,7 +264,7 @@ pub fn export_to(doc: &Document, path: &Path, format: ExportFormat, units: Expor
 }
 
 /// The native dialog for choosing where to export, named after the drawing.
-pub fn export_dialog(current: Option<&Path>, format: ExportFormat) -> Option<PathBuf> {
+pub fn export_dialog(ctx: &egui::Context, current: Option<&Path>, format: ExportFormat) -> Option<PathBuf> {
     let ext = format.extension();
     let stem = current.and_then(Path::file_stem).map_or_else(|| t!("files-untitled"), |s| s.to_string_lossy().into_owned());
     let label = match format {
@@ -250,7 +277,7 @@ pub fn export_dialog(current: Option<&Path>, format: ExportFormat) -> Option<Pat
     if let Some(dir) = current.and_then(Path::parent) {
         dialog = dialog.set_directory(dir);
     }
-    dialog.save_file()
+    asking(ctx, || dialog.save_file())
 }
 
 /// How many drawings File > Open Recent lists.
@@ -273,12 +300,12 @@ pub fn is_sketchup(path: &Path) -> bool {
 }
 
 /// The native dialog for choosing a SketchUp model to import.
-pub fn import_dialog(current: Option<&Path>) -> Option<PathBuf> {
+pub fn import_dialog(ctx: &egui::Context, current: Option<&Path>) -> Option<PathBuf> {
     let mut dialog = rfd::FileDialog::new().add_filter(t!("files-filter-sketchup"), &[SKETCHUP]);
     if let Some(dir) = current.and_then(Path::parent) {
         dialog = dialog.set_directory(dir);
     }
-    dialog.pick_file()
+    asking(ctx, || dialog.pick_file())
 }
 
 #[cfg(test)]

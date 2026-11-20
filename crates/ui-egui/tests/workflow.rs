@@ -814,6 +814,82 @@ fn the_window_is_laid_out_like_sketchup() {
     snapshot(&mut harness, "front_view");
 }
 
+/// Every tool shortcut, typed at the real window, picks its tool. `ToolId`'s own test holds the
+/// letters themselves; this holds the way there -- the whole route from a typed character through
+/// `keys.rs`, which is where a letter is swallowed by something it shouldn't be (a value being
+/// typed, a note taking words, a field holding focus).
+#[test]
+fn every_tool_shortcut_picks_its_tool() {
+    let mut harness = app();
+    for tool in ToolId::ALL {
+        let key = tool.shortcut();
+        if key == '\0' {
+            continue;
+        }
+        // From Select each time, so one tool's state can never decide the next letter's fate.
+        type_text(&mut harness, " ");
+        assert_eq!(harness.state().tools().active(), ToolId::Select, "Space is Select");
+        type_text(&mut harness, &key.to_string());
+        assert_eq!(harness.state().tools().active(), tool, "{key} should pick {}", tool.name());
+    }
+}
+
+/// A drawing that arrives comes up on Select, however it arrived. Keeping the last tool means the
+/// Eraser or the Paint Bucket is live over a drawing the moment it opens, and the first click
+/// meant to look around changes it.
+#[test]
+fn a_drawing_that_opens_comes_up_on_select() {
+    let dir = std::env::temp_dir().join(format!("woodsketch-tool-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("kids room.woodsketch");
+    let mut harness = app();
+    board(&mut harness);
+    harness.state_mut().save_to(&path).unwrap();
+    harness.run();
+
+    // Opening one, with the Eraser in hand.
+    type_text(&mut harness, "e");
+    assert_eq!(harness.state().tools().active(), ToolId::Eraser);
+    harness.state_mut().open_path(&path).unwrap();
+    harness.run();
+    assert_eq!(harness.state().tools().active(), ToolId::Select, "an opened drawing comes up on Select");
+
+    // And a new one.
+    type_text(&mut harness, "b");
+    assert_eq!(harness.state().tools().active(), ToolId::PaintBucket);
+    harness.state_mut().new_document();
+    harness.run();
+    assert_eq!(harness.state().tools().active(), ToolId::Select, "a new drawing comes up on Select");
+
+    // The tool the keyboard picks still works right afterwards, which is the whole point of
+    // handing it back: T measures.
+    type_text(&mut harness, "t");
+    assert_eq!(harness.state().tools().active(), ToolId::TapeMeasure);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+/// Typing in a tray or Entity Info field takes the keyboard, and clicking back in the drawing
+/// gives it back. A field that keeps it after the click swallows every shortcut with nothing on
+/// screen to say so, which is what "I press T and nothing happens" looks like.
+#[test]
+fn clicking_back_in_the_drawing_gives_the_keyboard_back() {
+    use egui_kittest::kittest::Queryable;
+    let mut harness = app();
+    board(&mut harness);
+    type_text(&mut harness, " ");
+    harness.key_press_modifiers(Modifiers::COMMAND, Key::A);
+    harness.run();
+    harness.get_all_by_role(egui::accesskit::Role::TextInput).next().expect("name field").click();
+    harness.run();
+    type_text(&mut harness, "Left side");
+    assert_eq!(harness.state().tools().active(), ToolId::Select, "while the field has it, a letter is a letter");
+    // Back to the drawing, without Esc or Tab: a click in the viewport is how anybody leaves a
+    // field.
+    click(&mut harness, pos2(340.0, 600.0));
+    type_text(&mut harness, "t");
+    assert_eq!(harness.state().tools().active(), ToolId::TapeMeasure, "T measures again once the drawing has the keyboard");
+}
+
 #[test]
 fn offset_a_door_into_a_frame_and_recess_the_panel() {
     use glam::DVec3;

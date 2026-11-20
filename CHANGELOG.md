@@ -13,6 +13,13 @@ only where someone wants it. It carries no full stop of its own, since the hyphe
 and it is short enough to take in at a glance (70 characters is the limit a test holds it to).
 What's New shows the lead in the strong colour, GitHub shows it in bold.
 
+## 0.1.83
+
+- **The keyboard comes back after a file dialog** - Opening or saving a drawing left the window
+  without it on Windows, so tool shortcuts silently did nothing until you clicked in the window.
+- **A drawing opens on Select** - Whatever tool was in hand before, a new or opened drawing comes
+  up with the pointer rather than the Eraser.
+
 ## 0.1.82
 
 - **A Mac disk image to drag into Applications** - The familiar way to install on a Mac, beside
