@@ -126,6 +126,7 @@ libwayland-client.so.0 libwayland-client0   pick-display string
 libEGL.so.1            libegl1              pick-gpu     string
 libvulkan.so.1         libvulkan1           pick-gpu     traced
 libX11-xcb.so.1        libx11-xcb1          want         string
+libxcb.so.1            libxcb1              want         string
 libXcursor.so.1        libxcursor1          want         string
 libXi.so.6             libxi6               want         string
 libxkbcommon-x11.so.0  libxkbcommon-x11-0   want         string
@@ -162,13 +163,23 @@ stale_sonames() {
   done
 }
 
-stale=$(stale_sonames)
-if [ -n "$stale" ]; then
-  echo "These are declared as literals in the binary but are not in it any more:" >&2
-  for s in $stale; do echo "  $s" >&2; done
-  echo "Take each out of runtime_table in $0, or mark it 'traced' and say how it was confirmed." >&2
-  exit 1
-fi
+# A `want` line missing from *this* binary is not an error, because the same table serves every
+# architecture and the compiler doesn't keep the same literals in each: the arm64 build names
+# libxcb.so.1 where the x64 build has optimized the string away. It is only worth saying out
+# loud. A `need` or `pick-` line is another matter -- that one is a hard dependency, and asking
+# for a library nothing loads can stop somebody installing at all, so it fails the build.
+for s in $(stale_sonames); do
+  group=$(echo "$runtime_table" | awk -v so="$s" '$1 == so {print $3}')
+  case "$group" in
+    want) echo "note: $s is declared but not in this architecture's binary, which is usual" ;;
+    *)
+      echo "$s is declared as a literal in the binary and is not in it any more." >&2
+      echo "It is a $group dependency, so asking for it could stop an install. Take it out of" >&2
+      echo "runtime_table in $0, or mark it 'traced' and say how it was confirmed." >&2
+      exit 1
+      ;;
+  esac
+done
 
 missing=$(missing_sonames)
 if [ -n "$missing" ]; then
