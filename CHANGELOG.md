@@ -21,8 +21,8 @@ What's New shows the lead in the strong colour, GitHub shows it in bold.
   up with the pointer rather than the Eraser.
 - **A .deb and an .rpm for Linux** - Install from your own package manager, and drawings open on a
   double-click; the AppImage is still there for everyone else.
-- **WoodSketch for Windows and Linux on Arm** - Each has its own build now, and updates like any
-  other.
+- **WoodSketch for Linux on Arm** - Its own build now, AppImage and packages alike, updating like
+  any other.
 - **Crash reports say where it happened** - On Windows they were going out with no calls listed at
   all, because the symbols that name them never reached the installed app.
 - **A crash with nothing to say is reported too** - A graphics driver taking the app down, or

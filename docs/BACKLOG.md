@@ -16,7 +16,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 3 | Templates | 134 | Fast wins on the built-in templates; the parametric ones are in |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 0 | Nothing outstanding; the live link was dropped |
-| 6 | Release polish | 44 | Both platforms signed; the rest is packaging and reach |
+| 6 | Release polish | 47 | Both platforms signed; the rest is packaging and reach |
 | 7 | Start page and samples | 10 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
 | 9 | Cut list and materials | 171 | Better buying and cutting |
@@ -29,7 +29,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1356** | |
+| | **All** | **1359** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -168,12 +168,12 @@ and a `SHA256SUMS.txt` beside every release; woodsketch.net offers one Download 
 computer you are on; on Windows, double-clicking a `.woodsketch` drawing opens it; a macOS DMG beside the `.pkg`,
 signed, notarized and stapled like everything else Apple sees; woodsketch.net offers the DMG as the
 Mac download, with the `.pkg` beside it; a `.deb` and an `.rpm` beside the Linux AppImage, which
-also register the file type there; Windows and Linux builds for Arm, each on its own channel; crash
+also register the file type there; a Linux build for Arm, on its own channel; crash
 reports that name the calls that led there, with line numbers for WoodSketch's own code (the
 symbols were being dropped from every package, so the list was empty); and a report for a stop that
 left nothing behind, which is what a graphics driver crash or running out of memory looks like.
-1. [1] Offer the `.deb`, the `.rpm` and the two Arm downloads on woodsketch.net, and pick them in
-   the Download button (Arm by processor, the `.deb` or `.rpm` is a choice nothing can guess).
+1. [1] Offer the `.deb`, the `.rpm` and the Linux Arm downloads on woodsketch.net, and pick Arm by
+   processor in the Download button (which of the three to install is a choice nothing can guess).
    Only **after** a release has produced them: the site links `/releases/latest/download/...`,
    so linking sooner is a 404 on the live site.
 2. [5] `.woodsketch` file association on macOS: the bundle needs `CFBundleDocumentTypes`, and
@@ -182,11 +182,16 @@ left nothing behind, which is what a graphics driver crash or running out of mem
    for a lighter way first. Windows and Linux are done.
 3. [1] The AppImage can't register the file type: unlike the `.deb` and `.rpm` it installs
    nothing, so this is a note telling people how, or a small script beside the download.
-4. [2] The standalone command-line zip is unsigned on Windows on Arm: Microsoft's Sign CLI dies
-   there loading its own `Sign.Core` assembly, so `release.yml` only pre-signs it on x64 (the app
-   itself is signed on both, by vpk). Either the tool starts working, or take the already-signed
-   exe out of the package vpk built instead of signing a copy beforehand -- which would drop the
-   whole dependency on that tool.
+4. [5] A Windows build for Arm, which needs something that can sign it. The build itself is done
+   and works (`windows-11-arm`, a free runner; `aarch64-pc-windows-msvc` compiles there, `ring`
+   and the icon resource included) -- the matrix entry is in `release.yml` as a comment. What
+   fails is signing, twice over: Microsoft's Sign CLI dies loading its own `Sign.Core` assembly,
+   and vpk shells out to an embedded x64 `signtool.exe` that can't execute on Arm. Both exit 127.
+   The likeliest way through is `vpk pack --signTemplate` with the Windows SDK's **arm64**
+   `signtool.exe` and the Trusted Signing dlib (`/dlib`, `/dmdf`) instead of vpk's embedded copy;
+   failing that, build on Arm and pack on an x64 runner. Meanwhile Windows on Arm runs the x64
+   build under emulation, which is why this isn't urgent and why shipping it unsigned isn't the
+   answer.
 5. [2] The Windows association can take a while to show in File Explorer: telling the shell at
    once means `SHChangeNotify`, a Win32 call, and `unsafe_code` is forbidden workspace-wide. A
    brand-new extension with nothing else claiming it is picked up without being told, so this

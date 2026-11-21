@@ -65,10 +65,13 @@ jobs:
       matrix:
         include:
           - { os: windows-latest, target: x86_64-pc-windows-msvc, channel: win-x64, runtime: win-x64, exe: woodsketch.exe, cli: woodsketch-cli.exe }
-          # Built on the Arm runners rather than cross-compiled: `ring` wants a C toolchain for the
-          # target, and the tests and vpk run natively here as they do everywhere else. Both
-          # labels are free for public repositories.
-          - { os: windows-11-arm, target: aarch64-pc-windows-msvc, channel: win-arm64, runtime: win-arm64, exe: woodsketch.exe, cli: woodsketch-cli.exe }
+          # Windows on Arm is not here yet, and it isn't the build that stops it: that part works
+          # (`windows-11-arm` is a free runner for public repositories, and `aarch64-pc-windows-msvc`
+          # compiles there, `ring` and the icon resource included). **Nothing can sign it.**
+          # Microsoft's Sign CLI dies loading its own assembly, and vpk shells out to an embedded
+          # x64 signtool.exe which can't execute on Arm either -- both exit 127. An unsigned
+          # Windows installer is not what this project ships, and Windows on Arm runs the x64 build
+          # under emulation meanwhile, so it waits for a signer that works (docs/BACKLOG.md).
           - { os: macos-latest, target: aarch64-apple-darwin, channel: osx-arm64, runtime: osx-arm64, exe: woodsketch, cli: woodsketch-cli }
           - { os: macos-latest, target: x86_64-apple-darwin, channel: osx-x64, runtime: osx-x64, exe: woodsketch, cli: woodsketch-cli }
           # `deb` is the Debian architecture name, and the only Linux-only key: it is what says to
@@ -233,12 +236,7 @@ jobs:
           # vpk signs a copy of publish/, not publish/ itself, so the command line on its own
           # (zipped from publish/ below) would go out unsigned. Sign it here first: vpk leaves
           # a file already signed and trusted alone, so it isn't signed twice.
-          # Only on x64: Microsoft's Sign CLI cannot run on Windows on Arm, where it dies loading
-          # its own `Sign.Core` assembly ("Could not load file or assembly", exit 127). The app
-          # itself is still signed there -- vpk does that, through its own code, from the same
-          # Azure settings. It is the standalone command-line zip that goes out unsigned on Arm,
-          # and `docs/BACKLOG.md` has it.
-          if [ -n "${AZURE_SIGN_FILE:-}" ] && [ "${{ matrix.channel }}" = win-x64 ]; then
+          if [ -n "${AZURE_SIGN_FILE:-}" ]; then
             sign code trusted-signing "publish/${{ matrix.cli }}" \
               --trusted-signing-endpoint "${{ vars.AZURE_SIGNING_ENDPOINT }}" \
               --trusted-signing-account "${{ vars.AZURE_SIGNING_ACCOUNT }}" \

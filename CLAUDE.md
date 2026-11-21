@@ -428,10 +428,13 @@ add it there; when you finish an item, remove it.
    Info) for buttons or slotted screws; both land in `Report::allowed`. `Report::arrows` (View > Wood
    Movement, cached per model version); `Report::unknown` and `species_list` for "Moves like".
 27. Releases and updates: a `v*` tag (matching Cargo.toml's version) runs `.github/workflows/release.yml`:
-   Windows x64 and arm64, macOS arm64 and x64, Linux x64 and arm64 builds, each packed by Velopack (`vpk`, version
+   Windows x64, macOS arm64 and x64, Linux x64 and arm64 builds, each packed by Velopack (`vpk`, version
    pinned to the `velopack` crate) on its own channel, into a DRAFT GitHub release (publish it to
-   ship). The Arm builds are **native, on the `windows-11-arm` and `ubuntu-22.04-arm` runners**
-   (free for public repositories), not cross-compiled: `ring` wants a C toolchain for the target.
+   ship). Linux on Arm is **native, on the `ubuntu-22.04-arm` runner** (free for public
+   repositories), not cross-compiled: `ring` wants a C toolchain for the target. Windows on Arm
+   builds there just as well and is still not shipped, because nothing available can *sign* it:
+   Microsoft's Sign CLI dies loading its own assembly and vpk shells out to an embedded x64
+   `signtool.exe`, both exit 127. Its matrix entry waits in `release.yml` as a comment.
    `releases::tests::channels` reads the channel list **out of the workflow file**, so a platform
    added to that matrix is checked by `every_platform_has_an_update_to_find` without anyone
    remembering to; a channel no release has carried yet is said rather than failed. Before packing, `vpk download github` fetches that channel's previous release into the
