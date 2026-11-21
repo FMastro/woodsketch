@@ -65,7 +65,8 @@ jobs:
           JSON
           # Where vpk keeps the signing stack, and what each piece is built for.
           signing=$(dirname "$(find "$HOME/.dotnet/tools/.store/vpk" -name signtool.exe | head -1)")
-          echo "SIGNING=$signing" >> "$GITHUB_ENV"
+          # As a Windows path: the steps below are PowerShell, which cannot use a Git Bash one.
+          echo "SIGNING=$(cygpath -w "$signing")" >> "$GITHUB_ENV"
           ls -l "$signing/signtool.exe" "$signing/Azure.CodeSigning.Dlib.dll" "$signing/Ijwhost.dll"
           echo "--- what .NET is on this machine ---"
           dotnet --info | head -20
