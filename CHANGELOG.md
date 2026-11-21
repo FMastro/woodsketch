@@ -13,6 +13,11 @@ only where someone wants it. It carries no full stop of its own, since the hyphe
 and it is short enough to take in at a glance (70 characters is the limit a test holds it to).
 What's New shows the lead in the strong colour, GitHub shows it in bold.
 
+## 0.1.86
+
+- **Windows hears about the file type at once** - The shell is told when the association is
+  written or taken out, rather than answering from what it remembers until it next looks.
+
 ## 0.1.85
 
 - **The Linux packages ask for what they need** - The .deb and .rpm now name the windowing and

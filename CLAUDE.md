@@ -459,8 +459,13 @@ add it there; when you finish an item, remove it.
    an uninstall can undo it. Uninstalling leaves the extension alone if something else has claimed
    it since, and only drops our line from its "Open with" list. **The registry root is a
    parameter** so the tests write to a scratch key and never change what this machine actually
-   opens. The shell isn't told at once (`SHChangeNotify` is a Win32 call and `unsafe_code` is
-   forbidden across the workspace), which a brand-new extension with no rival survives.
+   opens. The shell is told, by `fileassoc::tell_the_shell`, which starts
+   `ie4uinit.exe -show` rather than calling `SHChangeNotify`: the documented call is an `unsafe fn`
+   in every binding and `forbid` cannot be lifted in one module, while starting a program needs no
+   `unsafe` (winsafe, the one place a safe wrapper might live, has none). It is insurance, not a
+   cure -- a brand-new extension nothing else claims is picked up untold, which 0.1.85 proved by
+   opening a drawing on a double-click right after installing -- for the case that cannot prove:
+   writing over a type another program holds, or an update landing somewhere new.
    Linux gets a **`.deb` and an `.rpm`** beside the AppImage (`scripts/linux-packages.sh`, run per
    Linux build from the `deb` key in the matrix). `dpkg-shlibdeps` names what the binary links,
    and rpm's find-requires does the same as sonames, which is what makes one `.rpm` work on Fedora

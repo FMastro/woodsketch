@@ -16,7 +16,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 3 | Templates | 134 | Fast wins on the built-in templates; the parametric ones are in |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 0 | Nothing outstanding; the live link was dropped |
-| 6 | Release polish | 42 | Both platforms signed; the rest is packaging and reach |
+| 6 | Release polish | 39 | Both platforms signed; the rest is packaging and reach |
 | 7 | Start page and samples | 10 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
 | 9 | Cut list and materials | 171 | Better buying and cutting |
@@ -29,7 +29,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1354** | |
+| | **All** | **1351** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -170,37 +170,32 @@ signed, notarized and stapled like everything else Apple sees; woodsketch.net of
 Mac download, with the `.pkg` beside it; a `.deb` and an `.rpm` beside the Linux AppImage, which
 also register the file type there, and declare the libraries the program loads at run time, which
 no link table shows; Windows and Linux builds for Arm, each on its own
-channel and signed as the rest are; crash
+channel and signed as the rest are; the shell told when a file type is written, so Explorer
+doesn't answer from memory; every download the site offers, Arm builds and Linux packages
+included; crash
 reports that name the calls that led there, with line numbers for WoodSketch's own code (the
 symbols were being dropped from every package, so the list was empty); and a report for a stop that
 left nothing behind, which is what a graphics driver crash or running out of memory looks like.
-1. [1] Offer the Windows Arm download on woodsketch.net and pick it by processor. Only **after**
-   a release has produced it: the site links `/releases/latest/download/...`, so linking sooner is
-   a 404 on the live site. (The Linux packages and the Linux Arm build are offered already.)
-2. [5] `.woodsketch` file association on macOS: the bundle needs `CFBundleDocumentTypes`, and
+1. [5] `.woodsketch` file association on macOS: the bundle needs `CFBundleDocumentTypes`, and
    vpk has no setting for it. `--plist` replaces the whole Info.plist it generates, so taking
    that over means maintaining the bundle id, version and icon keys per build; worth looking
    for a lighter way first. Windows and Linux are done.
-3. [1] The AppImage can't register the file type: unlike the `.deb` and `.rpm` it installs
+2. [1] The AppImage can't register the file type: unlike the `.deb` and `.rpm` it installs
    nothing, so this is a note telling people how, or a small script beside the download.
-4. [2] The Windows association can take a while to show in File Explorer: telling the shell at
-   once means `SHChangeNotify`, a Win32 call, and `unsafe_code` is forbidden workspace-wide. A
-   brand-new extension with nothing else claiming it is picked up without being told, so this
-   only matters if it proves annoying.
-5. [2] A scheduled check of new reports (a daily routine that reads `from-app` issues and drafts
+3. [2] A scheduled check of new reports (a daily routine that reads `from-app` issues and drafts
     fixes for review); now they're checked at the start of each session (CLAUDE.md).
-6. [21] End-user help for every feature: a User Guide on woodsketch.net (/help), a page per
+4. [21] End-user help for every feature: a User Guide on woodsketch.net (/help), a page per
     feature or tool (what it's for, step by step, the keys and typed values, tips, what it doesn't
     do yet), written for woodworkers new to SketchUp as well as SketchUp users. Getting started
     (draw a board, join two parts, print a cut list), each drawing tool, groups and components,
     tags, materials and stock, the Board tool, joinery (each joint), edge profiles, templates,
     drawers and doors, cut list and cutting diagrams, build sheets, wood movement, reference
     face and edge, units, SketchUp import, export, updates and reporting a problem.
-7. [5] Screenshots for the guide made by the UI tests (egui_kittest snapshots of each step), so
+5. [5] Screenshots for the guide made by the UI tests (egui_kittest snapshots of each step), so
     they're redone when the app changes instead of going stale.
-8. [3] Help > User Guide, and F1 opening the page for the tool or panel in use; a "?" link in
+6. [3] Help > User Guide, and F1 opening the page for the tool or panel in use; a "?" link in
     each tray panel and window to its page.
-9. [2] Keep it current: every feature ships with its help page updated (a rule in CLAUDE.md
+7. [2] Keep it current: every feature ships with its help page updated (a rule in CLAUDE.md
     next to the CHANGELOG one), and the release notes link to the pages.
 
 ## 7. Start page and samples

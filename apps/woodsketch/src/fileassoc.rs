@@ -10,11 +10,14 @@
 //! Everything goes under `HKEY_CURRENT_USER`, never `HKEY_LOCAL_MACHINE`: it is this user's choice
 //! about this user's app, it needs no administrator, and an uninstall can undo it cleanly.
 //!
-//! **A new association can take a while to show up in File Explorer.** Telling the shell at once
-//! means `SHChangeNotify`, which is a Win32 call, and `unsafe_code` is forbidden across this
-//! workspace. `.woodsketch` is a brand-new extension with nothing else claiming it, so Explorer
-//! picks it up for new windows without being told; it is the *changing* of an existing
-//! association that it caches hard. Worth revisiting if it proves annoying in practice.
+//! The shell is told when a file type changes, by [`tell_the_shell`], so Explorer doesn't go on
+//! showing the old answer. Not with `SHChangeNotify`, the documented call, which every Rust
+//! binding offers as an `unsafe fn` that `unsafe_code = "forbid"` rules out here -- but by asking
+//! Windows to do it, which needs no `unsafe` at all. That is insurance rather than a cure: a
+//! brand-new extension nothing else claims is picked up without being told anything, which 0.1.85
+//! proved by opening a drawing on a double-click straight after installing. What it covers is
+//! what that cannot -- writing over a type another program has taken, or an update that lands
+//! somewhere new, which is the case Explorer caches hard.
 
 /// Where the association is written. `Software\Classes` is the real one; tests pass their own
 /// so that running them never touches what the machine actually opens.
@@ -32,13 +35,42 @@ const PROG_ID: &str = "WoodSketch.Drawing";
 pub fn register() {
     if let Err(e) = windows_impl::write(CLASSES, &exe_path()) {
         log::warn!("couldn't register the .woodsketch file association: {e}");
+        return;
     }
+    tell_the_shell(SHELL_REFRESH);
 }
 
 /// Take it back out, before the app is uninstalled.
 pub fn unregister() {
     if let Err(e) = windows_impl::remove(CLASSES) {
         log::warn!("couldn't remove the .woodsketch file association: {e}");
+        return;
+    }
+    tell_the_shell(SHELL_REFRESH);
+}
+
+/// What asks the shell to read file types and icons again. Ships with Windows itself.
+const SHELL_REFRESH: &str = "ie4uinit.exe";
+
+/// Ask the shell to look at the file types again, so Explorer doesn't keep answering from what it
+/// remembers.
+///
+/// `SHChangeNotify(SHCNE_ASSOCCHANGED, ...)` is the documented way and is an `unsafe fn` in every
+/// binding there is; `forbid` cannot be lifted by an `allow` in one module, and nothing wraps that
+/// call safely (winsafe, the one library worth looking in, has no such function). Starting a
+/// program needs no `unsafe`, and `-show` is what makes `ie4uinit.exe` re-read associations and
+/// icon caches.
+///
+/// Best effort on purpose. Nothing is waited for -- this runs from the installer, which shouldn't
+/// be held up by a cache refresh -- and a failure is logged and no more, since the association is
+/// written either way and Explorer comes round on its own. `program` is a parameter so a test can
+/// watch that failure happen without touching the real shell.
+fn tell_the_shell(program: &str) {
+    use std::os::windows::process::CommandExt;
+    // Started from an installer, where a flash of console window is all anyone would see of it.
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    if let Err(e) = std::process::Command::new(program).arg("-show").creation_flags(CREATE_NO_WINDOW).spawn() {
+        log::warn!("couldn't ask the shell to re-read the file types ({program}): {e}");
     }
 }
 
@@ -176,6 +208,14 @@ mod tests {
         windows_impl::remove(&at.0).expect("removed");
         assert_eq!(at.value(EXTENSION), None, "the extension is gone");
         assert_eq!(at.value(PROG_ID), None, "and so is the program id");
+    }
+
+    /// The nudge is best effort: on a Windows where that program is missing or renamed, the
+    /// association is still written and Explorer catches up by itself, so this must not panic or
+    /// hand an error back to an installer.
+    #[test]
+    fn a_missing_shell_tool_doesnt_take_the_registration_down_with_it() {
+        tell_the_shell("woodsketch-there-is-no-such-program.exe");
     }
 
     #[test]
