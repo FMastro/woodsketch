@@ -71,39 +71,38 @@ jobs:
           dotnet --info | head -20
           ls "C:/Program Files/dotnet" || true
           ls "C:/Program Files/dotnet/x64" 2>/dev/null || echo "(no x64 runtime beside it)"
+      # PowerShell, not bash: Git Bash rewrites every argument that starts with a slash into a
+      # Windows path, so signtool saw no /fd, /dlib or /dmdf at all and said no digest algorithm
+      # was given. The release itself never had that problem -- vpk calls signtool from .NET, with
+      # no shell in between.
       - name: Attempt 1 - as the release did it, which is expected to fail
         id: before
         continue-on-error: true
-        shell: bash
+        shell: pwsh
         run: |
-          "$SIGNING/signtool.exe" sign /v /debug /fd SHA256 \
-            /tr http://timestamp.acs.microsoft.com /td SHA256 \
-            /dlib "$SIGNING/Azure.CodeSigning.Dlib.dll" \
-            /dmdf "$RUNNER_TEMP/azure-signing.json" \
-            "$RUNNER_TEMP/probe.exe"
+          & "$env:SIGNING/signtool.exe" sign /v /debug /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib "$env:SIGNING/Azure.CodeSigning.Dlib.dll" /dmdf "$env:RUNNER_TEMP/azure-signing.json" "$env:RUNNER_TEMP/probe.exe"
+          exit $LASTEXITCODE
       - name: The x64 .NET runtime, which the x64 shim needs
         shell: pwsh
         run: |
-          # On an Arm64 Windows machine the x64 runtime lives beside the native one, in
-          # dotnet\x64, which is where the x64 host looks for it.
-          $to = Join-Path $env:ProgramFiles 'dotnet\x64'
+          # On an Arm64 Windows machine the x64 runtime lives beside the native one, under
+          # dotnet/x64, which is where the x64 host looks for it.
+          $to = Join-Path $env:ProgramFiles 'dotnet/x64'
           Invoke-WebRequest https://dot.net/v1/dotnet-install.ps1 -OutFile dotnet-install.ps1
           ./dotnet-install.ps1 -Architecture x64 -Runtime dotnet -Channel 8.0 -InstallDir $to
           "DOTNET_ROOT_X64=$to" | Out-File -FilePath $env:GITHUB_ENV -Append
-          Get-ChildItem (Join-Path $to 'shared\Microsoft.NETCore.App')
+          Get-ChildItem (Join-Path $to 'shared/Microsoft.NETCore.App') | ForEach-Object { $_.Name }
       - name: Attempt 2 - the same command, with a runtime it can load
         id: after
         continue-on-error: true
-        shell: bash
+        shell: pwsh
         run: |
-          "$SIGNING/signtool.exe" sign /v /debug /fd SHA256 \
-            /tr http://timestamp.acs.microsoft.com /td SHA256 \
-            /dlib "$SIGNING/Azure.CodeSigning.Dlib.dll" \
-            /dmdf "$RUNNER_TEMP/azure-signing.json" \
-            "$RUNNER_TEMP/probe.exe"
+          & "$env:SIGNING/signtool.exe" sign /v /debug /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib "$env:SIGNING/Azure.CodeSigning.Dlib.dll" /dmdf "$env:RUNNER_TEMP/azure-signing.json" "$env:RUNNER_TEMP/probe.exe"
+          exit $LASTEXITCODE
       - name: What it signed, if it signed
-        shell: bash
+        shell: pwsh
         run: |
-          echo "attempt 1 (no x64 runtime): ${{ steps.before.outcome }}"
-          echo "attempt 2 (x64 runtime):    ${{ steps.after.outcome }}"
-          "$SIGNING/signtool.exe" verify /pa /v "$RUNNER_TEMP/probe.exe" || echo "not signed"
+          "attempt 1 (no x64 runtime): ${{ steps.before.outcome }}"
+          "attempt 2 (x64 runtime):    ${{ steps.after.outcome }}"
+          & "$env:SIGNING/signtool.exe" verify /pa /v "$env:RUNNER_TEMP/probe.exe"
+          if ($LASTEXITCODE -ne 0) { "NOT SIGNED" } else { "SIGNED" }
