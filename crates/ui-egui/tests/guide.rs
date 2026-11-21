@@ -230,7 +230,10 @@ fn tools() -> String {
             let key = tool.shortcut_label();
             let key = if key.is_empty() { "--".to_owned() } else { format!("`{key}`") };
             let icon = format!("<span class=\"ws-icon ws-icon-{}\"></span>", icon_of(tool, &icons));
-            writeln!(out, "| {icon} | **{}** | {key} | {} |", tool.name(), tool_about(tool)).unwrap();
+            // The anchor F1 lands on, written from the app's own `help::tool_anchor` so the id
+            // the app jumps to and the id the page carries are one answer, not two.
+            let anchor = format!("<span id=\"{}\"></span>", woodsketch_ui_egui::help::tool_anchor(tool));
+            writeln!(out, "| {icon} | {anchor}**{}** | {key} | {} |", tool.name(), tool_about(tool)).unwrap();
         }
     }
     out.push_str("\n## Keys that aren't tools\n\n");
@@ -860,6 +863,18 @@ Run `python -I scripts/make-guide-pictures.py`.",
                 kind.name()
             );
         }
+    }
+}
+
+/// F1 opens the guide at the tool in hand, which only works if the page carries that anchor.
+/// Both come from `help::tool_anchor`, so this is checking the anchor really reached the page
+/// rather than that two copies of a rule agree.
+#[test]
+fn every_tool_has_the_anchor_f1_jumps_to() {
+    let page = pages().into_iter().find(|(name, _)| name.ends_with("tools.md")).expect("the tools page").1;
+    for tool in ToolId::ALL {
+        let anchor = woodsketch_ui_egui::help::tool_anchor(tool);
+        assert!(page.contains(&format!("id=\"{anchor}\"")), "F1 on the {} tool jumps to #{anchor}, which the page doesn't have", tool.name());
     }
 }
 

@@ -451,6 +451,11 @@ impl WoodSketchApp {
 
     fn help_menu(&mut self, ui: &mut egui::Ui) {
         ui.menu_button(t!("menu-help"), |ui| {
+            if ui.button(t!("help-user-guide")).on_hover_text(t!("help-user-guide-hint")).clicked() {
+                ui.close();
+                ui.ctx().open_url(egui::OpenUrl::new_tab(crate::help::BASE));
+            }
+            ui.separator();
             if ui.button(t!("help-check-for-updates")).clicked() {
                 ui.close();
                 self.check_for_updates();

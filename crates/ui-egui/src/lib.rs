@@ -10,6 +10,7 @@ pub mod feedback;
 pub mod files;
 mod gpu;
 pub mod graphics;
+pub mod help;
 mod icons;
 mod joinery;
 mod keys;

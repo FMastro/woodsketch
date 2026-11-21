@@ -339,6 +339,18 @@ new one and fails**, so the fix is to read the diff and commit it.
 - **The materials table shows each wood's own colour**, a swatch from `Preset::color` rather
   than a hex typed into the page, so it is the app's colour by construction and a recoloured
   material recolours its swatch (`every_material_shows_the_colour_the_app_paints_it`).
+- **The app links into it**, through `ui_egui::help`, which holds the addresses and no help
+  text: `BASE` is woodsketch.net/help, Help > User Guide opens the front, F1 opens the page for
+  the tool in hand, and `tray::section` puts a `?` on every panel header that has a page (Tags
+  and the Outliner have none yet, and `for_panel` returns `None` rather than dumping someone at
+  the front). F1 is handled **before** the text-field guard in `keys.rs`, so help works with a
+  length half typed. The anchor F1 jumps to (`help::tool_anchor`: `ToolId::PushPull` ->
+  `tool-push-pull`) is written into the page by the generator **from that same function**, so
+  the id the app jumps to and the id the page carries are one answer; the app's own unit test
+  checks every address it can hand out is a page that exists, and `workflow.rs` presses F1 and
+  reads the `OpenUrl` the app hands the host, so the keystroke is checked to the browser rather
+  than to a string. **`Harness::key_press` does not deliver a function key** -- F1 goes in as
+  the `Event::Key` itself, as `hold` sends a letter.
 - The guide generator is under `crates/*/tests`, which `check-unreleased.py` treats as shipping
   to nobody, so **guide work needs no version bump**. Keep it that way: it reads only public API.
 - Prose carries no number that the app also knows. The worked example in the movement page is

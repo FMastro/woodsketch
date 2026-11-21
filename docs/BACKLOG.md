@@ -16,7 +16,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 3 | Templates | 134 | Fast wins on the built-in templates; the parametric ones are in |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 0 | Nothing outstanding; the live link was dropped |
-| 6 | Release polish | 22 | Both platforms signed; the rest is packaging and reach |
+| 6 | Release polish | 18 | Both platforms signed; the rest is packaging and reach |
 | 7 | Start page and samples | 10 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
 | 9 | Cut list and materials | 171 | Better buying and cutting |
@@ -29,7 +29,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1334** | |
+| | **All** | **1330** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -193,14 +193,9 @@ left nothing behind, which is what a graphics driver crash or running out of mem
     walkthrough per area paired with a video (groups and components, tags, drawers and doors,
     cutting diagrams, build sheets, SketchUp import, export), and a page per tool once the UI
     settles -- guided by what `from-app` issues say people are confused by rather than guessed at.
+    Tags and the Outliner have no page, so their tray panels show no `?` (`ui_egui::help::for_panel`).
 5. [5] Screenshots for the guide made by the UI tests (egui_kittest snapshots of each step), so
     they're redone when the app changes instead of going stale.
-6. [3] Help > User Guide, and F1 opening the page for the tool or panel in use; a "?" link in
-    each tray panel and window to its page. Needs the page URLs to have settled.
-7. [1] Serve it at woodsketch.net/help: turn on Pages (Settings > Pages > Source = GitHub
-    Actions), run `.github/workflows/guide.yml` once, add the `push` trigger it describes, then a
-    rewrite in woodsketchweb's `vercel.json` sending `/help/:path*` to the Pages URL.
-
 ## 7. Start page and samples
 Done: the Start page (New in either unit, Open, Import, Recent, Samples) over an empty drawing
 rather than in front of the app, Esc to leave, File > Start Page to come back; units saved with

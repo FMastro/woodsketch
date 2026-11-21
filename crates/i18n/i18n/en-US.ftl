@@ -125,6 +125,8 @@ help-check-at-startup = Check for updates at startup
 help-check-at-startup-hint = A quick look at WoodSketch's releases on GitHub when it opens; new versions download in the background
 help-whats-new = What's New...
 help-whats-new-hint = What the last few updates brought, newest first
+help-user-guide = User Guide
+help-user-guide-hint = How to use WoodSketch, and the woodworking behind it. F1 opens the page for the tool in hand.
 help-release-notes = Release Notes
 help-release-notes-hint = Every version's notes, on GitHub
 help-report-problem = Report a Problem...
@@ -220,6 +222,8 @@ tray-hide = Hide the tray
 tray-hide-hint = Hide the tray (Window > Default Tray)
 # The ✕ on a panel's header bar: named after the panel, since every panel has one.
 tray-close-panel = Close { $panel }
+tray-panel-help = Help with { $panel }
+tray-panel-help-hint = Open this panel's page of the User Guide
 tray-close-panel-hint = Close this panel. Window > Default Tray brings it back.
 tray-no-panels = Every panel is closed. Window > Default Tray brings them back.
 tray-board = Board

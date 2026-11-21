@@ -17,6 +17,11 @@ pub struct Keyboard {
 
 impl Keyboard {
     pub fn handle(&mut self, ctx: &egui::Context, doc: &mut Document, tools: &mut Tools, viewport: &mut Viewport) {
+        // F1 is help wherever you are, even with a length half typed: it opens a tab and takes
+        // nothing away from what you were doing, so it goes before the text-field guard below.
+        if ctx.input(|i| i.key_pressed(egui::Key::F1)) {
+            ctx.open_url(egui::OpenUrl::new_tab(crate::help::for_tool(tools.active())));
+        }
         // The keyboard belongs to the drawing unless a text field is being typed in. Buttons
         // and other widgets don't keep focus: a focused button would swallow shortcuts and
         // re-press itself on Space or Enter.

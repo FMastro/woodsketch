@@ -3589,3 +3589,55 @@ fn the_status_bar_says_when_a_graphics_backend_was_given_up_on() {
     harness.run();
     assert!(harness.query_by_label_contains("didn't work on this computer").is_none(), "dismissed stays dismissed");
 }
+
+/// F1 opens the guide at the tool in hand, and the address carries that tool's anchor. Both
+/// are an `OpenUrl` the app hands the host, which is what the harness can see, so this checks
+/// the keystroke really reaches the browser rather than that a function returns a string.
+#[test]
+fn f1_opens_the_guide_at_the_tool_in_hand() {
+    let mut harness = app();
+    // A tool shortcut is a typed letter, not a key press (the keyboard model in CLAUDE.md).
+    type_text(&mut harness, "t");
+    assert_eq!(harness.state().tools().active(), ToolId::TapeMeasure, "t picks the Tape Measure");
+    press_f1(&mut harness);
+    assert_eq!(opened_urls(&mut harness), vec![woodsketch_ui_egui::help::for_tool(ToolId::TapeMeasure)], "F1 opens the Tape Measure's page");
+
+    type_text(&mut harness, "l");
+    press_f1(&mut harness);
+    let line = woodsketch_ui_egui::help::for_tool(ToolId::Line);
+    assert!(line.ends_with("#tool-line"), "the address should carry the tool's anchor, not just the page: {line}");
+    assert_eq!(opened_urls(&mut harness), vec![line], "and it follows whichever tool is in hand");
+}
+
+/// `Harness::key_press` doesn't deliver a function key, so F1 goes in as the event itself --
+/// the same way `hold` sends a letter.
+fn press_f1(harness: &mut App) {
+    harness.event(Event::Key { key: Key::F1, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::NONE });
+    harness.step();
+}
+
+/// Every url the app handed the host in the frame just drawn.
+fn opened_urls(harness: &mut App) -> Vec<String> {
+    harness
+        .output()
+        .platform_output
+        .commands
+        .iter()
+        .filter_map(|command| match command {
+            egui::OutputCommand::OpenUrl(open) => Some(open.url.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Help > User Guide opens the front of the guide. The menu is where somebody looks who
+/// doesn't know F1 exists, which is most people the guide is for.
+#[test]
+fn help_has_a_way_into_the_user_guide() {
+    let mut harness = app();
+    harness.get_by_label("Help").click();
+    harness.run();
+    harness.get_by_label_contains("User Guide").click();
+    harness.step();
+    assert_eq!(opened_urls(&mut harness), vec![woodsketch_ui_egui::help::BASE.to_owned()]);
+}

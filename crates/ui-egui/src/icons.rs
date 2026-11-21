@@ -81,4 +81,5 @@ pub const NEW: &str = ph::FILE;
 pub const OPEN: &str = ph::FOLDER_OPEN;
 pub const SAVE: &str = ph::FLOPPY_DISK;
 pub const CLOSE: &str = ph::X;
+/// The `?` on a tray panel's header, which opens that panel's page of the User Guide.
 pub const HELP: &str = ph::QUESTION;

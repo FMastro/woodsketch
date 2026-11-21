@@ -13,6 +13,11 @@ only where someone wants it. It carries no full stop of its own, since the hyphe
 and it is short enough to take in at a glance (70 characters is the limit a test holds it to).
 What's New shows the lead in the strong colour, GitHub shows it in bold.
 
+## 0.1.88
+
+- **The User Guide, from inside the app** - Help > User Guide opens it, F1 opens the page for
+  the tool in hand, and a `?` on a tray panel opens that panel's page.
+
 ## 0.1.87
 
 - **Pictures of a piece on its own** - `woodsketch-cli render` takes `--no-axes` to leave out

@@ -16,57 +16,57 @@ is in hand, which between them get you out of anything.
 
 | | Tool | Key | What it does |
 |---|---|---|---|
-| <span class="ws-icon ws-icon-cursor"></span> | **Select** | `Space` | Pick things. Click, shift-click to add or remove, drag a box. Double-click a group to edit inside it. |
-| <span class="ws-icon ws-icon-eraser"></span> | **Eraser** | `E` | Erase the edge, guide, group or component you click, or everything you drag over, as one undo step. |
-| <span class="ws-icon ws-icon-paint-bucket"></span> | **Paint Bucket** | `B` | Paint a material onto a whole object; Ctrl paints one face, Alt samples the one under the cursor. |
+| <span class="ws-icon ws-icon-cursor"></span> | <span id="tool-select"></span>**Select** | `Space` | Pick things. Click, shift-click to add or remove, drag a box. Double-click a group to edit inside it. |
+| <span class="ws-icon ws-icon-eraser"></span> | <span id="tool-eraser"></span>**Eraser** | `E` | Erase the edge, guide, group or component you click, or everything you drag over, as one undo step. |
+| <span class="ws-icon ws-icon-paint-bucket"></span> | <span id="tool-paint-bucket"></span>**Paint Bucket** | `B` | Paint a material onto a whole object; Ctrl paints one face, Alt samples the one under the cursor. |
 
 ## Drawing
 
 | | Tool | Key | What it does |
 |---|---|---|---|
-| <span class="ws-icon ws-icon-line-segment"></span> | **Line** | `L` | Draw edges point to point. A closed loop makes a face; a line across a face splits it. Type each length. |
-| <span class="ws-icon ws-icon-bezier-curve"></span> | **Arc** | `A` | An arc through two endpoints and a bulge. Type `12s` for the number of segments, `4r` for a radius. |
-| <span class="ws-icon ws-icon-circle-half"></span> | **Center Arc** | -- | An arc from its center: the center, then the start, then the sweep. |
-| <span class="ws-icon ws-icon-arrow-arc-right"></span> | **3-Point Arc** | -- | An arc through three points you click. |
-| <span class="ws-icon ws-icon-chart-pie-slice"></span> | **Pie** | -- | A filled wedge: center, radius, then the angle. |
+| <span class="ws-icon ws-icon-line-segment"></span> | <span id="tool-line"></span>**Line** | `L` | Draw edges point to point. A closed loop makes a face; a line across a face splits it. Type each length. |
+| <span class="ws-icon ws-icon-bezier-curve"></span> | <span id="tool-arc"></span>**Arc** | `A` | An arc through two endpoints and a bulge. Type `12s` for the number of segments, `4r` for a radius. |
+| <span class="ws-icon ws-icon-circle-half"></span> | <span id="tool-center-arc"></span>**Center Arc** | -- | An arc from its center: the center, then the start, then the sweep. |
+| <span class="ws-icon ws-icon-arrow-arc-right"></span> | <span id="tool-three-point-arc"></span>**3-Point Arc** | -- | An arc through three points you click. |
+| <span class="ws-icon ws-icon-chart-pie-slice"></span> | <span id="tool-pie"></span>**Pie** | -- | A filled wedge: center, radius, then the angle. |
 
 ## Shapes
 
 | | Tool | Key | What it does |
 |---|---|---|---|
-| <span class="ws-icon ws-icon-rectangle"></span> | **Rectangle** | `R` | A rectangle on a face or in free space. Type `36x11 1/4` to size it, before or after drawing. |
-| <span class="ws-icon ws-icon-circle"></span> | **Circle** | `C` | A circle, drawn as edges so it splits the face under it. Type `24s` to change the number of sides. |
-| <span class="ws-icon ws-icon-hexagon"></span> | **Polygon** | -- | A regular polygon from its center. Type the number of sides. |
-| <span class="ws-icon ws-icon-diamond"></span> | **Rotated Rectangle** | -- | A rectangle turned off the axes: two corners set the baseline, the third the width. |
-| <span class="ws-icon ws-icon-log"></span> | **Board** | `W` | Draw in real stock: pick a material and one of its standard sizes in the Board panel, then drag or type the size. Lumber drags out its length; sheets and solid wood drag a rectangle at their thickness. |
+| <span class="ws-icon ws-icon-rectangle"></span> | <span id="tool-rectangle"></span>**Rectangle** | `R` | A rectangle on a face or in free space. Type `36x11 1/4` to size it, before or after drawing. |
+| <span class="ws-icon ws-icon-circle"></span> | <span id="tool-circle"></span>**Circle** | `C` | A circle, drawn as edges so it splits the face under it. Type `24s` to change the number of sides. |
+| <span class="ws-icon ws-icon-hexagon"></span> | <span id="tool-polygon"></span>**Polygon** | -- | A regular polygon from its center. Type the number of sides. |
+| <span class="ws-icon ws-icon-diamond"></span> | <span id="tool-rotated-rectangle"></span>**Rotated Rectangle** | -- | A rectangle turned off the axes: two corners set the baseline, the third the width. |
+| <span class="ws-icon ws-icon-log"></span> | <span id="tool-board"></span>**Board** | `W` | Draw in real stock: pick a material and one of its standard sizes in the Board panel, then drag or type the size. Lumber drags out its length; sheets and solid wood drag a rectangle at their thickness. |
 
 ## Modifying
 
 | | Tool | Key | What it does |
 |---|---|---|---|
-| <span class="ws-icon ws-icon-arrow-fat-lines-up"></span> | **Push/Pull** | `P` | Push or pull a face. Makes a solid from a free face, cuts a rabbet or notch where a wall is flush, and cuts through when pushed to the far face. Double-click repeats the last distance. |
-| <span class="ws-icon ws-icon-arrows-out-cardinal"></span> | **Move** | `M` | Move or copy. Locks to an axis as you push along one, or with the arrow keys. Ctrl-tap to copy; `3x` makes an array, `/3` divides the move. Type a distance, or `x,y,z`. |
-| <span class="ws-icon ws-icon-arrow-clockwise"></span> | **Rotate** | `Q` | Turn things about a point: the protractor sets the axis, snapping at 15 degrees and onto red, green or blue. Type the angle; Ctrl-tap to copy, `3x` for a rotational array. |
-| <span class="ws-icon ws-icon-resize"></span> | **Scale** | `S` | Resize with 26 grips on the bounding box. The opposite grip stays put, or Ctrl holds the center. Type factors, or a finished size. |
-| <span class="ws-icon ws-icon-frame-corners"></span> | **Offset** | `F` | Offset a face's outline in or out, mitering the corners -- an inward offset makes a frame and a panel. Type the distance. |
+| <span class="ws-icon ws-icon-arrow-fat-lines-up"></span> | <span id="tool-push-pull"></span>**Push/Pull** | `P` | Push or pull a face. Makes a solid from a free face, cuts a rabbet or notch where a wall is flush, and cuts through when pushed to the far face. Double-click repeats the last distance. |
+| <span class="ws-icon ws-icon-arrows-out-cardinal"></span> | <span id="tool-move"></span>**Move** | `M` | Move or copy. Locks to an axis as you push along one, or with the arrow keys. Ctrl-tap to copy; `3x` makes an array, `/3` divides the move. Type a distance, or `x,y,z`. |
+| <span class="ws-icon ws-icon-arrow-clockwise"></span> | <span id="tool-rotate"></span>**Rotate** | `Q` | Turn things about a point: the protractor sets the axis, snapping at 15 degrees and onto red, green or blue. Type the angle; Ctrl-tap to copy, `3x` for a rotational array. |
+| <span class="ws-icon ws-icon-resize"></span> | <span id="tool-scale"></span>**Scale** | `S` | Resize with 26 grips on the bounding box. The opposite grip stays put, or Ctrl holds the center. Type factors, or a finished size. |
+| <span class="ws-icon ws-icon-frame-corners"></span> | <span id="tool-offset"></span>**Offset** | `F` | Offset a face's outline in or out, mitering the corners -- an inward offset makes a frame and a panel. Type the distance. |
 
 ## Measuring and marking
 
 | | Tool | Key | What it does |
 |---|---|---|---|
-| <span class="ws-icon ws-icon-ruler"></span> | **Tape Measure** | `T` | Measure, and leave a guide behind: a parallel guide line from an edge, a guide point from a point. Ctrl measures without leaving anything. |
-| <span class="ws-icon ws-icon-angle"></span> | **Protractor** | -- | Measure an angle, and leave a guide line at it. |
-| <span class="ws-icon ws-icon-arrows-horizontal"></span> | **Dimension** | -- | A dimension between two points, placed by moving out and clicking, or by typing how far out. |
-| <span class="ws-icon ws-icon-text-t"></span> | **Text** | -- | A note on the drawing. It starts with something useful -- a part's name, an edge's length -- and typing replaces it. |
+| <span class="ws-icon ws-icon-ruler"></span> | <span id="tool-tape-measure"></span>**Tape Measure** | `T` | Measure, and leave a guide behind: a parallel guide line from an edge, a guide point from a point. Ctrl measures without leaving anything. |
+| <span class="ws-icon ws-icon-angle"></span> | <span id="tool-protractor"></span>**Protractor** | -- | Measure an angle, and leave a guide line at it. |
+| <span class="ws-icon ws-icon-arrows-horizontal"></span> | <span id="tool-dimension"></span>**Dimension** | -- | A dimension between two points, placed by moving out and clicking, or by typing how far out. |
+| <span class="ws-icon ws-icon-text-t"></span> | <span id="tool-text"></span>**Text** | -- | A note on the drawing. It starts with something useful -- a part's name, an edge's length -- and typing replaces it. |
 
 ## Looking around
 
 | | Tool | Key | What it does |
 |---|---|---|---|
-| <span class="ws-icon ws-icon-arrows-clockwise"></span> | **Orbit** | `O` | Turn the view around the drawing. |
-| <span class="ws-icon ws-icon-hand"></span> | **Pan** | `H` | Slide the view. |
-| <span class="ws-icon ws-icon-magnifying-glass"></span> | **Zoom** | `Z` | Zoom in and out. Shift+Z zooms to fit everything. |
-| <span class="ws-icon ws-icon-person-simple-walk"></span> | **Walk** | -- | Walk through the drawing like a game: the mouse looks, W A S D or the arrows walk, Shift is faster, E and Q go up and down, F flies, the wheel sets the speed. Type a length to change eye height. |
+| <span class="ws-icon ws-icon-arrows-clockwise"></span> | <span id="tool-orbit"></span>**Orbit** | `O` | Turn the view around the drawing. |
+| <span class="ws-icon ws-icon-hand"></span> | <span id="tool-pan"></span>**Pan** | `H` | Slide the view. |
+| <span class="ws-icon ws-icon-magnifying-glass"></span> | <span id="tool-zoom"></span>**Zoom** | `Z` | Zoom in and out. Shift+Z zooms to fit everything. |
+| <span class="ws-icon ws-icon-person-simple-walk"></span> | <span id="tool-walk"></span>**Walk** | -- | Walk through the drawing like a game: the mouse looks, W A S D or the arrows walk, Shift is faster, E and Q go up and down, F flies, the wheel sets the speed. Type a length to change eye height. |
 
 ## Keys that aren't tools
 
