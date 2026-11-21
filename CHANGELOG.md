@@ -13,6 +13,12 @@ only where someone wants it. It carries no full stop of its own, since the hyphe
 and it is short enough to take in at a glance (70 characters is the limit a test holds it to).
 What's New shows the lead in the strong colour, GitHub shows it in bold.
 
+## 0.1.89
+
+- **A page for every tray panel** - the guide explains what each panel is for and what each
+  of its controls does, with a picture of the panel itself; the `?` on a panel's header goes
+  straight there, Tags and the Outliner included.
+
 ## 0.1.88
 
 - **A User Guide** - woodsketch.net/help: the woodworking behind the app, a first project, a page

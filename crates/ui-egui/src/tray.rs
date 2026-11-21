@@ -164,10 +164,11 @@ pub fn section(ui: &mut egui::Ui, panel: Panel, title: &str, body: impl FnOnce(&
                     if shut.on_hover_text(t!("tray-close-panel-hint")).clicked() {
                         close = true;
                     }
-                    // And a way into the guide, for the panels that have a page. Named after
-                    // its panel for the same reason the ✕ is: nine of them all called "?"
-                    // would tell a screen reader nothing.
-                    if let Some(page) = crate::help::for_panel(panel) {
+                    // And a way into the guide: every panel has a section on the tray page.
+                    // Named after its panel for the same reason the ✕ is: nine of them all
+                    // called "?" would tell a screen reader nothing.
+                    {
+                        let page = crate::help::for_panel(panel);
                         let ask = ui.small_button(icons::HELP);
                         let named = t!("tray-panel-help", "panel" => title);
                         ask.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, &named));

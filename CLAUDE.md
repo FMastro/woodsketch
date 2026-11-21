@@ -341,9 +341,16 @@ new one and fails**, so the fix is to read the diff and commit it.
   material recolours its swatch (`every_material_shows_the_colour_the_app_paints_it`).
 - **The app links into it**, through `ui_egui::help`, which holds the addresses and no help
   text: `BASE` is woodsketch.net/help, Help > User Guide opens the front, F1 opens the page for
-  the tool in hand, and `tray::section` puts a `?` on every panel header that has a page (Tags
-  and the Outliner have none yet, and `for_panel` returns `None` rather than dumping someone at
-  the front). F1 is handled **before** the text-field guard in `keys.rs`, so help works with a
+  the tool in hand, and `tray::section` puts a `?` on **every** panel header, which lands on that panel's
+  own section of `reference/tray.md` -- a generated page with a section per `Panel`, its
+  picture, what it needs selected (`Panel::needs`) and what each of its controls does, from
+  an exhaustive `match` so a new panel can't ship unexplained. The pictures come from
+  `tests/guide_panels.rs`, which drives the real app, puts each panel in the state that makes
+  it useful and **crops the tray by the panel's own header rect** -- the tray widens to fit
+  its content, so a fixed edge either clipped the Sizes panel or let the viewport into every
+  other picture. It needs a GPU, so it is `#[ignore]`d and run by hand
+  (`--test guide_panels -- --ignored`); `every_panel_has_a_section_and_a_picture` ties the
+  files back to `Panel::ALL`. F1 is handled **before** the text-field guard in `keys.rs`, so help works with a
   length half typed. The anchor F1 jumps to (`help::tool_anchor`: `ToolId::PushPull` ->
   `tool-push-pull`) is written into the page by the generator **from that same function**, so
   the id the app jumps to and the id the page carries are one answer; the app's own unit test

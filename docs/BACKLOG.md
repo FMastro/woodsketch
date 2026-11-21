@@ -193,7 +193,7 @@ left nothing behind, which is what a graphics driver crash or running out of mem
     walkthrough per area paired with a video (groups and components, tags, drawers and doors,
     cutting diagrams, build sheets, SketchUp import, export), and a page per tool once the UI
     settles -- guided by what `from-app` issues say people are confused by rather than guessed at.
-    Tags and the Outliner have no page, so their tray panels show no `?` (`ui_egui::help::for_panel`).
+
 5. [5] Screenshots for the guide made by the UI tests (egui_kittest snapshots of each step), so
     they're redone when the app changes instead of going stale.
 ## 7. Start page and samples

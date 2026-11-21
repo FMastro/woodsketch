@@ -30,6 +30,7 @@ use woodsketch_doc::profile::Profile;
 use woodsketch_doc::template::{CaseJoints, DrawerJoints, FrameJoints, Template};
 use woodsketch_doc::units::format_length;
 use woodsketch_tools::ToolId;
+use woodsketch_ui_egui::tray::Panel;
 
 const WARNING: &str = "<!-- Written by crates/ui-egui/tests/guide.rs from the app itself. Don't edit it by hand:\n     change the app and run `cargo test -p woodsketch-ui-egui --test guide`, which rewrites it. -->";
 
@@ -49,6 +50,7 @@ fn pages() -> Vec<(&'static str, String)> {
         ("src/reference/profiles.md", profiles()),
         ("src/reference/templates.md", templates()),
         ("src/reference/materials.md", materials()),
+        ("src/reference/tray.md", tray()),
         ("src/reference/wood.md", wood()),
         (STYLESHEET, icon_style()),
     ]
@@ -531,6 +533,113 @@ fn templates() -> String {
     out
 }
 
+// ------------------------------------------------------------------ the tray panels
+
+/// What a panel is for, and what each of its controls does. The `match` is exhaustive, so a
+/// new panel stops this file compiling until the guide can explain it.
+fn panel_about(panel: Panel) -> (&'static str, &'static str) {
+    match panel {
+        Panel::Board => (
+            "The stock the Board tool draws in.",
+            "**Material** lists the drawing's own woods first, then the library's -- picking one from the library adds it to the drawing. **Stock** is the standard size that material comes in: a thickness for boards and sheets, a section like 2x4 for lumber. Lumber also chooses whether it lies flat or on edge.",
+        ),
+        Panel::EntityInfo => (
+            "Everything one part knows about itself.",
+            "**Name** is what the cut list, the diagrams and the build sheets will call it, and parts sharing a name, material and size are counted together. **Material**, **Size** and **Stock** say what it is cut from. **Grain** runs along the part's longest side unless you say otherwise, and decides both which way it moves and how it is laid out on the stock. **Reference** picks the face, edge and end every cut on the build sheet is measured from -- **Pick** then takes the surface you click. **Cut** is flat-sawn or quartersawn, which chooses how far it moves; unset means flat-sawn, the worse case. **Movement** marks a part free to move, for a top on buttons or slotted screws. **Glue up** splits a part too wide to buy into boards. **Tag** puts it on a tag.",
+        ),
+        Panel::Joinery => (
+            "The joints two selected parts can have, and the sizes to cut them at.",
+            "The picker offers only what suits how the two parts actually sit, and says how to place them when none fits. Below it are that joint's own sizes -- a dado's depth, a tenon's length and thickness, a dovetail's pins, how many dowels -- and a **fit** allowance where the joint has one. **Make** cuts both parts in one undo step; afterwards **Change** re-opens the sizes and **Remove** rebuilds the parts without the joint.",
+        ),
+        Panel::TemplateSizes => (
+            "The numbers a template or parametric component was built from.",
+            "Change one and the piece is **built again** at that size rather than stretched, so its joints, shelves and openings are remade to suit. A cabinet offers its width, height, depth, stock thickness, shelves, back, case joints and what fills each opening; a table its top and leg sizes. A component you made parametric shows the numbers you gave it. **Change size** applies them.",
+        ),
+        Panel::EdgeProfile => (
+            "A moulded edge on the selected part.",
+            "Pick the edges by **where they face** -- Top, Front, and so on -- then the **profile** and its **size**. The part's geometry is rebuilt with it in one undo step, and the profile is recorded, so it appears as a step on the build sheet and can be taken off again.",
+        ),
+        Panel::Templates => (
+            "A whole cabinet, door, drawer, face frame or table from a few sizes.",
+            "Choose the kind, set its sizes and joints, and the piece is **carried on the cursor** until you click to put it down -- `Esc` throws the whole thing away. It starts folded, because it is something you go looking for rather than read while working.",
+        ),
+        Panel::Materials => (
+            "The drawing's materials, and the library to add from.",
+            "Click one to paint with it. The **+** adds from the library or makes a new one. The editor below sets the name and colour, and the things cut lists need: the **type** (solid wood, sheet good, lumber, hardware or other), whether it has **grain**, and the **stock sizes** it is sold in, which override the drawing's defaults for that material. Solid wood and lumber also carry how far the species moves, which *Moves like* can borrow from a species you name.",
+        ),
+        Panel::Tags => (
+            "Tags and tag folders, and what is hidden.",
+            "Tags go on groups and components only, never on loose geometry. Hiding a tag drops its parts out of the drawing entirely -- not drawn, not picked, not snapped to, not in the cut list. Rows fold into **folders**; drag a row onto a folder to move it, or onto Untagged to bring it back to the top. A tag shows only if it and every folder around it are showing.",
+        ),
+        Panel::Outliner => (
+            "The whole drawing as a tree.",
+            "Groups and components nested as they really are. Clicking a part opens the group it is in and selects it, which is the quickest way into something buried. Parts still needing a material are flagged here.",
+        ),
+    }
+}
+
+fn tray() -> String {
+    let mut out = String::new();
+    writeln!(
+        out,
+        "# The tray panels
+
+{WARNING}
+"
+    )
+    .unwrap();
+    out.push_str(concat!(
+        "The strip down the right-hand side. Each panel is folded by its header, closed by the ✕,
+",
+        "and opened again from **Window > Default Tray** -- which also forces one always on or
+",
+        "always off, where the usual behaviour is to appear when it has something to work on.
+
+",
+        "The `?` on a panel's header opens its section here.
+",
+    ));
+    for panel in Panel::ALL {
+        let (what, options) = panel_about(panel);
+        let anchor = woodsketch_ui_egui::help::panel_anchor(panel);
+        let picture = anchor.trim_start_matches("panel-");
+        writeln!(
+            out,
+            "
+## <span id=\"{anchor}\"></span>{}
+",
+            panel.name()
+        )
+        .unwrap();
+        writeln!(
+            out,
+            "<figure class=\"ws-panel\">
+<img class=\"light\" src=\"../images/panels/{picture}-light.png\" alt=\"The {} panel\" loading=\"lazy\">
+<img class=\"dark\" src=\"../images/panels/{picture}-dark.png\" alt=\"\" loading=\"lazy\">
+</figure>
+",
+            panel.name()
+        )
+        .unwrap();
+        writeln!(
+            out,
+            "{what}
+"
+        )
+        .unwrap();
+        if let Some(needs) = panel.needs() {
+            writeln!(
+                out,
+                "> **Needs a selection.** {needs}
+"
+            )
+            .unwrap();
+        }
+        writeln!(out, "{options}").unwrap();
+    }
+    out
+}
+
 // ------------------------------------------------------------------ materials and stock
 
 fn kind_about(kind: MaterialKind) -> &'static str {
@@ -875,6 +984,29 @@ fn every_tool_has_the_anchor_f1_jumps_to() {
     for tool in ToolId::ALL {
         let anchor = woodsketch_ui_egui::help::tool_anchor(tool);
         assert!(page.contains(&format!("id=\"{anchor}\"")), "F1 on the {} tool jumps to #{anchor}, which the page doesn't have", tool.name());
+    }
+}
+
+/// Every panel has a section, an anchor its `?` lands on, and a picture in both themes. The
+/// pictures come from `tests/guide_panels.rs`, which needs a GPU and so runs by hand; this is
+/// what notices a panel that arrived without one.
+#[test]
+fn every_panel_has_a_section_and_a_picture() {
+    let page = pages().into_iter().find(|(name, _)| name.ends_with("tray.md")).expect("the tray page").1;
+    let images = guide().join("src/images/panels");
+    for panel in Panel::ALL {
+        let anchor = woodsketch_ui_egui::help::panel_anchor(panel);
+        assert!(page.contains(&format!("id=\"{anchor}\"")), "the {} panel's ? jumps to #{anchor}, which the page doesn't have", panel.name());
+        assert!(page.contains(&panel.name()), "the tray page never names the {} panel", panel.name());
+        for theme in ["light", "dark"] {
+            let file = images.join(format!("{}-{theme}.png", anchor.trim_start_matches("panel-")));
+            assert!(
+                file.exists(),
+                "no {theme} picture of the {} panel.
+Run `cargo test -p woodsketch-ui-egui --test guide_panels -- --ignored`.",
+                panel.name()
+            );
+        }
     }
 }
 

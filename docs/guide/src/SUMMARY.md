@@ -17,6 +17,7 @@
 # Reference
 
 - [Tools and keys](reference/tools.md)
+- [The tray panels](reference/tray.md)
 - [Joints](reference/joints.md)
 - [Edge profiles](reference/profiles.md)
 - [Templates](reference/templates.md)

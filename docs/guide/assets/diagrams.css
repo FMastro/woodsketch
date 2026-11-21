@@ -82,3 +82,36 @@
   vertical-align: -0.2em;
   border: 1px solid rgba(128, 128, 128, 0.45);
 }
+
+/* A screenshot of one tray panel. They are tall and narrow, as the tray is, so the picture
+   stands beside its explanation rather than above it where it would push the words off the
+   screen. On a phone there is no room for that, so it goes back to its own line. */
+.ws-panel {
+  float: right;
+  margin: 0.2rem 0 1rem 1.6rem;
+  max-width: 44%;
+}
+
+.ws-panel img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.ws-panel img.dark { display: none; }
+.navy .ws-panel img.light,
+.ayu .ws-panel img.light,
+.coffee .ws-panel img.light { display: none; }
+.navy .ws-panel img.dark,
+.ayu .ws-panel img.dark,
+.coffee .ws-panel img.dark { display: block; }
+
+/* Each panel's section starts clear of the one before, so a short explanation never leaves the
+   next heading wrapped around the previous picture. */
+.content h2 { clear: both; }
+
+@media (max-width: 700px) {
+  .ws-panel { float: none; max-width: 100%; margin: 1rem auto; }
+}

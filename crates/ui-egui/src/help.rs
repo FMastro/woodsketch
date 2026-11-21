@@ -38,21 +38,27 @@ pub fn for_tool(tool: ToolId) -> String {
     format!("{BASE}reference/tools.html#{}", tool_anchor(tool))
 }
 
-/// The page explaining a tray panel, where the guide has one. `None` is an honest answer: the
-/// Tags and Outliner panels have no page yet, and a `?` that opened the front of the guide
-/// would be worse than no `?` at all. The match is exhaustive, so a new panel has to decide.
-pub(crate) fn for_panel(panel: crate::tray::Panel) -> Option<String> {
-    use crate::tray::Panel;
-    let page = match panel {
-        Panel::Board | Panel::Materials => "reference/materials.html",
-        Panel::EntityInfo => "concepts/reference-face-and-edge.html",
-        Panel::Joinery => "reference/joints.html",
-        Panel::TemplateSizes | Panel::Templates => "reference/templates.html",
-        Panel::EdgeProfile => "reference/profiles.html",
-        // No page of their own yet (docs/BACKLOG.md).
-        Panel::Tags | Panel::Outliner => return None,
-    };
-    Some(format!("{BASE}{page}"))
+/// The id the guide gives a panel's section, so a `?` lands on that panel rather than the top
+/// of the page: `Panel::EntityInfo` -> `panel-entity-info`. As with [`tool_anchor`], the
+/// generator writes the page's ids from this same function.
+pub fn panel_anchor(panel: crate::tray::Panel) -> String {
+    let mut anchor = String::from("panel");
+    for letter in format!("{panel:?}").chars() {
+        if letter.is_ascii_uppercase() {
+            anchor.push('-');
+            anchor.push(letter.to_ascii_lowercase());
+        } else {
+            anchor.push(letter);
+        }
+    }
+    anchor
+}
+
+/// The section of the guide's tray page explaining a panel. Every panel has one now, so this
+/// is no longer an `Option`: the page is generated from `Panel::ALL`, and the `?` on a header
+/// lands on that panel's own section rather than the top of the page.
+pub(crate) fn for_panel(panel: crate::tray::Panel) -> String {
+    format!("{BASE}reference/tray.html#{}", panel_anchor(panel))
 }
 
 #[cfg(test)]
@@ -79,7 +85,7 @@ mod tests {
     #[test]
     fn every_page_the_app_links_to_is_in_the_guide() {
         let mut linked: Vec<String> = ToolId::ALL.into_iter().map(for_tool).collect();
-        linked.extend(crate::tray::Panel::ALL.into_iter().filter_map(for_panel));
+        linked.extend(crate::tray::Panel::ALL.into_iter().map(for_panel));
         assert!(linked.len() > ToolId::ALL.len(), "no panel links to the guide any more");
         for url in linked {
             let page = url.strip_prefix(BASE).expect("a guide address");

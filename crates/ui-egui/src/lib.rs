@@ -24,7 +24,7 @@ pub mod start;
 mod tags;
 mod template;
 pub mod thumbs;
-mod tray;
+pub mod tray;
 pub mod updates;
 mod viewport;
 mod watch;
