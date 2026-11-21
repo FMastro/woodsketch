@@ -5,16 +5,20 @@ name: User Guide
 # The guide is built in this repository because its reference pages are generated from the app
 # (crates/ui-egui/tests/guide.rs), so a feature and its page land in one commit.
 #
-# RUN BY HAND FOR NOW. Two one-time steps turn it on properly, in this order:
-#   1. this repo: Settings > Pages > Source = GitHub Actions. Then run this workflow once and
-#      check what it publishes.
-#   2. woodsketchweb: a rewrite in vercel.json sending /help/:path* to the Pages URL.
-# Once both are done, add the `push` trigger below so the guide follows main:
-#   push:
-#     branches: [main]
-#     paths: ['docs/guide/**', 'crates/**', '.github/workflows/guide.yml']
-# Until then nothing runs on its own, so a repo without Pages enabled has no failing job.
+# It follows main. `crates/**` is in the paths because the reference pages are generated from
+# the app, so a changed shortcut or a new joint is a changed guide even when nothing under
+# docs/ was touched; the build is a few minutes and the deploy is idempotent, so republishing
+# a guide that turned out identical costs nothing worth saving. `workflow_dispatch` stays for
+# republishing by hand after a change somewhere this cannot see, such as the Pages settings.
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/guide/**'
+      - 'crates/**'
+      - 'scripts/check-guide-icons.py'
+      - 'scripts/make-guide-pictures.py'
+      - '.github/workflows/guide.yml'
   workflow_dispatch:
 
 permissions:

@@ -266,8 +266,12 @@ all their copyright lines, and where a package offers a choice the permissive on
 mdbook` once). It lives here rather than in the site repo because its reference pages are
 generated from the app and the generators need the types they describe, and because a feature
 and its page then land in one commit -- which is what makes the rule below enforceable rather
-than a wish. CI builds it (the `guide` job) and `.github/workflows/guide.yml` publishes it to
-GitHub Pages, which woodsketch.net/help serves through a rewrite.
+than a wish. CI builds it (the `guide` job) and `.github/workflows/guide.yml` publishes it to GitHub Pages
+on every push to main that touches `docs/guide/**` or `crates/**` -- the second because the
+reference pages are generated from the app, so a changed shortcut is a changed guide even when
+nothing under `docs/` was touched. woodsketch.net/help is a rewrite in woodsketchweb's
+`vercel.json` onto that Pages site, so the guide is never copied into the site repo where it
+could go stale.
 Pages are split by **how fast they go out of date**, because a stale manual teaches wrong things
 and costs the reader their trust in the parts that are right. The woodworking (grain and
 movement, the reference face and edge, choosing a joint, stock and the cut list) never rots and
