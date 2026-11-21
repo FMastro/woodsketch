@@ -35,9 +35,6 @@ permissions:
 env:
   # Must equal the velopack crate version in apps/woodsketch/Cargo.toml.
   VPK_VERSION: 1.2.161
-  # Microsoft's Sign CLI, for the one file vpk doesn't sign for us (see Pack). It is only
-  # published as a prerelease, and the stable `Sign` package on NuGet is a different tool.
-  SIGN_VERSION: 0.9.1-beta.26475.3
 
 jobs:
   version:
@@ -65,13 +62,10 @@ jobs:
       matrix:
         include:
           - { os: windows-latest, target: x86_64-pc-windows-msvc, channel: win-x64, runtime: win-x64, exe: woodsketch.exe, cli: woodsketch-cli.exe }
-          # Windows on Arm is not here yet, and it isn't the build that stops it: that part works
-          # (`windows-11-arm` is a free runner for public repositories, and `aarch64-pc-windows-msvc`
-          # compiles there, `ring` and the icon resource included). **Nothing can sign it.**
-          # Microsoft's Sign CLI dies loading its own assembly, and vpk shells out to an embedded
-          # x64 signtool.exe which can't execute on Arm either -- both exit 127. An unsigned
-          # Windows installer is not what this project ships, and Windows on Arm runs the x64 build
-          # under emulation meanwhile, so it waits for a signer that works (docs/BACKLOG.md).
+          # Built on the Arm runners rather than cross-compiled: `ring` wants a C toolchain for
+          # the target. Both labels are free for public repositories. Signing there needs
+          # DOTNET_ROOT_X64, which a step below sets; see "Signing on Windows on Arm".
+          - { os: windows-11-arm, target: aarch64-pc-windows-msvc, channel: win-arm64, runtime: win-arm64, exe: woodsketch.exe, cli: woodsketch-cli.exe }
           - { os: macos-latest, target: aarch64-apple-darwin, channel: osx-arm64, runtime: osx-arm64, exe: woodsketch, cli: woodsketch-cli }
           - { os: macos-latest, target: x86_64-apple-darwin, channel: osx-x64, runtime: osx-x64, exe: woodsketch, cli: woodsketch-cli }
           # `deb` is the Debian architecture name, and the only Linux-only key: it is what says to
@@ -136,7 +130,6 @@ jobs:
           }
           JSON
           echo "AZURE_SIGN_FILE=$RUNNER_TEMP/azure-signing.json" >> "$GITHUB_ENV"
-          dotnet tool install -g sign --version "$SIGN_VERSION"
       # Apple will only sign from a keychain, so the identity is imported into one made for this
       # run and thrown away with the runner. Skipped whole when the secrets aren't there, the way
       # Windows signing is, and then nothing below signs anything.
@@ -201,6 +194,24 @@ jobs:
             --apple-id "$APPLE_ID" --team-id "$TEAM_ID" --password "$APP_PASSWORD"
           echo "MACOS_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
           echo "MACOS_IDENTITY=$IDENTITY" >> "$GITHUB_ENV"
+      # Signing on Windows on Arm.
+      # vpk signs with an embedded **x64** signtool.exe, which loads an x64 mixed-mode shim
+      # (Azure.CodeSigning.Dlib.dll with Ijwhost.dll) that starts a .NET runtime of its own
+      # architecture. `actions/setup-dotnet` exports DOTNET_ROOT pointing at the runner's **Arm64**
+      # runtime, and DOTNET_ROOT is architecture-agnostic, so the emulated x64 process obeys it,
+      # tries to load an Arm64 runtime into itself, and dies with no output at all -- which is all
+      # vpk can then report ("Signing command failed"), and is what failed two v0.1.83 builds. The
+      # x64 runtime is already on the image; DOTNET_ROOT_X64 is what tells an x64 process where.
+      # Proven on the runner: the same signtool command fails without this and signs with it.
+      - name: An x64 .NET runtime for the x64 signing tools (Windows on Arm)
+        if: matrix.channel == 'win-arm64' && vars.AZURE_CLIENT_ID != ''
+        shell: pwsh
+        run: |
+          $to = Join-Path $env:ProgramFiles 'dotnet/x64'
+          # Idempotent: the image ships this already and says so rather than downloading again.
+          Invoke-WebRequest https://dot.net/v1/dotnet-install.ps1 -OutFile dotnet-install.ps1
+          ./dotnet-install.ps1 -Architecture x64 -Runtime dotnet -Channel 8.0 -InstallDir $to
+          "DOTNET_ROOT_X64=$to" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: macOS icon (.icns from the PNGs)
         if: runner.os == 'macOS'
         shell: bash
@@ -233,15 +244,10 @@ jobs:
           cp THIRD-PARTY-NOTICES.md publish/
           # The command line and MCP server for agents, installed beside the app.
           cp "target/${{ matrix.target }}/release/${{ matrix.cli }}" publish/
-          # vpk signs a copy of publish/, not publish/ itself, so the command line on its own
-          # (zipped from publish/ below) would go out unsigned. Sign it here first: vpk leaves
-          # a file already signed and trusted alone, so it isn't signed twice.
-          if [ -n "${AZURE_SIGN_FILE:-}" ]; then
-            sign code trusted-signing "publish/${{ matrix.cli }}" \
-              --trusted-signing-endpoint "${{ vars.AZURE_SIGNING_ENDPOINT }}" \
-              --trusted-signing-account "${{ vars.AZURE_SIGNING_ACCOUNT }}" \
-              --trusted-signing-certificate-profile "${{ vars.AZURE_SIGNING_PROFILE }}"
-          fi
+          # On Windows the standalone command line is taken out of the package vpk signed,
+          # further down, rather than signed here beforehand. This used to call Microsoft's Sign
+          # CLI, which cannot run on Windows on Arm at all (it dies loading its own `Sign.Core`
+          # assembly); taking the already-signed copy drops that dependency on both.
           # The same on macOS: vpk signs the copy it puts inside the .app, not this one.
           if [ -n "${MACOS_KEYCHAIN:-}" ]; then
             codesign --force --timestamp --options runtime \
@@ -300,7 +306,26 @@ jobs:
           # The command line on its own too, for a machine without the app (a server, CI).
           cli_zip="woodsketch-cli-$VERSION-${{ matrix.channel }}.zip"
           if [ "${{ runner.os }}" = "Windows" ]; then
-            pwsh -NoProfile -Command "Compress-Archive -Path 'publish/${{ matrix.cli }}' -DestinationPath 'releases/$cli_zip'"
+            # Out of the package, where vpk signed it, rather than the unsigned copy in publish/.
+            # Checked rather than assumed: a zip that turns out to hold an unsigned program should
+            # fail the release instead of going out quietly.
+            nupkg="releases/WoodSketch-$VERSION-${{ matrix.channel }}-full.nupkg"
+            from="$RUNNER_TEMP/signed/${{ matrix.cli }}"
+            pwsh -NoProfile -Command "
+              Add-Type -AssemblyName System.IO.Compression.FileSystem
+              New-Item -ItemType Directory -Force -Path '$RUNNER_TEMP/signed' | Out-Null
+              \$zip = [IO.Compression.ZipFile]::OpenRead((Resolve-Path '$nupkg'))
+              \$entry = \$zip.Entries | Where-Object { \$_.FullName -eq 'lib/app/${{ matrix.cli }}' }
+              if (-not \$entry) { throw 'the package has no ${{ matrix.cli }} in lib/app' }
+              [IO.Compression.ZipFileExtensions]::ExtractToFile(\$entry, '$from', \$true)
+              \$zip.Dispose()"
+            if [ -n "${AZURE_SIGN_FILE:-}" ]; then
+              signtool=$(find "$HOME/.dotnet/tools/.store/vpk" -name signtool.exe | head -1)
+              # MSYS_NO_PATHCONV, or Git Bash rewrites /pa into a Windows path and signtool then
+              # looks for a file called that.
+              MSYS_NO_PATHCONV=1 "$signtool" verify /pa /v "$from"
+            fi
+            pwsh -NoProfile -Command "Compress-Archive -Path '$from' -DestinationPath 'releases/$cli_zip'"
           else
             zip -j "releases/$cli_zip" "publish/${{ matrix.cli }}"
           fi

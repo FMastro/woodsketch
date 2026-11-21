@@ -428,13 +428,20 @@ add it there; when you finish an item, remove it.
    Info) for buttons or slotted screws; both land in `Report::allowed`. `Report::arrows` (View > Wood
    Movement, cached per model version); `Report::unknown` and `species_list` for "Moves like".
 27. Releases and updates: a `v*` tag (matching Cargo.toml's version) runs `.github/workflows/release.yml`:
-   Windows x64, macOS arm64 and x64, Linux x64 and arm64 builds, each packed by Velopack (`vpk`, version
+   Windows x64 and arm64, macOS arm64 and x64, Linux x64 and arm64 builds, each packed by Velopack (`vpk`, version
    pinned to the `velopack` crate) on its own channel, into a DRAFT GitHub release (publish it to
-   ship). Linux on Arm is **native, on the `ubuntu-22.04-arm` runner** (free for public
-   repositories), not cross-compiled: `ring` wants a C toolchain for the target. Windows on Arm
-   builds there just as well and is still not shipped, because nothing available can *sign* it:
-   Microsoft's Sign CLI dies loading its own assembly and vpk shells out to an embedded x64
-   `signtool.exe`, both exit 127. Its matrix entry waits in `release.yml` as a comment.
+   ship). The Arm builds are **native, on the `windows-11-arm` and `ubuntu-22.04-arm` runners**
+   (free for public repositories), not cross-compiled: `ring` wants a C toolchain for the target.
+   **Signing on Windows on Arm needs `DOTNET_ROOT_X64`.** vpk signs with an embedded *x64*
+   signtool.exe, which loads an x64 mixed-mode shim (`Azure.CodeSigning.Dlib.dll` with
+   `Ijwhost.dll`) that starts a .NET runtime of its own architecture; `actions/setup-dotnet` exports
+   the architecture-agnostic `DOTNET_ROOT` pointing at the runner's *Arm64* runtime, so the
+   emulated x64 process obeys it, tries to load an Arm64 runtime into itself, and dies with no
+   output at all -- leaving vpk to say only "Signing command failed", which is what failed two
+   0.1.83 builds. The x64 runtime is already on the image; that variable is what tells an x64
+   process where it is. Microsoft's Sign CLI can't run there at all (it dies loading its own
+   `Sign.Core`), so the standalone command-line zip is taken out of the package vpk signed, on both
+   Windows channels, and `signtool verify /pa` checks it rather than trusting it.
    `releases::tests::channels` reads the channel list **out of the workflow file**, so a platform
    added to that matrix is checked by `every_platform_has_an_update_to_find` without anyone
    remembering to; a channel no release has carried yet is said rather than failed. Before packing, `vpk download github` fetches that channel's previous release into the

@@ -13,6 +13,11 @@ only where someone wants it. It carries no full stop of its own, since the hyphe
 and it is short enough to take in at a glance (70 characters is the limit a test holds it to).
 What's New shows the lead in the strong colour, GitHub shows it in bold.
 
+## 0.1.84
+
+- **WoodSketch for Windows on Arm** - A build of its own for an Arm PC, signed like every other,
+  instead of running the Intel one under emulation.
+
 ## 0.1.83
 
 - **The keyboard comes back after a file dialog** - Opening or saving a drawing left the window
