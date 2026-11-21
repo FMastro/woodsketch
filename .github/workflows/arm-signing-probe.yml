@@ -1,0 +1,106 @@
+name: Arm signing probe
+
+# TEMPORARY, and meant to be deleted. Windows on Arm builds fine but nothing could sign it, which
+# is why `release.yml` has no win-arm64 entry. This asks the one question that matters, on the
+# runner itself, without cutting a release to find out: can Azure Trusted Signing sign anything on
+# `windows-11-arm`?
+#
+# The reading of it: vpk signs with an embedded **x64** signtool.exe, which loads an x64
+# mixed-mode shim (Azure.CodeSigning.Dlib.dll + Ijwhost.dll) whose runtimeconfig.json asks for
+# Microsoft.NETCore.App 6.0. The emulated x64 process therefore needs an **x64** .NET runtime, and
+# `actions/setup-dotnet` installs only the runner's own ARM64 one. So the first attempt below is
+# expected to fail the way the release did, and the second -- the same command, after an x64
+# runtime is installed beside it -- is expected to work. Both print signtool's own verbose output,
+# which vpk's "Signing command failed" swallowed.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-11-arm
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Install vpk (for its embedded signing tools)
+        shell: bash
+        run: dotnet tool install -g vpk --version 1.2.161
+      - uses: azure/login@v2
+        if: vars.AZURE_CLIENT_ID != ''
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Something small to sign, and the signing settings
+        shell: bash
+        run: |
+          # A real exe, built here, so nothing signs a file it doesn't own.
+          mkdir -p probe/src
+          cat > probe/Cargo.toml <<'TOML'
+          [package]
+          name = "probe"
+          version = "0.1.0"
+          edition = "2021"
+          TOML
+          echo 'fn main() { println!("probe"); }' > probe/src/main.rs
+          ( cd probe && cargo build --release )
+          cp probe/target/release/probe.exe "$RUNNER_TEMP/probe.exe"
+          cat > "$RUNNER_TEMP/azure-signing.json" <<JSON
+          {
+            "Endpoint": "${{ vars.AZURE_SIGNING_ENDPOINT }}",
+            "CodeSigningAccountName": "${{ vars.AZURE_SIGNING_ACCOUNT }}",
+            "CertificateProfileName": "${{ vars.AZURE_SIGNING_PROFILE }}"
+          }
+          JSON
+          # Where vpk keeps the signing stack, and what each piece is built for.
+          signing=$(dirname "$(find "$HOME/.dotnet/tools/.store/vpk" -name signtool.exe | head -1)")
+          echo "SIGNING=$signing" >> "$GITHUB_ENV"
+          ls -l "$signing/signtool.exe" "$signing/Azure.CodeSigning.Dlib.dll" "$signing/Ijwhost.dll"
+          echo "--- what .NET is on this machine ---"
+          dotnet --info | head -20
+          ls "C:/Program Files/dotnet" || true
+          ls "C:/Program Files/dotnet/x64" 2>/dev/null || echo "(no x64 runtime beside it)"
+      - name: Attempt 1 - as the release did it, which is expected to fail
+        id: before
+        continue-on-error: true
+        shell: bash
+        run: |
+          "$SIGNING/signtool.exe" sign /v /debug /fd SHA256 \
+            /tr http://timestamp.acs.microsoft.com /td SHA256 \
+            /dlib "$SIGNING/Azure.CodeSigning.Dlib.dll" \
+            /dmdf "$RUNNER_TEMP/azure-signing.json" \
+            "$RUNNER_TEMP/probe.exe"
+      - name: The x64 .NET runtime, which the x64 shim needs
+        shell: pwsh
+        run: |
+          # On an Arm64 Windows machine the x64 runtime lives beside the native one, in
+          # dotnet\x64, which is where the x64 host looks for it.
+          $to = Join-Path $env:ProgramFiles 'dotnet\x64'
+          Invoke-WebRequest https://dot.net/v1/dotnet-install.ps1 -OutFile dotnet-install.ps1
+          ./dotnet-install.ps1 -Architecture x64 -Runtime dotnet -Channel 8.0 -InstallDir $to
+          "DOTNET_ROOT_X64=$to" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Get-ChildItem (Join-Path $to 'shared\Microsoft.NETCore.App')
+      - name: Attempt 2 - the same command, with a runtime it can load
+        id: after
+        continue-on-error: true
+        shell: bash
+        run: |
+          "$SIGNING/signtool.exe" sign /v /debug /fd SHA256 \
+            /tr http://timestamp.acs.microsoft.com /td SHA256 \
+            /dlib "$SIGNING/Azure.CodeSigning.Dlib.dll" \
+            /dmdf "$RUNNER_TEMP/azure-signing.json" \
+            "$RUNNER_TEMP/probe.exe"
+      - name: What it signed, if it signed
+        shell: bash
+        run: |
+          echo "attempt 1 (no x64 runtime): ${{ steps.before.outcome }}"
+          echo "attempt 2 (x64 runtime):    ${{ steps.after.outcome }}"
+          "$SIGNING/signtool.exe" verify /pa /v "$RUNNER_TEMP/probe.exe" || echo "not signed"
