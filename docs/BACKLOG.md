@@ -16,7 +16,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 3 | Templates | 134 | Fast wins on the built-in templates; the parametric ones are in |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 0 | Nothing outstanding; the live link was dropped |
-| 6 | Release polish | 42 | Both platforms signed; the rest is packaging and reach |
+| 6 | Release polish | 44 | Both platforms signed; the rest is packaging and reach |
 | 7 | Start page and samples | 10 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
 | 9 | Cut list and materials | 171 | Better buying and cutting |
@@ -29,7 +29,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1354** | |
+| | **All** | **1356** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -182,24 +182,29 @@ left nothing behind, which is what a graphics driver crash or running out of mem
    for a lighter way first. Windows and Linux are done.
 3. [1] The AppImage can't register the file type: unlike the `.deb` and `.rpm` it installs
    nothing, so this is a note telling people how, or a small script beside the download.
-4. [2] The Windows association can take a while to show in File Explorer: telling the shell at
+4. [2] The standalone command-line zip is unsigned on Windows on Arm: Microsoft's Sign CLI dies
+   there loading its own `Sign.Core` assembly, so `release.yml` only pre-signs it on x64 (the app
+   itself is signed on both, by vpk). Either the tool starts working, or take the already-signed
+   exe out of the package vpk built instead of signing a copy beforehand -- which would drop the
+   whole dependency on that tool.
+5. [2] The Windows association can take a while to show in File Explorer: telling the shell at
    once means `SHChangeNotify`, a Win32 call, and `unsafe_code` is forbidden workspace-wide. A
    brand-new extension with nothing else claiming it is picked up without being told, so this
    only matters if it proves annoying.
-5. [2] A scheduled check of new reports (a daily routine that reads `from-app` issues and drafts
+6. [2] A scheduled check of new reports (a daily routine that reads `from-app` issues and drafts
     fixes for review); now they're checked at the start of each session (CLAUDE.md).
-6. [21] End-user help for every feature: a User Guide on woodsketch.net (/help), a page per
+7. [21] End-user help for every feature: a User Guide on woodsketch.net (/help), a page per
     feature or tool (what it's for, step by step, the keys and typed values, tips, what it doesn't
     do yet), written for woodworkers new to SketchUp as well as SketchUp users. Getting started
     (draw a board, join two parts, print a cut list), each drawing tool, groups and components,
     tags, materials and stock, the Board tool, joinery (each joint), edge profiles, templates,
     drawers and doors, cut list and cutting diagrams, build sheets, wood movement, reference
     face and edge, units, SketchUp import, export, updates and reporting a problem.
-7. [5] Screenshots for the guide made by the UI tests (egui_kittest snapshots of each step), so
+8. [5] Screenshots for the guide made by the UI tests (egui_kittest snapshots of each step), so
     they're redone when the app changes instead of going stale.
-8. [3] Help > User Guide, and F1 opening the page for the tool or panel in use; a "?" link in
+9. [3] Help > User Guide, and F1 opening the page for the tool or panel in use; a "?" link in
     each tray panel and window to its page.
-9. [2] Keep it current: every feature ships with its help page updated (a rule in CLAUDE.md
+10. [2] Keep it current: every feature ships with its help page updated (a rule in CLAUDE.md
     next to the CHANGELOG one), and the release notes link to the pages.
 
 ## 7. Start page and samples
