@@ -15,14 +15,13 @@ What's New shows the lead in the strong colour, GitHub shows it in bold.
 
 ## 0.1.88
 
-- **The User Guide, from inside the app** - Help > User Guide opens it, F1 opens the page for
-  the tool in hand, and a `?` on a tray panel opens that panel's page.
-
-## 0.1.87
-
+- **A User Guide** - woodsketch.net/help: the woodworking behind the app, a first project, a page
+  for people coming from SketchUp, and reference for every tool, joint, profile, template and
+  wood, with pictures.
+- **The guide, from inside the app** - Help > User Guide opens it, F1 opens the page for the
+  tool in hand, and a `?` on a tray panel opens that panel's page.
 - **Pictures of a piece on its own** - `woodsketch-cli render` takes `--no-axes` to leave out
-  the red, green and blue axes and `--fit 0.9` to fill the frame, which is what the User
-  Guide's joint pictures are made with.
+  the red, green and blue axes and `--fit 0.9` to fill the frame.
 
 ## 0.1.86
 
