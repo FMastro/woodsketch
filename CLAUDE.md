@@ -261,6 +261,43 @@ is how the macOS notices came to be missing every `objc2` package), minus WoodSk
 and anything reached only as a dev-dependency. Licenses with the same text are listed once with
 all their copyright lines, and where a package offers a choice the permissive one is taken.
 
+## User Guide: the pages that can't rot, and the rule for the ones that can
+`docs/guide` is an mdBook (`mdbook serve docs/guide` to write with it open; `cargo install
+mdbook` once). It lives here rather than in the site repo because its reference pages are
+generated from the app and the generators need the types they describe, and because a feature
+and its page then land in one commit -- which is what makes the rule below enforceable rather
+than a wish. CI builds it (the `guide` job) and `.github/workflows/guide.yml` publishes it to
+GitHub Pages, which woodsketch.net/help serves through a rewrite.
+Pages are split by **how fast they go out of date**, because a stale manual teaches wrong things
+and costs the reader their trust in the parts that are right. The woodworking (grain and
+movement, the reference face and edge, choosing a joint, stock and the cut list) never rots and
+is written by hand. Walkthroughs rot slowly. **Everything under `src/reference/` is written by
+`crates/ui-egui/tests/guide.rs`** from `ToolId::ALL`, `JointKind`, `Profile::ALL`,
+`Template::all()`, `library::LIBRARY` and `movement::species_list()`: tools and their keys,
+joints, profiles, templates, materials with the stock each is sold in, and every species'
+movement. Those pages are committed, so the book builds without running tests and a changed
+shortcut shows up in a diff; the test builds each one again and, where it differs, **writes the
+new one and fails**, so the fix is to read the diff and commit it.
+- **Every feature ships with its help page updated**, the same way every change ships with a
+  CHANGELOG line. For anything in the reference pages the compiler holds it: the `match` in each
+  `about` function is exhaustive, so a new `ToolId`, `JointKind`, `Profile` or `Template` stops
+  that file compiling until there is a line about it. `every_tool_is_in_the_list_the_guide_is_built_from`
+  and `every_joint_is_in_the_list_the_guide_is_built_from` read the enums out of the source, the
+  way the i18n guard reads `t!` keys, and catch a variant added without being put in the list the
+  page is built from -- which would otherwise be a tool with no page, no button and no key.
+- The guide generator is under `crates/*/tests`, which `check-unreleased.py` treats as shipping
+  to nobody, so **guide work needs no version bump**. Keep it that way: it reads only public API.
+- Prose carries no number that the app also knows. The worked example in the movement page is
+  checked against `movement::species` by `the_movement_example_is_what_the_numbers_say`, and the
+  claim about quartersawn movement is *computed* from the species table rather than asserted --
+  "less than half" was written there first and birch (76% of flat-sawn) and walnut (69%) are
+  nothing of the kind.
+- Every page is in `SUMMARY.md` and every internal link resolves, both held by tests. English
+  only, deliberately, though the app speaks 763 translated keys.
+- Video is for workflow, text for reference: a video can't be skimmed or searched and one showing
+  an old UI looks current forever, so they are short, task-shaped, version-stamped in the first
+  frame, and linked from the text page that can carry the correction they can't.
+
 ## Backlog
 `docs/BACKLOG.md` lists known gaps and skipped work. When you skip or simplify something,
 add it there; when you finish an item, remove it.

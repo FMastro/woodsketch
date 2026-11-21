@@ -1,0 +1,55 @@
+name: User Guide
+
+# Publishes docs/guide to GitHub Pages, which is what woodsketch.net/help serves: the site is a
+# static Vercel deploy from the woodsketchweb repo, and a rewrite there proxies /help to this.
+# The guide is built in this repository because its reference pages are generated from the app
+# (crates/ui-egui/tests/guide.rs), so a feature and its page land in one commit.
+#
+# RUN BY HAND FOR NOW. Two one-time steps turn it on properly, in this order:
+#   1. this repo: Settings > Pages > Source = GitHub Actions. Then run this workflow once and
+#      check what it publishes.
+#   2. woodsketchweb: a rewrite in vercel.json sending /help/:path* to the Pages URL.
+# Once both are done, add the `push` trigger below so the guide follows main:
+#   push:
+#     branches: [main]
+#     paths: ['docs/guide/**', 'crates/**', '.github/workflows/guide.yml']
+# Until then nothing runs on its own, so a repo without Pages enabled has no failing job.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time, and let a run in progress finish rather than publishing half of it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # Never publish pages that have fallen behind the app. CI runs this on every push as well;
+      # it is repeated here because this is the job that puts them in front of people.
+      - name: The reference pages still say what the app does
+        run: cargo test --locked -p woodsketch-ui-egui --test guide
+      - name: Install mdBook
+        run: |
+          mkdir -p ~/.local/bin
+          curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C ~/.local/bin
+      - name: Build it
+        run: ~/.local/bin/mdbook build docs/guide
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/guide/book
+      - id: deploy
+        uses: actions/deploy-pages@v4

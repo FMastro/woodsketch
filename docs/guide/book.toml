@@ -1,0 +1,29 @@
+# The User Guide, built by mdBook into static HTML and served at woodsketch.net/help.
+# It lives in this repository, beside the code, for three reasons: the reference pages are
+# generated from the app itself (`crates/ui-egui/tests/guide.rs`), the guard tests that hold
+# them to it need the types they describe, and a feature and its page land in one commit.
+#
+#   cargo install mdbook        once
+#   mdbook serve docs/guide     write with it open in a browser
+#   mdbook build docs/guide     into docs/guide/book (not committed)
+
+[book]
+title = "WoodSketch User Guide"
+authors = ["Fred Mastro"]
+description = "How to design furniture in WoodSketch: the woodworking behind it, and what every tool, joint and material does."
+language = "en"
+src = "src"
+
+[output.html]
+site-url = "/help/"
+git-repository-url = "https://github.com/FMastro/woodsketch"
+edit-url-template = "https://github.com/FMastro/woodsketch/edit/main/docs/guide/{path}"
+default-theme = "light"
+preferred-dark-theme = "navy"
+
+[output.html.fold]
+enable = true
+level = 1
+
+[output.html.search]
+enable = true

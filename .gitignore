@@ -1,3 +1,6 @@
 /target
 **/*.rs.bk
 .claude/settings.local.json
+
+# mdBook's output; the guide is built in CI and served from woodsketch.net/help.
+docs/guide/book/

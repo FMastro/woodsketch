@@ -79,3 +79,30 @@ jobs:
         run: cargo fetch --locked
       - name: Check THIRD-PARTY-NOTICES.md against the dependencies
         run: python3 -I scripts/make-notices.py --check
+
+  guide:
+    name: the User Guide is current and builds
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # ui-egui's other integration tests need a GPU, which is why the `check` job runs only its
+      # unit tests; this one needs none -- it reads `doc` and `tools` and writes Markdown. It is
+      # what holds the reference pages to what the app actually does, so it has to run somewhere.
+      - name: The reference pages still say what the app does
+        run: cargo test --locked -p woodsketch-ui-egui --test guide
+      # The pages are committed, so the book builds without running that test; what the build
+      # catches is a page missing from SUMMARY.md and Markdown mdBook won't take.
+      - name: Install mdBook
+        run: |
+          mkdir -p ~/.local/bin
+          curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C ~/.local/bin
+      - name: Build it
+        run: ~/.local/bin/mdbook build docs/guide
+      - name: Keep it, so the site can be served the very build that was checked
+        uses: actions/upload-artifact@v4
+        with:
+          name: user-guide
+          path: docs/guide/book
+          retention-days: 7

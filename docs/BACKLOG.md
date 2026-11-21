@@ -16,7 +16,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 3 | Templates | 134 | Fast wins on the built-in templates; the parametric ones are in |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 0 | Nothing outstanding; the live link was dropped |
-| 6 | Release polish | 39 | Both platforms signed; the rest is packaging and reach |
+| 6 | Release polish | 22 | Both platforms signed; the rest is packaging and reach |
 | 7 | Start page and samples | 10 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
 | 9 | Cut list and materials | 171 | Better buying and cutting |
@@ -29,7 +29,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1351** | |
+| | **All** | **1334** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -184,19 +184,22 @@ left nothing behind, which is what a graphics driver crash or running out of mem
    nothing, so this is a note telling people how, or a small script beside the download.
 3. [2] A scheduled check of new reports (a daily routine that reads `from-app` issues and drafts
     fixes for review); now they're checked at the start of each session (CLAUDE.md).
-4. [21] End-user help for every feature: a User Guide on woodsketch.net (/help), a page per
-    feature or tool (what it's for, step by step, the keys and typed values, tips, what it doesn't
-    do yet), written for woodworkers new to SketchUp as well as SketchUp users. Getting started
-    (draw a board, join two parts, print a cut list), each drawing tool, groups and components,
-    tags, materials and stock, the Board tool, joinery (each joint), edge profiles, templates,
-    drawers and doors, cut list and cutting diagrams, build sheets, wood movement, reference
-    face and edge, units, SketchUp import, export, updates and reporting a problem.
+4. [10] The rest of the User Guide. Done: `docs/guide` as an mdBook built in CI, the four
+    woodworking pages that don't rot (grain and movement, the reference face and edge, choosing a
+    joint, stock and the cut list), Your first project, Coming from SketchUp, and six **generated**
+    reference pages -- tools and keys, joints, edge profiles, templates, materials and stock, wood
+    movement by species -- written from the app by `crates/ui-egui/tests/guide.rs`, whose
+    exhaustive `match`es stop it compiling until a new tool or joint has a line. Left: a
+    walkthrough per area paired with a video (groups and components, tags, drawers and doors,
+    cutting diagrams, build sheets, SketchUp import, export), and a page per tool once the UI
+    settles -- guided by what `from-app` issues say people are confused by rather than guessed at.
 5. [5] Screenshots for the guide made by the UI tests (egui_kittest snapshots of each step), so
     they're redone when the app changes instead of going stale.
 6. [3] Help > User Guide, and F1 opening the page for the tool or panel in use; a "?" link in
-    each tray panel and window to its page.
-7. [2] Keep it current: every feature ships with its help page updated (a rule in CLAUDE.md
-    next to the CHANGELOG one), and the release notes link to the pages.
+    each tray panel and window to its page. Needs the page URLs to have settled.
+7. [1] Serve it at woodsketch.net/help: turn on Pages (Settings > Pages > Source = GitHub
+    Actions), run `.github/workflows/guide.yml` once, add the `push` trigger it describes, then a
+    rewrite in woodsketchweb's `vercel.json` sending `/help/:path*` to the Pages URL.
 
 ## 7. Start page and samples
 Done: the Start page (New in either unit, Open, Import, Recent, Samples) over an empty drawing
