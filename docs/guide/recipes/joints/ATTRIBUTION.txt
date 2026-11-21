@@ -1,0 +1,11 @@
+Two boards and one joint each: the smallest drawing that shows what a joint looks like.
+
+These are recipes (docs/AGENTS.md), not saved drawings, so each picture in the guide is built
+by today's joinery code rather than frozen the day it was rendered. Change how a dovetail is
+cut and the picture changes with it.
+
+`crates/ui-egui/tests/guide_pictures.rs` builds and renders them. It needs a GPU, so CI does
+not run it -- the pictures are made here and committed, and `guide.rs` checks every joint has
+one. Each recipe's name is the JointKind it is meant to produce, and the renderer asserts the
+drawing really did come out with that joint, so a recipe that stops working says so rather
+than quietly picturing the wrong thing.

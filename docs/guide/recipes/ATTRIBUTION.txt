@@ -1,11 +1,15 @@
-Two boards and one joint each: the smallest drawing that shows what a joint looks like.
+The smallest drawing that shows each thing the guide names.
 
-These are recipes (docs/AGENTS.md), not saved drawings, so each picture in the guide is built
-by today's joinery code rather than frozen the day it was rendered. Change how a dovetail is
-cut and the picture changes with it.
+joints/    two boards and one joint
+profiles/  one chunky block with a profile run round its top face
+templates/ one template at its own default sizes
 
-`crates/ui-egui/tests/guide_pictures.rs` builds and renders them. It needs a GPU, so CI does
-not run it -- the pictures are made here and committed, and `guide.rs` checks every joint has
-one. Each recipe's name is the JointKind it is meant to produce, and the renderer asserts the
-drawing really did come out with that joint, so a recipe that stops working says so rather
-than quietly picturing the wrong thing.
+These are recipes (docs/AGENTS.md), not saved drawings, so every picture in the guide is
+built by today's code rather than frozen the day it was rendered. Change how a dovetail is
+cut, or what a cabinet template builds, and the picture changes with it.
+
+`scripts/make-guide-pictures.py` builds and renders them, and holds each to what its file
+name promises: a joint recipe must report that joint, and a profile or template recipe must
+still describe it when the built drawing is read back as a recipe. Rendering needs a GPU, so
+CI does not run it -- the pictures are made by hand and committed, `--check` needs no GPU and
+runs in CI, and `crates/ui-egui/tests/guide.rs` ties the files back to the app's own enums.

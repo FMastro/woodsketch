@@ -71,3 +71,14 @@
 .navy .ws-shot img.dark,
 .ayu .ws-shot img.dark,
 .coffee .ws-shot img.dark { display: block; }
+
+/* The colour the app paints a library wood with, beside its name in the materials table. Read
+   from `library::LIBRARY` by the generator, so a recoloured material recolours its swatch. */
+.ws-swatch {
+  display: inline-block;
+  width: 1.5em;
+  height: 1.1em;
+  border-radius: 3px;
+  vertical-align: -0.2em;
+  border: 1px solid rgba(128, 128, 128, 0.45);
+}

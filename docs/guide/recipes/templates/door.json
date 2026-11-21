@@ -1,0 +1,16 @@
+{
+  "name": "Door",
+  "units": "in",
+  "materials": [
+    {
+      "id": "oak",
+      "library": "White Oak"
+    }
+  ],
+  "templates": [
+    {
+      "kind": "door",
+      "wood": "oak"
+    }
+  ]
+}

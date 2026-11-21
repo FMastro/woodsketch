@@ -30,3 +30,36 @@ be throwing away.
 What each of those is, and when to choose it, is in [Joints](joints.md) and
 [Choosing a joint](../concepts/choosing-a-joint.md).
 
+
+## What they build
+
+Each one at its own starting sizes, before you change a number. These are built by the same
+code the Templates panel runs, from the recipes in `docs/guide/recipes/templates/`.
+
+<div class="ws-gallery">
+<figure class="ws-shot">
+<img class="light" src="../images/templates/cabinet-light.png" alt="The cabinet template at its starting sizes" loading="lazy">
+<img class="dark" src="../images/templates/cabinet-dark.png" alt="" loading="lazy">
+<figcaption>Cabinet</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/templates/door-light.png" alt="The door template at its starting sizes" loading="lazy">
+<img class="dark" src="../images/templates/door-dark.png" alt="" loading="lazy">
+<figcaption>Door</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/templates/drawer-light.png" alt="The drawer template at its starting sizes" loading="lazy">
+<img class="dark" src="../images/templates/drawer-dark.png" alt="" loading="lazy">
+<figcaption>Drawer</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/templates/face-frame-light.png" alt="The face frame template at its starting sizes" loading="lazy">
+<img class="dark" src="../images/templates/face-frame-dark.png" alt="" loading="lazy">
+<figcaption>Face frame</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/templates/table-light.png" alt="The table template at its starting sizes" loading="lazy">
+<img class="dark" src="../images/templates/table-dark.png" alt="" loading="lazy">
+<figcaption>Table</figcaption>
+</figure>
+</div>

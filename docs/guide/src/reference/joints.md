@@ -43,8 +43,8 @@ both get the cut on their build sheet.
 ## What they look like
 
 Every picture here is two boards and one joint, built from a recipe in
-`docs/guide/recipes/` by the same joinery the app uses. Change how a dovetail is cut and these
-change with it.
+`docs/guide/recipes/joints/` by the same joinery the app uses. Change how a dovetail is cut
+and these change with it.
 
 <div class="ws-gallery">
 <figure class="ws-shot">

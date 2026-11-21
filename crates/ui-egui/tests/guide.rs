@@ -319,29 +319,93 @@ fn joint_picture(kind: JointKind) -> &'static str {
     }
 }
 
-/// Two boards and one joint, rendered by the app itself, light and dark so a picture never
-/// glares on a dark page. The pair of `img`s is a plain CSS swap -- see `assets/diagrams.css`.
-fn joint_gallery() -> String {
-    let mut out = String::from(
-        "\n## What they look like\n\nEvery picture here is two boards and one joint, built from a recipe in\n`docs/guide/recipes/` by the same joinery the app uses. Change how a dovetail is cut and these\nchange with it.\n\n<div class=\"ws-gallery\">\n",
+/// A row of pictures rendered by the app itself, light and dark so one never glares on a dark
+/// page. The pair of `img`s is a plain CSS swap -- see `assets/diagrams.css`. `group` is the
+/// folder under `src/images/`, and each item is its picture's name, its caption and its alt
+/// text. The captions are what the app calls the thing, so they cannot drift from the table.
+fn gallery(heading: &str, lead: &str, group: &str, items: &[(String, String, String)]) -> String {
+    let mut out = format!(
+        "
+## {heading}
+
+{lead}
+
+<div class=\"ws-gallery\">
+"
     );
-    let mut shown: Vec<&str> = Vec::new();
-    for kind in JOINTS {
-        let picture = joint_picture(kind);
-        if shown.contains(&picture) {
+    let mut shown: Vec<String> = Vec::new();
+    for (picture, caption, alt) in items {
+        if shown.contains(picture) {
             continue;
         }
-        shown.push(picture);
-        let alt = format!("{} between two boards", kind.name());
+        shown.push(picture.clone());
         writeln!(
             out,
-            "<figure class=\"ws-shot\">\n<img class=\"light\" src=\"../images/joints/{picture}-light.png\" alt=\"{alt}\" loading=\"lazy\">\n<img class=\"dark\" src=\"../images/joints/{picture}-dark.png\" alt=\"\" loading=\"lazy\">\n<figcaption>{}</figcaption>\n</figure>",
-            kind.name()
+            "<figure class=\"ws-shot\">
+<img class=\"light\" src=\"../images/{group}/{picture}-light.png\" alt=\"{alt}\" loading=\"lazy\">
+<img class=\"dark\" src=\"../images/{group}/{picture}-dark.png\" alt=\"\" loading=\"lazy\">
+<figcaption>{caption}</figcaption>
+</figure>"
         )
         .unwrap();
     }
-    out.push_str("</div>\n");
+    out.push_str(
+        "</div>
+",
+    );
     out
+}
+
+fn joint_gallery() -> String {
+    let items: Vec<_> =
+        JOINTS.into_iter().map(|kind| (joint_picture(kind).to_owned(), kind.name().to_owned(), format!("{} between two boards", kind.name()))).collect();
+    gallery(
+        "What they look like",
+        "Every picture here is two boards and one joint, built from a recipe in
+`docs/guide/recipes/joints/` by the same joinery the app uses. Change how a dovetail is cut
+and these change with it.",
+        "joints",
+        &items,
+    )
+}
+
+/// The same block for every profile, run half an inch round the top of a chunky one.
+fn profile_gallery() -> String {
+    let items: Vec<_> = Profile::ALL
+        .into_iter()
+        .map(|profile| {
+            let name = profile.name().to_owned();
+            let alt = format!("A {} run round the top of a board", name.to_lowercase());
+            (name.to_lowercase(), name, alt)
+        })
+        .collect();
+    gallery(
+        "What they look like",
+        "A 1 1/2\" block with a 1/2\" profile run all round its top face, the way a table edge is
+treated. Built from the recipes in `docs/guide/recipes/profiles/`, so the shape is the one the
+app cuts rather than a drawing of it.",
+        "profiles",
+        &items,
+    )
+}
+
+/// Each template at its own starting sizes: what you get before changing a number.
+fn template_gallery() -> String {
+    let items: Vec<_> = Template::all()
+        .into_iter()
+        .map(|template| {
+            let name = template.name().to_owned();
+            let alt = format!("The {} template at its starting sizes", name.to_lowercase());
+            (name.to_lowercase().replace(' ', "-"), name, alt)
+        })
+        .collect();
+    gallery(
+        "What they build",
+        "Each one at its own starting sizes, before you change a number. These are built by the same
+code the Templates panel runs, from the recipes in `docs/guide/recipes/templates/`.",
+        "templates",
+        &items,
+    )
 }
 
 fn joints() -> String {
@@ -407,6 +471,7 @@ fn profiles() -> String {
     for profile in Profile::ALL {
         writeln!(out, "| **{}** | {} |", profile.name(), profile_about(profile)).unwrap();
     }
+    out.push_str(&profile_gallery());
     out
 }
 
@@ -459,6 +524,7 @@ fn templates() -> String {
         list(FrameJoints::ALL.into_iter().map(FrameJoints::name).collect())
     )
     .unwrap();
+    out.push_str(&template_gallery());
     out
 }
 
@@ -523,7 +589,9 @@ fn materials() -> String {
     ));
     for preset in LIBRARY {
         let grain = if preset.grained { "yes" } else { "no" };
-        writeln!(out, "| **{}** | {} | {grain} | {} |", preset.name, preset.kind.name(), stock_of(preset)).unwrap();
+        let [r, g, b] = preset.color;
+        let swatch = format!("<span class=\"ws-swatch\" style=\"background:#{r:02x}{g:02x}{b:02x}\" title=\"#{r:02x}{g:02x}{b:02x}\"></span>");
+        writeln!(out, "| {swatch} | **{}** | {} | {grain} | {} |", preset.name, preset.kind.name(), stock_of(preset)).unwrap();
     }
     out.push_str("\n## The types, and what each one changes\n\n| Type | How it is bought, cut and listed |\n|---|---|\n");
     for kind in MaterialKind::ALL {
@@ -739,14 +807,48 @@ fn no_included_drawing_has_a_blank_line_in_it() {
 /// Every joint the app can make has a picture, in both themes. The pictures are rendered by
 /// `scripts/make-guide-pictures.py`, which needs a GPU and so cannot run in CI; this is what
 /// notices that a new joint arrived without one, or that a rendering was never committed.
+/// Every profile and every template has a picture too, from the same recipes. Keyed off the
+/// app's own `Profile::ALL` and `Template::all()`, so a new one cannot arrive without one.
+#[test]
+fn every_profile_and_template_has_a_picture() {
+    let images = guide().join("src/images");
+    let wanted = Profile::ALL
+        .into_iter()
+        .map(|profile| ("profiles", profile.name().to_lowercase(), profile.name().to_owned()))
+        .chain(Template::all().into_iter().map(|template| ("templates", template.name().to_lowercase().replace(' ', "-"), template.name().to_owned())));
+    for (group, picture, named) in wanted {
+        assert!(guide().join(format!("recipes/{group}/{picture}.json")).exists(), "{named} has no recipe at docs/guide/recipes/{group}/{picture}.json");
+        for theme in ["light", "dark"] {
+            let file = images.join(group).join(format!("{picture}-{theme}.png"));
+            assert!(
+                file.exists(),
+                "no {theme} picture of {named}.
+Run `python -I scripts/make-guide-pictures.py`."
+            );
+        }
+    }
+}
+
+/// Each library wood shows the colour the app paints it, read from the preset rather than
+/// typed into the page, so a recoloured material recolours its swatch.
+#[test]
+fn every_material_shows_the_colour_the_app_paints_it() {
+    let page = pages().into_iter().find(|(name, _)| name.ends_with("materials.md")).expect("the materials page").1;
+    for preset in LIBRARY {
+        let [r, g, b] = preset.color;
+        let colour = format!("#{r:02x}{g:02x}{b:02x}");
+        assert!(page.contains(&colour), "{} is {colour} in the library, which the page never shows", preset.name);
+    }
+}
+
 #[test]
 fn every_joint_has_a_picture_in_both_themes() {
     let dir = guide().join("src/images/joints");
     for kind in JOINTS {
         let picture = joint_picture(kind);
         assert!(
-            guide().join(format!("recipes/{picture}.json")).exists(),
-            "{} is pictured by `{picture}`, but docs/guide/recipes/{picture}.json isn't there",
+            guide().join(format!("recipes/joints/{picture}.json")).exists(),
+            "{} is pictured by `{picture}`, but docs/guide/recipes/joints/{picture}.json isn't there",
             kind.name()
         );
         for theme in ["light", "dark"] {

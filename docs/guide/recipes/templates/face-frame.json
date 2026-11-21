@@ -1,0 +1,16 @@
+{
+  "name": "Face Frame",
+  "units": "in",
+  "materials": [
+    {
+      "id": "oak",
+      "library": "White Oak"
+    }
+  ],
+  "templates": [
+    {
+      "kind": "face_frame",
+      "wood": "oak"
+    }
+  ]
+}

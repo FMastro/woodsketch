@@ -1,0 +1,36 @@
+{
+  "name": "Ogee",
+  "units": "in",
+  "materials": [
+    {
+      "id": "oak",
+      "library": "White Oak"
+    }
+  ],
+  "parts": [
+    {
+      "name": "Edge",
+      "material": "oak",
+      "size": [
+        8,
+        3,
+        1.5
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "length": "x",
+      "width": "y"
+    }
+  ],
+  "profiles": [
+    {
+      "part": "Edge",
+      "profile": "ogee",
+      "size": 0.5,
+      "around": "top"
+    }
+  ]
+}
