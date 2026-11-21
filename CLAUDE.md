@@ -297,6 +297,17 @@ new one and fails**, so the fix is to read the diff and commit it.
   **built** book, because a mask pointing at nothing is an empty square rather than an error --
   which is what the stylesheet being written a folder deeper than its urls assumed produced.
   That depth is now worked out from the stylesheet's own path, not written down.
+- **The woodworking is drawn, not screenshotted.** Growth rings, a panel splitting in its
+  frame, the face and edge marks: none of it is in the model, so none of it can be rendered or
+  captured. `docs/guide/src/diagrams/*.svg` are hand-drawn and pulled in with mdBook's
+  `{{#include}}`, which **inlines** them -- an `<img>` resolves `currentColor` against the SVG's
+  own context, so it could not follow the theme the reader picked, while inlined every stroke
+  is simply the colour of the surrounding text. They carry no measurement the app also knows
+  (the numbers live in the generated tables), so they don't rot.
+  `every_diagram_is_drawn_into_a_page_and_every_include_finds_one` holds both directions: an
+  include whose target moved leaves the literal `{{#include}}` text in the page and mdBook says
+  nothing. `assets/diagrams.css` styles them and is hand-written, unlike `assets/icons.css`
+  beside it, which is generated -- keep that line clear.
 - The guide generator is under `crates/*/tests`, which `check-unreleased.py` treats as shipping
   to nobody, so **guide work needs no version bump**. Keep it that way: it reads only public API.
 - Prose carries no number that the app also knows. The worked example in the movement page is

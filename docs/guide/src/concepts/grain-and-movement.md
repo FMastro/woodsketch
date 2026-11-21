@@ -16,6 +16,11 @@ shrink and swell by enough to split itself, or whatever it's screwed to, every s
 
 Not once. Every year, in both directions, forever.
 
+{{#include ../diagrams/across-not-along.svg}}
+
+*Along the grain a board barely changes. Across it, a wide board in a heated house moves*
+*enough to split itself or whatever it is fastened to — every year, in both directions.*
+
 ## Why it moves: moisture, not weather
 
 Wood is hygroscopic — it takes up and gives off water vapour until it's in balance with the air
@@ -48,6 +53,12 @@ quartersawn stock is prized for wide panels and door frames, and why it's worth 
 a part has to stay flat and stay put. The figures for every species are in
 [Wood movement by species](../reference/wood.md).
 
+{{#include ../diagrams/flat-sawn-and-quartersawn.svg}}
+
+*The same log, two ways to saw it. Flat-sawn is the ordinary board and the one that moves;*
+*quartersawn costs more and stays put, which is why wide panels and door frames are worth*
+*buying it for.*
+
 The arithmetic is just multiplication:
 
 > **movement = width × coefficient × moisture swing**
@@ -71,6 +82,11 @@ Four classic failures, all the same mistake — a wide part held so it cannot mo
 **A panel glued into a frame.** The panel shrinks, the frame doesn't, and either the panel
 splits or it tears free of the glue line. The fix is as old as furniture: the panel **floats**
 in a groove, glued nowhere, sized so there's room to shrink and room to swell.
+
+{{#include ../diagrams/panel-trapped-or-floating.svg}}
+
+*The oldest fix in furniture, and the pattern behind all four: the part is not made stronger,*
+*it is **allowed to move** in the one direction it insists on moving.*
 
 **A tabletop screwed down hard to an apron.** The top wants to shrink across its width; the
 apron, running along its own grain, does not. Something gives, usually the top. The fix is

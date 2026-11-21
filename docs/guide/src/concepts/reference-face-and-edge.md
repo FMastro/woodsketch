@@ -27,6 +27,12 @@ The reason is simple arithmetic. A mortise 1/4" from the reference edge is 1/4" 
 every time, on every copy of the part. A mortise measured from whichever edge happened to be
 nearest is a mortise in a slightly different place on each one, and a frame that doesn't close.
 
+{{#include ../diagrams/face-and-edge-marks.svg}}
+
+*The traditional marks. The loop sits on the reference face with its tail running to the*
+*reference edge; the caret on that edge points back at the same arris, so the two meet at*
+*the corner. Orient the board the same way at every machine and the marks tell you how.*
+
 ## Why it matters in the model
 
 Without a reference, "the dado is 6 inches along" raises the question: along from which end?

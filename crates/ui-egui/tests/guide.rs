@@ -631,6 +631,35 @@ fn every_joint_is_in_the_list_the_guide_is_built_from() {
     assert_eq!(listed.len(), JOINTS.len(), "JointKind has {} variants but the guide lists {}: {listed:?}", listed.len(), JOINTS.len());
 }
 
+/// The hand-drawn diagrams are pulled into a page by mdBook's `{{#include}}`, which inlines
+/// them so their `currentColor` strokes follow the theme the reader chose. An include whose
+/// target has moved leaves the literal `{{#include ...}}` text sitting in the page -- mdBook
+/// says nothing about it -- so both directions are checked here.
+#[test]
+fn every_diagram_is_drawn_into_a_page_and_every_include_finds_one() {
+    let src = guide().join("src");
+    let mut included: Vec<PathBuf> = Vec::new();
+    for page in markdown_files(&src) {
+        let text = std::fs::read_to_string(&page).expect("a page");
+        let here = page.parent().expect("a folder");
+        for rest in text.split("{{#include ").skip(1) {
+            let target = rest.split("}}").next().expect("the end of an include").trim();
+            let path = here.join(target);
+            assert!(path.exists(), "{} includes {target}, which isn't there", page.display());
+            included.push(path.canonicalize().expect("a real path"));
+        }
+    }
+    let drawings = src.join("diagrams");
+    for entry in std::fs::read_dir(&drawings).expect("the diagrams folder").flatten() {
+        let path = entry.path();
+        if path.extension().is_some_and(|extension| extension == "svg") {
+            let real = path.canonicalize().expect("a real path");
+            assert!(included.contains(&real), "{} is drawn but no page includes it", path.display());
+        }
+    }
+    assert!(!included.is_empty(), "no page includes a diagram any more");
+}
+
 #[test]
 fn every_page_is_in_the_contents() {
     let src = guide().join("src");

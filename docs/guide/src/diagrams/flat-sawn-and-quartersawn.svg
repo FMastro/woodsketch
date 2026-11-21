@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 340" role="img"
+     aria-labelledby="fq-title fq-desc" class="ws-diagram">
+  <title id="fq-title">Flat-sawn and quartersawn boards cut from the same log</title>
+  <desc id="fq-desc">An end view of a log with growth rings. A flat-sawn board is cut near the
+    outside with its wide face across the rings, so the rings run roughly parallel to the face.
+    A quartersawn board is cut on a radius, so the rings run through its thickness. Beside each
+    is its end grain and how far a board of it moves: most for flat-sawn, about half for
+    quartersawn.</desc>
+
+  <g fill="none" stroke="currentColor" stroke-width="1.5">
+    <!-- The log, end on. Rings get closer together toward the bark, as they do in a real tree. -->
+    <circle cx="150" cy="170" r="128" stroke-width="2.5"/>
+    <g opacity="0.33">
+      <circle cx="150" cy="170" r="22"/>
+      <circle cx="150" cy="170" r="43"/>
+      <circle cx="150" cy="170" r="62"/>
+      <circle cx="150" cy="170" r="79"/>
+      <circle cx="150" cy="170" r="94"/>
+      <circle cx="150" cy="170" r="107"/>
+      <circle cx="150" cy="170" r="118"/>
+    </g>
+    <circle cx="150" cy="170" r="3.5" fill="currentColor" stroke="none" opacity="0.55"/>
+  </g>
+
+  <!-- Flat-sawn: the wide face is tangential, so it sits across the rings near the outside. -->
+  <rect x="62" y="62" width="176" height="24" rx="2"
+        fill="#d08a2e" fill-opacity="0.3" stroke="currentColor" stroke-width="2"/>
+  <!-- Quartersawn: the wide face lies on a radius, so it points at the pith. -->
+  <rect x="176" y="158" width="112" height="24" rx="2"
+        fill="#d08a2e" fill-opacity="0.3" stroke="currentColor" stroke-width="2"/>
+
+  <g font-family="system-ui, sans-serif" font-size="13" fill="currentColor">
+    <text x="150" y="320" text-anchor="middle" opacity="0.65">One log, two ways to saw it</text>
+
+    <!-- Flat-sawn, detail -->
+    <g transform="translate(360, 44)">
+      <text x="0" y="0" font-weight="600">Flat-sawn</text>
+      <text x="0" y="19" opacity="0.7">rings along the face</text>
+      <rect x="0" y="32" width="230" height="46" rx="2"
+            fill="#d08a2e" fill-opacity="0.3" stroke="currentColor" stroke-width="2"/>
+      <!-- End grain: the shallow cathedral arcs of a tangential cut. -->
+      <g fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.5">
+        <path d="M4 74 Q 60 44 116 74"/>
+        <path d="M4 66 Q 60 32 116 66"/>
+        <path d="M118 74 Q 174 48 230 74"/>
+        <path d="M118 66 Q 174 36 230 66"/>
+      </g>
+      <g stroke="currentColor" stroke-width="1.6" fill="none">
+        <path d="M0 98 H 230" marker-start="url(#fq-arrow)" marker-end="url(#fq-arrow)"/>
+      </g>
+      <text x="115" y="118" text-anchor="middle" opacity="0.8">moves most</text>
+    </g>
+
+    <!-- Quartersawn, detail -->
+    <g transform="translate(360, 196)">
+      <text x="0" y="0" font-weight="600">Quartersawn</text>
+      <text x="0" y="19" opacity="0.7">rings through the thickness</text>
+      <rect x="0" y="32" width="230" height="46" rx="2"
+            fill="#d08a2e" fill-opacity="0.3" stroke="currentColor" stroke-width="2"/>
+      <!-- End grain: a radial cut shows the rings nearly square to the face. -->
+      <g fill="none" stroke="currentColor" stroke-width="1.4" opacity="0.5">
+        <path d="M22 33 V 77"/><path d="M48 33 V 77"/><path d="M74 33 V 77"/>
+        <path d="M100 33 V 77"/><path d="M126 33 V 77"/><path d="M152 33 V 77"/>
+        <path d="M178 33 V 77"/><path d="M204 33 V 77"/>
+      </g>
+      <g stroke="currentColor" stroke-width="1.6" fill="none">
+        <path d="M58 98 H 172" marker-start="url(#fq-arrow)" marker-end="url(#fq-arrow)"/>
+      </g>
+      <text x="115" y="118" text-anchor="middle" opacity="0.8">about half as much</text>
+    </g>
+  </g>
+
+  <defs>
+    <marker id="fq-arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 10 5 L 0 0 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+</svg>

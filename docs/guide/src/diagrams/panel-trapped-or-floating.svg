@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 310" role="img"
+     aria-labelledby="pf-title pf-desc" class="ws-diagram">
+  <title id="pf-title">A panel glued into its frame splits; a floating panel does not</title>
+  <desc id="pf-desc">Two frame-and-panel assemblies seen face on. In the first the panel is
+    glued into the groove on all four sides, so when it shrinks across the grain it cracks. In
+    the second the panel sits loose in the groove with room at each side, so it shrinks and
+    swells without the frame fighting it.</desc>
+
+  <g font-family="system-ui, sans-serif" font-size="13" fill="currentColor">
+
+    <!-- Glued all round -->
+    <g transform="translate(26, 30)">
+      <rect x="0" y="0" width="250" height="196" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+      <rect x="44" y="44" width="162" height="108" fill="#d08a2e" fill-opacity="0.3"
+            stroke="currentColor" stroke-width="1.6"/>
+      <!-- The panel carries on into the groove, where you cannot see it. -->
+      <rect x="32" y="32" width="186" height="132" fill="none"
+            stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 4" opacity="0.55"/>
+      <!-- Glue, everywhere it should not be. -->
+      <g stroke="#c0392b" stroke-width="5" stroke-linecap="round" opacity="0.85">
+        <path d="M60 38 H 190"/>
+        <path d="M60 158 H 190"/>
+        <path d="M38 70 V 126"/>
+        <path d="M212 70 V 126"/>
+      </g>
+      <!-- It has nowhere to go, so it tears itself instead. -->
+      <path d="M124 44 l 7 16 l -11 14 l 9 18 l -8 16 l 10 16 l -6 28"
+            fill="none" stroke="#c0392b" stroke-width="2.6"/>
+      <text x="125" y="222" text-anchor="middle" font-weight="600">Glued all round</text>
+      <text x="125" y="241" text-anchor="middle" opacity="0.8">the panel shrinks, the frame won't:</text>
+      <text x="125" y="258" text-anchor="middle" opacity="0.8">something has to give, and it is the panel</text>
+    </g>
+
+    <!-- Floating -->
+    <g transform="translate(378, 30)">
+      <rect x="0" y="0" width="250" height="196" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+      <rect x="52" y="44" width="146" height="108" fill="#d08a2e" fill-opacity="0.3"
+            stroke="currentColor" stroke-width="1.6"/>
+      <rect x="44" y="32" width="162" height="132" fill="none"
+            stroke="currentColor" stroke-width="1.2" stroke-dasharray="4 4" opacity="0.55"/>
+      <!-- Room in the groove, each side, and no glue anywhere. -->
+      <g stroke="currentColor" stroke-width="1.5" fill="none">
+        <path d="M33 98 H 43" marker-start="url(#pf-arrow)" marker-end="url(#pf-arrow)"/>
+        <path d="M207 98 H 217" marker-start="url(#pf-arrow)" marker-end="url(#pf-arrow)"/>
+      </g>
+      <text x="26" y="86" text-anchor="middle" font-size="11.5" opacity="0.8">room</text>
+      <text x="224" y="86" text-anchor="middle" font-size="11.5" opacity="0.8">room</text>
+      <text x="125" y="222" text-anchor="middle" font-weight="600">Floating in the groove</text>
+      <text x="125" y="241" text-anchor="middle" opacity="0.8">glued nowhere, sized with room each side:</text>
+      <text x="125" y="258" text-anchor="middle" opacity="0.8">it moves and nobody notices</text>
+    </g>
+
+    <g font-size="11.5" opacity="0.7">
+      <text x="26" y="18">dashed line: the panel where it hides in the groove</text>
+      <text x="628" y="18" text-anchor="end" fill="#c0392b" opacity="1">red: glue</text>
+    </g>
+  </g>
+
+  <defs>
+    <marker id="pf-arrow" viewBox="0 0 10 10" refX="9" refY="5"
+            markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M 10 5 L 0 0 L 0 10 z" fill="currentColor"/>
+    </marker>
+  </defs>
+</svg>

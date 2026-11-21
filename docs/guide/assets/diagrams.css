@@ -1,0 +1,37 @@
+/* Diagrams, hand-drawn. Unlike assets/icons.css next door, nothing generates this file.
+   The drawings themselves live in docs/guide/src/diagrams/ and are pulled into the page with
+   mdBook's {{#include}}, which inlines them: an <img> would resolve `currentColor` against the
+   SVG's own context rather than the page's, so it could not follow the theme the reader chose.
+   Inlined, every stroke and every word of them is simply the colour of the surrounding text. */
+
+.ws-diagram {
+  display: block;
+  width: 100%;
+  max-width: 44rem;
+  height: auto;
+  margin: 1.6rem auto 0.6rem;
+}
+
+/* The caption under a drawing: the italic line the Markdown puts there. A drawing and the
+   sentence explaining it should read as one thing, so the gap above the caption is small and
+   the gap below it is not. */
+.ws-diagram + p em,
+.ws-diagram + p {
+  display: block;
+  max-width: 44rem;
+  margin: 0 auto 1.8rem;
+  text-align: center;
+  font-size: 0.9em;
+  opacity: 0.78;
+  line-height: 1.5;
+}
+
+/* On a phone the drawings are the first thing to become unreadable, so let them use the full
+   width of the page rather than sitting inside the text column's padding. */
+@media (max-width: 700px) {
+  .ws-diagram {
+    margin-left: -0.5rem;
+    margin-right: -0.5rem;
+    width: calc(100% + 1rem);
+  }
+}
