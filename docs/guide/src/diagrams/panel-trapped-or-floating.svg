@@ -5,9 +5,7 @@
     glued into the groove on all four sides, so when it shrinks across the grain it cracks. In
     the second the panel sits loose in the groove with room at each side, so it shrinks and
     swells without the frame fighting it.</desc>
-
   <g font-family="system-ui, sans-serif" font-size="13" fill="currentColor">
-
     <!-- Glued all round -->
     <g transform="translate(26, 30)">
       <rect x="0" y="0" width="250" height="196" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -30,7 +28,6 @@
       <text x="125" y="241" text-anchor="middle" opacity="0.8">the panel shrinks, the frame won't:</text>
       <text x="125" y="258" text-anchor="middle" opacity="0.8">something has to give, and it is the panel</text>
     </g>
-
     <!-- Floating -->
     <g transform="translate(378, 30)">
       <rect x="0" y="0" width="250" height="196" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
@@ -49,13 +46,11 @@
       <text x="125" y="241" text-anchor="middle" opacity="0.8">glued nowhere, sized with room each side:</text>
       <text x="125" y="258" text-anchor="middle" opacity="0.8">it moves and nobody notices</text>
     </g>
-
     <g font-size="11.5" opacity="0.7">
       <text x="26" y="18">dashed line: the panel where it hides in the groove</text>
       <text x="628" y="18" text-anchor="end" fill="#c0392b" opacity="1">red: glue</text>
     </g>
   </g>
-
   <defs>
     <marker id="pf-arrow" viewBox="0 0 10 10" refX="9" refY="5"
             markerWidth="5" markerHeight="5" orient="auto-start-reverse">

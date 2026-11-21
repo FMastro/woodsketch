@@ -6,7 +6,6 @@
     A quartersawn board is cut on a radius, so the rings run through its thickness. Beside each
     is its end grain and how far a board of it moves: most for flat-sawn, about half for
     quartersawn.</desc>
-
   <g fill="none" stroke="currentColor" stroke-width="1.5">
     <!-- The log, end on. Rings get closer together toward the bark, as they do in a real tree. -->
     <circle cx="150" cy="170" r="128" stroke-width="2.5"/>
@@ -21,17 +20,14 @@
     </g>
     <circle cx="150" cy="170" r="3.5" fill="currentColor" stroke="none" opacity="0.55"/>
   </g>
-
   <!-- Flat-sawn: the wide face is tangential, so it sits across the rings near the outside. -->
   <rect x="62" y="62" width="176" height="24" rx="2"
         fill="#d08a2e" fill-opacity="0.3" stroke="currentColor" stroke-width="2"/>
   <!-- Quartersawn: the wide face lies on a radius, so it points at the pith. -->
   <rect x="176" y="158" width="112" height="24" rx="2"
         fill="#d08a2e" fill-opacity="0.3" stroke="currentColor" stroke-width="2"/>
-
   <g font-family="system-ui, sans-serif" font-size="13" fill="currentColor">
     <text x="150" y="320" text-anchor="middle" opacity="0.65">One log, two ways to saw it</text>
-
     <!-- Flat-sawn, detail -->
     <g transform="translate(360, 44)">
       <text x="0" y="0" font-weight="600">Flat-sawn</text>
@@ -50,7 +46,6 @@
       </g>
       <text x="115" y="118" text-anchor="middle" opacity="0.8">moves most</text>
     </g>
-
     <!-- Quartersawn, detail -->
     <g transform="translate(360, 196)">
       <text x="0" y="0" font-weight="600">Quartersawn</text>
@@ -69,7 +64,6 @@
       <text x="115" y="118" text-anchor="middle" opacity="0.8">about half as much</text>
     </g>
   </g>
-
   <defs>
     <marker id="fq-arrow" viewBox="0 0 10 10" refX="9" refY="5"
             markerWidth="6" markerHeight="6" orient="auto-start-reverse">

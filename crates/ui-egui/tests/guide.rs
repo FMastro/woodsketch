@@ -707,6 +707,35 @@ fn every_diagram_is_drawn_into_a_page_and_every_include_finds_one() {
     assert!(!included.is_empty(), "no page includes a diagram any more");
 }
 
+/// **A blank line inside an included SVG breaks the drawing**, and breaks it quietly. Markdown
+/// ends an HTML block at the first blank line, so everything after one is parsed as Markdown
+/// instead -- and since SVG is indented, that means an indented code block: the rest of the
+/// drawing appears on the page as its own XML, escaped, in a grey box. mdBook reports nothing,
+/// the page still has an `<svg` in it, and the four diagrams shipped that way until somebody
+/// read the published page. Keep every included SVG one unbroken block.
+#[test]
+fn no_included_drawing_has_a_blank_line_in_it() {
+    let drawings = guide().join("src/diagrams");
+    let mut seen = 0;
+    for entry in std::fs::read_dir(&drawings).expect("the diagrams folder").flatten() {
+        let drawing = entry.path();
+        if !drawing.extension().is_some_and(|extension| extension == "svg") {
+            continue;
+        }
+        seen += 1;
+        let text = std::fs::read_to_string(&drawing).expect("a drawing");
+        for (number, line) in text.lines().enumerate() {
+            assert!(
+                !line.trim().is_empty(),
+                "{}:{} is blank, which ends the HTML block and leaves the rest of the drawing on the page as escaped XML",
+                drawing.display(),
+                number + 1
+            );
+        }
+    }
+    assert!(seen > 0, "no drawings to check");
+}
+
 /// Every joint the app can make has a picture, in both themes. The pictures are rendered by
 /// `scripts/make-guide-pictures.py`, which needs a GPU and so cannot run in CI; this is what
 /// notices that a new joint arrived without one, or that a rendering was never committed.

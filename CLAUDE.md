@@ -308,6 +308,14 @@ new one and fails**, so the fix is to read the diff and commit it.
   own context, so it could not follow the theme the reader picked, while inlined every stroke
   is simply the colour of the surrounding text. They carry no measurement the app also knows
   (the numbers live in the generated tables), so they don't rot.
+  **No blank line may appear inside one.** Markdown ends an HTML block at the first blank line,
+  so everything after it is parsed as Markdown, and because SVG is indented that means an
+  indented code block: the rest of the drawing lands on the page as escaped XML in a grey
+  box. mdBook reports nothing and the page still contains an `<svg`, which is why counting
+  those was not enough to notice -- all four diagrams shipped that way and a reader found it.
+  `no_included_drawing_has_a_blank_line_in_it` guards the source and
+  `scripts/check-guide-pages.py` the built book, looking for the symptom (`&lt;path` on a
+  page) rather than the cause.
   `every_diagram_is_drawn_into_a_page_and_every_include_finds_one` holds both directions: an
   include whose target moved leaves the literal `{{#include}}` text in the page and mdBook says
   nothing. `assets/diagrams.css` styles them and is hand-written, unlike `assets/icons.css`

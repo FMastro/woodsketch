@@ -5,7 +5,6 @@
     is marked as almost no movement. An arrow across the width is marked as where nearly all the
     movement happens. A smaller arrow through the thickness moves too, but there is rarely
     enough thickness for it to matter.</desc>
-
   <!-- The board, seen face on, grain running its length. -->
   <rect x="56" y="74" width="392" height="130" rx="3"
         fill="#d08a2e" fill-opacity="0.3" stroke="currentColor" stroke-width="2"/>
@@ -15,7 +14,6 @@
     <path d="M60 146 H 444"/>
     <path d="M60 170 Q 250 178 444 168"/>
   </g>
-
   <g font-family="system-ui, sans-serif" font-size="13" fill="currentColor">
     <!-- Along the grain: effectively nothing. -->
     <g stroke="currentColor" stroke-width="1.6" fill="none">
@@ -27,7 +25,6 @@
       <tspan font-weight="600">Along the grain:</tspan>
       <tspan dx="4" opacity="0.8">so little you can design as though it were zero</tspan>
     </text>
-
     <!-- Across the grain: all of it. -->
     <g stroke="currentColor" stroke-width="2.2" fill="none">
       <path d="M488 82 V 196" marker-start="url(#xa-arrow-bold)" marker-end="url(#xa-arrow-bold)"/>
@@ -37,10 +34,8 @@
     <text x="510" y="128" font-weight="600">Across the grain:</text>
     <text x="510" y="147" opacity="0.8">nearly all of the</text>
     <text x="510" y="164" opacity="0.8">movement is here</text>
-
     <text x="56" y="48" opacity="0.65">the grain runs this way &#8594;</text>
   </g>
-
   <defs>
     <marker id="xa-arrow" viewBox="0 0 10 10" refX="9" refY="5"
             markerWidth="6" markerHeight="6" orient="auto-start-reverse">

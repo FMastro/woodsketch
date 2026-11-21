@@ -5,23 +5,19 @@
     mark is drawn on the reference face with its tail running to the arris it shares with the
     reference edge. A caret on the edge points back at that same arris, so the two marks meet.
     The reference end is marked at the left.</desc>
-
   <g font-family="system-ui, sans-serif" font-size="13" fill="currentColor">
-
     <!-- The reference face. -->
     <rect x="130" y="66" width="360" height="124" fill="#d08a2e" fill-opacity="0.3"
           stroke="currentColor" stroke-width="2"/>
     <!-- The reference edge, folded into view so both marks can be seen at once. -->
     <rect x="130" y="190" width="360" height="36" fill="#d08a2e" fill-opacity="0.16"
           stroke="currentColor" stroke-width="2"/>
-
     <!-- Grain, running the board's length. -->
     <g fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.32">
       <path d="M134 92 H 486"/>
       <path d="M134 128 Q 310 120 486 130"/>
       <path d="M134 164 H 486"/>
     </g>
-
     <!-- The face mark: a loop on the face, its tail running down to the arris. -->
     <g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
       <path d="M292 100 c -30 -12 -52 12 -30 28 c 18 13 42 2 34 -17"/>
@@ -31,19 +27,16 @@
     <g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
       <path d="M286 220 L 306 192 L 326 220"/>
     </g>
-
     <!-- The reference end. -->
     <g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
       <path d="M146 100 V 156"/>
       <path d="M156 108 V 148"/>
     </g>
-
     <!-- Labels. -->
     <g>
       <text x="130" y="46" font-weight="600">Reference face</text>
       <text x="130" y="258" font-weight="600">Reference edge</text>
       <text x="130" y="277" opacity="0.8">straight, and square to the face</text>
-
       <g stroke="currentColor" stroke-width="1" opacity="0.45" fill="none">
         <path d="M366 120 H 520"/>
         <path d="M352 206 H 520"/>
