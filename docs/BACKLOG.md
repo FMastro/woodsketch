@@ -168,7 +168,8 @@ and a `SHA256SUMS.txt` beside every release; woodsketch.net offers one Download 
 computer you are on; on Windows, double-clicking a `.woodsketch` drawing opens it; a macOS DMG beside the `.pkg`,
 signed, notarized and stapled like everything else Apple sees; woodsketch.net offers the DMG as the
 Mac download, with the `.pkg` beside it; a `.deb` and an `.rpm` beside the Linux AppImage, which
-also register the file type there; Windows and Linux builds for Arm, each on its own
+also register the file type there, and declare the libraries the program loads at run time, which
+no link table shows; Windows and Linux builds for Arm, each on its own
 channel and signed as the rest are; crash
 reports that name the calls that led there, with line numbers for WoodSketch's own code (the
 symbols were being dropped from every package, so the list was empty); and a report for a stop that

@@ -93,11 +93,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
-      - name: Linux libraries (windowing, file dialogs)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libxkbcommon-dev libwayland-dev libxcursor-dev libxrandr-dev libxi-dev libx11-xcb-dev
       - name: Build
         shell: bash
         run: cargo build --release --locked -p woodsketch -p woodsketch-cli --target ${{ matrix.target }}
@@ -385,6 +380,42 @@ jobs:
           # from a Windows working copy doesn't always carry.
           bash scripts/linux-packages.sh "$VERSION" "${{ matrix.deb }}" publish releases
           ls -l releases
+      # Do the packages install, on the distributions they claim to be for? The package names in
+      # `runtime_table` are Debian's and Ubuntu's, and a package manager is the only honest judge
+      # of whether they still resolve -- the time64 transition renamed libgtk-3-0 to
+      # libgtk-3-0t64, and that kind of change should fail this build rather than somebody's
+      # install. It also stands behind the `traced` entries in that table, which no scan of the
+      # binary can confirm: here the program is installed and run for real.
+      - name: Install the packages on each distribution they are for
+        if: matrix.deb != ''
+        shell: bash
+        run: |
+          command -v docker >/dev/null || { echo "docker isn't on this runner, so the install check can't run" >&2; exit 1; }
+          case "${{ matrix.deb }}" in
+            amd64) pkg=woodsketch-linux-x64 ;;
+            arm64) pkg=woodsketch-linux-arm64 ;;
+          esac
+          for image in debian:12 ubuntu:22.04 ubuntu:24.04; do
+            echo "== $image"
+            docker run --rm -e PKG="$pkg" -v "$PWD/releases:/pkg:ro" "$image" bash -c '
+              set -e
+              export DEBIAN_FRONTEND=noninteractive
+              apt-get update -qq
+              # As anybody installing it gets it: apt takes Recommends unless told not to.
+              apt-get install -y -qq "/pkg/$PKG.deb"
+              # And it runs. A version is enough to say the install works rather than merely
+              # resolving, and needs neither a GPU nor a display, which a container has neither of.
+              woodsketch-cli --version
+              apt-get remove -y -qq woodsketch
+              # Again with Depends alone, which is the claim that the hard set is enough on its own.
+              apt-get install -y -qq --no-install-recommends "/pkg/$PKG.deb"
+              woodsketch-cli --version'
+          done
+          echo "== fedora (the .rpm, whose requires are sonames)"
+          docker run --rm -e PKG="$pkg" -v "$PWD/releases:/pkg:ro" fedora:latest bash -c '
+            set -e
+            dnf install -y -q "/pkg/$PKG.rpm"
+            woodsketch-cli --version'
       - uses: actions/upload-artifact@v4
         with:
           name: releases-${{ matrix.channel }}

@@ -462,10 +462,23 @@ add it there; when you finish an item, remove it.
    opens. The shell isn't told at once (`SHChangeNotify` is a Win32 call and `unsafe_code` is
    forbidden across the workspace), which a brand-new extension with no rival survives.
    Linux gets a **`.deb` and an `.rpm`** beside the AppImage (`scripts/linux-packages.sh`, run per
-   Linux build from the `deb` key in the matrix). Dependencies are never hand-listed:
-   `dpkg-shlibdeps` reads the binary and names the packages providing what it asks for, and rpm's
-   own find-requires does the same as sonames, which is what makes one `.rpm` work on Fedora and
-   openSUSE alike. No maintainer scripts either -- Debian and Fedora both run the desktop, icon and
+   Linux build from the `deb` key in the matrix). `dpkg-shlibdeps` names what the binary links,
+   and rpm's find-requires does the same as sonames, which is what makes one `.rpm` work on Fedora
+   and openSUSE alike -- but that is only libc, libm and libgcc here, because **everything else is
+   `dlopen`ed**: winit loads X11 or Wayland, wgpu loads Vulkan or EGL, rfd talks to the XDG portal.
+   No scanner of a link table can see any of it, so `runtime_table` in that script declares it by
+   hand, split into what nothing can run without (`need`), what one of must be there
+   (`pick-display`, `pick-gpu`, which become `a | b` alternatives) and what apt should bring along
+   anyway (`want` -> Recommends). Two checks hold the table to the program: a soname in the binary
+   that the table doesn't mention fails the build, and a table line claiming to be a literal that
+   isn't in the binary any more fails it too. **One name can't be seen either way** -- Vulkan's is
+   assembled while the program runs, and taking it out of the table once went unnoticed -- so those
+   lines are marked `traced`, confirmed with `strace -f -e trace=openat woodsketch-cli render`, and
+   it is the container step in `release.yml` (install the package on Debian 12, Ubuntu 22.04 and
+   24.04, and Fedora for the rpm, then run the program, with and without Recommends) that stands
+   behind them.
+   **No `-dev` packages are needed to build on Linux**, and the workflows install none: nothing
+   links against X11, Wayland, xkbcommon or GTK, which `readelf -d` on the shipped binary shows. No maintainer scripts either -- Debian and Fedora both run the desktop, icon and
    MIME database updates from triggers when a package drops files in those directories.
    `packaging/linux/` holds the desktop entry and the MIME type, which is what makes a drawing open
    on a double-click there (`apps/woodsketch/tests/packaging.rs` holds both to what the app really
