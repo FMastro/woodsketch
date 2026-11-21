@@ -320,15 +320,25 @@ new one and fails**, so the fix is to read the diff and commit it.
   include whose target moved leaves the literal `{{#include}}` text in the page and mdBook says
   nothing. `assets/diagrams.css` styles them and is hand-written, unlike `assets/icons.css`
   beside it, which is generated -- keep that line clear.
-- **A joint's picture is built by the joinery, not frozen beside it.** `docs/guide/recipes/`
-  holds two boards and one joint each; `scripts/make-guide-pictures.py` builds and renders them
-  into `src/images/joints/`, light and dark, swapped by CSS so a pale render never glares on a
-  dark page. Because they are recipes rather than saved drawings, changing how a dovetail is cut
-  changes the picture. Each recipe's file name is the `JointKind` it promises, and the script
-  checks the built drawing really came out with that joint, so a recipe that stops working says
-  so instead of picturing the wrong thing. Rendering needs a GPU, so this is run here and the
-  PNGs are committed; `--check` needs none and runs in CI, and
-  `every_joint_has_a_picture_in_both_themes` ties it back to `JointKind`.
+- **The pictures are built by the code they picture, not frozen beside it.**
+  `docs/guide/recipes/` holds three groups -- `joints/` (two boards and one joint), `profiles/`
+  (a chunky block with a profile run round its top) and `templates/` (each at its starting
+  sizes). `scripts/make-guide-pictures.py` builds and renders them into `src/images/<group>/`,
+  light and dark, swapped by CSS so a pale render never glares on a dark page, and frames each
+  group to suit it: half an inch of cove needs a closer shot than a 36" cabinet. Because they
+  are recipes rather than saved drawings, changing how a dovetail is cut -- or what the cabinet
+  template builds -- changes the picture.
+  Each file name is a promise, held a different way per group: a joint recipe must report that
+  joint when it builds, and a profile or template recipe must still describe itself when the
+  built drawing is **read back** as a recipe, which puts `recipe_of` on the hook too. A recipe
+  that stops working says so instead of picturing the wrong thing.
+  Rendering needs a GPU, so this is run by hand and the PNGs are committed; `--check` needs
+  none and runs in CI, and `every_joint_has_a_picture_in_both_themes` and
+  `every_profile_and_template_has_a_picture` tie the files back to `JointKind`, `Profile::ALL`
+  and `Template::all()`.
+- **The materials table shows each wood's own colour**, a swatch from `Preset::color` rather
+  than a hex typed into the page, so it is the app's colour by construction and a recoloured
+  material recolours its swatch (`every_material_shows_the_colour_the_app_paints_it`).
 - The guide generator is under `crates/*/tests`, which `check-unreleased.py` treats as shipping
   to nobody, so **guide work needs no version bump**. Keep it that way: it reads only public API.
 - Prose carries no number that the app also knows. The worked example in the movement page is
