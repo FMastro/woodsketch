@@ -7,6 +7,11 @@
 # `arch` is the Debian name (amd64, arm64); the RPM name is worked out from it. `bindir` holds the
 # built `woodsketch` and `woodsketch-cli`. Both packages are written into `outdir`.
 #
+# The files are named `woodsketch-linux-x64.deb` and so on, without the version, which is not the
+# Debian convention but is how every other file in a release here is named: the website links
+# `/releases/latest/download/<name>`, and that only works for a name that doesn't move. The
+# version is inside both packages, where a package manager reads it from (`dpkg -I`, `rpm -qpi`).
+#
 # These installs are NOT updated by WoodSketch itself, on purpose: apt and dnf own what they
 # installed, and `/usr/bin` isn't somewhere an app should be rewriting itself. Velopack agrees
 # without being told -- its Linux side resolves everything from `$APPIMAGE`, which isn't set here,
@@ -34,10 +39,14 @@ outdir="$4"
 here=$(cd "$(dirname "$0")/.." && pwd)
 
 case "$arch" in
-  amd64) rpm_arch=x86_64 ;;
-  arm64) rpm_arch=aarch64 ;;
+  # `rpm_arch` is what rpm calls it; `name` is what the release's files are named by, the same
+  # word the AppImage and the installers use.
+  amd64) rpm_arch=x86_64; name=linux-x64 ;;
+  arm64) rpm_arch=aarch64; name=linux-arm64 ;;
   *) echo "unknown architecture '$arch' (expected amd64 or arm64)" >&2; exit 2 ;;
 esac
+deb_file="$outdir/woodsketch-$name.deb"
+rpm_file="$outdir/woodsketch-$name.rpm"
 
 for tool in dpkg-deb dpkg-shlibdeps rpmbuild; do
   command -v "$tool" >/dev/null || { echo "$tool is needed (apt-get install dpkg-dev rpm)" >&2; exit 1; }
@@ -97,8 +106,8 @@ Description: 3D modeler for woodworkers
 $(printf '%s\n' "$description" | sed 's/^/ /')
 CONTROL
 # Reproducible-ish: one timestamp for everything, rather than whenever each file was copied.
-dpkg-deb --root-owner-group -Zxz --build "$deb" "$outdir/woodsketch_${version}_${arch}.deb" >/dev/null
-echo "wrote $outdir/woodsketch_${version}_${arch}.deb"
+dpkg-deb --root-owner-group -Zxz --build "$deb" "$deb_file" >/dev/null
+echo "wrote $deb_file"
 
 # --- the .rpm ---------------------------------------------------------------------------------
 # rpmbuild insists on building from its own tree, so the staged files are handed to it as the
@@ -131,15 +140,20 @@ $description
 
 %changelog
 SPEC
-rpmbuild --define "_topdir $rpm_top" --buildroot "$root" -bb "$rpm_top/SPECS/woodsketch.spec" >/dev/null
+# `--target` as well as the spec's BuildArch, to say plainly what is being built. Note that rpm
+# builds for the machine it is on and no other: Ubuntu's refuses a foreign architecture outright
+# ("No compatible architectures found for build"), which is fine here because each release job
+# runs on the architecture it packages, but means the .rpm for the *other* one can't be checked
+# from this machine. The .deb can: dpkg doesn't care what it is running on.
+rpmbuild --define "_topdir $rpm_top" --target "$rpm_arch" --buildroot "$root" -bb "$rpm_top/SPECS/woodsketch.spec" >/dev/null
 built=$(find "$rpm_top/RPMS" -name '*.rpm' -print -quit)
 [ -n "$built" ] || { echo "rpmbuild made no package" >&2; exit 1; }
-mv "$built" "$outdir/woodsketch-$version-1.$rpm_arch.rpm"
-echo "wrote $outdir/woodsketch-$version-1.$rpm_arch.rpm"
+mv "$built" "$rpm_file"
+echo "wrote $rpm_file"
 
 # What each one says it needs, in the log, so a dependency that goes missing is visible in the
 # build that made it rather than in somebody's failed install.
 echo "--- deb depends ---"
-dpkg-deb -f "$outdir/woodsketch_${version}_${arch}.deb" Depends
+dpkg-deb -f "$deb_file" Depends
 echo "--- rpm requires ---"
-rpm -qp --requires "$outdir/woodsketch-$version-1.$rpm_arch.rpm" 2>/dev/null || true
+rpm -qp --requires "$rpm_file" 2>/dev/null || true
