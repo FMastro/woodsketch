@@ -45,6 +45,9 @@ jobs:
           # A real exe, built here, so nothing signs a file it doesn't own.
           mkdir -p probe/src
           cat > probe/Cargo.toml <<'TOML'
+          # Its own workspace: it sits inside WoodSketch's, which cargo refuses otherwise.
+          [workspace]
+
           [package]
           name = "probe"
           version = "0.1.0"
