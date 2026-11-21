@@ -47,6 +47,8 @@ jobs:
           curl -sSL https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C ~/.local/bin
       - name: Build it
         run: ~/.local/bin/mdbook build docs/guide
+      - name: Every toolbar icon the stylesheet asks for is really there
+        run: python3 -I scripts/check-guide-icons.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

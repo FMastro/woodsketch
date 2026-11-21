@@ -41,16 +41,113 @@ fn guide() -> PathBuf {
     root().join("docs/guide")
 }
 
-/// Every generated page, by its name under `docs/guide/src/reference/`.
+/// Everything this test writes, by its path under `docs/guide/`.
 fn pages() -> Vec<(&'static str, String)> {
     vec![
-        ("tools.md", tools()),
-        ("joints.md", joints()),
-        ("profiles.md", profiles()),
-        ("templates.md", templates()),
-        ("materials.md", materials()),
-        ("wood.md", wood()),
+        ("src/reference/tools.md", tools()),
+        ("src/reference/joints.md", joints()),
+        ("src/reference/profiles.md", profiles()),
+        ("src/reference/templates.md", templates()),
+        ("src/reference/materials.md", materials()),
+        ("src/reference/wood.md", wood()),
+        (STYLESHEET, icon_style()),
     ]
+}
+
+/// Where the icon stylesheet is written, and so -- since mdBook mirrors the path into the output
+/// while `src/icons/` lands at the book's root -- how far its mask urls have to climb to reach
+/// the artwork. Worked out rather than written down: the first try put the stylesheet one level
+/// deeper than its urls assumed, and a mask that resolves to nothing is an empty square on the
+/// page rather than an error anywhere.
+const STYLESHEET: &str = "assets/icons.css";
+
+fn to_the_icons() -> String {
+    "../".repeat(STYLESHEET.matches('/').count())
+}
+
+// ------------------------------------------------------------------ toolbar icons
+
+/// Which Phosphor glyph each tool's button carries, read out of `ui_egui::icons`: `ToolId::Board
+/// => ph::LOG` becomes `Board -> log`, which is the name of Phosphor's own SVG for it. Read
+/// rather than repeated, so the icon beside a tool in the guide is the icon on its button; the
+/// artwork itself is vendored under `docs/guide/src/icons/` from the same MIT set the app draws
+/// with (`egui-phosphor`).
+fn icon_names() -> Vec<(String, String)> {
+    let text = std::fs::read_to_string(root().join("crates/ui-egui/src/icons.rs")).expect("the icons module");
+    text.lines()
+        .filter_map(|line| {
+            let (left, right) = line.split_once("=> ph::")?;
+            let tool = left.trim().strip_prefix("ToolId::")?.trim();
+            let glyph = right.trim().trim_end_matches(',').trim();
+            let shouting = |c: char| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_';
+            (!glyph.is_empty() && glyph.chars().all(shouting)).then(|| (tool.to_owned(), glyph.to_lowercase().replace('_', "-")))
+        })
+        .collect()
+}
+
+fn icon_of(tool: ToolId, icons: &[(String, String)]) -> String {
+    let variant = format!("{tool:?}");
+    icons
+        .iter()
+        .find(|(named, _)| *named == variant)
+        .map(|(_, icon)| icon.clone())
+        .unwrap_or_else(|| panic!("ui_egui::icons has no toolbar icon for ToolId::{variant}, so the guide has nothing to show beside it"))
+}
+
+/// One of the three colours `icons::paint` draws with, as CSS. Read from the same place for the
+/// same reason as the glyphs: the guide's icons should recolour when the toolbar's do.
+fn icon_colour(name: &str) -> String {
+    let text = std::fs::read_to_string(root().join("crates/ui-egui/src/icons.rs")).expect("the icons module");
+    let at = text.find(&format!("const {name}: egui::Color32")).unwrap_or_else(|| panic!("no {name} colour in ui_egui::icons"));
+    let open = text[at..].find("from_rgb(").expect("the colour's channels") + at + "from_rgb(".len();
+    let close = text[open..].find(')').expect("the end of the colour") + open;
+    let channels: Vec<u8> = text[open..close].split(',').filter_map(|part| u8::from_str_radix(part.trim().trim_start_matches("0x"), 16).ok()).collect();
+    assert_eq!(channels.len(), 3, "{name} isn't three channels");
+    format!("#{:02x}{:02x}{:02x}", channels[0], channels[1], channels[2])
+}
+
+/// The stylesheet that stacks the two weights the way `icons::paint` does: the filled glyph in
+/// amber behind, the outline in walnut over it. They are drawn as masks rather than images so
+/// the colours are the app's rather than whatever is baked into an SVG, and so one file serves
+/// both of mdBook's light themes and all three of its dark ones.
+fn icon_style() -> String {
+    let (outline, outline_dark, accent) = (icon_colour("OUTLINE"), icon_colour("OUTLINE_DARK"), icon_colour("ACCENT"));
+    let mut out = String::new();
+    writeln!(out, "/* {} */", WARNING.replace("<!-- ", "").replace("\n     ", "\n   ").replace(" -->", "")).unwrap();
+    writeln!(
+        out,
+        concat!(
+            "\n.ws-icon {{ position: relative; display: inline-block; width: 1.4em; height: 1.4em; vertical-align: -0.35em; flex: none; }}\n",
+            ".ws-icon::before, .ws-icon::after {{\n",
+            "  content: \"\"; position: absolute; inset: 0;\n",
+            "  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;\n",
+            "  -webkit-mask-position: center; mask-position: center;\n",
+            "  -webkit-mask-size: contain; mask-size: contain;\n",
+            "}}\n",
+            "/* The filled glyph, behind; `paint` fades it to 0.6 of the accent in a light theme. */\n",
+            ".ws-icon::before {{ background: {accent}; opacity: 0.6; }}\n",
+            ".ws-icon::after {{ background: {outline}; }}\n",
+            "/* mdBook's dark themes, where `paint` lightens the outline and lifts the accent to 0.75. */\n",
+            ".navy .ws-icon::after, .ayu .ws-icon::after, .coffee .ws-icon::after {{ background: {outline_dark}; }}\n",
+            ".navy .ws-icon::before, .ayu .ws-icon::before, .coffee .ws-icon::before {{ opacity: 0.75; }}\n"
+        ),
+        accent = accent,
+        outline = outline,
+        outline_dark = outline_dark
+    )
+    .unwrap();
+    let up = to_the_icons();
+    let icons = icon_names();
+    let mut seen: Vec<String> = ToolId::ALL.into_iter().map(|tool| icon_of(tool, &icons)).collect();
+    seen.sort();
+    seen.dedup();
+    out.push('\n');
+    for icon in seen {
+        let (fill, outline) = (format!("{up}icons/fill/{icon}.svg"), format!("{up}icons/regular/{icon}.svg"));
+        writeln!(out, ".ws-icon-{icon}::before {{ -webkit-mask-image: url({fill}); mask-image: url({fill}); }}").unwrap();
+        writeln!(out, ".ws-icon-{icon}::after {{ -webkit-mask-image: url({outline}); mask-image: url({outline}); }}").unwrap();
+    }
+    out
 }
 
 // ------------------------------------------------------------------ tools
@@ -125,13 +222,15 @@ fn tools() -> String {
         "lengths is separated by a semicolon (`5,5';6'`). `Space` is Select and `Esc` cancels whatever\n",
         "is in hand, which between them get you out of anything.\n",
     ));
+    let icons = icon_names();
     for name in GROUPS {
         writeln!(out, "\n## {name}\n").unwrap();
-        out.push_str("| Tool | Key | What it does |\n|---|---|---|\n");
+        out.push_str("| | Tool | Key | What it does |\n|---|---|---|---|\n");
         for tool in ToolId::ALL.into_iter().filter(|&tool| group(tool) == name) {
             let key = tool.shortcut_label();
             let key = if key.is_empty() { "--".to_owned() } else { format!("`{key}`") };
-            writeln!(out, "| **{}** | {key} | {} |", tool.name(), tool_about(tool)).unwrap();
+            let icon = format!("<span class=\"ws-icon ws-icon-{}\"></span>", icon_of(tool, &icons));
+            writeln!(out, "| {icon} | **{}** | {key} | {} |", tool.name(), tool_about(tool)).unwrap();
         }
     }
     out.push_str("\n## Keys that aren't tools\n\n");
@@ -451,11 +550,10 @@ fn wood() -> String {
 
 #[test]
 fn the_reference_pages_say_what_the_app_does() {
-    let dir = guide().join("src/reference");
-    std::fs::create_dir_all(&dir).expect("the reference folder");
     let mut rewritten = Vec::new();
     for (name, built) in pages() {
-        let path = dir.join(name);
+        let path = guide().join(name);
+        std::fs::create_dir_all(path.parent().expect("a folder")).expect("the folder to write into");
         let on_disk = std::fs::read_to_string(&path).unwrap_or_default().replace("\r\n", "\n");
         if on_disk != built {
             std::fs::write(&path, &built).expect("writing the page");
@@ -476,6 +574,44 @@ fn the_reference_pages_say_what_the_app_does() {
 fn every_tool_is_in_the_list_the_guide_is_built_from() {
     let listed = variants("crates/tools/src/lib.rs", "ToolId");
     assert_eq!(listed.len(), ToolId::ALL.len(), "ToolId has {} variants but ToolId::ALL holds {}: {listed:?}", listed.len(), ToolId::ALL.len());
+}
+
+/// The guide shows each tool's own toolbar icon, read from `ui_egui::icons` and drawn from
+/// Phosphor's SVGs vendored under `src/icons/`. A tool whose glyph changes to one nobody has
+/// vendored would otherwise leave an empty square on the page, which nothing else would notice.
+#[test]
+fn every_tool_has_its_toolbar_icon_vendored() {
+    let icons = icon_names();
+    let dir = guide().join("src/icons");
+    for tool in ToolId::ALL {
+        let icon = icon_of(tool, &icons);
+        for (weight, file) in [("regular", dir.join(format!("regular/{icon}.svg"))), ("fill", dir.join(format!("fill/{icon}.svg")))] {
+            assert!(
+                file.exists(),
+                "the {} tool draws Phosphor's `{icon}`, but its {weight} SVG isn't in docs/guide/src/icons/.\nFetch it from https://github.com/phosphor-icons/core (assets/{weight}/{icon}{}.svg).",
+                tool.name(),
+                if weight == "fill" { "-fill" } else { "" }
+            );
+        }
+    }
+}
+
+/// Nothing vendored that nothing uses: 26 tools' worth of artwork is small, but an icon left
+/// behind by a tool that changed its glyph is dead weight nobody would think to look for.
+#[test]
+fn no_icon_is_vendored_that_no_tool_uses() {
+    let icons = icon_names();
+    let wanted: Vec<String> = ToolId::ALL.into_iter().map(|tool| icon_of(tool, &icons)).collect();
+    for weight in ["regular", "fill"] {
+        let dir = guide().join("src/icons").join(weight);
+        for entry in std::fs::read_dir(&dir).expect("a folder of icons").flatten() {
+            let path = entry.path();
+            if path.extension().is_some_and(|extension| extension == "svg") {
+                let stem = path.file_stem().expect("a name").to_string_lossy().into_owned();
+                assert!(wanted.contains(&stem), "docs/guide/src/icons/{weight}/{stem}.svg belongs to no tool any more; delete it");
+            }
+        }
+    }
 }
 
 #[test]

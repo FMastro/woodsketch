@@ -1,0 +1,10 @@
+Toolbar icons from [Phosphor](https://phosphoricons.com) (MIT), the icon set the app itself
+draws with through `egui-phosphor` -- which is why the icon beside a tool in the guide is the
+icon on its button. Both weights are here because `ui_egui::icons::paint` stacks them: the
+filled glyph in amber behind, the outline in walnut over it.
+
+Which icon belongs to which tool is **not** recorded here. It is read out of
+`crates/ui-egui/src/icons.rs` by `crates/ui-egui/tests/guide.rs`, along with the three colours,
+so neither can drift from the app. That test also fails if a tool's icon has no file here.
+
+Taken from https://github.com/phosphor-icons/core (`assets/regular`, `assets/fill`) unchanged.

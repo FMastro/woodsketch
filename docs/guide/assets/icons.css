@@ -1,0 +1,70 @@
+/* Written by crates/ui-egui/tests/guide.rs from the app itself. Don't edit it by hand:
+   change the app and run `cargo test -p woodsketch-ui-egui --test guide`, which rewrites it. */
+
+.ws-icon { position: relative; display: inline-block; width: 1.4em; height: 1.4em; vertical-align: -0.35em; flex: none; }
+.ws-icon::before, .ws-icon::after {
+  content: ""; position: absolute; inset: 0;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain;
+}
+/* The filled glyph, behind; `paint` fades it to 0.6 of the accent in a light theme. */
+.ws-icon::before { background: #d08a2e; opacity: 0.6; }
+.ws-icon::after { background: #3a2718; }
+/* mdBook's dark themes, where `paint` lightens the outline and lifts the accent to 0.75. */
+.navy .ws-icon::after, .ayu .ws-icon::after, .coffee .ws-icon::after { background: #e9c58f; }
+.navy .ws-icon::before, .ayu .ws-icon::before, .coffee .ws-icon::before { opacity: 0.75; }
+
+
+.ws-icon-angle::before { -webkit-mask-image: url(../icons/fill/angle.svg); mask-image: url(../icons/fill/angle.svg); }
+.ws-icon-angle::after { -webkit-mask-image: url(../icons/regular/angle.svg); mask-image: url(../icons/regular/angle.svg); }
+.ws-icon-arrow-arc-right::before { -webkit-mask-image: url(../icons/fill/arrow-arc-right.svg); mask-image: url(../icons/fill/arrow-arc-right.svg); }
+.ws-icon-arrow-arc-right::after { -webkit-mask-image: url(../icons/regular/arrow-arc-right.svg); mask-image: url(../icons/regular/arrow-arc-right.svg); }
+.ws-icon-arrow-clockwise::before { -webkit-mask-image: url(../icons/fill/arrow-clockwise.svg); mask-image: url(../icons/fill/arrow-clockwise.svg); }
+.ws-icon-arrow-clockwise::after { -webkit-mask-image: url(../icons/regular/arrow-clockwise.svg); mask-image: url(../icons/regular/arrow-clockwise.svg); }
+.ws-icon-arrow-fat-lines-up::before { -webkit-mask-image: url(../icons/fill/arrow-fat-lines-up.svg); mask-image: url(../icons/fill/arrow-fat-lines-up.svg); }
+.ws-icon-arrow-fat-lines-up::after { -webkit-mask-image: url(../icons/regular/arrow-fat-lines-up.svg); mask-image: url(../icons/regular/arrow-fat-lines-up.svg); }
+.ws-icon-arrows-clockwise::before { -webkit-mask-image: url(../icons/fill/arrows-clockwise.svg); mask-image: url(../icons/fill/arrows-clockwise.svg); }
+.ws-icon-arrows-clockwise::after { -webkit-mask-image: url(../icons/regular/arrows-clockwise.svg); mask-image: url(../icons/regular/arrows-clockwise.svg); }
+.ws-icon-arrows-horizontal::before { -webkit-mask-image: url(../icons/fill/arrows-horizontal.svg); mask-image: url(../icons/fill/arrows-horizontal.svg); }
+.ws-icon-arrows-horizontal::after { -webkit-mask-image: url(../icons/regular/arrows-horizontal.svg); mask-image: url(../icons/regular/arrows-horizontal.svg); }
+.ws-icon-arrows-out-cardinal::before { -webkit-mask-image: url(../icons/fill/arrows-out-cardinal.svg); mask-image: url(../icons/fill/arrows-out-cardinal.svg); }
+.ws-icon-arrows-out-cardinal::after { -webkit-mask-image: url(../icons/regular/arrows-out-cardinal.svg); mask-image: url(../icons/regular/arrows-out-cardinal.svg); }
+.ws-icon-bezier-curve::before { -webkit-mask-image: url(../icons/fill/bezier-curve.svg); mask-image: url(../icons/fill/bezier-curve.svg); }
+.ws-icon-bezier-curve::after { -webkit-mask-image: url(../icons/regular/bezier-curve.svg); mask-image: url(../icons/regular/bezier-curve.svg); }
+.ws-icon-chart-pie-slice::before { -webkit-mask-image: url(../icons/fill/chart-pie-slice.svg); mask-image: url(../icons/fill/chart-pie-slice.svg); }
+.ws-icon-chart-pie-slice::after { -webkit-mask-image: url(../icons/regular/chart-pie-slice.svg); mask-image: url(../icons/regular/chart-pie-slice.svg); }
+.ws-icon-circle::before { -webkit-mask-image: url(../icons/fill/circle.svg); mask-image: url(../icons/fill/circle.svg); }
+.ws-icon-circle::after { -webkit-mask-image: url(../icons/regular/circle.svg); mask-image: url(../icons/regular/circle.svg); }
+.ws-icon-circle-half::before { -webkit-mask-image: url(../icons/fill/circle-half.svg); mask-image: url(../icons/fill/circle-half.svg); }
+.ws-icon-circle-half::after { -webkit-mask-image: url(../icons/regular/circle-half.svg); mask-image: url(../icons/regular/circle-half.svg); }
+.ws-icon-cursor::before { -webkit-mask-image: url(../icons/fill/cursor.svg); mask-image: url(../icons/fill/cursor.svg); }
+.ws-icon-cursor::after { -webkit-mask-image: url(../icons/regular/cursor.svg); mask-image: url(../icons/regular/cursor.svg); }
+.ws-icon-diamond::before { -webkit-mask-image: url(../icons/fill/diamond.svg); mask-image: url(../icons/fill/diamond.svg); }
+.ws-icon-diamond::after { -webkit-mask-image: url(../icons/regular/diamond.svg); mask-image: url(../icons/regular/diamond.svg); }
+.ws-icon-eraser::before { -webkit-mask-image: url(../icons/fill/eraser.svg); mask-image: url(../icons/fill/eraser.svg); }
+.ws-icon-eraser::after { -webkit-mask-image: url(../icons/regular/eraser.svg); mask-image: url(../icons/regular/eraser.svg); }
+.ws-icon-frame-corners::before { -webkit-mask-image: url(../icons/fill/frame-corners.svg); mask-image: url(../icons/fill/frame-corners.svg); }
+.ws-icon-frame-corners::after { -webkit-mask-image: url(../icons/regular/frame-corners.svg); mask-image: url(../icons/regular/frame-corners.svg); }
+.ws-icon-hand::before { -webkit-mask-image: url(../icons/fill/hand.svg); mask-image: url(../icons/fill/hand.svg); }
+.ws-icon-hand::after { -webkit-mask-image: url(../icons/regular/hand.svg); mask-image: url(../icons/regular/hand.svg); }
+.ws-icon-hexagon::before { -webkit-mask-image: url(../icons/fill/hexagon.svg); mask-image: url(../icons/fill/hexagon.svg); }
+.ws-icon-hexagon::after { -webkit-mask-image: url(../icons/regular/hexagon.svg); mask-image: url(../icons/regular/hexagon.svg); }
+.ws-icon-line-segment::before { -webkit-mask-image: url(../icons/fill/line-segment.svg); mask-image: url(../icons/fill/line-segment.svg); }
+.ws-icon-line-segment::after { -webkit-mask-image: url(../icons/regular/line-segment.svg); mask-image: url(../icons/regular/line-segment.svg); }
+.ws-icon-log::before { -webkit-mask-image: url(../icons/fill/log.svg); mask-image: url(../icons/fill/log.svg); }
+.ws-icon-log::after { -webkit-mask-image: url(../icons/regular/log.svg); mask-image: url(../icons/regular/log.svg); }
+.ws-icon-magnifying-glass::before { -webkit-mask-image: url(../icons/fill/magnifying-glass.svg); mask-image: url(../icons/fill/magnifying-glass.svg); }
+.ws-icon-magnifying-glass::after { -webkit-mask-image: url(../icons/regular/magnifying-glass.svg); mask-image: url(../icons/regular/magnifying-glass.svg); }
+.ws-icon-paint-bucket::before { -webkit-mask-image: url(../icons/fill/paint-bucket.svg); mask-image: url(../icons/fill/paint-bucket.svg); }
+.ws-icon-paint-bucket::after { -webkit-mask-image: url(../icons/regular/paint-bucket.svg); mask-image: url(../icons/regular/paint-bucket.svg); }
+.ws-icon-person-simple-walk::before { -webkit-mask-image: url(../icons/fill/person-simple-walk.svg); mask-image: url(../icons/fill/person-simple-walk.svg); }
+.ws-icon-person-simple-walk::after { -webkit-mask-image: url(../icons/regular/person-simple-walk.svg); mask-image: url(../icons/regular/person-simple-walk.svg); }
+.ws-icon-rectangle::before { -webkit-mask-image: url(../icons/fill/rectangle.svg); mask-image: url(../icons/fill/rectangle.svg); }
+.ws-icon-rectangle::after { -webkit-mask-image: url(../icons/regular/rectangle.svg); mask-image: url(../icons/regular/rectangle.svg); }
+.ws-icon-resize::before { -webkit-mask-image: url(../icons/fill/resize.svg); mask-image: url(../icons/fill/resize.svg); }
+.ws-icon-resize::after { -webkit-mask-image: url(../icons/regular/resize.svg); mask-image: url(../icons/regular/resize.svg); }
+.ws-icon-ruler::before { -webkit-mask-image: url(../icons/fill/ruler.svg); mask-image: url(../icons/fill/ruler.svg); }
+.ws-icon-ruler::after { -webkit-mask-image: url(../icons/regular/ruler.svg); mask-image: url(../icons/regular/ruler.svg); }
+.ws-icon-text-t::before { -webkit-mask-image: url(../icons/fill/text-t.svg); mask-image: url(../icons/fill/text-t.svg); }
+.ws-icon-text-t::after { -webkit-mask-image: url(../icons/regular/text-t.svg); mask-image: url(../icons/regular/text-t.svg); }

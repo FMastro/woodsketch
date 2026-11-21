@@ -285,6 +285,18 @@ new one and fails**, so the fix is to read the diff and commit it.
   and `every_joint_is_in_the_list_the_guide_is_built_from` read the enums out of the source, the
   way the i18n guard reads `t!` keys, and catch a variant added without being put in the list the
   page is built from -- which would otherwise be a tool with no page, no button and no key.
+- **Each tool shows its own toolbar icon.** Which Phosphor glyph a tool carries, and the three
+  colours `icons::paint` draws with, are read out of `crates/ui-egui/src/icons.rs` rather than
+  repeated, so the icon beside a tool in the guide is the icon on its button and recolours when
+  the toolbar does. The artwork is Phosphor's own SVGs (MIT, the set `egui-phosphor` already
+  brings, so nothing new in the notices) vendored under `docs/guide/src/icons/` in both weights,
+  27 KB for all 26 tools -- less than one screenshot. They are drawn as **CSS masks**, not
+  images, which is what lets the app's colours apply and one file serve mdBook's light and dark
+  themes. `every_tool_has_its_toolbar_icon_vendored` and `no_icon_is_vendored_that_no_tool_uses`
+  hold both directions, and `scripts/check-guide-icons.py` resolves every mask against the
+  **built** book, because a mask pointing at nothing is an empty square rather than an error --
+  which is what the stylesheet being written a folder deeper than its urls assumed produced.
+  That depth is now worked out from the stylesheet's own path, not written down.
 - The guide generator is under `crates/*/tests`, which `check-unreleased.py` treats as shipping
   to nobody, so **guide work needs no version bump**. Keep it that way: it reads only public API.
 - Prose carries no number that the app also knows. The worked example in the movement page is
