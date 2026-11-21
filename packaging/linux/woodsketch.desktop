@@ -1,0 +1,17 @@
+[Desktop Entry]
+# `Version` is the version of this file's own format, not WoodSketch's.
+Version=1.5
+Type=Application
+Name=WoodSketch
+GenericName=Woodworking 3D Modeler
+Comment=Design furniture in 3D and get a cut list
+# `%f` is the drawing double-clicked in a file manager, which is what MimeType below claims.
+Exec=woodsketch %f
+Icon=woodsketch
+Terminal=false
+Categories=Graphics;3DGraphics;Engineering;
+MimeType=application/x-woodsketch;
+# Must match the app id `main.rs` gives the window, or the running app isn't matched to this
+# entry and the taskbar shows it nameless and without its icon.
+StartupWMClass=woodsketch
+Keywords=woodworking;furniture;cutlist;joinery;CAD;3D;

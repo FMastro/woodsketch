@@ -130,8 +130,17 @@ any address they left to the developer privately; or Open on GitHub instead, fro
 units, the last error with paths scrubbed, counts from the drawing; never names or the file).
 A crash (any panic) is saved by `ui-egui::crash` (a panic hook installed in `main`) as a
 `feedback::Crash` (message scrubbed, `source_location` trimmed to `crates/...`, `own_frames` of the
-backtrace: names only in release, from the PDB `release.yml` ships beside the Windows exe); the next start offers
-it for a report (`FeedbackWindow::start_crash`). `feedback::os_name` (the `os_info` crate) names the OS, and `feedback::graphics_line` writes the
+backtrace, with line numbers for WoodSketch's own crates: see "Crash reports" below); the next start offers
+it for a report (`FeedbackWindow::start_crash`). What *isn't* a panic -- a graphics driver taking the
+process down, running out of memory, a stack overflow -- ends the program where no Rust code of ours
+runs again, so there is no hook to install and no handler to write (one would need `unsafe`). What
+needs no handler is noticing afterwards: `crash::running` writes a note at the start of a run,
+`crash::ended` takes it away when the window has closed (and before an update restarts the app, or
+the update would be reported as a crash), and a note still there at the next start becomes a
+`Crash` saying only that it stopped without saying why (`crash::stopped`, offered under
+`app-crash-note-quiet` rather than the note that promises a place in the code). It is a guess by
+nature -- a machine switched off at the wall looks the same -- so it says no more than it knows,
+and the report's graphics line usually carries the answer. `feedback::os_name` (the `os_info` crate) names the OS, and `feedback::graphics_line` writes the
 card, backend, kind and driver -- saying "driver not reported" where a Vulkan driver too old for
 `VK_KHR_driver_properties` answers `?`, which a report of a graphics crash arrived reading as
 `(Vulkan, ? ?)` and so said nothing (#13).
@@ -197,6 +206,10 @@ writes no note: a backend asked for by hand shouldn't decide what the next run d
   one after a joinery change (`summary` then says what it made).
 - `python -I scripts/make-house-sample.py > samples/house.json` regenerates the Small house.
   That JSON is generated; change the script, not the file.
+- `bash scripts/linux-packages.sh <version> <amd64|arm64> <bindir> <outdir>` builds the Linux
+  `.deb` and `.rpm` (needs `dpkg-dev` and `rpm`). It can be checked from Windows through WSL:
+  `wsl -d Ubuntu -u root -- bash /mnt/d/.../scripts/linux-packages.sh ...`, then `dpkg -i` the
+  result and `gio info -a standard::content-type` a drawing to see the MIME type take.
 - `python -I scripts/check-unreleased.py` refuses shipped code sitting at a version that is
   already tagged, because a CHANGELOG note under a released heading is never read again and the
   change would go out unmentioned. CI runs it (the `unreleased` job). When it fails, raise the
@@ -222,6 +235,21 @@ change is refused whole, naming `open` and `save` as the two ways on. Only a `.w
 `.scraft`) file becomes the session's own (`is_drawing`): a `.skp` or recipe `.json` is a source,
 and writing drawing JSON over a SketchUp model would destroy it. `build` lets go of the file, since
 the drawing is no longer the one it holds.
+
+## Crash reports: the symbols have to ship
+Nothing in a release build names a Rust function to the symbolizer on Windows: without the `.pdb`
+beside the exe, every frame of a backtrace is `<unknown>`, `own_frames` finds nothing of
+WoodSketch's own, and the report goes out with an empty list of calls. That is what was happening,
+silently, from the day the feature was written -- `release.yml` copied the `.pdb` into `publish/`
+and **`vpk pack`'s default `--exclude` is `.*\.pdb`**, so it was dropped from every package. The
+pack step now passes `--exclude '^$'` (a regex no file name matches), which keeps vpk's built-in
+exclusions and nothing else. It costs about 8 MB of a download; a delta update pays only for what
+changed.
+Line numbers come from `debug = "line-tables-only"`, set **per package** in Cargo.toml for
+WoodSketch's own eight crates. Everything would be 73 MB of symbols instead of 24; `own_frames`
+keeps only WoodSketch's own frames, so the line tables of three hundred other crates would never be
+read by anything. Check sizes after touching this: `cargo build --release -p woodsketch` then
+`ls -l target/release/woodsketch.pdb`.
 
 ## Third-party notices
 `THIRD-PARTY-NOTICES.md` lists every package WoodSketch is built with and its license, and
@@ -400,9 +428,13 @@ add it there; when you finish an item, remove it.
    Info) for buttons or slotted screws; both land in `Report::allowed`. `Report::arrows` (View > Wood
    Movement, cached per model version); `Report::unknown` and `species_list` for "Moves like".
 27. Releases and updates: a `v*` tag (matching Cargo.toml's version) runs `.github/workflows/release.yml`:
-   Windows x64, macOS arm64 and x64, Linux x64 builds, each packed by Velopack (`vpk`, version
+   Windows x64 and arm64, macOS arm64 and x64, Linux x64 and arm64 builds, each packed by Velopack (`vpk`, version
    pinned to the `velopack` crate) on its own channel, into a DRAFT GitHub release (publish it to
-   ship). Before packing, `vpk download github` fetches that channel's previous release into the
+   ship). The Arm builds are **native, on the `windows-11-arm` and `ubuntu-22.04-arm` runners**
+   (free for public repositories), not cross-compiled: `ring` wants a C toolchain for the target.
+   `releases::tests::channels` reads the channel list **out of the workflow file**, so a platform
+   added to that matrix is checked by `every_platform_has_an_update_to_find` without anyone
+   remembering to; a channel no release has carried yet is said rather than failed. Before packing, `vpk download github` fetches that channel's previous release into the
    same output directory, which is how `vpk pack` works out a **delta** so an update downloads the
    difference rather than the whole app; the old package is then deleted before upload, since it
    stays attached to its own release and `releases.rs` finds it there by name (it searches the
@@ -419,6 +451,22 @@ add it there; when you finish an item, remove it.
    parameter** so the tests write to a scratch key and never change what this machine actually
    opens. The shell isn't told at once (`SHChangeNotify` is a Win32 call and `unsafe_code` is
    forbidden across the workspace), which a brand-new extension with no rival survives.
+   Linux gets a **`.deb` and an `.rpm`** beside the AppImage (`scripts/linux-packages.sh`, run per
+   Linux build from the `deb` key in the matrix). Dependencies are never hand-listed:
+   `dpkg-shlibdeps` reads the binary and names the packages providing what it asks for, and rpm's
+   own find-requires does the same as sonames, which is what makes one `.rpm` work on Fedora and
+   openSUSE alike. No maintainer scripts either -- Debian and Fedora both run the desktop, icon and
+   MIME database updates from triggers when a package drops files in those directories.
+   `packaging/linux/` holds the desktop entry and the MIME type, which is what makes a drawing open
+   on a double-click there (`apps/woodsketch/tests/packaging.rs` holds both to what the app really
+   does: the glob to `file::EXTENSION`, the magic to the first bytes `file::to_string` writes, and
+   `StartupWMClass` to the `with_app_id` in `main.rs`, since a mismatch leaves the app nameless in
+   the taskbar). **A double hyphen can't appear in an XML comment** and `update-mime-database`
+   refuses the whole file over it, while the install carries on past the error, so the type silently
+   never registers; a test holds the file to what the parser will take. These installs are not
+   updated by WoodSketch itself and need no special case: Velopack's Linux side resolves everything
+   from `$APPIMAGE`, unset in such an install, so the app reports itself not installed and apt or
+   dnf stays in charge.
    macOS gets a **DMG** as well as the `.pkg`, since dragging an app onto Applications is what a
    Mac expects and vpk makes no DMG: the pack step expands the portable zip vpk did make with
    `ditto` (not `unzip`, which drops the extended attributes a signature lives in), throws away the

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The `.woodsketch` drawing, for the shared MIME database: this is what makes a file manager show
+  a drawing with WoodSketch's icon and open it with WoodSketch when double-clicked.
+
+  Only `.woodsketch`. The app still opens `.scraft`, but that name belongs to the Craft apps this
+  was renamed from, and claiming the file type would be claiming someone else's files. That is
+  the same decision as the Windows association (`apps/woodsketch/src/fileassoc.rs`).
+
+  Mind the prose here: a double hyphen can't appear inside an XML comment, and the whole file is
+  then refused by `update-mime-database`, which an install reports and carries on past. The type
+  simply never registers. A test holds this file to what the parser will take.
+
+  A drawing is JSON written by `doc::file::to_string`, which is `serde_json::to_string_pretty`
+  with the format first, so every drawing begins `{\n  "format": "woodsketch",`. The magic below
+  matches that, which is what recognizes a drawing that has been renamed. Its priority is low:
+  the name is the better evidence where there is one, and this only has to beat plain JSON.
+-->
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-woodsketch">
+    <comment>WoodSketch drawing</comment>
+    <glob pattern="*.woodsketch"/>
+    <icon name="woodsketch"/>
+    <generic-icon name="application-x-executable"/>
+    <sub-class-of type="application/json"/>
+    <magic priority="40">
+      <match type="string" value="&quot;format&quot;: &quot;woodsketch&quot;" offset="0:16"/>
+    </magic>
+  </mime-type>
+</mime-info>

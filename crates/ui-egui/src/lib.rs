@@ -156,7 +156,9 @@ impl WoodSketchApp {
         let autosave = autosave::Autosave::new(dir);
         let leftovers = autosave.leftovers();
         let crash_dir = cc.storage.is_some().then(|| eframe::storage_dir("WoodSketch")).flatten();
-        let crash = crash_dir.as_deref().and_then(crash::left);
+        // A panic the last run saved, or failing that a run that stopped leaving nothing behind at
+        // all: a graphics driver taking the process down, running out of memory, a stack overflow.
+        let crash = crash_dir.as_deref().and_then(|dir| crash::left(dir).or_else(|| crash::stopped(dir)));
         // Pictures for the Start page live beside the autosaves and the crash report.
         let thumb_dir = crash_dir.as_deref().map(|d| d.join("thumbnails"));
         // Which backend really started, written down beside them for the next run to read.
@@ -361,7 +363,9 @@ impl WoodSketchApp {
     /// Look for a crash the last session left in `dir` (as the app does in its settings folder);
     /// for tests.
     pub fn use_crash_folder(&mut self, dir: PathBuf) {
-        self.crash = crash::left(&dir);
+        // A panic first, since it says what happened; otherwise a run that stopped leaving nothing
+        // behind, which is all there is to go on after a driver crash or running out of memory.
+        self.crash = crash::left(&dir).or_else(|| crash::stopped(&dir));
         self.crash_dir = Some(dir);
     }
 
@@ -375,7 +379,13 @@ impl WoodSketchApp {
         egui::Modal::new(egui::Id::new("crash")).show(ctx, |ui| {
             ui.set_max_width(400.0);
             ui.heading(t!("app-crash-title"));
-            ui.label(t!("app-crash-note", "version" => crash.version.as_str()));
+            // A panic names the fault and the place; a run that simply stopped has neither, and
+            // saying it does would be promising a reader something the report can't carry.
+            if crash.location.is_empty() {
+                ui.label(t!("app-crash-note-quiet", "version" => crash.version.as_str()));
+            } else {
+                ui.label(t!("app-crash-note", "version" => crash.version.as_str()));
+            }
             ui.add_space(6.0);
             ui.horizontal(|ui| {
                 report = ui.button(t!("app-crash-report")).clicked();

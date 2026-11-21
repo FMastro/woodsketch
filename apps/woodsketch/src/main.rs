@@ -35,16 +35,33 @@ fn main() -> eframe::Result {
     if let Some(dir) = dir.clone() {
         woodsketch_ui_egui::crash::install(dir);
     }
+    // And a note that a run is under way, which is the only thing that can be left behind by a
+    // failure no Rust code survives: a graphics driver taking the process down, running out of
+    // memory, a stack overflow. It is taken away below, once the window has closed properly.
+    if let Some(dir) = &dir {
+        woodsketch_ui_egui::crash::running(dir);
+    }
     // `woodsketch drawing.woodsketch` opens that drawing.
     let open = std::env::args_os().nth(1).map(PathBuf::from);
     // Which backend to draw with, rather than whichever wgpu happens to pick (#13). The list is
     // never empty, and its first entry is the preferred backend on all but a machine that has
     // shown it doesn't work.
-    let plan = graphics::plan(dir.as_deref());
+    let result = draw(open.as_deref(), dir.as_deref());
+    // The window has closed, so this run ended the way it was meant to and isn't a crash to report
+    // at the next start. A panic has already been saved by the hook, and is offered on its own.
+    if let Some(dir) = &dir {
+        woodsketch_ui_egui::crash::ended(dir);
+    }
+    result
+}
+
+/// Open the window on the first backend that will have it.
+fn draw(open: Option<&Path>, dir: Option<&Path>) -> eframe::Result {
+    let plan = graphics::plan(dir);
     let mut after = plan.after;
     let (last, rest) = plan.attempts.split_last().expect("there is always a backend to try");
     for backend in rest {
-        match run(*backend, after.as_deref(), open.as_deref(), dir.as_deref()) {
+        match run(*backend, after.as_deref(), open, dir) {
             // This one can't start here. Try the next now, in this same run: a backend that
             // isn't there is no reason to leave somebody with an app that won't open.
             Err(eframe::Error::Wgpu(error)) => {
@@ -54,7 +71,7 @@ fn main() -> eframe::Result {
             result => return result,
         }
     }
-    run(*last, after.as_deref(), open.as_deref(), dir.as_deref())
+    run(*last, after.as_deref(), open, dir)
 }
 
 /// Open the window and run until it closes, drawing with `backend` where one was chosen.
@@ -62,6 +79,11 @@ fn run(backend: Option<&str>, after: Option<&str>, open: Option<&Path>, dir: Opt
     let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_title("WoodSketch")
+            // What the window calls itself to the desktop (Wayland's app id, X11's WM_CLASS).
+            // It has to match `StartupWMClass` in `packaging/linux/woodsketch.desktop`, or Linux
+            // can't tell that this window is that entry's app, and shows it in the taskbar
+            // without its name or its icon.
+            .with_app_id("woodsketch")
             .with_inner_size([1280.0, 800.0])
             .with_min_inner_size([640.0, 400.0])
             .with_maximized(true)
@@ -81,12 +103,15 @@ fn run(backend: Option<&str>, after: Option<&str>, open: Option<&Path>, dir: Opt
     // choose the same backend and go the same way.
     graphics::trying(dir, backend);
     let (open, after) = (open.map(Path::to_owned), after.map(str::to_owned));
+    // Owned for the closure, which outlives this call: the settings folder, so applying an update
+    // can say the run ended before it ends the process.
+    let settings = dir.map(Path::to_owned);
     eframe::run_native(
         "WoodSketch",
         options,
         Box::new(move |cc| {
             let mut app = WoodSketchApp::new(cc);
-            app.set_updater(update::updater(cc.egui_ctx.clone()));
+            app.set_updater(update::updater(cc.egui_ctx.clone(), settings.clone()));
             if let Some(failed) = &after {
                 app.fell_back_from(failed);
             }

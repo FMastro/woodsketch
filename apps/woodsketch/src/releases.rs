@@ -232,11 +232,38 @@ mod tests {
         assert!(r.published_at.is_none(), "a release that was never published sorts last");
     }
 
+    /// Every channel the release workflow builds, read out of the workflow itself: a platform
+    /// added to that matrix and forgotten here would otherwise be a channel nothing ever checks.
+    fn channels() -> Vec<String> {
+        let yaml = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.github/workflows/release.yml")).expect("the release workflow");
+        let channels: Vec<String> = yaml
+            .lines()
+            .filter_map(|l| l.trim().strip_prefix("- {"))
+            .filter_map(|l| l.split("channel:").nth(1))
+            .map(|rest| rest.split(',').next().unwrap_or_default().trim().to_owned())
+            .collect();
+        assert!(channels.contains(&"win-x64".to_owned()), "the matrix was read but Windows isn't in it: {channels:?}");
+        channels
+    }
+
+    /// The channel names come out of the workflow, without the network: this is what tells whether
+    /// [`channels`] still understands the matrix after someone reformats it.
+    #[test]
+    fn the_release_workflows_channels_can_be_read() {
+        let channels = channels();
+        assert!(channels.len() >= 4, "every platform has a channel: {channels:?}");
+        assert!(channels.iter().all(|c| c.starts_with("win-") || c.starts_with("osx-") || c.starts_with("linux-")), "{channels:?}");
+    }
+
     /// The real thing, against the real repository: every platform's channel has a package to
     /// update to, read over the real connection. This is the only test that can tell whether the
     /// feed GitHub actually serves still parses, and it is what stands behind every update anyone
     /// gets, so run it after touching this file: `WOODSKETCH_RELEASES=1 cargo test -p woodsketch`.
     /// Off by default because it needs the network and spends GitHub's unauthenticated rate limit.
+    ///
+    /// A channel whose first release hasn't been published yet has no feed anywhere, and that is
+    /// said rather than failed: the Arm channels were in the matrix before any release carried
+    /// them. A channel that *has* a feed must have a whole package in it.
     #[test]
     fn every_platform_has_an_update_to_find() {
         if std::env::var_os("WOODSKETCH_RELEASES").is_none() {
@@ -249,14 +276,21 @@ mod tests {
         let [computer, _shipped] = net::roots();
         let own: ureq::Agent = ureq::Agent::config_builder().tls_config(net::tls(computer)).build().into();
         own.get(&releases.listing).header("Accept", "application/vnd.github.v3+json").call().expect("the roots this computer trusts reach GitHub");
-        for channel in ["win-x64", "osx-arm64", "osx-x64", "linux-x64"] {
-            let feed = releases.get_release_feed(channel, &Manifest::default(), "").expect(channel);
+        let mut live = 0;
+        for channel in channels() {
+            let feed = releases.get_release_feed(&channel, &Manifest::default(), "").unwrap_or_else(|e| panic!("{channel}: {e}"));
+            if feed.Assets.is_empty() {
+                println!("{channel}: no release has carried this channel yet");
+                continue;
+            }
             let newest = feed.Assets.iter().filter(|a| a.Type.eq_ignore_ascii_case("Full")).max_by(|a, b| a.Version.cmp(&b.Version));
             let newest = newest.unwrap_or_else(|| panic!("{channel} has no full package in {} assets", feed.Assets.len()));
             println!("{channel}: {} {} ({} bytes)", newest.FileName, newest.Version, newest.Size);
             assert!(newest.FileName.ends_with(".nupkg"), "{channel}: {}", newest.FileName);
             assert!(!newest.SHA256.is_empty(), "{channel}: nothing to check the download against");
             assert!(newest.Size > 0, "{channel}: an empty package");
+            live += 1;
         }
+        assert!(live >= 4, "only {live} channels had anything to update to, which can't be right");
     }
 }

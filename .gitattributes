@@ -1,0 +1,5 @@
+# Shell scripts must be LF whatever the machine they were last edited on: a `.sh` checked out
+# with CRLF fails on Linux with `$'\r': command not found`, which is a confusing way for a release
+# to break. This repository is worked on from Windows, where `core.autocrlf` would otherwise
+# decide.
+*.sh text eol=lf

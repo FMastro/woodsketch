@@ -19,6 +19,14 @@ What's New shows the lead in the strong colour, GitHub shows it in bold.
   without it on Windows, so tool shortcuts silently did nothing until you clicked in the window.
 - **A drawing opens on Select** - Whatever tool was in hand before, a new or opened drawing comes
   up with the pointer rather than the Eraser.
+- **A .deb and an .rpm for Linux** - Install from your own package manager, and drawings open on a
+  double-click; the AppImage is still there for everyone else.
+- **WoodSketch for Windows and Linux on Arm** - Each has its own build now, and updates like any
+  other.
+- **Crash reports say where it happened** - On Windows they were going out with no calls listed at
+  all, because the symbols that name them never reached the installed app.
+- **A crash with nothing to say is reported too** - A graphics driver taking the app down, or
+  running out of memory, used to leave nothing to send.
 
 ## 0.1.82
 

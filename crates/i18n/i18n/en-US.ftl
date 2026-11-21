@@ -837,6 +837,9 @@ app-imported-skipped = Imported, but { $count } faces couldn't be read and were 
 app-skp-empty = That SketchUp model is empty.
 app-crash-title = WoodSketch ran into a problem
 app-crash-note = It closed unexpectedly last time ({ $version }). A report helps get it fixed: it says what went wrong and where in WoodSketch's code, and you'll see all of it before it's sent.
+# When the last run stopped leaving nothing behind at all, so there is no fault to name and
+# nowhere in the code to point at. Said differently from the note above, which promises both.
+app-crash-note-quiet = It stopped without warning last time ({ $version }) and left nothing behind to say why, which usually means the graphics driver. A report still helps: it says which graphics card and driver were in use, and you'll see all of it before it's sent.
 app-crash-report = Report it...
 app-crash-not-now = Not now
 # What a drawing with no file of its own is called in the question below.

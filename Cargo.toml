@@ -55,3 +55,27 @@ opt-level = 1
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+# Line numbers in a crash report, for WoodSketch's own code only. A report keeps the calls that
+# led there (`feedback::own_frames`) and keeps *only* WoodSketch's own frames, so only WoodSketch's
+# own crates need the line tables that turn `joinery::rebuilt_without` into
+# `joinery::rebuilt_without (crates/doc/src/joinery.rs:120:9)`. Turning them on for everything
+# takes the Windows symbols from 6 MB to 73 MB, and they ship beside the app (`release.yml`), so
+# everybody would download the line tables of three hundred crates whose frames are never shown.
+# These eight cost 18 MB of symbols, about 8 MB of the download, for every line a report can show.
+[profile.release.package.woodsketch-doc]
+debug = "line-tables-only"
+[profile.release.package.woodsketch-i18n]
+debug = "line-tables-only"
+[profile.release.package.woodsketch-tools]
+debug = "line-tables-only"
+[profile.release.package.woodsketch-view]
+debug = "line-tables-only"
+[profile.release.package.woodsketch-render]
+debug = "line-tables-only"
+[profile.release.package.woodsketch-ui-egui]
+debug = "line-tables-only"
+[profile.release.package.woodsketch]
+debug = "line-tables-only"
+[profile.release.package.woodsketch-cli]
+debug = "line-tables-only"

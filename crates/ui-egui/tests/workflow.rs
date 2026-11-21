@@ -1799,6 +1799,41 @@ fn a_crash_is_offered_for_a_report_at_the_next_start() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// A run that ended where no Rust code of ours ran again -- a graphics driver taking the process
+/// down, running out of memory, a stack overflow -- leaves only the note saying a run was under
+/// way. That is offered too, and says plainly that it doesn't know why, rather than promising a
+/// fault and a place in the code the way a panic's offer does.
+#[test]
+fn a_run_that_stopped_without_a_word_is_offered_too() {
+    use egui_kittest::kittest::Queryable;
+    let dir = std::env::temp_dir().join(format!("woodsketch-quiet-stop-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    // The note the run that died left behind, found still there by the run after it.
+    std::fs::write(dir.join("running.txt"), "0.1.80").unwrap();
+    woodsketch_ui_egui::crash::running(&dir);
+
+    let mut harness = app();
+    harness.state_mut().use_crash_folder(dir.clone());
+    harness.run();
+    assert!(harness.query_by_label("WoodSketch ran into a problem").is_some());
+    assert!(
+        harness.query_by_label_contains("left nothing behind to say why").is_some(),
+        "it says there is nothing to go on, not that it knows where in the code it was"
+    );
+    harness.get_by_label("Report it...").click();
+    harness.run();
+    assert!(harness.query_by_label("Report a Problem").is_some(), "the report form opens");
+    assert!(
+        harness.query_by_label_contains("Crashed (in 0.1.80): WoodSketch stopped without saying why").is_some(),
+        "naming the version that stopped, which came out of the note"
+    );
+    // This run's own note is left alone: it is still running.
+    assert!(dir.join("running.txt").exists(), "this run is still under way");
+    assert!(!dir.join("stopped.txt").exists(), "the last run's note is used up");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn outliner_shows_the_whole_tree_and_picks_nested_parts() {
     use egui_kittest::kittest::Queryable;

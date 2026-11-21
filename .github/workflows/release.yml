@@ -65,9 +65,16 @@ jobs:
       matrix:
         include:
           - { os: windows-latest, target: x86_64-pc-windows-msvc, channel: win-x64, runtime: win-x64, exe: woodsketch.exe, cli: woodsketch-cli.exe }
+          # Built on the Arm runners rather than cross-compiled: `ring` wants a C toolchain for the
+          # target, and the tests and vpk run natively here as they do everywhere else. Both
+          # labels are free for public repositories.
+          - { os: windows-11-arm, target: aarch64-pc-windows-msvc, channel: win-arm64, runtime: win-arm64, exe: woodsketch.exe, cli: woodsketch-cli.exe }
           - { os: macos-latest, target: aarch64-apple-darwin, channel: osx-arm64, runtime: osx-arm64, exe: woodsketch, cli: woodsketch-cli }
           - { os: macos-latest, target: x86_64-apple-darwin, channel: osx-x64, runtime: osx-x64, exe: woodsketch, cli: woodsketch-cli }
-          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, channel: linux-x64, runtime: linux-x64, exe: woodsketch, cli: woodsketch-cli }
+          # `deb` is the Debian architecture name, and the only Linux-only key: it is what says to
+          # build a .deb and an .rpm beside the AppImage.
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, channel: linux-x64, runtime: linux-x64, exe: woodsketch, cli: woodsketch-cli, deb: amd64 }
+          - { os: ubuntu-22.04-arm, target: aarch64-unknown-linux-gnu, channel: linux-arm64, runtime: linux-arm64, exe: woodsketch, cli: woodsketch-cli, deb: arm64 }
     runs-on: ${{ matrix.os }}
     # The environment the signing app's federated credential trusts; id-token lets the runner
     # prove who it is to Azure without a stored secret.
@@ -210,8 +217,11 @@ jobs:
         run: |
           mkdir -p publish releases
           cp "target/${{ matrix.target }}/release/${{ matrix.exe }}" publish/
-          # Windows keeps function names and line numbers apart from the program: beside it, a
-          # crash report can say which calls led to the crash.
+          # Windows keeps function names and line numbers apart from the program, in the .pdb, and
+          # without it a backtrace is a list of `<unknown>`: nothing in a release build names a
+          # Rust function to the symbolizer. So it is installed beside the app, which costs about
+          # 8 MB of the download and is the whole reason a crash report can say anything at all
+          # about where it happened (`--exclude` below, and the line tables in Cargo.toml).
           if [ "${{ runner.os }}" = Windows ]; then
             cp "target/${{ matrix.target }}/release/woodsketch.pdb" publish/
           fi
@@ -266,6 +276,11 @@ jobs:
           # a new channel needs no special case.
           vpk download github --repoUrl "https://github.com/$GITHUB_REPOSITORY" \
             --channel "${{ matrix.channel }}" --outputDir releases --token "$GH_TOKEN"
+          # `--exclude '^$'` is a regex no file name can match, which is how the symbols stay in.
+          # vpk's own default for that option is `.*\.pdb`, so the .pdb copied into publish/ above
+          # was being dropped from every package without a word, and every Windows crash report
+          # went out with an empty list of calls. Keeping the option set to something inert leaves
+          # vpk's built-in exclusions alone.
           vpk pack \
             --packId WoodSketch \
             --packVersion "$VERSION" \
@@ -277,6 +292,7 @@ jobs:
             --runtime "${{ matrix.runtime }}" \
             --icon "$icon" \
             --outputDir releases \
+            --exclude '^$' \
             "${sign_args[@]}"
           # The command line on its own too, for a machine without the app (a server, CI).
           cli_zip="woodsketch-cli-$VERSION-${{ matrix.channel }}.zip"
@@ -325,6 +341,21 @@ jobs:
           # of megabytes to say the same thing. `assets.<channel>.json` lists what belongs here and
           # already leaves it out; this is the same rule applied to the files.
           find releases -name '*.nupkg' ! -name "*-$VERSION-*" -print -delete
+          ls -l releases
+      # A .deb and an .rpm beside the AppImage, for people who install from their package manager.
+      # Neither is updated by WoodSketch itself: apt and dnf own what they installed, and
+      # Velopack's Linux side resolves everything from $APPIMAGE, which isn't set in such an
+      # install, so the app reports itself not installed and never offers to update.
+      - name: Linux packages (.deb and .rpm)
+        if: matrix.deb != ''
+        shell: bash
+        run: |
+          # rpm isn't on the runner; dpkg-dev (for dpkg-shlibdeps) comes with build-essential, and
+          # is named anyway rather than relied on. The index was refreshed by the step above.
+          sudo apt-get install -y rpm dpkg-dev
+          # Run through bash rather than relying on the file's executable bit, which a checkout
+          # from a Windows working copy doesn't always carry.
+          bash scripts/linux-packages.sh "$VERSION" "${{ matrix.deb }}" publish releases
           ls -l releases
       - uses: actions/upload-artifact@v4
         with:

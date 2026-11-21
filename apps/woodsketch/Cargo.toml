@@ -17,6 +17,10 @@ serde.workspace = true
 serde_json.workspace = true
 log = { workspace = true, default-features = false }
 
+[dev-dependencies]
+# `tests/packaging.rs` holds the Linux desktop and MIME files to what a drawing really is.
+woodsketch-doc.workspace = true
+
 [lints]
 workspace = true
 
