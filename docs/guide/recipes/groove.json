@@ -1,0 +1,54 @@
+{
+  "name": "Groove",
+  "units": "in",
+  "materials": [
+    {
+      "id": "oak",
+      "library": "White Oak"
+    }
+  ],
+  "parts": [
+    {
+      "name": "Stile",
+      "material": "oak",
+      "size": [
+        12,
+        2.5,
+        0.75
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "length": "z",
+      "width": "y"
+    },
+    {
+      "name": "Panel",
+      "material": "oak",
+      "size": [
+        12,
+        8,
+        0.25
+      ],
+      "at": [
+        0.75,
+        1.125,
+        0
+      ],
+      "length": "z",
+      "width": "x"
+    }
+  ],
+  "joints": [
+    {
+      "kind": "let_in",
+      "part": "Panel",
+      "into": "Stile",
+      "options": {
+        "depth": 0.25
+      }
+    }
+  ]
+}

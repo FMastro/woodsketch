@@ -1,0 +1,51 @@
+{
+  "name": "Half Lap",
+  "units": "in",
+  "materials": [
+    {
+      "id": "oak",
+      "library": "White Oak"
+    }
+  ],
+  "parts": [
+    {
+      "name": "Rail",
+      "material": "oak",
+      "size": [
+        12,
+        2.5,
+        0.75
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "length": "x",
+      "width": "y"
+    },
+    {
+      "name": "Stile",
+      "material": "oak",
+      "size": [
+        12,
+        2.5,
+        0.75
+      ],
+      "at": [
+        4.75,
+        -4.75,
+        0
+      ],
+      "length": "y",
+      "width": "x"
+    }
+  ],
+  "joints": [
+    {
+      "kind": "half_lap",
+      "part": "Rail",
+      "into": "Stile"
+    }
+  ]
+}

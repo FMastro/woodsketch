@@ -1,0 +1,51 @@
+{
+  "name": "Notch",
+  "units": "in",
+  "materials": [
+    {
+      "id": "oak",
+      "library": "White Oak"
+    }
+  ],
+  "parts": [
+    {
+      "name": "Post",
+      "material": "oak",
+      "size": [
+        12,
+        2.5,
+        2.5
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "length": "z",
+      "width": "y"
+    },
+    {
+      "name": "Rail",
+      "material": "oak",
+      "size": [
+        9,
+        2.5,
+        0.75
+      ],
+      "at": [
+        1.25,
+        1,
+        5
+      ],
+      "length": "x",
+      "width": "y"
+    }
+  ],
+  "joints": [
+    {
+      "kind": "cut_overlap",
+      "part": "Rail",
+      "into": "Post"
+    }
+  ]
+}

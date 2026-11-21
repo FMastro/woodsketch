@@ -1,0 +1,54 @@
+{
+  "name": "Rabbet",
+  "units": "in",
+  "materials": [
+    {
+      "id": "oak",
+      "library": "White Oak"
+    }
+  ],
+  "parts": [
+    {
+      "name": "Side",
+      "material": "oak",
+      "size": [
+        12,
+        8,
+        0.75
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "length": "z",
+      "width": "y"
+    },
+    {
+      "name": "Top",
+      "material": "oak",
+      "size": [
+        9,
+        8,
+        0.75
+      ],
+      "at": [
+        0.75,
+        0,
+        11.25
+      ],
+      "length": "x",
+      "width": "y"
+    }
+  ],
+  "joints": [
+    {
+      "kind": "let_in",
+      "part": "Top",
+      "into": "Side",
+      "options": {
+        "depth": 0.25
+      }
+    }
+  ]
+}

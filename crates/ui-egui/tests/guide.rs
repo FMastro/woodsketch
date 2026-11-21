@@ -298,6 +298,52 @@ fn joint_about(kind: JointKind) -> (&'static str, &'static str) {
     }
 }
 
+/// The picture that shows this joint, by the name of the recipe in `docs/guide/recipes/` that
+/// builds it. `Mortise` has no recipe of its own: a mortise is the socket half of a mortise and
+/// tenon, and that picture already contains one.
+fn joint_picture(kind: JointKind) -> &'static str {
+    match kind {
+        JointKind::Dado => "dado",
+        JointKind::Groove => "groove",
+        JointKind::Rabbet => "rabbet",
+        JointKind::Notch => "notch",
+        JointKind::Mortise | JointKind::MortiseAndTenon => "mortise-and-tenon",
+        JointKind::HalfLap => "half-lap",
+        JointKind::Dovetails => "dovetails",
+        JointKind::BoxJoint => "box-joint",
+        JointKind::Dowels => "dowels",
+        JointKind::Biscuits => "biscuits",
+        JointKind::LooseTenons => "loose-tenons",
+        JointKind::Splines => "splines",
+        JointKind::PocketScrews => "pocket-screws",
+    }
+}
+
+/// Two boards and one joint, rendered by the app itself, light and dark so a picture never
+/// glares on a dark page. The pair of `img`s is a plain CSS swap -- see `assets/diagrams.css`.
+fn joint_gallery() -> String {
+    let mut out = String::from(
+        "\n## What they look like\n\nEvery picture here is two boards and one joint, built from a recipe in\n`docs/guide/recipes/` by the same joinery the app uses. Change how a dovetail is cut and these\nchange with it.\n\n<div class=\"ws-gallery\">\n",
+    );
+    let mut shown: Vec<&str> = Vec::new();
+    for kind in JOINTS {
+        let picture = joint_picture(kind);
+        if shown.contains(&picture) {
+            continue;
+        }
+        shown.push(picture);
+        let alt = format!("{} between two boards", kind.name());
+        writeln!(
+            out,
+            "<figure class=\"ws-shot\">\n<img class=\"light\" src=\"../images/joints/{picture}-light.png\" alt=\"{alt}\" loading=\"lazy\">\n<img class=\"dark\" src=\"../images/joints/{picture}-dark.png\" alt=\"\" loading=\"lazy\">\n<figcaption>{}</figcaption>\n</figure>",
+            kind.name()
+        )
+        .unwrap();
+    }
+    out.push_str("</div>\n");
+    out
+}
+
 fn joints() -> String {
     let mut out = String::new();
     writeln!(out, "# Joints\n\n{WARNING}\n").unwrap();
@@ -331,6 +377,7 @@ fn joints() -> String {
         names(&cut_both)
     )
     .unwrap();
+    out.push_str(&joint_gallery());
     out
 }
 
@@ -658,6 +705,31 @@ fn every_diagram_is_drawn_into_a_page_and_every_include_finds_one() {
         }
     }
     assert!(!included.is_empty(), "no page includes a diagram any more");
+}
+
+/// Every joint the app can make has a picture, in both themes. The pictures are rendered by
+/// `scripts/make-guide-pictures.py`, which needs a GPU and so cannot run in CI; this is what
+/// notices that a new joint arrived without one, or that a rendering was never committed.
+#[test]
+fn every_joint_has_a_picture_in_both_themes() {
+    let dir = guide().join("src/images/joints");
+    for kind in JOINTS {
+        let picture = joint_picture(kind);
+        assert!(
+            guide().join(format!("recipes/{picture}.json")).exists(),
+            "{} is pictured by `{picture}`, but docs/guide/recipes/{picture}.json isn't there",
+            kind.name()
+        );
+        for theme in ["light", "dark"] {
+            let file = dir.join(format!("{picture}-{theme}.png"));
+            assert!(
+                file.exists(),
+                "no {theme} picture of the {} joint.
+Run `python -I scripts/make-guide-pictures.py`.",
+                kind.name()
+            );
+        }
+    }
 }
 
 #[test]

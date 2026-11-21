@@ -1,0 +1,51 @@
+{
+  "name": "Dovetails",
+  "units": "in",
+  "materials": [
+    {
+      "id": "oak",
+      "library": "White Oak"
+    }
+  ],
+  "parts": [
+    {
+      "name": "Front",
+      "material": "oak",
+      "size": [
+        9,
+        6,
+        0.75
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "length": "x",
+      "width": "z"
+    },
+    {
+      "name": "Side",
+      "material": "oak",
+      "size": [
+        9,
+        6,
+        0.75
+      ],
+      "at": [
+        9,
+        0,
+        0
+      ],
+      "length": "y",
+      "width": "z"
+    }
+  ],
+  "joints": [
+    {
+      "kind": "dovetails",
+      "part": "Front",
+      "into": "Side"
+    }
+  ]
+}

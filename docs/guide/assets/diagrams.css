@@ -35,3 +35,39 @@
     width: calc(100% + 1rem);
   }
 }
+
+/* Rendered pictures of a joint: two boards, built by the app. Each comes in a light and a dark
+   version, because a picture rendered on a pale background glares on a dark page. The pair is
+   swapped here rather than in the Markdown, so the page carries no theme logic of its own. */
+.ws-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 18px 16px;
+  margin: 1.6rem 0 2rem;
+}
+
+.ws-shot {
+  margin: 0;
+}
+
+.ws-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.ws-shot figcaption {
+  text-align: center;
+  font-size: 0.88em;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+.ws-shot img.dark { display: none; }
+.navy .ws-shot img.light,
+.ayu .ws-shot img.light,
+.coffee .ws-shot img.light { display: none; }
+.navy .ws-shot img.dark,
+.ayu .ws-shot img.dark,
+.coffee .ws-shot img.dark { display: block; }

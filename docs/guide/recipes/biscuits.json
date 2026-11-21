@@ -1,0 +1,51 @@
+{
+  "name": "Biscuits",
+  "units": "in",
+  "materials": [
+    {
+      "id": "oak",
+      "library": "White Oak"
+    }
+  ],
+  "parts": [
+    {
+      "name": "Side",
+      "material": "oak",
+      "size": [
+        12,
+        8,
+        0.75
+      ],
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "length": "z",
+      "width": "y"
+    },
+    {
+      "name": "Shelf",
+      "material": "oak",
+      "size": [
+        9,
+        8,
+        0.75
+      ],
+      "at": [
+        0.75,
+        0,
+        5.5
+      ],
+      "length": "x",
+      "width": "y"
+    }
+  ],
+  "joints": [
+    {
+      "kind": "biscuits",
+      "part": "Shelf",
+      "into": "Side"
+    }
+  ]
+}

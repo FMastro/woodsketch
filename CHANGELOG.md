@@ -13,6 +13,12 @@ only where someone wants it. It carries no full stop of its own, since the hyphe
 and it is short enough to take in at a glance (70 characters is the limit a test holds it to).
 What's New shows the lead in the strong colour, GitHub shows it in bold.
 
+## 0.1.87
+
+- **Pictures of a piece on its own** - `woodsketch-cli render` takes `--no-axes` to leave out
+  the red, green and blue axes and `--fit 0.9` to fill the frame, which is what the User
+  Guide's joint pictures are made with.
+
 ## 0.1.86
 
 - **Windows hears about the file type at once** - The shell is told when the association is

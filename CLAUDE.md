@@ -308,6 +308,15 @@ new one and fails**, so the fix is to read the diff and commit it.
   include whose target moved leaves the literal `{{#include}}` text in the page and mdBook says
   nothing. `assets/diagrams.css` styles them and is hand-written, unlike `assets/icons.css`
   beside it, which is generated -- keep that line clear.
+- **A joint's picture is built by the joinery, not frozen beside it.** `docs/guide/recipes/`
+  holds two boards and one joint each; `scripts/make-guide-pictures.py` builds and renders them
+  into `src/images/joints/`, light and dark, swapped by CSS so a pale render never glares on a
+  dark page. Because they are recipes rather than saved drawings, changing how a dovetail is cut
+  changes the picture. Each recipe's file name is the `JointKind` it promises, and the script
+  checks the built drawing really came out with that joint, so a recipe that stops working says
+  so instead of picturing the wrong thing. Rendering needs a GPU, so this is run here and the
+  PNGs are committed; `--check` needs none and runs in CI, and
+  `every_joint_has_a_picture_in_both_themes` ties it back to `JointKind`.
 - The guide generator is under `crates/*/tests`, which `check-unreleased.py` treats as shipping
   to nobody, so **guide work needs no version bump**. Keep it that way: it reads only public API.
 - Prose carries no number that the app also knows. The worked example in the movement page is

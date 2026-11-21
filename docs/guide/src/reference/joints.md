@@ -39,3 +39,77 @@ both get the cut on their build sheet.
 - **One part cut, the other sized to fit:** Dado, Groove, Rabbet, Notch, Mortise.
 - **Both parts cut:** Mortise and tenon, Dovetails, Box joint, Half-lap, Dowels, Biscuits, Loose tenons, Spline, Pocket screws.
 
+
+## What they look like
+
+Every picture here is two boards and one joint, built from a recipe in
+`docs/guide/recipes/` by the same joinery the app uses. Change how a dovetail is cut and these
+change with it.
+
+<div class="ws-gallery">
+<figure class="ws-shot">
+<img class="light" src="../images/joints/dado-light.png" alt="Dado between two boards" loading="lazy">
+<img class="dark" src="../images/joints/dado-dark.png" alt="" loading="lazy">
+<figcaption>Dado</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/joints/groove-light.png" alt="Groove between two boards" loading="lazy">
+<img class="dark" src="../images/joints/groove-dark.png" alt="" loading="lazy">
+<figcaption>Groove</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/joints/rabbet-light.png" alt="Rabbet between two boards" loading="lazy">
+<img class="dark" src="../images/joints/rabbet-dark.png" alt="" loading="lazy">
+<figcaption>Rabbet</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/joints/notch-light.png" alt="Notch between two boards" loading="lazy">
+<img class="dark" src="../images/joints/notch-dark.png" alt="" loading="lazy">
+<figcaption>Notch</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/joints/mortise-and-tenon-light.png" alt="Mortise between two boards" loading="lazy">
+<img class="dark" src="../images/joints/mortise-and-tenon-dark.png" alt="" loading="lazy">
+<figcaption>Mortise</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/joints/dovetails-light.png" alt="Dovetails between two boards" loading="lazy">
+<img class="dark" src="../images/joints/dovetails-dark.png" alt="" loading="lazy">
+<figcaption>Dovetails</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/joints/box-joint-light.png" alt="Box joint between two boards" loading="lazy">
+<img class="dark" src="../images/joints/box-joint-dark.png" alt="" loading="lazy">
+<figcaption>Box joint</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/joints/half-lap-light.png" alt="Half-lap between two boards" loading="lazy">
+<img class="dark" src="../images/joints/half-lap-dark.png" alt="" loading="lazy">
+<figcaption>Half-lap</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/joints/dowels-light.png" alt="Dowels between two boards" loading="lazy">
+<img class="dark" src="../images/joints/dowels-dark.png" alt="" loading="lazy">
+<figcaption>Dowels</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/joints/biscuits-light.png" alt="Biscuits between two boards" loading="lazy">
+<img class="dark" src="../images/joints/biscuits-dark.png" alt="" loading="lazy">
+<figcaption>Biscuits</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/joints/loose-tenons-light.png" alt="Loose tenons between two boards" loading="lazy">
+<img class="dark" src="../images/joints/loose-tenons-dark.png" alt="" loading="lazy">
+<figcaption>Loose tenons</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/joints/splines-light.png" alt="Spline between two boards" loading="lazy">
+<img class="dark" src="../images/joints/splines-dark.png" alt="" loading="lazy">
+<figcaption>Spline</figcaption>
+</figure>
+<figure class="ws-shot">
+<img class="light" src="../images/joints/pocket-screws-light.png" alt="Pocket screws between two boards" loading="lazy">
+<img class="dark" src="../images/joints/pocket-screws-dark.png" alt="" loading="lazy">
+<figcaption>Pocket screws</figcaption>
+</figure>
+</div>

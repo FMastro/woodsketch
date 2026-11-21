@@ -7,3 +7,11 @@
 # The guide, whose reference pages are written by a test: LF so a Windows checkout and a
 # Linux CI run produce byte-identical files and the pages never churn.
 docs/guide/** text eol=lf
+
+# ...but not the pictures. `text` on a PNG rewrites any byte pair that happens to look like a
+# line ending and quietly corrupts it: a 20,677-byte render of a dovetail went into git as
+# 20,676 and came back out broken. `binary` is what the rule above must never reach.
+docs/guide/**/*.png binary
+*.png binary
+*.jpg binary
+*.ico binary

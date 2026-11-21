@@ -329,7 +329,9 @@ to hang on something else or to price on its own.
   into a frame's grooves), mark a top `free_to_move` (fastened with buttons), or turn a part.
 - `render` shows a picture (`iso`, `top`, `front`, `right`, or any `angle`: `[around, up]` in
   degrees), light or `dark`, with parts picked out by name (`highlight`, at any depth: a template's legs too), to see that
-  it looks right.
+  it looks right. From the command line, `--no-axes` leaves out the red, green and blue axes and
+  `--fit 0.9` fills that much of the frame: a picture of the piece by itself rather than a view
+  of the model.
 - `save` the drawing for the person to open in WoodSketch; `cut_sheet` and `build_sheets` write
   what they take to the shop.
 
