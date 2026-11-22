@@ -12,6 +12,7 @@ pub fn install(ctx: &egui::Context) {
     egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
     // The filled glyphs, by name only: the second color under the outline.
     egui_phosphor::add_font_bytes_as_family(&mut fonts, FILL, egui_phosphor::Variant::Fill.font_bytes());
+    crate::add_fallback_fonts(&mut fonts);
     ctx.set_fonts(fonts);
 }
 
