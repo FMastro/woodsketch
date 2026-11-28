@@ -5,6 +5,7 @@
 //! without a graphics card. This is the part that has to touch the machine.
 
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 
 pub use woodsketch_doc::graphics::said;
 use woodsketch_doc::graphics::{self as rule, Tried};
@@ -99,49 +100,90 @@ fn write(dir: &Path, tried: &Tried) {
     let _ = std::fs::write(dir.join(FILE), tried.to_text());
 }
 
+/// A way to write "the card complained" into the note from wherever the complaint arrives.
+///
+/// Cloneable and `Send`, because `wgpu` calls its error handler on whichever thread hit the
+/// error -- and, for the failure this was written for, on a thread that is about to be taken
+/// down. A staging allocation the driver refuses is reported here and then panicked on by
+/// `egui-wgpu` a statement later (#22), so what the next run reads has to be on disk before
+/// this call returns. It used to be written by the next frame's pass through the app, which
+/// for that failure never comes: the machine it happened on would start on Vulkan again every
+/// time, and go the same way every time.
+#[derive(Clone)]
+pub struct Note {
+    dir: Option<PathBuf>,
+    tried: Arc<Mutex<Tried>>,
+}
+
+impl Note {
+    /// The card complained. Only the first is kept: a driver failing every frame would otherwise
+    /// rewrite the file every frame, and what the next run needs is that it happened at all.
+    pub fn trouble(&self, said: &str) {
+        let mut tried = self.tried.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        if tried.trouble.is_some() {
+            return;
+        }
+        tried.trouble = Some(said.to_owned());
+        if let Some(dir) = &self.dir {
+            write(dir, &tried);
+        }
+    }
+}
+
 /// The note this run leaves for the next one: which backend drew, how far it got, and anything
 /// the card complained about.
 pub struct Record {
     /// The settings folder, or nothing when there is none (tests) or when `WGPU_BACKEND` named
     /// the backend, since a backend asked for by hand shouldn't decide what the next run does.
     dir: Option<PathBuf>,
-    tried: Tried,
+    /// What is being drawn with. It never changes once chosen, so the status bar can have it
+    /// without waiting on the lock.
+    backend: String,
+    tried: Arc<Mutex<Tried>>,
 }
 
 impl Record {
     /// Starts the note for a run drawing on `backend` -- the one wgpu really gave us, which is
     /// the one worth writing down.
     pub fn new(dir: Option<&Path>, backend: wgpu::Backend) -> Self {
-        let record = Self { dir: dir.filter(|_| asked_for().is_none()).map(Path::to_owned), tried: Tried::starting(backend.to_str(), crate::updates::VERSION) };
+        let tried = Tried::starting(backend.to_str(), crate::updates::VERSION);
+        let record =
+            Self { dir: dir.filter(|_| asked_for().is_none()).map(Path::to_owned), backend: backend.to_str().to_owned(), tried: Arc::new(Mutex::new(tried)) };
         record.save();
         record
     }
 
     /// The backend being drawn with, as wgpu spells it.
     pub fn backend(&self) -> &str {
-        &self.tried.backend
+        &self.backend
+    }
+
+    /// A handle for writing a complaint down from wherever it arrives. See [`Note`].
+    pub fn note(&self) -> Note {
+        Note { dir: self.dir.clone(), tried: self.tried.clone() }
     }
 
     /// A frame went by. Written down once the window has drawn enough to count as working, so a
     /// backend that takes the app down on its first frame isn't recorded as one that works.
     pub fn drew(&mut self) {
-        if self.tried.drew() {
+        let drew = self.tried.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).drew();
+        if drew {
             self.save();
         }
     }
 
     /// The card complained (`gpu::Trouble`). The app carries on, but the next run starts on
-    /// another backend: this one has shown what it does.
+    /// another backend: this one has shown what it does. The handler writes it through [`Note`]
+    /// as it arrives; this is the app's own pass a frame later, which finds it already written
+    /// and does nothing.
     pub fn trouble(&mut self, said: &str) {
-        if self.tried.trouble.is_none() {
-            self.tried.trouble = Some(said.to_owned());
-            self.save();
-        }
+        self.note().trouble(said);
     }
 
     fn save(&self) {
         if let Some(dir) = &self.dir {
-            write(dir, &self.tried);
+            let tried = self.tried.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            write(dir, &tried);
         }
     }
 }
@@ -184,6 +226,45 @@ mod tests {
         record.trouble("Validation Error");
         let after = left(&dir).unwrap();
         assert!(after.failed() && after.trouble.as_deref() == Some("Validation Error"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The complaint reaches the note as it arrives, rather than when the app next comes round,
+    /// and the next run starts somewhere else because of it.
+    ///
+    /// This is the whole of #22. That failure takes the process down in the same frame it
+    /// arrives in, so the app's pass over `Trouble::taken` never happens -- and before this, the
+    /// note therefore never said anything went wrong. The machine it was reported from would
+    /// have started on Vulkan again every time and gone the same way every time, which is the
+    /// one thing the fall-back exists to prevent.
+    #[test]
+    fn a_complaint_is_written_down_before_the_app_can_be_taken_down() {
+        let dir = std::env::temp_dir().join(format!("woodsketch-graphics-note-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let mut record = Record::new(Some(&dir), wgpu::Backend::Vulkan);
+        let note = record.note();
+        // Far enough in to count as a window that works, so the complaint is the only reason
+        // the next run moves.
+        for _ in 0..4 {
+            record.drew();
+        }
+        assert!(!left(&dir).unwrap().failed(), "a window that drew is not a window that failed");
+
+        // The card complains, and nothing else happens: no frame, no pass through the app, no
+        // `record.trouble`. The process is gone a statement later.
+        note.trouble("Failed to create staging buffer for index data");
+        drop(record);
+
+        let read = left(&dir).expect("the note the next run reads");
+        assert!(read.failed(), "the next run would read this as a backend that worked");
+        assert_eq!(read.trouble.as_deref(), Some("Failed to create staging buffer for index data"));
+
+        // The order is written out rather than taken from `order()`, which has one entry on
+        // macOS and nothing to fall back to.
+        let windows = [rule::VULKAN, rule::DX12, rule::GL];
+        let next = rule::start(&windows, Some(&read), crate::updates::VERSION);
+        assert_eq!(next.after.as_deref(), Some(rule::VULKAN), "the next run should say what it is leaving behind");
+        assert_eq!(next.order[0], rule::DX12, "the next run should start on the backend after the one that complained");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

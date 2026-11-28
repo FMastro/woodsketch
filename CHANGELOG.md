@@ -13,6 +13,12 @@ only where someone wants it. It carries no full stop of its own, since the hyphe
 and it is short enough to take in at a glance (70 characters is the limit a test holds it to).
 What's New shows the lead in the strong colour, GitHub shows it in bold.
 
+## 0.1.92
+
+- **A graphics crash moves the next start onto another backend** - a problem the card reports as
+  the app is going down used to be lost, so the next start drew the same way and went the same
+  way; it is now written down as it happens.
+
 ## 0.1.91
 
 - **WoodSketch speaks Japanese** - the whole interface, contributed by @Comorun, with a Japanese

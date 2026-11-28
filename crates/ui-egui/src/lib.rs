@@ -183,8 +183,12 @@ impl WoodSketchApp {
             theme,
             graphics: gpu::describe(&render_state.adapter),
             // Takes over from wgpu's handler, which panics: a driver that fails one frame used to
-            // close the window (#13).
-            gpu: gpu::Trouble::watch(&render_state.device),
+            // close the window (#13). The note goes with it, so a complaint the app doesn't
+            // survive still moves the next run onto another backend (#22).
+            gpu: gpu::Trouble::watch(&render_state.device, {
+                let note = backend.note();
+                move |said| note.trouble(said)
+            }),
             backend,
             fell_back: None,
             export_units: woodsketch_doc::export::ExportUnits::Inches,

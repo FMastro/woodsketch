@@ -199,8 +199,8 @@ left nothing behind, which is what a graphics driver crash or running out of mem
 6. [3] A failed staging write still closes the app. `egui-wgpu`'s `update_buffers` calls `panic!`
     when `Queue::write_buffer_with` hands back `None` -- a staging allocation the driver refused,
     which is what a lost device looks like (#22, on a GTX 1660 Ti with an empty drawing).
-    `gpu::Trouble` already hears the error wgpu reports a moment earlier, so the seatbelt is on;
-    the panic is simply past it. Both the panic and the painter that would skip the frame live
+    `gpu::Trouble` already hears the error wgpu reports a moment earlier, so the seatbelt is on
+    and the next run now moves off that backend by itself (0.1.92); the panic is simply past it. Both the panic and the painter that would skip the frame live
     inside `egui-wgpu` (0.37 the same), so there is nothing to catch from here: handling it means a
     `[patch.crates-io]` copy of that one crate -- its published manifest carries no path deps, so
     patching it duplicates no egui types -- writing through `queue.write_buffer` instead, and

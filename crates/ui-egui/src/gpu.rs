@@ -43,19 +43,30 @@ fn kind(device: wgpu::DeviceType) -> &'static str {
 pub struct Trouble(Arc<Mutex<Option<String>>>);
 
 impl Trouble {
-    /// Takes over from `wgpu`'s panicking handler on `device`.
-    pub fn watch(device: &wgpu::Device) -> Self {
+    /// Takes over from `wgpu`'s panicking handler on `device`. `tell` is handed each complaint
+    /// as it arrives, for whoever has to know before the app gets a chance to ask -- in practice
+    /// `graphics::Note`, writing down that this backend went wrong.
+    pub fn watch(device: &wgpu::Device, tell: impl Fn(&str) + Send + Sync + 'static) -> Self {
         let trouble = Self::default();
-        let said = trouble.0.clone();
-        device.on_uncaptured_error(Arc::new(move |error: wgpu::Error| {
-            // Logged in full, kept short for the screen: the full text runs to several lines of
-            // backend detail, and the status bar has one.
-            log::error!("the graphics card reported: {error}");
-            let whole = error.to_string();
-            let first = whole.lines().next().unwrap_or(&whole).trim().to_owned();
-            *said.lock().unwrap_or_else(|e| e.into_inner()) = Some(first);
-        }));
+        let heard = trouble.clone();
+        device.on_uncaptured_error(Arc::new(move |error: wgpu::Error| heard.heard(&error.to_string(), &tell)));
         trouble
+    }
+
+    /// What to do with a complaint, wherever it came from.
+    ///
+    /// `tell` goes first, and that order is the point of it. The app usually stays up and reads
+    /// [`Self::taken`] on the next frame -- but where it doesn't, there is no next frame: a
+    /// staging allocation the driver refuses arrives here and is panicked on by `egui-wgpu` a
+    /// statement later (#22), and all that survives is what reached the disk before this
+    /// returned.
+    fn heard(&self, whole: &str, tell: &dyn Fn(&str)) {
+        // Logged in full, kept short for the screen: the full text runs to several lines of
+        // backend detail, and the status bar has one.
+        log::error!("the graphics card reported: {whole}");
+        let first = whole.lines().next().unwrap_or(whole).trim().to_owned();
+        tell(&first);
+        *self.0.lock().unwrap_or_else(|e| e.into_inner()) = Some(first);
     }
 
     /// What it said, once, so the status bar shows each complaint rather than the first forever.
@@ -83,6 +94,20 @@ mod tests {
         *trouble.0.lock().unwrap() = Some("Validation Error".to_owned());
         assert_eq!(trouble.taken().as_deref(), Some("Validation Error"));
         assert_eq!(trouble.taken(), None, "a card failing every frame mustn't pin one message on screen");
+    }
+
+    /// A complaint is handed on as it arrives, before it is stored for the next frame to read.
+    /// Where the app doesn't survive the frame (#22) that hand-off is the only thing that
+    /// happens at all, so the order here is the behaviour, not an implementation detail.
+    #[test]
+    fn a_complaint_is_handed_on_the_moment_it_arrives() {
+        let trouble = Trouble::default();
+        let told: Arc<Mutex<Vec<String>>> = Arc::default();
+        let keep = Arc::clone(&told);
+        let whole = "Validation Error\n\nCaused by:\n  In Queue::write_buffer_with\n    Out of memory";
+        trouble.heard(whole, &move |said: &str| keep.lock().unwrap_or_else(|e| e.into_inner()).push(said.to_owned()));
+        assert_eq!(told.lock().unwrap().as_slice(), ["Validation Error".to_owned()], "the card's first line, handed straight on");
+        assert_eq!(trouble.taken().as_deref(), Some("Validation Error"), "and kept for the status bar as well");
     }
 
     /// The screen gets one line, whatever the backend wrote.

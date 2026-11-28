@@ -185,7 +185,16 @@ Each run leaves a note beside the crash report (`graphics.txt`: the backend, the
 frames, anything the card said). Two things count as going wrong -- fewer than two frames drawn,
 or `gpu::Trouble` hearing from the card -- and either one starts the next run on the backend
 after it, saying so in the status bar (`status-graphics-fell-back`) and in the report's graphics
-line. Nothing else moves it. `main.rs` tries the list in turn **within one run**, so a backend
+line. Nothing else moves it.
+**A complaint is written down in the handler, as it arrives** (`graphics::Note`, handed to
+`Trouble::watch`), not on the app's next pass over `Trouble::taken`. For a year it was the pass,
+which works for everything the app survives and fails for exactly the complaint that matters
+most: a staging allocation the driver refuses arrives at the handler and is panicked on by
+`egui-wgpu` a statement later (#22), so there is no next frame, nothing was written, and the
+machine starts on the same backend and goes the same way again. `Note` holds the same `Tried`
+as the `Record` behind an `Arc<Mutex<_>>`, keeps only the first complaint (a card failing every
+frame would otherwise rewrite the file every frame), and `tell` runs **before** the message is
+stored for the status bar, since what survives is only what reached the disk. `main.rs` tries the list in turn **within one run**, so a backend
 that can't start never leaves somebody with an app that won't open; the note is written *before*
 the window opens, because a driver that takes the process down during startup leaves nothing
 behind otherwise. A new version starts from the top of the list again (it brings a new `wgpu`),
