@@ -16,7 +16,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 3 | Templates | 134 | Fast wins on the built-in templates; the parametric ones are in |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 0 | Nothing outstanding; the live link was dropped |
-| 6 | Release polish | 21 | Both platforms signed; the rest is packaging and reach |
+| 6 | Release polish | 34 | Both platforms signed; the rest is packaging and reach |
 | 7 | Start page and samples | 10 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
 | 9 | Cut list and materials | 171 | Better buying and cutting |
@@ -29,7 +29,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1333** | |
+| | **All** | **1346** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -207,6 +207,22 @@ left nothing behind, which is what a graphics driver crash or running out of mem
     filling the slices either way, since `render()` panics in turn on slices that aren't there.
     Worth sending upstream first: the fix belongs there, and a vendored dependency has to be
     re-vendored at every egui upgrade. Autosave being prompt is what makes the wait affordable.
+7. [13] Fetch a language when it is chosen, instead of building every one in. Japanese (#20)
+    put 9.6 MB of font into every download, on all six platforms, for everyone, and the next
+    language written in a script of its own costs that again. The catalogs are not the problem
+    -- 60 KB each, and built in they can never go missing -- so this is about the fonts: View >
+    Language fetches the face its script needs, keeps it in the settings folder beside the
+    autosaves, and calls `fonts::install` again, with no restart (the language itself already
+    switches live). What it has to answer: where they are hosted (release assets, which
+    `releases.rs` already reads), what somebody with no network sees (English, saying why, not
+    a window of empty boxes), how a download is checked before the app draws with it
+    (`SHA256SUMS.txt` is written for every release already), and how the SIL Open Font License
+    still ships with a font that is no longer inside the binary, since
+    `THIRD-PARTY-NOTICES.md` is generated from what is there at build time. Against it: "one
+    binary, nothing loose beside the app" is why the catalogs are built in at all, and a
+    language that needs the network to appear is worst for the person who most needs it. Worth
+    doing when the second non-Latin language lands, and not before -- one 9.6 MB font is a
+    cost, two is a pattern.
 ## 7. Start page and samples
 Done: the Start page (New in either unit, Open, Import, Recent, Samples) over an empty drawing
 rather than in front of the app, Esc to leave, File > Start Page to come back; units saved with
