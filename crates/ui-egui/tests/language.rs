@@ -10,9 +10,10 @@
 //! process, so two of these running at once would each be reading the other's language. It also
 //! keeps to one wgpu device at a time, which is what `workflow.rs` needs its GPU lock for.
 //!
-//! The catalog below is written in this file rather than shipped. No translation exists yet, and
-//! inventing one in a language nobody here reads well enough to check would be a worse test than
-//! none: it would prove the machinery works while quietly asserting the Portuguese is right.
+//! The catalog below is written in this file rather than taken from a shipped one. Two
+//! translations do ship now (Portuguese, and Japanese contributed in #20), but a test that read
+//! one of those would be asserting its wording is right, which is the translator's business and
+//! not this file's. Two lines written here prove the machinery and claim nothing else.
 
 use eframe::egui;
 use egui_kittest::Harness;
