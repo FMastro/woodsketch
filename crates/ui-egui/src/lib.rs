@@ -8,6 +8,7 @@ pub mod crash;
 mod cutlist;
 pub mod feedback;
 pub mod files;
+pub mod fonts;
 mod gpu;
 pub mod graphics;
 pub mod help;
@@ -30,7 +31,6 @@ mod viewport;
 mod watch;
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use eframe::egui;
 use viewport::Viewport;
@@ -130,7 +130,7 @@ impl WoodSketchApp {
             woodsketch_doc::units::set_units(units);
         }
         let render_state = cc.wgpu_render_state.as_ref().expect("WoodSketch needs eframe's wgpu renderer");
-        icons::install(&cc.egui_ctx);
+        fonts::install(&cc.egui_ctx);
         // Light and dark looks, and the one last chosen (View > Theme; light at first).
         cc.egui_ctx.set_visuals_of(egui::Theme::Light, chrome::visuals(false));
         cc.egui_ctx.set_visuals_of(egui::Theme::Dark, chrome::visuals(true));
@@ -785,19 +785,6 @@ impl WoodSketchApp {
     /// Where a model point (inches) appears in the window. For tests that click on geometry.
     pub fn to_window(&self, point: glam::DVec3) -> Option<egui::Pos2> {
         self.viewport.to_window(point)
-    }
-}
-
-/// Add Japanese glyphs as a fallback while preserving egui's bundled Latin fonts first.
-pub(crate) fn add_fallback_fonts(fonts: &mut egui::FontDefinitions) {
-    fonts.font_data.insert(
-        "noto-sans-jp".to_owned(),
-        Arc::new(egui::FontData::from_static(include_bytes!(
-            "../../../assets/fonts/NotoSansJP[wght].ttf"
-        ))),
-    );
-    for family in [egui::FontFamily::Proportional, egui::FontFamily::Monospace] {
-        fonts.families.entry(family).or_default().push("noto-sans-jp".to_owned());
     }
 }
 

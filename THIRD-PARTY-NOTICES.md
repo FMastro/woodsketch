@@ -537,6 +537,14 @@ ship. Don't edit it by hand -- run the script, which CI checks.
 | zvariant_derive | 5.15.0 | MIT |
 | zvariant_utils | 4.2.0 | MIT |
 
+## Fonts built into the app
+
+Built into the executable rather than reached as packages, so `cargo metadata` doesn't see them. Their licenses are below, with everything else's.
+
+| Font | Where |
+|---|---|
+| NotoSansJP[wght].ttf | `assets/fonts/NotoSansJP[wght].ttf` |
+
 ## Licenses
 
 ### Used by 283 package(s): adler2 2.0.1, ahash 0.8.12, allocator-api2 0.2.21, anstream 1.0.0, anstyle 1.0.14, anstyle-parse 1.0.0, anstyle-query 1.1.5, anstyle-wincon 3.0.11, anyhow 1.0.104, arrayvec 0.7.8, as-raw-xcb-connection 1.0.1, ash 0.38.0+1.3.281, async-channel 2.5.0, async-executor 1.14.0, async-io 2.6.0, async-lock 3.4.2, async-process 2.5.0, async-recursion 1.2.0, async-signal 0.2.14, async-task 4.7.1, async-trait 0.1.92, atomic-waker 1.1.2, atspi 0.29.0, atspi-common 0.13.0, atspi-proxies 0.13.0, autocfg 1.5.1, bit-set 0.10.0, bit-vec 0.9.1, bitflags 1.3.2, bitflags 2.13.2, block-buffer 0.12.1, blocking 1.7.0, bumpalo 3.20.3, bytes 1.12.1, calloop 0.13.0, calloop 0.14.5, calloop-wayland-source 0.3.0, calloop-wayland-source 0.4.1, cc 1.8.0, cfg-if 1.0.5, cgl 0.3.2, chacha20 0.10.2, colorchoice 1.0.5, concurrent-queue 2.5.0, const-oid 0.10.2, core-foundation 0.10.1, core-foundation 0.9.4, core-foundation-sys 0.8.7, core-graphics 0.23.2, core-graphics-types 0.1.3, cpufeatures 0.3.1, crypto-common 0.2.2, cursor-icon 1.2.0, defmt 1.1.1, defmt-macros 1.1.1, derivative 2.2.0, digest 0.11.3, displaydoc 0.2.7, dlib 0.5.3, document-features 0.2.12, downcast-rs 1.2.1, dyn-clone 1.0.20, earcut 0.4.11, either 1.19.0, endi 1.1.1, enumflags2 0.7.12, enumflags2_derive 0.7.12, enumn 0.1.14, env_filter 2.0.0, env_logger 0.11.11, equivalent 1.0.2, errno 0.3.14, euclid 0.22.14, event-listener 5.4.2, event-listener-strategy 0.5.4, fastrand 2.5.0, fearless_simd 0.4.1, find-msvc-tools 0.1.14, flate2 1.1.10, fluent-bundle 0.16.0, fluent-syntax 0.12.0, font-types 0.12.6, foreign-types 0.5.0, foreign-types-macros 0.2.4, foreign-types-shared 0.3.1, form_urlencoded 1.2.2, futures-core 0.3.34, futures-io 0.3.34, futures-lite 2.6.1, futures-macro 0.3.34, futures-task 0.3.34, futures-util 0.3.34, getrandom 0.2.17, getrandom 0.3.4, getrandom 0.4.3, glam 0.34.1, glifo 0.2.0, glob 0.3.4, glow 0.17.0, gpu-allocator 0.28.0, hashbrown 0.16.1, hashbrown 0.17.1, hermit-abi 0.5.3, hex 0.4.3, http 1.5.0, httparse 1.10.1, hybrid-array 0.4.15, idna 1.1.0, idna_adapter 1.2.2, indexmap 2.14.2, intl-memoizer 0.5.3, is_terminal_polyfill 1.70.2, itertools 0.15.0, itoa 1.0.18, jni-sys 0.3.1, jni-sys 0.4.1, jobserver 0.1.35, js-sys 0.3.106, khronos-egl 6.0.0, kurbo 0.13.1, lazy_static 1.5.1, libc 0.2.190, linux-raw-sys 0.12.1, linux-raw-sys 0.4.15, litrs 1.0.1, lock_api 0.4.14, log 0.4.34, memmap2 0.9.11, memoffset 0.9.1, nohash-hasher 0.2.0, num-traits 0.2.19, num_enum 0.7.6, num_enum_derive 0.7.6, once_cell 1.21.4, once_cell_polyfill 1.70.2, openssl-probe 0.2.2, ordered-float 5.5.0, ordered-stream 0.2.0, parking 2.2.1, parking_lot 0.12.5, parking_lot_core 0.9.12, peniko 0.6.1, percent-encoding 2.3.2, pin-project 1.1.13, pin-project-internal 1.1.13, pin-project-lite 0.2.17, piper 0.2.5, pkg-config 0.3.34, plain 0.2.3, png 0.18.1, polling 3.11.0, pollster 0.4.0, pollster 1.0.1, polycool 0.4.0, portable-atomic 1.15.0, portable-atomic-util 0.2.8, presser 0.3.1, proc-macro-crate 3.5.0, proc-macro-hack 0.5.20+deprecated, proc-macro2 1.0.107, quick-error 2.0.1, quote 1.0.47, rand 0.10.3, rand_core 0.10.1, raw-window-metal 1.1.0, read-fonts 0.41.0, ref-cast 1.0.27, ref-cast-impl 1.0.27, regex 1.13.1, regex-automata 0.4.18, regex-syntax 0.8.11, renderdoc-sys 1.1.0, ron 0.12.2, rustc-hash 1.1.0, rustc-hash 2.1.3, rustc_version 0.4.1, rustix 0.38.44, rustix 1.1.5, rustls 0.23.46, rustls-native-certs 0.8.5, rustls-pki-types 1.15.1, rustversion 1.0.23, schannel 0.1.30, scoped-tls 1.0.1, scopeguard 1.2.0, semver 1.0.28, serde 1.0.229, serde_core 1.0.229, serde_derive 1.0.229, serde_derive_internals 0.30.0, serde_json 1.0.154, serde_repr 0.1.21, serde_spanned 1.1.2, sha1 0.11.0, sha2 0.11.1, signal-hook-registry 1.4.8, simd_cesu8 1.2.0, siphasher 1.0.4, skrifa 0.44.0, slab 0.4.12, smallvec 1.16.3, smithay-client-toolkit 0.19.2, smithay-client-toolkit 0.20.0, smithay-clipboard 0.7.3, smol_str 0.2.2, stable_deref_trait 1.2.1, syn 1.0.109, syn 2.0.119, syn 3.0.9, synstructure 0.14.0, tempfile 3.27.0, thiserror 1.0.69, thiserror 2.0.21, thiserror-impl 1.0.69, thiserror-impl 2.0.21, toml 1.1.8+spec-1.1.0, toml_datetime 1.1.2+spec-1.1.0, toml_edit 0.25.17+spec-1.1.0, toml_parser 1.1.5+spec-1.1.0, toml_writer 1.1.3+spec-1.1.0, tracing 0.1.44, tracing-attributes 0.1.31, tracing-core 0.1.36, typed-path 0.12.3, typeid 1.0.3, unic-langid 0.9.6, unic-langid-impl 0.9.6, unic-langid-macros 0.9.6, unic-langid-macros-impl 0.9.6, unicode-ident 1.0.27, unicode-segmentation 1.13.3, unicode-width 0.2.2, ureq-proto 0.6.4, url 2.5.8, utf8-zero 0.8.1, utf8_iter 1.0.4, utf8parse 0.2.2, uuid 1.28.0, vello_common 0.1.0, vello_cpu 0.1.0, wait-timeout 0.2.1, waitpid-any 0.3.0, wasi 0.11.1+wasi-snapshot-preview1, wasip2 1.0.4+wasi-0.2.12, wasm-bindgen 0.2.129, wasm-bindgen-futures 0.4.79, wasm-bindgen-macro 0.2.129, wasm-bindgen-macro-support 0.2.129, wasm-bindgen-shared 0.2.129, wayland-backend 0.3.17, wayland-client 0.31.15, wayland-csd-frame 0.3.0, wayland-cursor 0.31.14, wayland-protocols 0.32.13, wayland-protocols-experimental 20250721.0.1, wayland-protocols-misc 0.3.12, wayland-protocols-plasma 0.3.12, wayland-protocols-wlr 0.3.12, wayland-scanner 0.31.11, wayland-sys 0.31.11, web-sys 0.3.106, winnow 1.0.4, winreg 0.56.0, winresource 0.1.34, wit-bindgen 0.57.1, x11-dl 2.21.0, x11rb 0.13.2, x11rb-protocol 0.13.2, xkeysym 0.2.1, zbus 5.19.0, zbus-lockstep 0.5.2, zbus-lockstep-macros 0.5.2, zbus_macros 5.19.0, zbus_names 4.3.4, zbus_xml 5.2.1, zcheapstr 1.1.0, zerocopy 0.8.62, zerocopy-derive 0.8.62, zeroize 1.9.1, zmij 1.0.23, zvariant 5.15.0, zvariant_derive 5.15.0, zvariant_utils 4.2.0
@@ -2914,6 +2922,112 @@ freely, subject to the following restrictions:
 2. Altered source versions must be plainly marked as such, and must not be
    misrepresented as being the original software.
 3. This notice may not be removed or altered from any source distribution.
+```
+
+### Used by 1 package(s): NotoSansJP[wght].ttf
+
+Copyright notices:
+
+- COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+- Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'
+- Copyright Holder(s) and the Author(s) or with their explicit written
+- Copyright Holder. This restriction only applies to the primary font name as
+- copyright statement(s).
+
+```
+Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+This license is copied below, and is also available with a FAQ at:
+https://scripts.sil.org/OFL
+
+
+-----------------------------------------------------------
+SIL OPEN FONT LICENSE Version 1.1 - 26 February 2007
+-----------------------------------------------------------
+
+PREAMBLE
+The goals of the Open Font License (OFL) are to stimulate worldwide
+development of collaborative font projects, to support the font creation
+efforts of academic and linguistic communities, and to provide a free and
+open framework in which fonts may be shared and improved in partnership
+with others.
+
+The OFL allows the licensed fonts to be used, studied, modified and
+redistributed freely as long as they are not sold by themselves. The
+fonts, including any derivative works, can be bundled, embedded, 
+redistributed and/or sold with any software provided that any reserved
+names are not used by derivative works. The fonts and derivatives,
+however, cannot be released under any other type of license. The
+requirement for fonts to remain under this license does not apply
+to any document created using the fonts or their derivatives.
+
+DEFINITIONS
+"Font Software" refers to the set of files released by the Copyright
+Holder(s) under this license and clearly marked as such. This may
+include source files, build scripts and documentation.
+
+"Reserved Font Name" refers to any names specified as such after the
+copyright statement(s).
+
+"Original Version" refers to the collection of Font Software components as
+distributed by the Copyright Holder(s).
+
+"Modified Version" refers to any derivative made by adding to, deleting,
+or substituting -- in part or in whole -- any of the components of the
+Original Version, by changing formats or by porting the Font Software to a
+new environment.
+
+"Author" refers to any designer, engineer, programmer, technical
+writer or other person who contributed to the Font Software.
+
+PERMISSION & CONDITIONS
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of the Font Software, to use, study, copy, merge, embed, modify,
+redistribute, and sell modified and unmodified copies of the Font
+Software, subject to the following conditions:
+
+1) Neither the Font Software nor any of its individual components,
+in Original or Modified Versions, may be sold by itself.
+
+2) Original or Modified Versions of the Font Software may be bundled,
+redistributed and/or sold with any software, provided that each copy
+contains the above copyright notice and this license. These can be
+included either as stand-alone text files, human-readable headers or
+in the appropriate machine-readable metadata fields within text or
+binary files as long as those fields can be easily viewed by the user.
+
+3) No Modified Version of the Font Software may use the Reserved Font
+Name(s) unless explicit written permission is granted by the corresponding
+Copyright Holder. This restriction only applies to the primary font name as
+presented to the users.
+
+4) The name(s) of the Copyright Holder(s) or the Author(s) of the Font
+Software shall not be used to promote, endorse or advertise any
+Modified Version, except to acknowledge the contribution(s) of the
+Copyright Holder(s) and the Author(s) or with their explicit written
+permission.
+
+5) The Font Software, modified or unmodified, in part or in whole,
+must be distributed entirely under this license, and must not be
+distributed under any other license. The requirement for fonts to
+remain under this license does not apply to any document created
+using the Font Software.
+
+TERMINATION
+This license becomes null and void if any of the above conditions are
+not met.
+
+DISCLAIMER
+THE FONT SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT
+OF COPYRIGHT, PATENT, TRADEMARK, OR OTHER RIGHT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
+DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
+OTHER DEALINGS IN THE FONT SOFTWARE.
 ```
 
 ### Used by 1 package(s): adler2 2.0.1

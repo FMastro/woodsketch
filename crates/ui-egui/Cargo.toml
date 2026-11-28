@@ -31,6 +31,9 @@ log = { workspace = true, default-features = false }
 
 [dev-dependencies]
 egui_kittest = { workspace = true, features = ["eframe", "wgpu"] }
+# Reading the cmap of a font the app builds in, to check it can draw what the app says
+# (`tests/fonts.rs`). Already in the graph under egui, and a dev-dependency ships to nobody.
+read-fonts = "0.41"
 image = { version = "0.25", default-features = false, features = ["png"] }
 serde_json.workspace = true
 

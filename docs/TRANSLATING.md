@@ -78,6 +78,21 @@ equivalent of, Fluent can say it — [the guide](https://projectfluent.org/fluen
 4. **Open a pull request.** If step 3 defeats you, open it with just the `.ftl` file and say so —
    adding the line takes ten seconds and is not worth you being blocked on.
 
+### If your language isn't written in Latin letters
+
+WoodSketch draws with the fonts built into it, and those cover Latin and not much else. A
+Japanese, Korean, Chinese, Greek, Cyrillic, Arabic or Hebrew translation needs a font to go with
+it or every word of it reaches the screen as an empty box. That means two more things in the
+pull request: the font file under `assets/fonts/`, openly licensed and with its license file
+beside it (the licenses are written into `THIRD-PARTY-NOTICES.md` from there, which is how the
+font's license ships with the app), and a line in `crates/ui-egui/src/fonts.rs` putting it last
+in the families, where it answers only for the characters the fonts before it don't have.
+
+`cargo test -p woodsketch-ui-egui --test fonts` then checks every character your catalog can put
+on screen against the fonts the app really hands egui, so a missing glyph is a failing test
+rather than something a reader finds. Say in the pull request how big the font is: it goes into
+the download for everyone, in every language, and a CJK face is several megabytes.
+
 That is all. The app reads the computer's language when it first runs and picks the closest match,
 and **View > Language** lets anyone choose. There's no separate download per language: every
 translation is built into the one program, which is why adding yours is a file and a line.

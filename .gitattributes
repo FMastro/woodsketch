@@ -15,3 +15,9 @@ docs/guide/**/*.png binary
 *.png binary
 *.jpg binary
 *.ico binary
+# Same for the fonts built into the app. Nothing covers `assets/` today, so git's own guess is
+# what has been keeping the 9 MB Japanese face intact; this says it rather than relying on it,
+# and `tests/fonts.rs` would catch it if either ever stopped working.
+*.ttf binary
+*.otf binary
+*.ttc binary
