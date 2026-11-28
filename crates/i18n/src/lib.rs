@@ -32,6 +32,7 @@ pub const BASE: &str = "en-US";
 const CATALOGS: &[Catalog] = &[
     Catalog { tag: "en-US", endonym: "English", source: include_str!("../i18n/en-US.ftl") },
     Catalog { tag: "pt-PT", endonym: "Português (Portugal)", source: include_str!("../i18n/pt-PT.ftl") },
+    Catalog { tag: "ja-JP", endonym: "日本語", source: include_str!("../i18n/ja-JP.ftl") },
     // A translation belongs to whoever speaks the language. `docs/TRANSLATING.md` says how to
     // add one, and it is one file and one line here.
 ];

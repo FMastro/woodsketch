@@ -91,9 +91,21 @@ that isn't built in, for tests and for a translator previewing their own file.
   because "fully converted" was wrong twice and both times it was found by eye.
 - `bundle.set_use_isolating(false)`: Fluent otherwise wraps inserted values in invisible
   direction marks, which would sit inside a label and break `get_by_label`.
+- **A language is only translated if the app can draw it.** English and Portuguese ride egui's
+  own Latin fonts; Japanese (#20, contributed) needed Noto Sans JP, 9 MB, built in like the
+  catalogs are -- one binary, nothing loose beside the app to go missing. Everything the app
+  draws with is registered in `ui-egui::fonts::definitions`, kept apart from `install` so a test
+  can read it without a window or a card. `tests/fonts.rs` checks every character every catalog
+  can say against the fonts behind the family it would be drawn in, which is the only test here
+  that would notice a window full of empty boxes: the i18n guards compare keys, and
+  `workflow.rs` reads labels as strings rather than as drawings. It skips Fluent comment lines,
+  since the English one describes the close button with a character no font here carries. A font
+  goes in `assets/fonts/` with its license beside it, which `make-notices.py` writes into
+  `THIRD-PARTY-NOTICES.md` -- `cargo metadata` cannot see a font, and the SIL Open Font License
+  has to travel with a font that travels inside the program.
 - The language is **global**, and `workflow.rs` runs in parallel threads matching English labels,
   so anything that switches language lives in `tests/language.rs` — its own process, one test.
-- **`ui-egui` and `tools` are fully converted** (763 keys). Where a string was also doing a job
+- **`ui-egui` and `tools` are fully converted** (847 keys). Where a string was also doing a job
   besides being read, the two are now separate: a `tray_section` and the Templates and Joinery
   size fields keep an English `salt` beside the translated label (egui remembers a fold or a
   typed field by its id, and a translated id would forget it on switching language);
@@ -366,7 +378,7 @@ new one and fails**, so the fix is to read the diff and commit it.
   "less than half" was written there first and birch (76% of flat-sawn) and walnut (69%) are
   nothing of the kind.
 - Every page is in `SUMMARY.md` and every internal link resolves, both held by tests. English
-  only, deliberately, though the app speaks 763 translated keys.
+  only, deliberately, though the app speaks 847 translated keys.
 - Video is for workflow, text for reference: a video can't be skimmed or searched and one showing
   an old UI looks current forever, so they are short, task-shaped, version-stamped in the first
   frame, and linked from the text page that can carry the correction they can't.

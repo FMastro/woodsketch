@@ -17,6 +17,11 @@ What goes in:
 - No platform filtering, on purpose. The same file ships beside the Windows, macOS and Linux
   builds, so it has to name the packages all three use; filtering to the machine that ran this
   is how the macOS notices came to be missing every `objc2` package.
+- The fonts in `assets/fonts`, which `cargo metadata` cannot see: they are `include_bytes!`d
+  into the executable rather than reached through a package, so nothing else here would ever
+  mention them. The SIL Open Font License asks to travel with the font it covers, and that font
+  travels inside the program -- which makes this file the only place it can travel. A font put
+  there without its license beside it stops this script, and so fails the `notices` job.
 
 Licenses with the same text are listed once, under every package that carries it, with all of
 their copyright lines together -- a hundred copies of the MIT license differing only in the
@@ -40,6 +45,9 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 NOTICES = ROOT / "THIRD-PARTY-NOTICES.md"
+# Fonts built into the app, and the licenses that came with them, side by side in one folder.
+FONTS = ROOT / "assets/fonts"
+FONT_FILE = re.compile(r"\.(ttf|otf|ttc)$", re.IGNORECASE)
 
 # What a license file is called, in the order to read them.
 LICENSE_FILE = re.compile(r"^(LICEN[CS]E|COPYING|NOTICE)", re.IGNORECASE)
@@ -126,6 +134,23 @@ def copyrights(text):
     return [line.strip() for line in text.splitlines() if COPYRIGHT.match(line)]
 
 
+def fonts():
+    """The fonts inside the executable, and the license texts beside them.
+
+    Paired by folder rather than by name: a license file is named after the license
+    (`OFL-1.1-...`) and not after the font, while everything in there covers something in there.
+    What has to hold is that no font ships without one, which is what the exit below is for.
+    """
+    if not FONTS.is_dir():
+        return [], []
+    beside = sorted(p for p in FONTS.iterdir() if p.is_file())
+    files = [p for p in beside if FONT_FILE.search(p.name)]
+    texts = [p for p in beside if not FONT_FILE.search(p.name)]
+    if files and not texts:
+        sys.exit(f"{FONTS.relative_to(ROOT)} has fonts and no license beside them. A font built into the app ships with the app, and so must its license.")
+    return files, texts
+
+
 def notices(meta):
     """The whole file."""
     wanted = shipped(meta)
@@ -152,6 +177,28 @@ def notices(meta):
             if named not in group["packages"]:
                 group["packages"].append(named)
             group["notices"].update(copyrights(text))
+
+    # The fonts are listed where a reader looks for what is in the program, and their licenses
+    # go through the same grouping as the packages' below, so one OFL is written out once
+    # however many fonts carry it.
+    font_files, font_texts = fonts()
+    if font_files:
+        out.append("\n## Fonts built into the app\n")
+        out.append(
+            "Built into the executable rather than reached as packages, so `cargo metadata`"
+            " doesn't see them. Their licenses are below, with everything else's.\n"
+        )
+        out.append("| Font | Where |")
+        out.append("|---|---|")
+        for font in font_files:
+            out.append(f"| {font.name} | `{font.relative_to(ROOT).as_posix()}` |")
+    for text_file in font_texts:
+        text = text_file.read_text(encoding="utf-8", errors="replace").strip()
+        carried = ", ".join(f.name for f in font_files)
+        group = held.setdefault(same_license(text), {"packages": [], "notices": set(), "text": text})
+        if carried not in group["packages"]:
+            group["packages"].append(carried)
+        group["notices"].update(copyrights(text))
 
     out.append("\n## Licenses\n")
     # Widest first, then by name, so the file is stable and the licenses that matter most are up

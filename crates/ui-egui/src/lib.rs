@@ -8,6 +8,7 @@ pub mod crash;
 mod cutlist;
 pub mod feedback;
 pub mod files;
+pub mod fonts;
 mod gpu;
 pub mod graphics;
 pub mod help;
@@ -129,7 +130,7 @@ impl WoodSketchApp {
             woodsketch_doc::units::set_units(units);
         }
         let render_state = cc.wgpu_render_state.as_ref().expect("WoodSketch needs eframe's wgpu renderer");
-        icons::install(&cc.egui_ctx);
+        fonts::install(&cc.egui_ctx);
         // Light and dark looks, and the one last chosen (View > Theme; light at first).
         cc.egui_ctx.set_visuals_of(egui::Theme::Light, chrome::visuals(false));
         cc.egui_ctx.set_visuals_of(egui::Theme::Dark, chrome::visuals(true));

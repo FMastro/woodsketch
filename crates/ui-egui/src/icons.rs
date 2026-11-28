@@ -1,22 +1,11 @@
 //! Toolbar icons from the Phosphor icon font (MIT), drawn as text glyphs. The toolbars draw them in
 //! two colors, as SketchUp's are (its navy and red): the filled glyph in amber behind, the outline
-//! in walnut over it, the logo's wood colors (see [`paint`]).
+//! in walnut over it, the logo's wood colors (see [`paint`]). The font itself is registered in
+//! `fonts.rs`, with everything else the app draws with.
 
 use eframe::egui;
 use egui_phosphor::regular as ph;
 use woodsketch_tools::ToolId;
-
-/// Register the icon font as a fallback for egui's default fonts.
-pub fn install(ctx: &egui::Context) {
-    let mut fonts = egui::FontDefinitions::default();
-    egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
-    // The filled glyphs, by name only: the second color under the outline.
-    egui_phosphor::add_font_bytes_as_family(&mut fonts, FILL, egui_phosphor::Variant::Fill.font_bytes());
-    ctx.set_fonts(fonts);
-}
-
-/// The font family of the filled glyphs.
-const FILL: &str = "phosphor-fill";
 
 /// Walnut and amber, from the logo (lighter for the dark theme).
 const OUTLINE: egui::Color32 = egui::Color32::from_rgb(0x3a, 0x27, 0x18);
@@ -37,7 +26,7 @@ pub fn paint(ui: &egui::Ui, rect: egui::Rect, icon: &str, size: f32, enabled: bo
     };
     let painter = ui.painter();
     let at = rect.center();
-    painter.text(at, egui::Align2::CENTER_CENTER, icon, egui::FontId::new(size, egui::FontFamily::Name(FILL.into())), accent);
+    painter.text(at, egui::Align2::CENTER_CENTER, icon, egui::FontId::new(size, egui::FontFamily::Name(crate::fonts::FILL.into())), accent);
     painter.text(at, egui::Align2::CENTER_CENTER, icon, egui::FontId::proportional(size), outline);
 }
 

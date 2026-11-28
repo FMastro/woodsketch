@@ -5145,6 +5145,7 @@ dependencies = [
  "image",
  "log",
  "png",
+ "read-fonts",
  "rfd",
  "serde",
  "serde_json",
