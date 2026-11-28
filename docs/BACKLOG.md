@@ -16,7 +16,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 3 | Templates | 134 | Fast wins on the built-in templates; the parametric ones are in |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 0 | Nothing outstanding; the live link was dropped |
-| 6 | Release polish | 34 | Both platforms signed; the rest is packaging and reach |
+| 6 | Release polish | 33 | Both platforms signed; the rest is packaging and reach |
 | 7 | Start page and samples | 10 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
 | 9 | Cut list and materials | 171 | Better buying and cutting |
@@ -29,7 +29,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1346** | |
+| | **All** | **1345** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -196,17 +196,21 @@ left nothing behind, which is what a graphics driver crash or running out of mem
 
 5. [5] Screenshots for the guide made by the UI tests (egui_kittest snapshots of each step), so
     they're redone when the app changes instead of going stale.
-6. [3] A failed staging write still closes the app. `egui-wgpu`'s `update_buffers` calls `panic!`
-    when `Queue::write_buffer_with` hands back `None` -- a staging allocation the driver refused,
-    which is what a lost device looks like (#22, on a GTX 1660 Ti with an empty drawing).
-    `gpu::Trouble` already hears the error wgpu reports a moment earlier, so the seatbelt is on
-    and the next run now moves off that backend by itself (0.1.92); the panic is simply past it. Both the panic and the painter that would skip the frame live
-    inside `egui-wgpu` (0.37 the same), so there is nothing to catch from here: handling it means a
-    `[patch.crates-io]` copy of that one crate -- its published manifest carries no path deps, so
-    patching it duplicates no egui types -- writing through `queue.write_buffer` instead, and
-    filling the slices either way, since `render()` panics in turn on slices that aren't there.
-    Worth sending upstream first: the fix belongs there, and a vendored dependency has to be
-    re-vendored at every egui upgrade. Autosave being prompt is what makes the wait affordable.
+6. [2] A failed staging write still closes the app, and the fix is upstream's to land.
+    `egui-wgpu`'s `update_buffers` calls `panic!` when `Queue::write_buffer_with` hands back
+    `None` -- a staging allocation the driver refused, which is what a lost device looks like
+    (#22, on a GTX 1660 Ti with an empty drawing). `gpu::Trouble` hears the error wgpu reports a
+    moment earlier, so the seatbelt is on and the next run moves off that backend by itself
+    (0.1.92); the panic is simply past it, and both it and the painter that would skip the frame
+    live inside `egui-wgpu` (0.37 the same), so there is nothing to catch from here.
+    **It is known upstream and already has two pull requests**, so the answer is to wait for one
+    rather than to vendor the crate: `emilk/egui#8450` and `#8265` are the issue (our report is a
+    comment on the first), `#8452` falls back to `queue.write_buffer` exactly as we would have,
+    and `#8952` logs it and skips the mesh for that frame, clearing the slices so `render()`
+    doesn't trip on stale ones. What is left here: watch them, say so on #22 when one lands, take
+    the egui upgrade that carries it, and drop the backend fall-back's extra work if it turns out
+    the frame can simply be skipped. Vendoring `egui-wgpu` through `[patch.crates-io]` stays the
+    answer only if both PRs die; autosave being prompt is what makes the wait affordable.
 7. [13] Fetch a language when it is chosen, instead of building every one in. Japanese (#20)
     put 9.6 MB of font into every download, on all six platforms, for everyone, and the next
     language written in a script of its own costs that again. The catalogs are not the problem
