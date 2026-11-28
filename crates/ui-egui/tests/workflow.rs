@@ -1767,6 +1767,44 @@ fn a_crash_leaves_unsaved_work_to_recover() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// Work reaches the disk by itself a few seconds after the editing stops. The unit tests in
+/// `autosave` hold the decision with the clock handed to them; this holds the wiring -- that the
+/// app really asks, and that the repaint it schedules arrives, so the copy is written while
+/// nobody is touching the mouse rather than waiting for the next thing that happens to cause a
+/// frame. That is the whole protection against a quiet stop, which runs no panic hook.
+#[test]
+fn unsaved_work_reaches_the_disk_soon_after_the_editing_stops() {
+    let dir = std::env::temp_dir().join(format!("woodsketch-autosave-soon-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+
+    let mut harness = app();
+    harness.state_mut().use_autosave_folder(dir.clone());
+    harness.run();
+    let copies = || {
+        std::fs::read_dir(&dir).map(|entries| entries.flatten().filter(|e| e.path().extension().is_some_and(|x| x == "woodsketch")).count()).unwrap_or_default()
+    };
+    assert_eq!(copies(), 0, "nothing to save yet");
+
+    harness.state_mut().document_mut().edit(|m| m.add_rectangle(glam::DVec3::ZERO, glam::DVec3::X * 3.0, glam::DVec3::Y * 2.0, glam::DVec3::Z));
+    harness.run();
+    assert!(harness.state().is_dirty(), "an edit nobody has saved");
+
+    // Generous: the point is that it happens on its own and soon, not that it happens at five
+    // seconds exactly. A machine under load mustn't fail this.
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    while copies() == 0 {
+        assert!(std::time::Instant::now() < deadline, "20 seconds after an edit, nothing had been autosaved");
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        harness.run();
+    }
+
+    let file = std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.path()).find(|p| p.extension().is_some_and(|x| x == "woodsketch")).expect("the copy");
+    let saved = woodsketch_ui_egui::files::Files::read(&file).expect("the copy opens");
+    assert_eq!(saved.model().faces().count(), 1, "the work itself is in it");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn a_crash_is_offered_for_a_report_at_the_next_start() {
     use egui_kittest::kittest::Queryable;

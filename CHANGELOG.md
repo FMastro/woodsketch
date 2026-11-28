@@ -13,6 +13,12 @@ only where someone wants it. It carries no full stop of its own, since the hyphe
 and it is short enough to take in at a glance (70 characters is the limit a test holds it to).
 What's New shows the lead in the strong colour, GitHub shows it in bold.
 
+## 0.1.90
+
+- **Unsaved work is kept up to date** - a copy is written a few seconds after you stop making
+  changes instead of every two minutes, so a crash or a power cut takes seconds of work with it
+  rather than minutes.
+
 ## 0.1.89
 
 - **A page for every tray panel** - the guide explains what each panel is for and what each

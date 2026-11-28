@@ -1,8 +1,16 @@
-//! Autosave and crash recovery. While a drawing has unsaved changes, a copy is written every
-//! [`INTERVAL`] to WoodSketch's settings folder (not next to the drawing, so synced folders
-//! don't fill with temporary files). Saving, opening, starting a new drawing or closing normally
-//! removes it; one still there when WoodSketch starts means it didn't close properly, and is
-//! offered back.
+//! Autosave and crash recovery. While a drawing has unsaved changes, a copy is written to
+//! WoodSketch's settings folder (not next to the drawing, so synced folders don't fill with
+//! temporary files) [`SETTLE`] after the last change, and every [`MOST`] through editing that
+//! never lets up. Saving, opening, starting a new drawing or closing normally removes it; one
+//! still there when WoodSketch starts means it didn't close properly, and is offered back.
+//!
+//! It used to be written every two minutes, which is two minutes of somebody's work to lose.
+//! Three crash reports in a week made the case for closing that gap. One was a panic, where the
+//! hook in `crash.rs` at least gets to write a report; two were quiet stops, the process gone
+//! with no Rust code of ours running again -- and for those a recent copy on disk is the only
+//! protection there can be, since there is no hook to install and nothing to save from. Writing
+//! the biggest drawing here (the Small house, 2.4 MB) takes 8 ms, so writing it this often costs
+//! nothing anybody would miss.
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime};
@@ -11,8 +19,11 @@ use woodsketch_doc::Document;
 use woodsketch_doc::file;
 use woodsketch_i18n::t;
 
-/// How often unsaved changes are written.
-pub const INTERVAL: Duration = Duration::from_secs(120);
+/// How long after the last change the drawing is written, once the hand has come off it.
+pub const SETTLE: Duration = Duration::from_secs(5);
+/// How long an unbroken run of changes may go unwritten. The settle clock alone would keep
+/// putting the write off for as long as somebody kept dragging something about.
+pub const MOST: Duration = Duration::from_secs(30);
 
 /// A drawing autosaved by a session that didn't close properly.
 #[derive(Clone, Debug, PartialEq)]
@@ -42,12 +53,15 @@ pub struct Autosave {
     dir: Option<PathBuf>,
     /// The model version last written, so an unchanged drawing isn't written again.
     written_version: Option<u64>,
-    last: Instant,
+    /// The change waiting to be written: which version it is, and when it arrived.
+    waiting: Option<(u64, Instant)>,
+    /// When the oldest change not yet written arrived, which is what [`MOST`] is measured from.
+    since: Option<Instant>,
 }
 
 impl Autosave {
     pub fn new(dir: Option<PathBuf>) -> Self {
-        Self { dir, written_version: None, last: Instant::now() }
+        Self { dir, written_version: None, waiting: None, since: None }
     }
 
     /// This session's autosave file.
@@ -55,18 +69,31 @@ impl Autosave {
         Some(self.dir.as_ref()?.join(format!("autosave-{}.woodsketch", std::process::id())))
     }
 
-    /// Write the drawing if it has unsaved changes not yet autosaved and [`INTERVAL`] has passed.
-    /// Returns how long until it should be checked again (to schedule a repaint), if ever.
+    /// Write the drawing if it has unsaved changes and the editing has settled -- or has gone on
+    /// for [`MOST`] without settling. Returns how long until it should be looked at again (to
+    /// schedule a repaint), if ever.
     pub fn tick(&mut self, doc: &Document, original: Option<&Path>, dirty: bool, now: Instant) -> Result<Option<Duration>, String> {
-        if self.dir.is_none() || !dirty || self.written_version == Some(doc.model_version()) {
+        let version = doc.model_version();
+        if self.dir.is_none() || !dirty || self.written_version == Some(version) {
+            // Nothing is waiting, so both clocks start again with whatever changes next.
+            self.waiting = None;
+            self.since = None;
             return Ok(None);
         }
-        let due = self.last + INTERVAL;
+        // A change nobody has written yet. Its own clock restarts each time the drawing changes
+        // again, so the write lands when the hand comes off rather than in the middle of a drag;
+        // `since` is the answer to a hand that never comes off.
+        if self.waiting.is_none_or(|(v, _)| v != version) {
+            self.waiting = Some((version, now));
+        }
+        let settled = self.waiting.expect("set just above unless it was already this version").1 + SETTLE;
+        let capped = *self.since.get_or_insert(now) + MOST;
+        let due = settled.min(capped);
         if now < due {
             return Ok(Some(due - now));
         }
         self.write(doc, original)?;
-        self.last = now;
+        self.since = None;
         Ok(None)
     }
 
@@ -89,7 +116,8 @@ impl Autosave {
             let _ = std::fs::remove_file(path.with_extension("path"));
         }
         self.written_version = None;
-        self.last = Instant::now();
+        self.waiting = None;
+        self.since = None;
     }
 
     /// Autosaves left by sessions that didn't close properly, newest first.
@@ -133,7 +161,7 @@ mod tests {
     }
 
     #[test]
-    fn unsaved_changes_are_written_after_the_interval_and_cleared_on_save() {
+    fn unsaved_changes_are_written_once_the_editing_settles_and_cleared_on_save() {
         let dir = folder("tick");
         let mut autosave = Autosave::new(Some(dir.clone()));
         let doc = drawing();
@@ -141,13 +169,13 @@ mod tests {
         let original = Path::new("C:/Shop/Nightstand.woodsketch");
         assert!(autosave.tick(&doc, Some(original), true, start).unwrap().is_some(), "not yet");
         assert!(autosave.file().is_some_and(|f| !f.exists()));
-        autosave.tick(&doc, Some(original), true, start + INTERVAL).unwrap();
+        autosave.tick(&doc, Some(original), true, start + SETTLE).unwrap();
         let file = autosave.file().unwrap();
-        assert!(file.exists(), "written after the interval");
-        assert_eq!(autosave.tick(&doc, Some(original), true, start + INTERVAL * 3).unwrap(), None, "unchanged: not again");
+        assert!(file.exists(), "written once the editing settled");
+        assert_eq!(autosave.tick(&doc, Some(original), true, start + SETTLE * 3).unwrap(), None, "unchanged: not again");
 
         // Another session (a new start after a crash) finds it, with the drawing's own file.
-        let next = Autosave { dir: Some(dir.clone()), written_version: None, last: Instant::now() };
+        let next = Autosave { dir: Some(dir.clone()), written_version: None, waiting: None, since: None };
         let mut leftovers = next.leftovers();
         assert!(leftovers.is_empty(), "this session's own file isn't a leftover");
         std::fs::rename(&file, dir.join("autosave-1.woodsketch")).unwrap();
@@ -167,10 +195,48 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// Each change puts the write off a little, so a drag isn't written at every step -- and
+    /// editing that never stops is written anyway, since how much work a crash can take with it
+    /// is the whole point.
+    #[test]
+    fn a_change_puts_the_write_off_but_only_so_far() {
+        let dir = folder("settle");
+        let mut autosave = Autosave::new(Some(dir.clone()));
+        let mut doc = drawing();
+        let mut square = 1.0;
+        let mut change = |doc: &mut Document| {
+            square += 2.0;
+            doc.edit(|m| m.add_rectangle(glam::DVec3::new(square, 0.0, 0.0), glam::DVec3::X, glam::DVec3::Y, glam::DVec3::Z));
+        };
+
+        // A change a second, as a drag would arrive. Nothing is written while it is still
+        // going, because each change puts the write off again.
+        let start = Instant::now();
+        let mut now = start;
+        let file = autosave.file().expect("a file");
+        for _ in 0..3 {
+            change(&mut doc);
+            assert!(autosave.tick(&doc, None, true, now).unwrap().is_some(), "still waiting {:?} in", now - start);
+            assert!(!file.exists(), "written {:?} in, while the editing was still going", now - start);
+            now += Duration::from_secs(1);
+        }
+        // Keep it up and it is written anyway, inside a minute however long the editing lasts.
+        // A number rather than `MOST`, so this says what the guarantee is instead of agreeing
+        // with whatever the constant happens to be.
+        let deadline = start + Duration::from_secs(60);
+        while !file.exists() {
+            assert!(now <= deadline, "editing that didn't let up went {:?} unwritten", now - start);
+            change(&mut doc);
+            autosave.tick(&doc, None, true, now).unwrap();
+            now += Duration::from_secs(1);
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn off_without_a_folder() {
         let mut autosave = Autosave::new(None);
-        assert_eq!(autosave.tick(&drawing(), None, true, Instant::now() + INTERVAL * 2).unwrap(), None);
+        assert_eq!(autosave.tick(&drawing(), None, true, Instant::now() + MOST * 2).unwrap(), None);
         assert!(autosave.leftovers().is_empty());
     }
 

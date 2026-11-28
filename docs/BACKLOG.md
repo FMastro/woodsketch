@@ -16,7 +16,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 3 | Templates | 134 | Fast wins on the built-in templates; the parametric ones are in |
 | 4 | Drawers, doors and hardware | 84 | Rounds out cabinets |
 | 5 | Agent-ready | 0 | Nothing outstanding; the live link was dropped |
-| 6 | Release polish | 18 | Both platforms signed; the rest is packaging and reach |
+| 6 | Release polish | 21 | Both platforms signed; the rest is packaging and reach |
 | 7 | Start page and samples | 10 | What someone sees in the first minute |
 | 8 | Importing | 225 | Gets people's existing models in |
 | 9 | Cut list and materials | 171 | Better buying and cutting |
@@ -29,7 +29,7 @@ new joint; a 21 is a milestone like the SketchUp reader; 40 and 100 are projects
 | 16 | Rendering and performance | 66 | Only pressing for very big models |
 | 17 | Export | 54 | More ways out (CNC, other apps) |
 | 18 | Later | 100 | Separate projects |
-| | **All** | **1330** | |
+| | **All** | **1333** | |
 
 ## 1. Build sheets and assembly
 Done: a page per part (size, stock, three dimensioned views, steps in shop order); assembly pages
@@ -196,6 +196,17 @@ left nothing behind, which is what a graphics driver crash or running out of mem
 
 5. [5] Screenshots for the guide made by the UI tests (egui_kittest snapshots of each step), so
     they're redone when the app changes instead of going stale.
+6. [3] A failed staging write still closes the app. `egui-wgpu`'s `update_buffers` calls `panic!`
+    when `Queue::write_buffer_with` hands back `None` -- a staging allocation the driver refused,
+    which is what a lost device looks like (#22, on a GTX 1660 Ti with an empty drawing).
+    `gpu::Trouble` already hears the error wgpu reports a moment earlier, so the seatbelt is on;
+    the panic is simply past it. Both the panic and the painter that would skip the frame live
+    inside `egui-wgpu` (0.37 the same), so there is nothing to catch from here: handling it means a
+    `[patch.crates-io]` copy of that one crate -- its published manifest carries no path deps, so
+    patching it duplicates no egui types -- writing through `queue.write_buffer` instead, and
+    filling the slices either way, since `render()` panics in turn on slices that aren't there.
+    Worth sending upstream first: the fix belongs there, and a vendored dependency has to be
+    re-vendored at every egui upgrade. Autosave being prompt is what makes the wait affordable.
 ## 7. Start page and samples
 Done: the Start page (New in either unit, Open, Import, Recent, Samples) over an empty drawing
 rather than in front of the app, Esc to leave, File > Start Page to come back; units saved with

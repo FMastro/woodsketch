@@ -408,8 +408,12 @@ add it there; when you finish an item, remove it.
    File menu + Ctrl+N/O/S/Shift+S, native dialogs (`rfd`), title shows `*` when unsaved,
    "Save changes?" before New/Open/Close, `woodsketch drawing.woodsketch` opens a file. File > Open Recent
    (last 10, kept with eframe's persistence; the window itself isn't restored). Saves write a temp file
-   and swap it in; unsaved changes autosave every 2 minutes to the settings folder
-   (`ui-egui::autosave`), offered back at start after a crash.
+   and swap it in; unsaved changes autosave to the settings folder (`ui-egui::autosave`),
+   offered back at start after a crash. The copy is written `SETTLE` (5 s) after the last change
+   and at least every `MOST` (30 s) through editing that never lets up, rather than on a
+   two-minute clock: a quiet stop (a driver taking the process down, the power going) runs no
+   panic hook and leaves nothing to save from, so how recent that copy is **is** the protection.
+   Writing the biggest drawing here takes 8 ms, which is what makes the frequency affordable.
 11. Cut list (done): `doc::cutlist` (parts = visible groups/components with faces, grouped by
    material + size, labeled A, B...; CSV) and `doc::cutplan` (sheet goods + solid wood: 2D
    guillotine packing, grain-aware; lumber: smallest standard section, 1D packing over each
